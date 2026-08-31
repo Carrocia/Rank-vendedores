@@ -197,45 +197,50 @@
     background: radial-gradient(circle at 15% 20%, var(--accent-glow), transparent 55%);
     pointer-events: none;
   }
-  @property --rot {
-    syntax: '<angle>';
-    inherits: false;
-    initial-value: 0deg;
+  .goal-ring-wrap {
+    position: relative; width: 132px; height: 132px; flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--border), 0 0 30px var(--accent-glow), inset 0 0 24px rgba(0,0,0,0.35);
+    animation: jarGlow 3.6s ease-in-out infinite;
+  }
+  @keyframes jarGlow {
+    0%, 100% { box-shadow: 0 0 0 3px var(--border), 0 0 22px var(--accent-glow), inset 0 0 24px rgba(0,0,0,0.35); }
+    50% { box-shadow: 0 0 0 3px var(--border), 0 0 34px var(--accent-glow), inset 0 0 24px rgba(0,0,0,0.35); }
   }
 
-  .goal-ring-wrap { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
-  .goal-ring {
-    width: 100%; height: 100%; border-radius: 50%;
-    background: conic-gradient(from var(--rot, 0deg), var(--accent) calc(var(--pct, 0) * 1%), var(--surface-hover) 0);
-    box-shadow: 0 0 26px var(--accent-glow);
-    transition: background 0.3s linear;
-    animation: ringSpin 5s linear infinite;
+  .goal-liquid-jar {
+    position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
+    background: var(--surface-solid);
   }
-  @keyframes ringSpin { from { --rot: 0deg; } to { --rot: 360deg; } }
+  .goal-liquid {
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 0%;
+    background: linear-gradient(180deg, var(--accent), var(--accent2));
+  }
+  .wave-surface {
+    position: absolute; top: -8px; left: 0; width: 100%; height: 16px; overflow: hidden;
+  }
+  .wave-surface.wave-back { top: -5px; height: 12px; opacity: 0.55; }
+  .wave-track {
+    position: absolute; top: 0; left: 0; width: 200%; height: 100%;
+    display: flex; animation: waveScroll 5s linear infinite;
+  }
+  .wave-back .wave-track { animation-duration: 8s; animation-direction: reverse; }
+  .wave-track svg { width: 50%; height: 100%; display: block; flex-shrink: 0; }
+  @keyframes waveScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-  .goal-ring-inner {
-    position: absolute; inset: 11px; border-radius: 50%; background: var(--bg);
+  .goal-ring-content {
+    position: absolute; inset: 0; z-index: 2;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    overflow: hidden;
-  }
-  .goal-ring-inner::before {
-    content: ''; position: absolute; inset: -20%; border-radius: 40%;
-    background: radial-gradient(circle at 50% 50%, var(--accent-glow), transparent 65%);
-    animation: liquidSwirl 4.5s ease-in-out infinite;
     pointer-events: none;
   }
-  @keyframes liquidSwirl {
-    0%, 100% { transform: translate(-8%, -6%) rotate(0deg) scale(1); }
-    33% { transform: translate(8%, -4%) rotate(120deg) scale(1.15); }
-    66% { transform: translate(-4%, 8%) rotate(240deg) scale(0.95); }
-  }
   .goal-ring-pct {
-    position: relative; z-index: 1;
-    font-size: 1.5rem; font-weight: 900; color: var(--heading-color); display: inline-block;
-    animation: pctPulse 2.4s ease-in-out infinite;
+    font-size: 1.5rem; font-weight: 900; color: #fff; display: inline-block;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.55);
   }
-  @keyframes pctPulse { 0%,100% { transform: scale(1); text-shadow: 0 0 0 transparent; } 50% { transform: scale(1.06); text-shadow: 0 0 14px var(--accent-glow); } }
-  .goal-ring-label { position: relative; z-index: 1; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
+  .goal-ring-label {
+    font-size: 0.6rem; color: rgba(255,255,255,0.75); text-transform: uppercase;
+    letter-spacing: 0.6px; margin-top: 2px; text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+  }
   .goal-info { flex: 1; min-width: 220px; position: relative; }
   .goal-label {
     font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
@@ -317,14 +322,128 @@
   @media (prefers-reduced-motion: reduce) {
     .bg-fx .orb, .bg-fx .grid, .ticker-track, .live-dot,
     .podium-stand[data-rank="1"] .podium-photo-wrap::before,
-    .crown, .sparkle, .podium-base::after, .goal-ring-pct,
-    .goal-ring, .goal-ring-inner::before { animation: none !important; }
-    .podium-base, .goal-ring { transition: none !important; }
+    .crown, .sparkle, .podium-base::after,
+    .goal-ring-wrap, .wave-track,
+    .confetti-piece, .celebration-photo-wrap::before, .celebration-crown,
+    .celebration-title, .celebration-card,
+    .signal-rings span, .signal-bars span { animation: none !important; }
+    .podium-base, .goal-liquid { transition: none !important; }
   }
 
   .dashboard-footer {
     text-align: center; margin-top: 20px; padding-top: 24px;
     border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.8rem;
+  }
+
+  /* ---------- botão anunciar destaque ---------- */
+  .tabs-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+  .tabs-row .tab-bar { margin-bottom: 0; }
+  .celebrate-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: linear-gradient(90deg, #ffc94d, #ff8f4d);
+    color: #241800; font-weight: 800; font-size: 0.85rem; font-family: inherit;
+    border: none; padding: 12px 22px; border-radius: 50px; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(255,180,60,0.35);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .celebrate-btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 26px rgba(255,180,60,0.45); }
+
+  /* ---------- tela de celebração ---------- */
+  .celebration-overlay {
+    position: fixed; inset: 0; z-index: 999; overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, rgba(33,217,255,0.18), rgba(6,8,16,0.97) 70%);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.35s ease;
+  }
+  .celebration-overlay.active { opacity: 1; pointer-events: auto; }
+
+  .confetti-field { position: absolute; inset: 0; overflow: hidden; z-index: 1; pointer-events: none; }
+  .confetti-piece {
+    position: absolute; top: -20px;
+    animation-name: confettiFall; animation-timing-function: linear; animation-iteration-count: infinite;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(-40px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0.85; }
+  }
+
+  .celebration-close {
+    position: absolute; top: 24px; right: 28px; z-index: 2;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface-solid); border: 1px solid var(--border); color: var(--text);
+    font-size: 1.4rem; line-height: 1; cursor: pointer;
+  }
+
+  .celebration-content { position: relative; z-index: 2; text-align: center; padding: 20px; max-width: 900px; }
+  .celebration-title {
+    font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 900; margin-bottom: 8px;
+    background: linear-gradient(90deg, #ffc94d, #ff5fae, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: titlePop 0.6s cubic-bezier(0.34, 1.6, 0.64, 1);
+  }
+  @keyframes titlePop { from { opacity: 0; transform: scale(0.7) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  .celebration-subtitle {
+    font-size: 1rem; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 40px;
+  }
+
+  .celebration-winners { display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; }
+  .celebration-card {
+    display: flex; flex-direction: column; align-items: center;
+    animation: cardRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .celebration-card:nth-child(2) { animation-delay: 0.15s; }
+  @keyframes cardRise { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+  .celebration-photo-wrap { position: relative; width: 150px; height: 150px; margin-bottom: 20px; }
+  .celebration-photo-wrap::before {
+    content: ''; position: absolute; inset: -12px; border-radius: 50%;
+    background: conic-gradient(from 0deg, #ffc94d, transparent 55%, #ffc94d);
+    animation: spin 3s linear infinite; filter: blur(1px);
+  }
+  .celebration-photo {
+    position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+    border: 5px solid #ffc94d; box-shadow: 0 0 0 6px rgba(255,201,77,0.3), 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .celebration-crown {
+    position: absolute; top: -36px; left: 50%; z-index: 3;
+    transform: translateX(-50%) rotate(-6deg); font-size: 2.6rem;
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5));
+    animation: floatCrown 2.6s ease-in-out infinite;
+  }
+  .celebration-role {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--accent); margin-bottom: 4px;
+  }
+  .celebration-name { font-size: 1.4rem; font-weight: 900; color: #fff; }
+  .celebration-value {
+    font-size: 1rem; font-weight: 800; color: #ffc94d; margin-top: 6px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+
+  /* ---------- toques telecom: sinal em barras + pulsos de radar ---------- */
+  .signal-bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 14px; margin-right: 8px; vertical-align: middle; }
+  .signal-bars span { width: 4px; background: var(--accent); border-radius: 2px; animation: barBounce 1s ease-in-out infinite; }
+  .signal-bars span:nth-child(1) { height: 40%; animation-delay: 0s; }
+  .signal-bars span:nth-child(2) { height: 70%; animation-delay: 0.15s; }
+  .signal-bars span:nth-child(3) { height: 100%; animation-delay: 0.3s; }
+  .signal-bars span:nth-child(4) { height: 60%; animation-delay: 0.45s; }
+  @keyframes barBounce { 0%, 100% { transform: scaleY(0.6); } 50% { transform: scaleY(1); } }
+
+  .signal-rings { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; pointer-events: none; z-index: 1; }
+  .signal-rings span {
+    position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px;
+    border: 2px solid var(--accent); border-radius: 50%;
+    animation: signalPulse 3s ease-out infinite;
+    opacity: 0;
+  }
+  .signal-rings span:nth-child(2) { animation-delay: 1s; border-color: var(--accent2); }
+  .signal-rings span:nth-child(3) { animation-delay: 2s; border-color: #ffc94d; }
+  @keyframes signalPulse {
+    0% { width: 10px; height: 10px; margin: -5px; opacity: 0.8; }
+    100% { width: 900px; height: 900px; margin: -450px; opacity: 0; }
   }
 
   @media (max-width: 640px) {
@@ -374,18 +493,37 @@
     </div>
   </header>
 
-  <div class="tab-bar anim-in" role="tablist">
-    <button type="button" class="tab-button active" data-tab="semanal" role="tab" aria-selected="true">Ranking Semanal</button>
-    <button type="button" class="tab-button" data-tab="mensal" role="tab" aria-selected="false">Ranking Mensal</button>
+  <div class="tabs-row">
+    <div class="tab-bar anim-in" role="tablist">
+      <button type="button" class="tab-button active" data-tab="semanal" role="tab" aria-selected="true">Ranking Semanal</button>
+      <button type="button" class="tab-button" data-tab="mensal" role="tab" aria-selected="false">Ranking Mensal</button>
+    </div>
+    <button type="button" class="celebrate-btn anim-in" id="celebrateBtn">🎉 Anunciar Destaque</button>
   </div>
 
   <main class="ranking-panel anim-in" data-tab-panel="semanal">
     <section class="goal-card" id="goal-semanal">
       <div class="goal-ring-wrap">
-        <div class="goal-ring"><div class="goal-ring-inner">
+        <div class="goal-liquid-jar">
+          <div class="goal-liquid">
+            <div class="wave-surface">
+              <div class="wave-track">
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 C8.33,4 16.67,4 25,10 C33.33,16 41.67,16 50,10 C58.33,4 66.67,4 75,10 C83.33,16 91.67,16 100,10 L100,20 L0,20 Z" fill="rgba(255,255,255,0.35)"/></svg>
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 C8.33,4 16.67,4 25,10 C33.33,16 41.67,16 50,10 C58.33,4 66.67,4 75,10 C83.33,16 91.67,16 100,10 L100,20 L0,20 Z" fill="rgba(255,255,255,0.35)"/></svg>
+              </div>
+            </div>
+            <div class="wave-surface wave-back">
+              <div class="wave-track">
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,12 C10,4 20,4 30,12 C40,20 50,20 60,12 C70,4 80,4 90,12 C95,16 98,16 100,12 L100,20 L0,20 Z" fill="rgba(255,255,255,0.5)"/></svg>
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,12 C10,4 20,4 30,12 C40,20 50,20 60,12 C70,4 80,4 90,12 C95,16 98,16 100,12 L100,20 L0,20 Z" fill="rgba(255,255,255,0.5)"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="goal-ring-content">
           <span class="goal-ring-pct">0%</span>
           <span class="goal-ring-label">da meta</span>
-        </div></div>
+        </div>
       </div>
       <div class="goal-info">
         <span class="goal-label">Meta da Filial</span>
@@ -411,10 +549,26 @@
   <main class="ranking-panel hidden" data-tab-panel="mensal">
     <section class="goal-card" id="goal-mensal">
       <div class="goal-ring-wrap">
-        <div class="goal-ring"><div class="goal-ring-inner">
+        <div class="goal-liquid-jar">
+          <div class="goal-liquid">
+            <div class="wave-surface">
+              <div class="wave-track">
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 C8.33,4 16.67,4 25,10 C33.33,16 41.67,16 50,10 C58.33,4 66.67,4 75,10 C83.33,16 91.67,16 100,10 L100,20 L0,20 Z" fill="rgba(255,255,255,0.35)"/></svg>
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 C8.33,4 16.67,4 25,10 C33.33,16 41.67,16 50,10 C58.33,4 66.67,4 75,10 C83.33,16 91.67,16 100,10 L100,20 L0,20 Z" fill="rgba(255,255,255,0.35)"/></svg>
+              </div>
+            </div>
+            <div class="wave-surface wave-back">
+              <div class="wave-track">
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,12 C10,4 20,4 30,12 C40,20 50,20 60,12 C70,4 80,4 90,12 C95,16 98,16 100,12 L100,20 L0,20 Z" fill="rgba(255,255,255,0.5)"/></svg>
+                <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,12 C10,4 20,4 30,12 C40,20 50,20 60,12 C70,4 80,4 90,12 C95,16 98,16 100,12 L100,20 L0,20 Z" fill="rgba(255,255,255,0.5)"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="goal-ring-content">
           <span class="goal-ring-pct">0%</span>
           <span class="goal-ring-label">da meta</span>
-        </div></div>
+        </div>
       </div>
       <div class="goal-info">
         <span class="goal-label">Meta da Filial</span>
@@ -440,6 +594,17 @@
   <footer class="dashboard-footer">Ranking atualizado manualmente pela equipe comercial da UNI</footer>
 </div>
 
+<div class="celebration-overlay" id="celebrationOverlay">
+  <div class="confetti-field" id="confettiField"></div>
+  <div class="signal-rings"><span></span><span></span><span></span></div>
+  <button class="celebration-close" id="celebrationClose" type="button" aria-label="Fechar">&times;</button>
+  <div class="celebration-content">
+    <div class="celebration-title">🎉 Parabéns! 🎉</div>
+    <div class="celebration-subtitle" id="celebrationSubtitle">Destaque do mês</div>
+    <div class="celebration-winners" id="celebrationWinners"></div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // CONFIGURAÇÕES RÁPIDAS — mexa só aqui
@@ -451,6 +616,10 @@ const CONFIG = {
 
   // nome do mês exibido nos cards de meta (semana e mês)
   mesReferencia: "Julho",
+
+  // true = exibe o botão "Anunciar Destaque" (ative só após o fim do mês)
+  // false = esconde o botão completamente
+  mostrarBotaoDestaque: false,
 };
 
 const PHOTOS = {
@@ -466,19 +635,19 @@ const PHOTOS = {
 // ============================================================
 const DATA = {
   semanal: {
-    meta: { atual: 27, meta: 25 }, // meta semanal ainda não informada (ajuste "meta")
+    meta: { atual: 0, meta: 25 }, // meta semanal ainda não informada (ajuste "meta")
     externo: [
-      { id: 'ian',    nome: 'Ian',    vendas: 2 },
-      { id: 'wilian', nome: 'Wilian', vendas: 7 },
+      { id: 'ian',    nome: 'Ian',    vendas: 0 },
+      { id: 'wilian', nome: 'Wilian', vendas: 0 },
     ],
     interno: [
-      { id: 'lohayne',   nome: 'Lohayne',   vendas: 10 },
-      { id: 'gabriella', nome: 'Gabriella', vendas: 8 },
+      { id: 'lohayne',   nome: 'Lohayne',   vendas: 0 },
+      { id: 'gabriella', nome: 'Gabriella', vendas: 0 },
       { id: 'lorena',    nome: 'Lorena',    vendas: 0 },
     ]
   },
   mensal: {
-    meta: { atual: 94, meta: 95 },
+    meta: { atual: 92, meta: 95 },
     externo: [
       { id: 'ian',    nome: 'Ian',    vendas: 7 },
       { id: 'wilian', nome: 'Wilian', vendas: 14 },
@@ -486,7 +655,7 @@ const DATA = {
     interno: [
       { id: 'gabriella', nome: 'Gabriella', vendas: 30 },
       { id: 'lorena',    nome: 'Lorena',    vendas: 20 },
-      { id: 'lohayne',   nome: 'Lohayne',   vendas: 27 },
+      { id: 'lohayne',   nome: 'Lohayne',   vendas: 25 },
     ]
   }
 };
@@ -558,25 +727,26 @@ function renderPodium(containerId, entries, options = {}) {
 function renderGoal(containerId, goal) {
   const pct = Math.min(100, Math.round((goal.atual / goal.meta) * 100));
   const el = document.getElementById(containerId);
-  const ring = el.querySelector('.goal-ring');
+  const liquid = el.querySelector('.goal-liquid');
   const ringPct = el.querySelector('.goal-ring-pct');
   const currentEl = el.querySelector('.goal-current');
   const targetEl = el.querySelector('.goal-target');
 
   targetEl.textContent = goal.meta;
-  animateNumber(currentEl, goal.atual, { duration: 1100 });
+  animateNumber(currentEl, goal.atual, { duration: 1300 });
 
   if (reduceMotion) {
-    ring.style.setProperty('--pct', pct);
+    liquid.style.height = pct + '%';
     ringPct.textContent = pct + '%';
     return;
   }
   const start = performance.now();
+  const duration = 1300;
   function tick(now) {
-    const p = Math.min(1, (now - start) / 1100);
+    const p = Math.min(1, (now - start) / duration);
     const eased = 1 - Math.pow(1 - p, 3);
     const val = Math.round(pct * eased);
-    ring.style.setProperty('--pct', val);
+    liquid.style.height = val + '%';
     ringPct.textContent = val + '%';
     if (p < 1) requestAnimationFrame(tick);
   }
@@ -602,6 +772,8 @@ function renderTicker() {
 }
 
 function renderAll() {
+  document.getElementById('celebrateBtn').style.display = CONFIG.mostrarBotaoDestaque ? 'inline-flex' : 'none';
+
   renderTicker();
   renderGoal('goal-semanal', DATA.semanal.meta);
   renderPodium('podium-semanal-externo', DATA.semanal.externo);
@@ -640,6 +812,79 @@ document.querySelectorAll('.tab-button').forEach(btn => {
       panel.classList.toggle('hidden', panel.dataset.tabPanel !== tab);
     });
   });
+});
+
+// ============================================================
+// TELA DE CELEBRAÇÃO — clique no botão "🎉 Anunciar Destaque"
+// para mostrar o vendedor externo e interno em 1º lugar
+// no ranking que estiver aberto no momento (semanal ou mensal)
+// ============================================================
+function getTopEntry(entries) {
+  return [...entries].sort((a, b) => b.vendas - a.vendas)[0];
+}
+
+function buildConfetti() {
+  const field = document.getElementById('confettiField');
+  const colors = ['#21d9ff', '#7c5cff', '#ffc94d', '#ff5fae', '#34d399'];
+  let html = '';
+  for (let i = 0; i < 70; i++) {
+    const left = (Math.random() * 100).toFixed(1);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const duration = (3.5 + Math.random() * 3).toFixed(2);
+    const delay = (Math.random() * 3).toFixed(2);
+    const size = (6 + Math.random() * 6).toFixed(1);
+    const round = Math.random() > 0.5 ? '50%' : '2px';
+    html += `<span class="confetti-piece" style="left:${left}%;background:${color};width:${size}px;height:${size * 1.5}px;border-radius:${round};animation-duration:${duration}s;animation-delay:-${delay}s;"></span>`;
+  }
+  field.innerHTML = html;
+}
+
+function showCelebration() {
+  document.getElementById('celebrationSubtitle').innerHTML =
+    '<span class="signal-bars"><span></span><span></span><span></span><span></span></span> Destaque do mês de ' + CONFIG.mesReferencia;
+
+  const topExterno = getTopEntry(DATA.mensal.externo);
+  const topInterno = getTopEntry(DATA.mensal.interno);
+
+  const winners = [
+    { entry: topInterno, role: 'Vendedor Interno' },
+    { entry: topExterno, role: 'Vendedor Externo' },
+  ];
+
+  document.getElementById('celebrationWinners').innerHTML = winners.map(w => `
+    <div class="celebration-card">
+      <div class="celebration-photo-wrap">
+        <span class="celebration-crown" aria-hidden="true">👑</span>
+        <img class="celebration-photo" src="${PHOTOS[w.entry.id] || ''}" alt="${w.entry.nome}">
+      </div>
+      <span class="celebration-role">${w.role}</span>
+      <span class="celebration-name">${w.entry.nome}</span>
+      <span class="celebration-value" data-target="${w.entry.vendas}">0 vendas</span>
+    </div>
+  `).join('');
+
+  buildConfetti();
+  document.body.style.overflow = 'hidden';
+  document.getElementById('celebrationOverlay').classList.add('active');
+
+  document.querySelectorAll('.celebration-value').forEach(el => {
+    animateNumber(el, Number(el.dataset.target), { duration: 1000, suffixFn: formatVendas });
+  });
+}
+
+function hideCelebration() {
+  document.getElementById('celebrationOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+  document.getElementById('confettiField').innerHTML = '';
+}
+
+document.getElementById('celebrateBtn').addEventListener('click', showCelebration);
+document.getElementById('celebrationClose').addEventListener('click', hideCelebration);
+document.getElementById('celebrationOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'celebrationOverlay') hideCelebration();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') hideCelebration();
 });
 
 renderAll();
