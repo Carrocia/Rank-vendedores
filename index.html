@@ -612,14 +612,14 @@
 const CONFIG = {
   // true = mostra o número de vendas do mês (use no último dia do mês)
   // false = mantém oculto, só usado para ordenar o pódio
-  mostrarVendasMensal: false,
+  mostrarVendasMensal: true,
 
   // nome do mês exibido nos cards de meta (semana e mês)
   mesReferencia: "Julho",
 
   // true = exibe o botão "Anunciar Destaque" (ative só após o fim do mês)
   // false = esconde o botão completamente
-  mostrarBotaoDestaque: false,
+  mostrarBotaoDestaque: true,
 };
 
 const PHOTOS = {
@@ -638,16 +638,16 @@ const DATA = {
     meta: { atual: 4, meta: 25 }, // meta semanal ainda não informada (ajuste "meta")
     externo: [
       { id: 'ian',    nome: 'Ian',    vendas: 0 },
-      { id: 'wilian', nome: 'Wilian', vendas: 1 },
+      { id: 'wilian', nome: 'Wilian', vendas: 0 },
     ],
     interno: [
-      { id: 'lohayne',   nome: 'Lohayne',   vendas: 4 },
-      { id: 'gabriella', nome: 'Gabriella', vendas: 1 },
+      { id: 'lohayne',   nome: 'Lohayne',   vendas: 0 },
+      { id: 'gabriella', nome: 'Gabriella', vendas: 0 },
       { id: 'lorena',    nome: 'Lorena',    vendas: 0 },
     ]
   },
   mensal: {
-    meta: { atual: 100, meta: 95 },
+    meta: { atual: 99, meta: 95 },
     externo: [
       { id: 'ian',    nome: 'Ian',    vendas: 7 },
       { id: 'wilian', nome: 'Wilian', vendas: 14 },
