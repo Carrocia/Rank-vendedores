@@ -330,6 +330,57 @@
     .podium-base, .goal-liquid { transition: none !important; }
   }
 
+  /* ---------- mural de destaques (histórico — externo + interno) ---------- */
+  .mural-section { margin-bottom: 40px; }
+  .mural-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+  .mural-card {
+    background: linear-gradient(135deg, var(--surface), var(--surface-hover));
+    backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: 18px;
+    padding: 20px; position: relative; overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .mural-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px var(--shadow-hover); }
+  .mural-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 90% 0%, var(--accent-glow), transparent 60%);
+    pointer-events: none;
+  }
+  .mural-month {
+    display: inline-flex; align-items: center; gap: 6px; position: relative;
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--accent); margin-bottom: 16px;
+  }
+  .mural-month::before { content: '🗓️'; font-size: 0.8rem; }
+  .mural-pair { display: flex; gap: 16px; position: relative; }
+  .mural-winner { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .mural-photo-wrap { position: relative; width: 64px; height: 64px; margin-bottom: 10px; }
+  .mural-photo-wrap::before {
+    content: ''; position: absolute; inset: -4px; border-radius: 50%;
+    background: conic-gradient(from 0deg, #ffc94d, transparent 55%, #ffc94d);
+  }
+  .mural-photo {
+    position: relative; z-index: 1; width: 100%; height: 100%; border-radius: 50%;
+    object-fit: cover; border: 3px solid #ffc94d;
+  }
+  .mural-crown {
+    position: absolute; top: -16px; left: 50%; z-index: 2;
+    transform: translateX(-50%) rotate(-6deg); font-size: 1.1rem;
+  }
+  .mural-role { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 2px; }
+  .mural-name { font-size: 0.85rem; font-weight: 800; color: var(--heading-color); }
+  .mural-value { font-size: 0.75rem; font-weight: 700; color: #ffc94d; margin-top: 2px; }
+  .mural-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 24px; grid-column: 1 / -1; }
+
+  /* card "a definir" — mês em andamento, ainda sem vencedor */
+  .mural-winner-pending .mural-photo-wrap::before { background: var(--border); animation: none; }
+  .mural-photo-pending {
+    position: relative; z-index: 1; width: 100%; height: 100%; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-hover); border: 3px dashed var(--text-muted);
+  }
+  .mural-question { font-size: 1.6rem; font-weight: 900; color: var(--text-muted); }
+  .mural-winner-pending .mural-name { color: var(--text-muted); }
+
   .dashboard-footer {
     text-align: center; margin-top: 20px; padding-top: 24px;
     border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.8rem;
@@ -493,6 +544,11 @@
     </div>
   </header>
 
+  <section class="podium-section mural-section" id="muralSection">
+    <h2>Mural de Destaques — Vendedor Externo e Interno</h2>
+    <div class="mural-grid" id="muralGrid"></div>
+  </section>
+
   <div class="tabs-row">
     <div class="tab-bar anim-in" role="tablist">
       <button type="button" class="tab-button active" data-tab="semanal" role="tab" aria-selected="true">Ranking Semanal</button>
@@ -612,14 +668,14 @@
 const CONFIG = {
   // true = mostra o número de vendas do mês (use no último dia do mês)
   // false = mantém oculto, só usado para ordenar o pódio
-  mostrarVendasMensal: true,
+  mostrarVendasMensal: false,
 
   // nome do mês exibido nos cards de meta (semana e mês)
-  mesReferencia: "Julho",
+  mesReferencia: "Setembro",
 
   // true = exibe o botão "Anunciar Destaque" (ative só após o fim do mês)
   // false = esconde o botão completamente
-  mostrarBotaoDestaque: true,
+  mostrarBotaoDestaque: false,
 };
 
 const PHOTOS = {
@@ -635,7 +691,7 @@ const PHOTOS = {
 // ============================================================
 const DATA = {
   semanal: {
-    meta: { atual: 4, meta: 25 }, // meta semanal ainda não informada (ajuste "meta")
+    meta: { atual: 0, meta: 25 }, // meta semanal ainda não informada (ajuste "meta")
     externo: [
       { id: 'ian',    nome: 'Ian',    vendas: 0 },
       { id: 'wilian', nome: 'Wilian', vendas: 0 },
@@ -647,15 +703,15 @@ const DATA = {
     ]
   },
   mensal: {
-    meta: { atual: 99, meta: 95 },
+    meta: { atual: 0, meta: 100 },
     externo: [
-      { id: 'ian',    nome: 'Ian',    vendas: 7 },
-      { id: 'wilian', nome: 'Wilian', vendas: 14 },
+      { id: 'ian',    nome: 'Ian',    vendas: 0 },
+      { id: 'wilian', nome: 'Wilian', vendas: 0 },
     ],
     interno: [
-      { id: 'gabriella', nome: 'Gabriella', vendas: 31 },
-      { id: 'lorena',    nome: 'Lorena',    vendas: 20 },
-      { id: 'lohayne',   nome: 'Lohayne',   vendas: 30 },
+      { id: 'gabriella', nome: 'Gabriella', vendas: 0 },
+      { id: 'lorena',    nome: 'Lorena',    vendas: 0 },
+      { id: 'lohayne',   nome: 'Lohayne',   vendas: 0 },
     ]
   }
 };
@@ -665,6 +721,30 @@ const RANK_STYLE = {
   2: { color: '#cbd3dc', dark: '#8b93a1', glow: 'rgba(203,211,220,0.3)', height: 110, crown: false },
   3: { color: '#dd9a5c', dark: '#9c6431', glow: 'rgba(221,154,92,0.3)',  height: 80,  crown: false },
 };
+
+// ============================================================
+// MURAL DE DESTAQUES — histórico de quem ganhou cada mês
+// Ao fechar um mês, adicione um novo bloco { mes, interno, externo }
+// no TOPO da lista abaixo (assim o mais recente aparece primeiro).
+// O "id" tem que ser um dos nomes que já existem em PHOTOS.
+// ============================================================
+const HISTORICO_DESTAQUES = [
+  // Mês em andamento — ainda não fechou, então fica com "?" até você
+  // preencher com o vencedor real (troque null pelo objeto da pessoa,
+  // como no exemplo de Junho logo abaixo).
+  {
+    mes: "Setembro",
+    interno: null,
+    externo: null,
+  },
+  // EXEMPLO — troque pelos vencedores reais do mês passado
+  // (ou apague este bloco se ainda não tiver um mês fechado).
+  {
+    mes: "Agosto",
+    interno: { id: 'gabriella', nome: 'Gabriella', vendas: 31 },
+    externo: { id: 'ian',       nome: 'Ian',       vendas: 14  },
+  },
+];
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -771,9 +851,50 @@ function renderTicker() {
   track.innerHTML = html + html; // duplicado para loop contínuo
 }
 
+function renderMuralPerson(person, role) {
+  if (!person) {
+    return `
+      <div class="mural-winner mural-winner-pending">
+        <div class="mural-photo-wrap">
+          <div class="mural-photo-pending"><span class="mural-question">?</span></div>
+        </div>
+        <span class="mural-role">${role}</span>
+        <span class="mural-name">A definir</span>
+      </div>`;
+  }
+  return `
+    <div class="mural-winner">
+      <div class="mural-photo-wrap">
+        <span class="mural-crown" aria-hidden="true">👑</span>
+        <img class="mural-photo" src="${PHOTOS[person.id] || ''}" alt="${person.nome}">
+      </div>
+      <span class="mural-role">${role}</span>
+      <span class="mural-name">${person.nome}</span>
+      <span class="mural-value">${formatVendas(person.vendas)}</span>
+    </div>`;
+}
+
+function renderHistorico() {
+  const container = document.getElementById('muralGrid');
+  if (!HISTORICO_DESTAQUES.length) {
+    container.innerHTML = '<p class="mural-empty">Nenhum destaque registrado ainda.</p>';
+    return;
+  }
+  container.innerHTML = HISTORICO_DESTAQUES.map(h => `
+    <div class="mural-card">
+      <span class="mural-month">${h.mes}</span>
+      <div class="mural-pair">
+        ${renderMuralPerson(h.interno, 'Interno')}
+        ${renderMuralPerson(h.externo, 'Externo')}
+      </div>
+    </div>
+  `).join('');
+}
+
 function renderAll() {
   document.getElementById('celebrateBtn').style.display = CONFIG.mostrarBotaoDestaque ? 'inline-flex' : 'none';
 
+  renderHistorico();
   renderTicker();
   renderGoal('goal-semanal', DATA.semanal.meta);
   renderPodium('podium-semanal-externo', DATA.semanal.externo);
