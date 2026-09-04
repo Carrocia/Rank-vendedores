@@ -25,8 +25,8 @@
   }
 
   [data-theme="light"] {
-    --bg: #eef1f6;
-    --surface: rgba(255,255,255,0.72);
+    --bg: #e8ecf4;
+    --surface: rgba(255,255,255,0.92);
     --surface-solid: #ffffff;
     --surface-hover: #f5f6f8;
     --border: rgba(20,25,40,0.09);
@@ -180,6 +180,16 @@
   .header-week-value { display: block; font-size: 0.92rem; font-weight: 800; color: var(--heading-color); margin: 2px 0; }
   .header-week-period { display: block; font-size: 0.7rem; color: var(--text-muted); }
 
+  .header-kpis {
+    display: flex; align-items: center; gap: 0; margin-left: auto;
+    background: var(--surface-solid); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; flex-shrink: 0;
+  }
+  .header-kpi { padding: 14px 22px; text-align: center; }
+  .header-kpi-label { display: block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
+  .header-kpi-value { display: block; font-size: 1.05rem; font-weight: 900; color: var(--heading-color); margin-top: 4px; }
+  .header-kpi-divider { width: 1px; height: 40px; background: var(--border); }
+
   .back-link {
     display: inline-flex; align-items: center; gap: 8px;
     font-size: 0.78rem; font-weight: 700; color: var(--accent);
@@ -200,6 +210,8 @@
     padding: 10px 22px; border-radius: 40px; cursor: pointer; transition: all 0.25s ease;
   }
   .tab-button.active { background: var(--accent); color: var(--accent-text); box-shadow: 0 0 20px var(--accent-glow); }
+  [data-active-tab='mensal'] #metaCardSection { border-top: 3px solid var(--accent2); }
+  [data-active-tab='semanal'] #metaCardSection { border-top: 3px solid var(--accent); }
   .tab-button:hover:not(.active) { color: var(--text); }
 
   .ranking-panel.hidden { display: none; }
@@ -293,8 +305,23 @@
   .podium-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
 
   .podium { display: flex; align-items: flex-end; justify-content: center; gap: 18px; padding: 0 8px; }
-  .podium-stand { display: flex; flex-direction: column; align-items: center; width: 150px; transition: transform 0.3s ease; }
-  .podium-stand:hover { transform: translateY(-5px); }
+  .podium-stand { display: flex; flex-direction: column; align-items: center; width: 150px; transition: transform 0.3s ease; padding-bottom: 4px; }
+  .podium-stand { position: relative; }
+  .podium-stand:hover { transform: translateY(-6px); }
+  .podium-tooltip {
+    display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface-solid); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 14px; white-space: nowrap; z-index: 10;
+    font-size: 0.74rem; color: var(--text); text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  .podium-tooltip strong { display: block; font-size: 0.9rem; color: var(--heading-color); margin-bottom: 2px; }
+  .podium-tooltip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 6px solid transparent; border-top-color: var(--border);
+  }
+  .podium-stand:hover .podium-tooltip { display: block; animation: fadeUp 0.18s ease; }
   .podium-stand[data-rank="1"] { order: 2; }
   .podium-stand[data-rank="2"] { order: 1; }
   .podium-stand[data-rank="3"] { order: 3; }
@@ -402,7 +429,8 @@
   .mural-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 24px; grid-column: 1 / -1; }
 
   /* card "a definir" — mês em andamento, ainda sem vencedor */
-  .mural-winner-pending .mural-photo-wrap::before { background: var(--border); animation: none; }
+  .mural-winner-pending .mural-photo-wrap::before { background: none; border: 2px dashed var(--accent); border-radius: 50%; animation: pendingPulse 2s ease-in-out infinite; }
+  @keyframes pendingPulse { 0%,100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.08); } }
   .mural-photo-pending {
     position: relative; z-index: 1; width: 100%; height: 100%; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -538,8 +566,9 @@
   }
   .week-ring-wrap {
     position: relative; width: 116px; height: 116px; flex-shrink: 0; border-radius: 50%;
-    background: conic-gradient(var(--accent) 0%, var(--surface-hover) 0%);
+    background: conic-gradient(var(--accent) var(--ring-pct, 0%), var(--surface-hover) var(--ring-pct, 0%));
     box-shadow: 0 0 0 3px var(--border), 0 0 26px var(--accent-glow);
+    transition: background 0.05s linear;
   }
   .week-ring-content {
     position: absolute; inset: 10px; border-radius: 50%; background: var(--bg);
@@ -588,8 +617,8 @@
   .destaque-icon-badge.blue { background: rgba(33,217,255,0.16); }
   .destaque-label { display: block; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 10px; }
   .destaque-pessoa { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .destaque-foto { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); }
-  .destaque-nome { font-size: 0.86rem; font-weight: 800; color: var(--heading-color); }
+  .destaque-foto { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin-bottom: 4px; }
+  .destaque-nome { font-size: 0.9rem; font-weight: 800; color: var(--heading-color); }
   .destaque-valor { display: block; font-size: 0.76rem; font-weight: 700; color: var(--accent); }
 
   /* ---------- aviso do ranking mensal ---------- */
@@ -643,8 +672,8 @@
     background: linear-gradient(135deg, var(--surface), var(--surface-hover));
     backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px;
   }
-  .evo-chart { position: relative; height: 200px; }
-  .evo-plot { position: absolute; inset: 0 0 26px 0; }
+  .evo-chart { position: relative; height: 220px; }
+  .evo-plot { position: absolute; inset: 0 24px 30px 24px; }
   .evo-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   .evo-line-path { stroke: var(--accent); }
   .evo-point {
@@ -671,11 +700,11 @@
   }
   .donut-wrap { flex-shrink: 0; }
   .donut-chart {
-    position: relative; width: 150px; height: 150px; border-radius: 50%;
+    position: relative; width: 180px; height: 180px; border-radius: 50%;
     box-shadow: 0 0 26px var(--accent-glow);
   }
   .donut-hole {
-    position: absolute; inset: 24px; border-radius: 50%; background: var(--bg);
+    position: absolute; inset: 28px; border-radius: 50%; background: var(--bg);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
   }
   .donut-total { font-size: 1.4rem; font-weight: 900; color: var(--heading-color); }
@@ -694,7 +723,14 @@
     border-radius: 14px; padding: 16px 18px;
     display: flex; flex-direction: column; gap: 8px;
     transition: transform 0.25s ease, box-shadow 0.25s ease;
+    opacity: 0; transform: translateY(16px);
+    animation: conquistaEnter 0.5s ease forwards;
   }
+  @keyframes conquistaEnter { to { opacity: 1; transform: translateY(0); } }
+  .conquista-card:nth-child(1) { animation-delay: 0.05s; }
+  .conquista-card:nth-child(2) { animation-delay: 0.15s; }
+  .conquista-card:nth-child(3) { animation-delay: 0.25s; }
+  .conquista-card:nth-child(4) { animation-delay: 0.35s; }
   .conquista-card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px var(--shadow-hover); }
   .conquista-texto { font-size: 0.84rem; color: var(--text); line-height: 1.4; }
   .conquista-quando { font-size: 0.68rem; color: var(--text-muted); font-weight: 600; }
@@ -745,6 +781,22 @@
       <div class="header-copy">
         <h1>Ranking de Vendas</h1>
         <p>Quem está na liderança da semana e do mês — vendas externas e internas lado a lado.</p>
+      </div>
+      <div class="header-kpis">
+        <div class="header-kpi">
+          <span class="header-kpi-label">Vendas na semana</span>
+          <span class="header-kpi-value" id="kpiSemana">—</span>
+        </div>
+        <div class="header-kpi-divider"></div>
+        <div class="header-kpi">
+          <span class="header-kpi-label">Meta mensal</span>
+          <span class="header-kpi-value" id="kpiMensal">—</span>
+        </div>
+        <div class="header-kpi-divider"></div>
+        <div class="header-kpi">
+          <span class="header-kpi-label">Líder do mês</span>
+          <span class="header-kpi-value" id="kpiLider">—</span>
+        </div>
       </div>
     </div>
     </div>
@@ -909,14 +961,14 @@ const CONFIG = {
   semana: {
     dataLabel: "22 a 28 de Setembro",
     periodo: "01/09/2026 a 07/09/2026",
-    vendasAtual: 14,     // soma de todas as vendas da semana (externo+interno)
+    vendasAtual: 15,     // soma de todas as vendas da semana (externo+interno)
     meta: 25,
     diasCorridos: 7,    // usado so para calcular a media diaria
   },
 
   // ---------- ritmo do mes (define verde/amarelo/vermelho) ----------
   mesRitmo: {
-    diaAtual: 4,     // em que dia do mes estamos
+    diaAtual: 04,     // em que dia do mes estamos
     diasNoMes: 30,    // quantos dias tem o mes
   },
 
@@ -934,24 +986,24 @@ const CONFIG = {
   // mensal  = vendas acumuladas no mês vs meta mensal de cada faixa
   metasFilial: {
     semanal: {
-      m1: { atual: 14,  meta: 25 },
-      m2: { atual: 14,  meta: 20 },
-      m3: { atual: 14,  meta: 15 },
+      m1: { atual: 15,  meta: 25 },
+      m2: { atual: 15,  meta: 20 },
+      m3: { atual: 15,  meta: 15 },
     },
     mensal: {
-      m1: { atual: 14, meta: 100 },
-      m2: { atual: 14, meta: 80  },
-      m3: { atual: 14, meta: 60  },
+      m1: { atual: 15, meta: 100 },
+      m2: { atual: 15, meta: 80  },
+      m3: { atual: 15, meta: 60  },
     },
   },
 
   // ---------- grafico "Evolucao da Semana" ----------
   evolucaoSemana: [
-    { dia: "Seg", vendas: 0 },
+    { dia: "Seg", vendas: 1 },
     { dia: "Ter", vendas: 4 },
     { dia: "Qua", vendas: 5 },
     { dia: "Qui", vendas: 4 },
-    { dia: "Sex", vendas: 1 },
+    { dia: "Sex", vendas: 2 },
     { dia: "Sab", vendas: 0 },
     { dia: "Dom", vendas: 0 },
   ],
@@ -967,7 +1019,7 @@ const CONFIG = {
   // "quando" é opcional — se não quiser mostrar, é só apagar a linha
   conquistas: [
     { texto: "🏆 Gabriella atingiu 3 vendas na semana", quando: "Hoje, 10:45" },
-    { texto: "🚀 Wilian assumiu a liderança externa", quando: "Hoje, 09:30" },
+    { texto: "🚀 Willian assumiu a liderança externa", quando: "Hoje, 09:30" },
     { texto: "🎯 Filial atingiu 16% da meta semanal", quando: "Hoje, 08:00" },
     { texto: "⚡ Gabriella é a maior evolução da semana", quando: "Ontem, 17:20" },
   ],
@@ -995,9 +1047,9 @@ const DATA = {
     // quantidade de vendas na semana + "evolucao" (usado no card
     // "Maior Evolução" dos Destaques da Semana, é só um número que
     // você atualiza toda semana comparando com a semana anterior)
-    meta: { atual: 14, meta: 25 },
+    meta: { atual: 15, meta: 25 },
     externo: [
-      { id: 'ian',    vendas: 0, evolucao: 0 },
+      { id: 'ian',    vendas: 1, evolucao: 1 },
       { id: 'wilian', vendas: 1, evolucao: 1 },
     ],
     interno: [
@@ -1009,20 +1061,20 @@ const DATA = {
   mensal: {
     // meta = meta individual mensal de cada vendedor (usada pra
     // calcular a % da meta e o selo de ritmo no ranking mensal)
-    meta: { atual: 14, meta: 100 },
+    meta: { atual: 15, meta: 95 },
     externo: [
       // meta individual do vendedor externo = 14 vendas (nível de 20%
       // de comissão; a partir de 15 vendas a comissão sobe pra 40%)
-      { id: 'ian',    vendas: 0,  meta: 14 },
+      { id: 'ian',    vendas: 1,  meta: 14 },
       { id: 'wilian', vendas: 1,  meta: 14 },
     ],
     interno: [
       // meta individual do vendedor interno = 30 vendas (M3, o nível
       // base). Faixas maiores de comissão: M2 = 38 vendas, M1 = 47
       // vendas — ainda não usadas no cálculo, é só pra referência.
-      { id: 'gabriella', vendas: 04, meta: 30 },
-      { id: 'lorena',    vendas: 04, meta: 30 },
-      { id: 'lohayne',   vendas: 04, meta: 30 },
+      { id: 'gabriella', vendas: 4, meta: 30 },
+      { id: 'lorena',    vendas: 4, meta: 30 },
+      { id: 'lohayne',   vendas: 4, meta: 30 },
     ]
   }
 };
@@ -1043,7 +1095,7 @@ const PESSOAS = {
   gabriella: { nome: 'Gabriella', foto: PHOTOS.gabriella },
   lorena:    { nome: 'Lorena',    foto: PHOTOS.lorena },
   ian:       { nome: 'Ian',       foto: PHOTOS.ian },
-  wilian:    { nome: 'Wilian',    foto: PHOTOS.wilian },
+  wilian:    { nome: 'Willian',    foto: PHOTOS.wilian },
 };
 
 // ============================================================
@@ -1122,7 +1174,13 @@ function renderPodium(containerId, entries, options = {}) {
     }
 
     const shimmerDelay = rank === 1 ? '0s' : rank === 2 ? '0.4s' : '0.8s';
+    const tooltipVendas = mode === 'semanal' ? formatVendas(e.vendas) : '';
+    const tooltipMeta = e.meta ? `${Math.min(100,Math.round((e.vendas/e.meta)*100))}% da meta mensal` : '';
+    const tooltipContent = mode === 'semanal'
+      ? `<strong>${nome}</strong>${tooltipVendas}`
+      : `<strong>${nome}</strong>${tooltipMeta}`;
     return `<div class="podium-stand" data-rank="${rank}" style="--rank-color:${style.color};--rank-color-dark:${style.dark};--rank-glow:${style.glow};--gold-c:#ffc94d;">
+      <div class="podium-tooltip">${tooltipContent}</div>
       <div class="podium-photo-wrap">
         ${crownHTML}
         <img class="podium-photo" src="${photo}" alt="${nome}">
@@ -1135,7 +1193,7 @@ function renderPodium(containerId, entries, options = {}) {
     </div>`;
   }).join('');
 
-  const delayByRank = { 1: 180, 2: 0, 3: 360 };
+  const delayByRank = { 1: 260, 2: 0, 3: 520 }; // 2º sobe primeiro, depois 1º (com fanfarra), depois 3º
   container.querySelectorAll('.podium-stand').forEach(stand => {
     const rank = Number(stand.dataset.rank);
     const base = stand.querySelector('.podium-base');
@@ -1245,8 +1303,10 @@ function renderHistorico() {
 
 // ---------- Card "Meta da Semana" ----------
 function animateCard(pct, atual, barFillEl, ringEl, barPctEl, duration = 1300) {
+  const ringWrap = document.getElementById('metaRingWrap');
   if (reduceMotion) {
     ringEl.textContent = pct + '%';
+    if (ringWrap) ringWrap.style.setProperty('--ring-pct', pct + '%');
     barFillEl.style.width = pct + '%';
     barPctEl.textContent = pct + '% concluído';
     return;
@@ -1257,6 +1317,7 @@ function animateCard(pct, atual, barFillEl, ringEl, barPctEl, duration = 1300) {
     const eased = 1 - Math.pow(1 - p, 3);
     const val = Math.round(pct * eased);
     ringEl.textContent = val + '%';
+    if (ringWrap) ringWrap.style.setProperty('--ring-pct', val + '%');
     barFillEl.style.width = val + '%';
     barPctEl.textContent = val + '% concluído';
     if (p < 1) requestAnimationFrame(tick);
@@ -1480,6 +1541,17 @@ function renderAll() {
   document.getElementById('celebrateBtn').style.display = CONFIG.mostrarBotaoDestaque ? 'inline-flex' : 'none';
 
   renderHistorico();
+
+  // KPIs do cabeçalho
+  const totalSemana = [...DATA.semanal.externo, ...DATA.semanal.interno].reduce((s,e)=>s+e.vendas,0);
+  const pctMensal = Math.min(100,Math.round((DATA.mensal.meta.atual/DATA.mensal.meta.meta)*100));
+  const lider = getLeader([...DATA.mensal.externo, ...DATA.mensal.interno]);
+  const kpiSemana = document.getElementById('kpiSemana');
+  const kpiMensal = document.getElementById('kpiMensal');
+  const kpiLider = document.getElementById('kpiLider');
+  if (kpiSemana) kpiSemana.textContent = totalSemana + ' vendas';
+  if (kpiMensal) kpiMensal.textContent = pctMensal + '% atingido';
+  if (kpiLider) kpiLider.textContent = lider;
   renderWeekProgress();
   renderDestaquesSemana();
   renderMetasFilial('semanal');
@@ -1520,6 +1592,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     });
 
     // troca o card de meta e as metas da filial conforme a aba ativa
+    document.documentElement.setAttribute('data-active-tab', tab);
     const isMensal = tab === 'mensal';
     if (isMensal) {
       renderMensalProgress();
@@ -1605,6 +1678,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') hideCelebration();
 });
 
+document.documentElement.setAttribute('data-active-tab', 'semanal');
 renderAll();
 </script>
 </body>
