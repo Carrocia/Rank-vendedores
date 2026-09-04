@@ -986,14 +986,14 @@ const CONFIG = {
   // mensal  = vendas acumuladas no mês vs meta mensal de cada faixa
   metasFilial: {
     semanal: {
-      m1: { atual: 16,  meta: 25 },
-      m2: { atual: 16,  meta: 20 },
-      m3: { atual: 16,  meta: 15 },
+      m1: { atual: 19,  meta: 25 },
+      m2: { atual: 19,  meta: 20 },
+      m3: { atual: 19,  meta: 15 },
     },
     mensal: {
-      m1: { atual: 16, meta: 100 },
-      m2: { atual: 16, meta: 80  },
-      m3: { atual: 16, meta: 60  },
+      m1: { atual: 19, meta: 100 },
+      m2: { atual: 19, meta: 80  },
+      m3: { atual: 19, meta: 60  },
     },
   },
 
@@ -1003,7 +1003,7 @@ const CONFIG = {
     { dia: "Ter", vendas: 4 },
     { dia: "Qua", vendas: 5 },
     { dia: "Qui", vendas: 4 },
-    { dia: "Sex", vendas: 3 },
+    { dia: "Sex", vendas: 6 },
     { dia: "Sab", vendas: 0 },
     { dia: "Dom", vendas: 0 },
   ],
@@ -1018,9 +1018,9 @@ const CONFIG = {
   // ---------- Conquistas Recentes ----------
   // "quando" é opcional — se não quiser mostrar, é só apagar a linha
   conquistas: [
-    { texto: "🏆 Gabriella atingiu 4 vendas na semana", quando: "Hoje, 10:45" },
+    { texto: "🏆 Gabriella atingiu 7 vendas na semana", quando: "Hoje, 17:33" },
     { texto: "🚀 Ian assumiu a liderança externa", quando: "Hoje, 11:00" },
-    { texto: "🎯 Filial atingiu 64% da meta semanal", quando: "Hoje, 11:00" },
+    { texto: "🎯 Filial atingiu 76% da meta semanal", quando: "Hoje, 17:30" },
     { texto: "⚡ Gabriella é a maior evolução da semana", quando: "Ontem, 17:20" },
   ],
 };
@@ -1054,7 +1054,7 @@ const DATA = {
     ],
     interno: [
       { id: 'lohayne',   vendas: 4, evolucao: 4 },
-      { id: 'gabriella', vendas: 4, evolucao: 4 },
+      { id: 'gabriella', vendas: 7, evolucao: 7 },
       { id: 'lorena',    vendas: 4, evolucao: 4 },
     ]
   },
@@ -1072,7 +1072,7 @@ const DATA = {
       // meta individual do vendedor interno = 30 vendas (M3, o nível
       // base). Faixas maiores de comissão: M2 = 38 vendas, M1 = 47
       // vendas — ainda não usadas no cálculo, é só pra referência.
-      { id: 'gabriella', vendas: 4, meta: 30 },
+      { id: 'gabriella', vendas: 7, meta: 30 },
       { id: 'lorena',    vendas: 4, meta: 30 },
       { id: 'lohayne',   vendas: 4, meta: 30 },
     ]
