@@ -961,7 +961,7 @@ const CONFIG = {
   semana: {
     dataLabel: "01 a 30 de Setembro",
     periodo: "01/09/2026 a 07/09/2026",
-    vendasAtual: 15,     // soma de todas as vendas da semana (externo+interno)
+    vendasAtual: 16,     // soma de todas as vendas da semana (externo+interno)
     meta: 25,
     diasCorridos: 7,    // usado so para calcular a media diaria
   },
@@ -986,24 +986,24 @@ const CONFIG = {
   // mensal  = vendas acumuladas no mês vs meta mensal de cada faixa
   metasFilial: {
     semanal: {
-      m1: { atual: 15,  meta: 25 },
-      m2: { atual: 15,  meta: 20 },
-      m3: { atual: 15,  meta: 15 },
+      m1: { atual: 16,  meta: 25 },
+      m2: { atual: 16,  meta: 20 },
+      m3: { atual: 16,  meta: 15 },
     },
     mensal: {
-      m1: { atual: 15, meta: 100 },
-      m2: { atual: 15, meta: 80  },
-      m3: { atual: 15, meta: 60  },
+      m1: { atual: 16, meta: 100 },
+      m2: { atual: 16, meta: 80  },
+      m3: { atual: 16, meta: 60  },
     },
   },
 
   // ---------- grafico "Evolucao da Semana" ----------
   evolucaoSemana: [
-    { dia: "Seg", vendas: 1 },
+    { dia: "Seg", vendas: 0 },
     { dia: "Ter", vendas: 4 },
     { dia: "Qua", vendas: 5 },
     { dia: "Qui", vendas: 4 },
-    { dia: "Sex", vendas: 2 },
+    { dia: "Sex", vendas: 3 },
     { dia: "Sab", vendas: 0 },
     { dia: "Dom", vendas: 0 },
   ],
@@ -1018,9 +1018,9 @@ const CONFIG = {
   // ---------- Conquistas Recentes ----------
   // "quando" é opcional — se não quiser mostrar, é só apagar a linha
   conquistas: [
-    { texto: "🏆 Gabriella atingiu 3 vendas na semana", quando: "Hoje, 10:45" },
-    { texto: "🚀 Willian assumiu a liderança externa", quando: "Hoje, 09:30" },
-    { texto: "🎯 Filial atingiu 16% da meta semanal", quando: "Hoje, 08:00" },
+    { texto: "🏆 Gabriella atingiu 4 vendas na semana", quando: "Hoje, 10:45" },
+    { texto: "🚀 Ian assumiu a liderança externa", quando: "Hoje, 11:00" },
+    { texto: "🎯 Filial atingiu 60% da meta semanal", quando: "Hoje, 11:00" },
     { texto: "⚡ Gabriella é a maior evolução da semana", quando: "Ontem, 17:20" },
   ],
 };
@@ -1049,7 +1049,7 @@ const DATA = {
     // você atualiza toda semana comparando com a semana anterior)
     meta: { atual: 15, meta: 25 },
     externo: [
-      { id: 'ian',    vendas: 1, evolucao: 1 },
+      { id: 'ian',    vendas: 2, evolucao: 2 },
       { id: 'wilian', vendas: 1, evolucao: 1 },
     ],
     interno: [
@@ -1061,11 +1061,11 @@ const DATA = {
   mensal: {
     // meta = meta individual mensal de cada vendedor (usada pra
     // calcular a % da meta e o selo de ritmo no ranking mensal)
-    meta: { atual: 15, meta: 100 },
+    meta: { atual: 16, meta: 100 },
     externo: [
       // meta individual do vendedor externo = 14 vendas (nível de 20%
       // de comissão; a partir de 15 vendas a comissão sobe pra 40%)
-      { id: 'ian',    vendas: 1,  meta: 14 },
+      { id: 'ian',    vendas: 2,  meta: 14 },
       { id: 'wilian', vendas: 1,  meta: 14 },
     ],
     interno: [
