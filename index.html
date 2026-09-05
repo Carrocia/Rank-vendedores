@@ -2150,6 +2150,34 @@ function processarDadosParaRender(cache) {
 // renderAll SEMPRE recebe um cache real e populado pelo carregarDados().
 // Nunca é chamada com null — o estado "sem dados" é tratado à parte
 // por renderEstadoSemDados(), que NUNCA usa DATA/CONFIG como números atuais.
+// Atualiza os 5 cards da seção "Visão Geral" do Painel Administrativo
+// (dash-semana, dash-mes, dash-valor, dash-meta-pct, dash-lider).
+// Reaproveita 100% os dados já calculados por processarDadosParaRender()
+// (d) — nenhuma consulta nova ao Supabase é feita aqui.
+function renderAdmDashboard(d) {
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  setText('dash-semana', d.totalSemana + ' vendas');
+  setText('dash-mes', d.totalMes + ' vendas');
+
+  // Valor mensal real (plano + adicionais), somando o ranking do mês
+  // já calculado por calcularRanking() — mesmo valor usado no ranking.
+  const valorMes = (d.rankingMes || []).reduce((s, r) => s + Number(r.valor || 0), 0);
+  setText('dash-valor', 'R$ ' + valorMes.toFixed(2).replace('.', ','));
+
+  // Meta mensal M1 real, vinda de metas_filial (já normalizada por
+  // loadMetasFilial()). Se não estiver configurada, mostra "—".
+  const metaM1 = d.metasFilial && d.metasFilial.mensal_m1;
+  setText('dash-meta-pct', metaM1 ? (d.pctMensal + '%') : '—');
+  const cardMeta = document.getElementById('dash-meta-pct');
+  const subMeta = cardMeta ? cardMeta.parentElement.querySelector('.sub') : null;
+  if (subMeta) subMeta.textContent = metaM1 ? ('M1 = ' + metaM1 + ' vendas') : 'Meta não configurada';
+
+  // Líder do mês real (nome, já resolvido pelo mesmo critério de
+  // desempate do ranking: vendas e, em empate, valor vendido).
+  setText('dash-lider', d.lider || '—');
+}
+
 function renderAll(cache) {
   document.getElementById('celebrateBtn').style.display = CONFIG.mostrarBotaoDestaque ? 'inline-flex' : 'none';
 
@@ -2186,6 +2214,7 @@ function renderAll(cache) {
   renderAdmVendedoresTable(d);
   renderAdmMetasConfig(cache);
   renderConfigMetas(cache);
+  renderAdmDashboard(d);
 }
 
 function toggleTheme() {
@@ -2532,6 +2561,7 @@ async function saveVenda(dados) {
       valor: dados.valor,          // snapshot do preço no momento
       cliente: dados.cliente || null,
       observacao: dados.observacao || null,
+      fora_filial: dados.fora_filial === true,
     }])
     .select()
     .single();
@@ -2775,6 +2805,7 @@ async function handleNovaVenda(e) {
   const data_venda = document.getElementById('venda-data').value;
   const cliente = document.getElementById('venda-cliente').value.trim();
   const obs = document.getElementById('venda-obs').value.trim();
+  const foraFilial = document.getElementById('venda-fora-filial').checked;
   if (!vendedor_id || !plano_id) { alert('Selecione o vendedor e o plano.'); return; }
   const checkboxes = document.querySelectorAll('input[name="adicionais"]:checked');
   const adicionaisParaSalvar = Array.from(checkboxes).map(cb => {
@@ -2791,7 +2822,7 @@ async function handleNovaVenda(e) {
   if (obs) partesObs.push(obs);
   const observacaoFinal = partesObs.length ? partesObs.join(' — ') : null;
   try {
-    const venda = await saveVenda({ vendedor_id, plano_id, data_venda, valor: parseFloat(planoValorStr), cliente: cliente, observacao: observacaoFinal });
+    const venda = await saveVenda({ vendedor_id, plano_id, data_venda, valor: parseFloat(planoValorStr), cliente: cliente, observacao: observacaoFinal, fora_filial: foraFilial });
     if (adicionaisParaSalvar.length > 0) await saveVendaAdicionais(venda.id, adicionaisParaSalvar);
     await carregarDados();
     resetVendaForm();
@@ -3390,11 +3421,6 @@ carregarDados();
               <div class="sub">maior nº de vendas</div>
             </div>
           </div>
-          <div class="adm-form-card" style="opacity:0.7;text-align:center;padding:40px;">
-            <div style="font-size:1.4rem;margin-bottom:8px;">🔌</div>
-            <div style="font-size:0.9rem;font-weight:700;color:var(--heading-color);">Dashboard completo disponível após integração com Supabase</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;">Os dados acima serão populados automaticamente pelas funções <code>loadVendas()</code> e <code>loadVendedores()</code>.</div>
-          </div>
         </section>
 
         <!-- ── NOVA VENDA ──────────────────────────────────────── -->
@@ -3449,6 +3475,16 @@ carregarDados();
                 <div class="adm-field">
                   <label>Nome do cliente</label>
                   <input type="text" id="venda-cliente" placeholder="Nome completo" required>
+                </div>
+
+                <div class="adm-form-full">
+                  <div class="adm-adicional-item">
+                    <input type="checkbox" id="venda-fora-filial" name="fora_filial">
+                    <div>
+                      <label for="venda-fora-filial">Venda fora da filial</label>
+                      <div class="adm-adicional-price">Venda realizada fora da região desta filial</div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="adm-field adm-form-full">
