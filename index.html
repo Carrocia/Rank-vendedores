@@ -2067,12 +2067,20 @@ function processarDadosParaRender(cache) {
   const extMes = agruparPorVendedor(vendasMes, externos);
   const intMes = agruparPorVendedor(vendasMes, internos);
 
-  // Evolução semanal (vendas por dia da semana)
+  // Evolução semanal (vendas por dia da semana) — usa exclusivamente
+  // as vendas reais da semana atual (vendasSemana), sem depender de metas.
   const diasLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   const diasContagem = new Array(7).fill(0);
   vendasSemana.forEach(v => {
-    const d = new Date(v.data_venda + 'T12:00:00');
+    // data_venda pode vir como data pura ("2026-09-07") ou como
+    // timestamp completo ("2026-09-07T14:32:00+00:00"). Extrair só
+    // os 10 primeiros caracteres ("YYYY-MM-DD") evita concatenar
+    // duas horas na mesma string (o que gerava Invalid Date e
+    // fazia toda a contagem cair fora dos dias reais).
+    const dataStr = String(v.data_venda).slice(0, 10);
+    const d = new Date(dataStr + 'T12:00:00');
     const diaSemana = d.getDay(); // 0=Dom
+    if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
     const idx = diaSemana === 0 ? 6 : diaSemana - 1;
     diasContagem[idx]++;
   });
