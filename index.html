@@ -1939,7 +1939,7 @@ function popularSelectPlanos(planos) {
   const html = '<option value="">Selecione o plano</option>' +
     Object.entries(grupos).map(([g, ps]) =>
       `<optgroup label="${g}">${ps.map(p =>
-        `<option value="${p.id}|${p.valor}">${p.nome} — R$ ${Number(p.valor).toFixed(2).replace('.',',')}</option>`
+        `<option value="${p.id}|${p.valor}">${p.nome} ${p.velocidade_mb} Mbps — R$ ${Number(p.valor).toFixed(2).replace('.',',')}</option>`
       ).join('')}</optgroup>`
     ).join('');
   ['venda-plano','filial-plano'].forEach(id => {
@@ -2078,14 +2078,23 @@ function processarDadosParaRender(cache) {
   });
   const evolucaoSemana = diasLabels.map((dia, i) => ({ dia, vendas: diasContagem[i] }));
 
-  // Vendas por plano (donut)
+  // Vendas por plano (donut) — identifica cada plano por plano_id +
+  // velocidade_mb (não só pelo nome, que se repete entre velocidades
+  // diferentes). A velocidade vem de "planos" (já carregado em cache,
+  // sem nova consulta ao Supabase), já que a view de vendas não a traz.
   const CORES_PLANOS = ['#21d9ff','#7c5cff','#ffc94d','#ff5f6e','#34d399','#f97316','#a78bfa','#fb7185'];
   const planosMapa = {};
   vendasMes.forEach(v => {
     const planoId = v.plano_id;
     const planoNome = v.planos?.nome || planoId;
-    if (!planosMapa[planoId]) planosMapa[planoId] = { nome: planoNome, vendas: 0 };
-    planosMapa[planoId].vendas++;
+    const planoInfo = (planos || []).find(p => p.id === planoId);
+    const velocidade = planoInfo ? planoInfo.velocidade_mb : null;
+    const chave = planoId; // continua 1 grupo por plano_id real (nunca por nome)
+    if (!planosMapa[chave]) {
+      const label = velocidade ? `${planoNome} ${velocidade} Mbps` : planoNome;
+      planosMapa[chave] = { nome: label, vendas: 0 };
+    }
+    planosMapa[chave].vendas++;
   });
   const vendasPorPlano = Object.values(planosMapa).map((p, i) => ({ ...p, cor: CORES_PLANOS[i % CORES_PLANOS.length] }));
 
@@ -2423,7 +2432,21 @@ async function loadMetasFilial(mes, ano) {
     .eq('ano', ano)
     .single();
   if (error) { console.error('[loadMetasFilial]', error); return null; }
-  return data;
+  if (!data) return null;
+  // Normaliza os nomes reais das colunas do Supabase (meta_semanal_m3 etc.)
+  // para os nomes internos que o restante do dashboard já espera
+  // (semanal_m3 etc.) — nenhuma outra função precisa saber dessa diferença.
+  return {
+    id: data.id,
+    mes: data.mes,
+    ano: data.ano,
+    semanal_m3: data.meta_semanal_m3,
+    semanal_m2: data.meta_semanal_m2,
+    semanal_m1: data.meta_semanal_m1,
+    mensal_m3: data.meta_mensal_m3,
+    mensal_m2: data.meta_mensal_m2,
+    mensal_m1: data.meta_mensal_m1,
+  };
 }
 
 async function loadVendas(de, ate) {
@@ -3079,12 +3102,23 @@ function lerMetaInput(id) {
 // UPDATE (se já existir) ou INSERT (se ainda não existir) — equivalente
 // a um upsert, sem depender de um nome de constraint que não foi informado.
 async function salvarMetaFilial(dados) {
+  // dados chega com nomes internos (semanal_m3, mensal_m3, ...) —
+  // convertidos aqui para os nomes reais das colunas do Supabase
+  // (meta_semanal_m3, meta_mensal_m3, ...) antes de update/insert.
+  const dadosSupabase = {
+    meta_semanal_m3: dados.semanal_m3,
+    meta_semanal_m2: dados.semanal_m2,
+    meta_semanal_m1: dados.semanal_m1,
+    meta_mensal_m3: dados.mensal_m3,
+    meta_mensal_m2: dados.mensal_m2,
+    meta_mensal_m1: dados.mensal_m1,
+  };
   const existente = _cache.metasFilial;
   if (existente && existente.id) {
-    const { error } = await window._supabase.from('metas_filial').update(dados).eq('id', existente.id);
+    const { error } = await window._supabase.from('metas_filial').update(dadosSupabase).eq('id', existente.id);
     if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível salvar a meta da filial.'); }
   } else {
-    const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dados };
+    const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
     const { error } = await window._supabase.from('metas_filial').insert([payload]);
     if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível criar a meta da filial.'); }
   }
