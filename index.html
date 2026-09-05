@@ -2121,9 +2121,21 @@ function processarDadosParaRender(cache) {
   const vendasPorPlano = Object.values(planosMapa).map((p, i) => ({ ...p, cor: CORES_PLANOS[i % CORES_PLANOS.length] }));
 
   // Totais mensais — meta global da filial: vendas fora da filial
-  // (de qualquer tipo de vendedor) não contam aqui.
-  const totalMes = vendasMes.filter(v => v.fora_filial !== true).length;
-  const totalSemana = vendasSemana.filter(v => v.fora_filial !== true).length;
+  // (de qualquer tipo de vendedor) não contam aqui. Vendas de OUTRAS
+  // filiais registradas PARA a nossa (vendasFiliais) somam aqui pela
+  // quantidade de cada registro — mas nunca entram em ranking, líder,
+  // meta individual ou evolução individual (permanecem à parte).
+  const vendasOutrasFiliaisMes = (vendasFiliais || [])
+    .reduce((s, v) => s + Number(v.quantidade || 1), 0);
+  const totalMes = vendasMes.filter(v => v.fora_filial !== true).length + vendasOutrasFiliaisMes;
+
+  const vendasOutrasFiliaisSemana = (vendasFiliais || [])
+    .filter(v => {
+      const dataStr = String(v.data_venda || '').slice(0, 10);
+      return dataStr >= semana.de && dataStr <= semana.ate;
+    })
+    .reduce((s, v) => s + Number(v.quantidade || 1), 0);
+  const totalSemana = vendasSemana.filter(v => v.fora_filial !== true).length + vendasOutrasFiliaisSemana;
   const metaGlobal = (metasFilial && metasFilial.mensal_m1) || null; // sem fallback fictício
   const pctMensal = metaGlobal ? Math.min(100, Math.round((totalMes / metaGlobal) * 100)) : 0;
   const rankingMes = calcularRanking(vendasMes);
