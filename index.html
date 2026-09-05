@@ -24,9 +24,11 @@
     --green: #34d399;
     --shadow-hover: rgba(0,0,0,0.4);
     --radius: 20px;
+    color-scheme: dark;
   }
 
   [data-theme="light"] {
+    color-scheme: light;
     --bg: #e8ecf4;
     --surface: rgba(255,255,255,0.92);
     --surface-solid: #ffffff;
@@ -385,7 +387,8 @@
     .confetti-piece, .celebration-photo-wrap::before, .celebration-crown,
     .celebration-title, .celebration-card,
     .signal-rings span, .signal-bars span,
-    .adm-report-card .coming::before, .mural-winner-pending .mural-photo-wrap::before { animation: none !important; }
+    .adm-report-card .coming::before, .mural-winner-pending .mural-photo-wrap::before,
+    .toast { animation: none !important; }
     .podium-base, .goal-liquid,
     .week-bar-fill, .meta-filial-bar-fill, .podium-mini-bar-fill { transition: none !important; }
   }
@@ -791,6 +794,44 @@
   color: var(--accent);
 }
 
+/* ── Toast (substitui o alert() nativo do navegador) ──────────── */
+#toast-container {
+  position: fixed; top: 24px; right: 24px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 10px;
+  pointer-events: none; max-width: min(380px, calc(100vw - 48px));
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: 12px;
+  background: #14151f; border: 1px solid rgba(255,255,255,0.1);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  font-family: 'Poppins', sans-serif;
+  animation: toastIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast.toast-out { animation: toastOut 0.2s ease forwards; }
+.toast.success { border-left-color: var(--green); }
+.toast.error { border-left-color: #ff5f6e; }
+.toast.warning { border-left-color: #ffc94d; }
+.toast-icon {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+  background: rgba(33,217,255,0.14);
+}
+.toast.success .toast-icon { background: rgba(52,211,153,0.16); }
+.toast.error .toast-icon { background: rgba(255,95,110,0.16); }
+.toast.warning .toast-icon { background: rgba(255,201,77,0.16); }
+.toast-msg { flex: 1; font-size: 0.84rem; color: var(--text); line-height: 1.4; padding-top: 3px; }
+.toast-close {
+  flex-shrink: 0; background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 1rem; line-height: 1; padding: 2px;
+  transition: color 0.15s;
+}
+.toast-close:hover { color: var(--text); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(30px); } }
+
 /* ── Overlay (login + painel) ───────────────────────────────── */
 .adm-overlay {
   position: fixed; inset: 0; z-index: 900;
@@ -873,6 +914,50 @@
 }
 #venda-plano:hover, #filial-plano:hover { background-color: rgba(124,92,255,0.09); border-color: rgba(124,92,255,0.45); }
 #venda-plano:focus, #filial-plano:focus { border-color: #7c5cff; box-shadow: 0 0 0 3px rgba(124,92,255,0.15); }
+
+/* ── dropdown customizado do campo "Plano" ────────────────────────
+   O <select> nativo continua existindo (escondido) só pra guardar o
+   valor de verdade e alimentar o resto do sistema sem alteração
+   nenhuma de lógica — o que aparece visualmente é este componente. */
+.custom-select { position: relative; }
+.custom-select-trigger {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  background-color: rgba(124,92,255,0.05); border: 1px solid rgba(124,92,255,0.28);
+  border-radius: 10px; padding: 13px 16px; cursor: pointer; text-align: left;
+  font-family: 'Poppins', sans-serif; font-size: 0.9rem; font-weight: 600; color: var(--text);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.custom-select-trigger:hover { background-color: rgba(124,92,255,0.09); border-color: rgba(124,92,255,0.45); }
+.custom-select.open .custom-select-trigger { border-color: #7c5cff; box-shadow: 0 0 0 3px rgba(124,92,255,0.15); }
+.custom-select-icon { flex-shrink: 0; font-size: 0.95rem; }
+.custom-select-value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.custom-select-value.placeholder { color: var(--text-muted); font-weight: 500; }
+.custom-select-arrow { flex-shrink: 0; font-size: 0.7rem; color: #7c5cff; transition: transform 0.2s; }
+.custom-select.open .custom-select-arrow { transform: rotate(180deg); }
+
+.custom-select-panel {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 60;
+  background: #14151f; border: 1px solid rgba(124,92,255,0.32); border-radius: 12px;
+  max-height: 300px; overflow-y: auto; box-shadow: 0 18px 44px rgba(0,0,0,0.55);
+  padding: 6px;
+}
+.custom-select.open .custom-select-panel { display: block; }
+.custom-select-group-label {
+  font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
+  color: #7c5cff; padding: 10px 10px 4px;
+}
+.custom-select-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  font-size: 0.85rem; color: var(--text); transition: background 0.12s;
+}
+.custom-select-option:hover { background: rgba(124,92,255,0.15); }
+.custom-select-option.selected { background: rgba(124,92,255,0.24); color: #fff; font-weight: 700; }
+.custom-select-option .csopt-price { color: var(--text-muted); font-weight: 600; white-space: nowrap; font-size: 0.78rem; }
+.custom-select-option.selected .csopt-price { color: #d6cfff; }
+.custom-select-panel::-webkit-scrollbar { width: 8px; }
+.custom-select-panel::-webkit-scrollbar-thumb { background: rgba(124,92,255,0.3); border-radius: 8px; }
+
 #filial-origem {
   background-color: rgba(255,201,77,0.05);
   border-color: rgba(255,201,77,0.28);
@@ -1893,6 +1978,32 @@ function renderConquistas(conquistas) {
 }
 
 // ================================================================
+// TOAST — substitui alert() do navegador por uma notificação com a
+// mesma identidade visual do resto do sistema. Só apresentação;
+// nenhuma função de negócio muda de comportamento por causa disso.
+// ================================================================
+function showToast(message, type = 'success', duration = 4500) {
+  const container = document.getElementById('toast-container');
+  if (!container) { alert(message); return; } // fallback de segurança, nunca deve ser usado
+  const icons = { success: '✅', error: '⛔', warning: '⚠️' };
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type] || icons.success}</span>
+    <span class="toast-msg"></span>
+    <button type="button" class="toast-close" aria-label="Fechar">✕</button>
+  `;
+  toast.querySelector('.toast-msg').textContent = message; // texto via textContent, nunca HTML solto
+  container.appendChild(toast);
+  const remove = () => {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 200);
+  };
+  toast.querySelector('.toast-close').addEventListener('click', remove);
+  if (duration > 0) setTimeout(remove, duration);
+}
+
+// ================================================================
 // DADOS EM MEMÓRIA (cache da sessão, populados por carregarDados)
 // ================================================================
 let _cache = {
@@ -2069,6 +2180,9 @@ function popularSelectPlanos(planos) {
   ['venda-plano','filial-plano'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
+    // espelha exatamente os mesmos planos/preços no dropdown visual
+    // customizado (mesmo "grupos" usado acima, nenhum dado novo)
+    buildCustomSelectPanel(id, grupos);
   });
 }
 
@@ -2127,6 +2241,83 @@ function preencherValorAdicional() {
   const opt = sel.selectedOptions[0];
   if (opt && opt.dataset.valor) valorEl.value = opt.dataset.valor;
 }
+
+// ================================================================
+// DROPDOWN CUSTOMIZADO DO CAMPO "PLANO" — só camada visual.
+// O <select> real por trás (escondido) continua sendo a única fonte
+// de verdade do valor: quem lê/valida/envia o formulário nunca muda,
+// só a forma como o usuário escolhe a opção fica mais bonita.
+// ================================================================
+
+// Monta o painel visual a partir do MESMO agrupamento (grupos) que já
+// é usado para montar o <select> real — nenhum dado novo é calculado.
+function buildCustomSelectPanel(selectId, grupos) {
+  const panel = document.getElementById(selectId + '-panel');
+  if (!panel) return;
+  panel.innerHTML = Object.entries(grupos).map(([g, ps]) => `
+    <div class="custom-select-group-label">${g}</div>
+    ${ps.map(p => {
+      const value = `${p.id}|${p.valor}`;
+      const label = `${p.nome} ${p.velocidade_mb} Mbps`;
+      const priceLabel = 'R$ ' + Number(p.valor).toFixed(2).replace('.', ',');
+      return `<div class="custom-select-option" data-value="${value}" data-label="${label} — ${priceLabel}">
+        <span>${label}</span><span class="csopt-price">${priceLabel}</span>
+      </div>`;
+    }).join('')}
+  `).join('');
+  // garante que o botão volte a mostrar o placeholder quando os
+  // planos são recarregados (ex.: depois de registrar uma venda)
+  const trigger = document.getElementById(selectId + '-trigger');
+  if (trigger) {
+    const valueEl = trigger.querySelector('.custom-select-value');
+    valueEl.textContent = 'Selecione o plano';
+    valueEl.classList.add('placeholder');
+  }
+}
+
+// Aplica a escolha feita no dropdown visual de volta no <select> real
+// (dispara 'change' pra continuar acionando calcularTotal()/
+// calcularTotalFilial(), exatamente como já acontecia antes).
+function customSelectPick(selectId, value, label) {
+  const sel = document.getElementById(selectId);
+  const wrap = document.getElementById(selectId + '-custom');
+  if (!sel || !wrap) return;
+  sel.value = value;
+  sel.dispatchEvent(new Event('change'));
+  const valueEl = wrap.querySelector('.custom-select-value');
+  valueEl.textContent = label;
+  valueEl.classList.remove('placeholder');
+  wrap.querySelectorAll('.custom-select-option').forEach(o => {
+    o.classList.toggle('selected', o.dataset.value === value);
+  });
+  wrap.classList.remove('open');
+}
+
+// Um único listener cuida de abrir/fechar/escolher em qualquer
+// dropdown customizado da página (hoje só os de plano, mas serve
+// para qualquer outro que venha a usar essa mesma estrutura).
+document.addEventListener('click', (e) => {
+  const opt = e.target.closest('.custom-select-option');
+  if (opt) {
+    const wrap = opt.closest('.custom-select');
+    customSelectPick(wrap.dataset.for, opt.dataset.value, opt.dataset.label);
+    return;
+  }
+  const trigger = e.target.closest('.custom-select-trigger');
+  if (trigger) {
+    const wrap = trigger.closest('.custom-select');
+    const isOpen = wrap.classList.contains('open');
+    document.querySelectorAll('.custom-select.open').forEach(w => w.classList.remove('open'));
+    if (!isOpen) wrap.classList.add('open');
+    return;
+  }
+  document.querySelectorAll('.custom-select.open').forEach(wrap => {
+    if (!wrap.contains(e.target)) wrap.classList.remove('open');
+  });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.querySelectorAll('.custom-select.open').forEach(w => w.classList.remove('open'));
+});
 
 function popularSelectFiliais(filiais) {
   const el = document.getElementById('filial-origem');
@@ -2471,7 +2662,7 @@ function buildConfetti() {
 // não foram carregados, avisa em vez de simular um vencedor.
 function showCelebration() {
   if (!_dadosCarregados) {
-    alert('Os dados ainda não foram carregados do Supabase. Tente novamente em instantes.');
+    showToast('Os dados ainda não foram carregados do Supabase. Tente novamente em instantes.', 'warning');
     return;
   }
   const d = processarDadosParaRender(_cache);
@@ -2975,9 +3166,21 @@ function calcularTotal() {
   document.getElementById('venda-total').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
 }
 
+// Volta o dropdown customizado ao estado "nada selecionado" — usado
+// pelos reset dos formulários, já que form.reset() só limpa o <select>
+// real escondido, não o texto visível do botão customizado.
+function resetCustomSelect(selectId) {
+  const wrap = document.getElementById(selectId + '-custom');
+  if (!wrap) return;
+  const valueEl = wrap.querySelector('.custom-select-value');
+  if (valueEl) { valueEl.textContent = 'Selecione o plano'; valueEl.classList.add('placeholder'); }
+  wrap.querySelectorAll('.custom-select-option.selected').forEach(o => o.classList.remove('selected'));
+}
+
 function resetVendaForm() {
   document.getElementById('adm-venda-form').reset();
   document.getElementById('venda-total').textContent = 'R$ 0,00';
+  resetCustomSelect('venda-plano');
 }
 
 // ── Handler Nova Venda ───────────────────────────────────────────
@@ -2991,8 +3194,8 @@ async function handleNovaVenda(e) {
   const cliente = document.getElementById('venda-cliente').value.trim();
   const obs = document.getElementById('venda-obs').value.trim();
   const foraFilial = document.getElementById('venda-fora-filial').checked;
-  if (!vendedor_id || !plano_id) { alert('Selecione o vendedor e o plano.'); return; }
-  if (!data_venda || !hora_venda) { alert('Informe a data e a hora da venda.'); return; }
+  if (!vendedor_id || !plano_id) { showToast('Selecione o vendedor e o plano.', 'warning'); return; }
+  if (!data_venda || !hora_venda) { showToast('Informe a data e a hora da venda.', 'warning'); return; }
   // Monta o timestamp a partir dos componentes LOCAIS de data e hora
   // digitados manualmente (sem passar por new Date('YYYY-MM-DD'), que
   // interpretaria a data como UTC e deslocaria o dia/hora). É uma
@@ -3017,10 +3220,10 @@ async function handleNovaVenda(e) {
     if (adicionaisParaSalvar.length > 0) await saveVendaAdicionais(venda.id, adicionaisParaSalvar);
     await carregarDados();
     resetVendaForm();
-    alert('✅ Venda registrada com sucesso!');
+    showToast('Venda registrada com sucesso!', 'success');
   } catch (err) {
     console.error('[handleNovaVenda]', err);
-    alert('Não foi possível registrar a venda.');
+    showToast('Não foi possível registrar a venda.', 'error');
   }
 }
 
@@ -3033,15 +3236,15 @@ async function handleNovoAdicional(e) {
   const quantidade = parseInt(document.getElementById('adic-quantidade')?.value) || 1;
   const valor_unitario = parseFloat(document.getElementById('adic-valor')?.value) || 0;
   const obs = document.getElementById('adic-obs')?.value || null;
-  if (!produto_adicional_id) { alert('Selecione o produto adicional.'); return; }
+  if (!produto_adicional_id) { showToast('Selecione o produto adicional.', 'warning'); return; }
   try {
     await saveAdicionalAvulso({ vendedor_id, produto_adicional_id, data_venda, quantidade, valor_unitario, observacao: obs });
     await carregarDados();
-    alert('✅ Adicional avulso registrado!');
+    showToast('Adicional avulso registrado!', 'success');
     document.getElementById('adm-adicional-form').reset();
   } catch (err) {
     console.error('[handleNovoAdicional]', err);
-    alert('Não foi possível registrar o adicional avulso.');
+    showToast('Não foi possível registrar o adicional avulso.', 'error');
   }
 }
 
@@ -3070,6 +3273,7 @@ function calcularTotalFilial() {
 function resetFilialForm() {
   document.getElementById('adm-filial-form').reset();
   document.getElementById('filial-total').textContent = 'R$ 0,00';
+  resetCustomSelect('filial-plano');
 }
 
 // ── Atualizar o totalizador da meta global ───────────────────────
@@ -3146,6 +3350,7 @@ async function handleVendaOutraFilial(e) {
   const valorUnit = isNaN(valorCustom) ? parseFloat(planoValorPadraoStr) : valorCustom;
   const data = document.getElementById('filial-data').value;
   const obs = document.getElementById('filial-obs').value;
+  if (!filialId || !planoId) { showToast('Selecione a filial e o plano.', 'warning'); return; }
 
   const checkboxes = document.querySelectorAll('input[name="filial-adicionais"]:checked');
   const adicionais = Array.from(checkboxes).map(cb => {
@@ -3180,10 +3385,10 @@ async function handleVendaOutraFilial(e) {
     if (adicionaisFilial.length > 0) await saveVendaOutraFilialAdicionais(vendaFilial.id, adicionaisFilial);
     await carregarDados();
     resetFilialForm();
-    alert('✅ Venda da filial registrada com sucesso!');
+    showToast('Venda da filial registrada com sucesso!', 'success');
   } catch (err) {
     console.error('[handleVendaOutraFilial]', err);
-    alert('Não foi possível registrar a venda da filial.');
+    showToast('Não foi possível registrar a venda da filial.', 'error');
   }
 }
 
@@ -3387,13 +3592,13 @@ async function salvarMetaVendedor(vendedor_id, dados) {
 // no Supabase e só then chama carregarDados() para refletir os novos
 // valores em toda a interface (pública e administrativa).
 async function handleSalvarMetas() {
-  if (!_dadosCarregados) { alert('Os dados ainda não foram carregados do Supabase.'); return; }
+  if (!_dadosCarregados) { showToast('Os dados ainda não foram carregados do Supabase.', 'warning'); return; }
 
   // 1) Ler e validar a Meta da Filial
   const camposFilial = ['cfg-fil-sem-m3', 'cfg-fil-sem-m2', 'cfg-fil-sem-m1', 'cfg-fil-mes-m3', 'cfg-fil-mes-m2', 'cfg-fil-mes-m1'];
   const leiturasFilial = camposFilial.map(lerMetaInput);
   if (leiturasFilial.some(l => !l.ok)) {
-    alert('Preencha as metas da filial com números inteiros maiores ou iguais a zero (ou deixe em branco).');
+    showToast('Preencha as metas da filial com números inteiros maiores ou iguais a zero (ou deixe em branco).', 'warning');
     return;
   }
   const dadosFilial = {
@@ -3412,7 +3617,7 @@ async function handleSalvarMetas() {
     const m1 = lerMetaInput(`cfg-meta-${vendedor_id}-m1`);
     const vendas = lerMetaInput(`cfg-meta-${vendedor_id}-vendas`);
     if (!m3.ok || !m2.ok || !m1.ok || !vendas.ok) {
-      alert('Preencha as metas individuais com números inteiros maiores ou iguais a zero (ou deixe em branco).');
+      showToast('Preencha as metas individuais com números inteiros maiores ou iguais a zero (ou deixe em branco).', 'warning');
       return;
     }
     const dados = tipo === 'interno'
@@ -3429,10 +3634,10 @@ async function handleSalvarMetas() {
     }
     // 4) Só depois de tudo salvo com sucesso, recarregar os dados reais
     await carregarDados();
-    alert('✅ Metas atualizadas com sucesso!');
+    showToast('Metas atualizadas com sucesso!', 'success');
   } catch (err) {
     console.error('[handleSalvarMetas]', err);
-    alert('Não foi possível salvar as metas. Verifique a conexão com o Supabase.');
+    showToast('Não foi possível salvar as metas. Verifique a conexão com o Supabase.', 'error');
   }
 }
 
@@ -3647,7 +3852,15 @@ carregarDados();
 
                 <div class="adm-field">
                   <label>Plano contratado</label>
-                  <select id="venda-plano" required onchange="calcularTotal()">
+                  <div class="custom-select" id="venda-plano-custom" data-for="venda-plano">
+                    <button type="button" class="custom-select-trigger" id="venda-plano-trigger">
+                      <span class="custom-select-icon">📦</span>
+                      <span class="custom-select-value placeholder">Selecione o plano</span>
+                      <span class="custom-select-arrow">▾</span>
+                    </button>
+                    <div class="custom-select-panel" id="venda-plano-panel"></div>
+                  </div>
+                  <select id="venda-plano" onchange="calcularTotal()" style="display:none;">
                     <option value="">Selecione o plano</option>
                     <optgroup label="Uni Fibra">
                       <option value="uni-fibra-500|99.90">Uni Fibra 500mb — R$ 99,90</option>
@@ -3963,7 +4176,15 @@ carregarDados();
 
                 <div class="adm-field">
                   <label>Plano</label>
-                  <select id="filial-plano" required onchange="calcularTotalFilial()">
+                  <div class="custom-select" id="filial-plano-custom" data-for="filial-plano">
+                    <button type="button" class="custom-select-trigger" id="filial-plano-trigger">
+                      <span class="custom-select-icon">📦</span>
+                      <span class="custom-select-value placeholder">Selecione o plano</span>
+                      <span class="custom-select-arrow">▾</span>
+                    </button>
+                    <div class="custom-select-panel" id="filial-plano-panel"></div>
+                  </div>
+                  <select id="filial-plano" onchange="calcularTotalFilial()" style="display:none;">
                     <option value="">Selecione o plano</option>
                     <optgroup label="Uni Fibra">
                       <option value="uni-fibra-500|99.90">Uni Fibra 500mb — R$ 99,90</option>
@@ -4101,6 +4322,8 @@ carregarDados();
     </div><!-- fim adm-panel-inner -->
   </div><!-- fim adm-panel -->
 </div><!-- fim adm-panel-overlay -->
+
+<div id="toast-container" aria-live="polite"></div>
 
 </body>
 </html>
