@@ -2029,9 +2029,16 @@ function processarDadosParaRender(cache) {
 
   // Contagem de vendas da semana anterior por vendedor — usada só
   // para calcular a evolução real (sem inventar nenhum número).
+  // Aplica a mesma regra de fora_filial usada na contagem da semana
+  // atual, para a comparação (evolução) ficar consistente.
+  const tipoPorVendedor = {};
+  (vendedores || []).forEach(v => { tipoPorVendedor[v.id] = v.tipo; });
   const contarVendasPorVendedor = (vendas) => {
     const mapa = {};
-    (vendas || []).forEach(v => { mapa[v.vendedor_id] = (mapa[v.vendedor_id] || 0) + 1; });
+    (vendas || []).forEach(v => {
+      if (tipoPorVendedor[v.vendedor_id] === 'externo' && v.fora_filial === true) return;
+      mapa[v.vendedor_id] = (mapa[v.vendedor_id] || 0) + 1;
+    });
     return mapa;
   };
   const contagemSemanaAnterior = contarVendasPorVendedor(vendasSemanaAnterior);
@@ -2048,6 +2055,10 @@ function processarDadosParaRender(cache) {
     });
     vendas.forEach(v => {
       if (mapa[v.vendedor_id]) {
+        // Venda externa "fora da filial" não conta para a meta
+        // individual/semanal do vendedor externo (mas continua
+        // existindo no banco normalmente — só não entra nesta contagem).
+        if (mapa[v.vendedor_id].tipo === 'externo' && v.fora_filial === true) return;
         mapa[v.vendedor_id].vendas += 1;
         mapa[v.vendedor_id].valor += Number(v.valor || 0);
       }
@@ -2072,6 +2083,9 @@ function processarDadosParaRender(cache) {
   const diasLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   const diasContagem = new Array(7).fill(0);
   vendasSemana.forEach(v => {
+    // "Evolução da Semana" é um indicador global da filial — vendas
+    // fora da filial (de qualquer tipo de vendedor) não entram aqui.
+    if (v.fora_filial === true) return;
     // data_venda pode vir como data pura ("2026-09-07") ou como
     // timestamp completo ("2026-09-07T14:32:00+00:00"). Extrair só
     // os 10 primeiros caracteres ("YYYY-MM-DD") evita concatenar
@@ -2106,9 +2120,10 @@ function processarDadosParaRender(cache) {
   });
   const vendasPorPlano = Object.values(planosMapa).map((p, i) => ({ ...p, cor: CORES_PLANOS[i % CORES_PLANOS.length] }));
 
-  // Totais mensais
-  const totalMes = vendasMes.length;
-  const totalSemana = vendasSemana.length;
+  // Totais mensais — meta global da filial: vendas fora da filial
+  // (de qualquer tipo de vendedor) não contam aqui.
+  const totalMes = vendasMes.filter(v => v.fora_filial !== true).length;
+  const totalSemana = vendasSemana.filter(v => v.fora_filial !== true).length;
   const metaGlobal = (metasFilial && metasFilial.mensal_m1) || null; // sem fallback fictício
   const pctMensal = metaGlobal ? Math.min(100, Math.round((totalMes / metaGlobal) * 100)) : 0;
   const rankingMes = calcularRanking(vendasMes);
@@ -2143,7 +2158,10 @@ function processarDadosParaRender(cache) {
     liderExternoSem, liderInternoSem, maiorEvolucao, maiorPct,
     vendaRecenteLabel,
     rankingMes,
-    totalGlobal: calcularTotais(vendasMes, vendasFiliais, metaGlobal),
+    // meta global da filial: vendas fora da filial não entram na
+    // contagem "nossa equipe" do totalizador (calcularTotais em si
+    // não foi alterada — só o array de entrada é filtrado aqui).
+    totalGlobal: calcularTotais(vendasMes.filter(v => v.fora_filial !== true), vendasFiliais, metaGlobal),
   };
 }
 
