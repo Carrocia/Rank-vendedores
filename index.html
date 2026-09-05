@@ -1029,6 +1029,12 @@
 
 /* ── PAINEL ──────────────────────────────────────────────────── */
 #adm-panel { max-width: 1200px; width: 100%; flex-direction: column; gap: 0; padding: 0; background: transparent; border: none; }
+/* O painel (diferente do card de login, que é curto e fica bem
+   centralizado) costuma ter mais conteúdo do que a tela — com
+   align-items:center do .adm-overlay, o topo (filtros, cabeçalho)
+   ficava "cortado" acima da área visível assim que abria. Aqui ele
+   sempre começa alinhado ao topo, com scroll normal pra baixo. */
+#adm-panel-overlay { align-items: flex-start; padding-top: 32px; }
 .adm-panel-inner { display: flex; gap: 0; min-height: calc(100vh - 64px); }
 
 /* sidebar */
@@ -3687,6 +3693,9 @@ function adm_navigateTo(sectionId) {
   document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
   document.querySelector(`.adm-nav-item[data-section="${sectionId}"]`)?.classList.add('active');
   document.getElementById('sec-' + sectionId)?.classList.add('active');
+  // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
+  // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
+  document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 // ── Cálculo do total na nova venda ──────────────────────────────
