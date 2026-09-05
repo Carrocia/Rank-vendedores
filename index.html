@@ -3135,14 +3135,17 @@ async function salvarMetaFilial(dados) {
 // Salva/atualiza a meta individual de um vendedor no mês/ano atual (metas).
 // Mesma lógica de UPDATE-ou-INSERT (equivalente a upsert) do item acima.
 async function salvarMetaVendedor(vendedor_id, dados) {
-  const existente = (_cache.metas || []).find(m => m.vendedor_id === vendedor_id);
-  if (existente && existente.id) {
-    const { error } = await window._supabase.from('metas').update(dados).eq('id', existente.id);
-    if (error) { console.error('[salvarMetaVendedor]', error); throw new Error('Não foi possível salvar a meta do vendedor.'); }
-  } else {
-    const payload = { vendedor_id, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dados };
-    const { error } = await window._supabase.from('metas').insert([payload]);
-    if (error) { console.error('[salvarMetaVendedor]', error); throw new Error('Não foi possível criar a meta do vendedor.'); }
+  const payload = { vendedor_id, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dados };
+  const { error } = await window._supabase
+    .from('metas')
+    .upsert(payload, { onConflict: 'vendedor_id,mes,ano' });
+  if (error) {
+    console.error('[salvarMetaVendedor] code:', error.code);
+    console.error('[salvarMetaVendedor] message:', error.message);
+    console.error('[salvarMetaVendedor] details:', error.details);
+    console.error('[salvarMetaVendedor] hint:', error.hint);
+    console.error('[salvarMetaVendedor] payload:', payload);
+    throw new Error('Não foi possível salvar a meta do vendedor.');
   }
 }
 
