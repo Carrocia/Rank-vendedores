@@ -1380,7 +1380,8 @@ function animateNumber(el, target, { duration = 900, suffixFn = null } = {}) {
 // ritmo do mes: compara a % da meta de cada vendedor com o % de
 // dias do mes que ja passaram (CONFIG.mesRitmo)
 function computeRitmo(pct) {
-  const esperado = (CONFIG.mesRitmo.diaAtual / CONFIG.mesRitmo.diasNoMes) * 100;
+  const { diaAtual, diasNoMes } = calcularPeriodoMes();
+  const esperado = (diaAtual / diasNoMes) * 100;
   if (pct >= esperado + 5) return { classe: 'verde',    label: 'Acima do ritmo',  icon: '🟢' };
   if (pct >= esperado - 5) return { classe: 'amarelo',  label: 'No ritmo',        icon: '🟡' };
   return { classe: 'vermelho', label: 'Abaixo do ritmo', icon: '🔴' };
@@ -2097,6 +2098,19 @@ function processarDadosParaRender(cache) {
     if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
     const idx = diaSemana === 0 ? 6 : diaSemana - 1;
     diasContagem[idx]++;
+  });
+  // Vendas de outras filiais PARA a nossa também representam vendas
+  // reais da filial no dia — somam na evolução (pela quantidade de
+  // cada registro), mas nunca entram em ranking, meta individual ou
+  // evolução individual de vendedor (elas não pertencem a ninguém).
+  (vendasFiliais || []).forEach(v => {
+    const dataStr = String(v.data_venda || '').slice(0, 10);
+    if (dataStr < semana.de || dataStr > semana.ate) return; // fora da semana atual
+    const d = new Date(dataStr + 'T12:00:00');
+    const diaSemana = d.getDay(); // 0=Dom
+    if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
+    const idx = diaSemana === 0 ? 6 : diaSemana - 1;
+    diasContagem[idx] += Number(v.quantidade || 1);
   });
   const evolucaoSemana = diasLabels.map((dia, i) => ({ dia, vendas: diasContagem[i] }));
 
@@ -2833,10 +2847,17 @@ async function handleNovaVenda(e) {
   const planoRaw = document.getElementById('venda-plano').value;
   const [plano_id, planoValorStr] = planoRaw.split('|');
   const data_venda = document.getElementById('venda-data').value;
+  const hora_venda = document.getElementById('venda-hora').value;
   const cliente = document.getElementById('venda-cliente').value.trim();
   const obs = document.getElementById('venda-obs').value.trim();
   const foraFilial = document.getElementById('venda-fora-filial').checked;
   if (!vendedor_id || !plano_id) { alert('Selecione o vendedor e o plano.'); return; }
+  if (!data_venda || !hora_venda) { alert('Informe a data e a hora da venda.'); return; }
+  // Monta o timestamp a partir dos componentes LOCAIS de data e hora
+  // digitados manualmente (sem passar por new Date('YYYY-MM-DD'), que
+  // interpretaria a data como UTC e deslocaria o dia/hora). É uma
+  // simples concatenação de string — nenhuma conversão de fuso ocorre.
+  const data_venda_timestamp = `${data_venda}T${hora_venda}:00`;
   const checkboxes = document.querySelectorAll('input[name="adicionais"]:checked');
   const adicionaisParaSalvar = Array.from(checkboxes).map(cb => {
     const [prod_id, valor_unit] = cb.value.split('|');
@@ -2852,7 +2873,7 @@ async function handleNovaVenda(e) {
   if (obs) partesObs.push(obs);
   const observacaoFinal = partesObs.length ? partesObs.join(' — ') : null;
   try {
-    const venda = await saveVenda({ vendedor_id, plano_id, data_venda, valor: parseFloat(planoValorStr), cliente: cliente, observacao: observacaoFinal, fora_filial: foraFilial });
+    const venda = await saveVenda({ vendedor_id, plano_id, data_venda: data_venda_timestamp, valor: parseFloat(planoValorStr), cliente: cliente, observacao: observacaoFinal, fora_filial: foraFilial });
     if (adicionaisParaSalvar.length > 0) await saveVendaAdicionais(venda.id, adicionaisParaSalvar);
     await carregarDados();
     resetVendaForm();
@@ -3500,6 +3521,11 @@ carregarDados();
                 <div class="adm-field">
                   <label>Data da venda</label>
                   <input type="date" id="venda-data" required>
+                </div>
+
+                <div class="adm-field">
+                  <label>Hora da venda</label>
+                  <input type="time" id="venda-hora" required>
                 </div>
 
                 <div class="adm-field">
