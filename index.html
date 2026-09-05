@@ -1394,7 +1394,7 @@ function renderPodium(containerId, entries, options = {}) {
   container.innerHTML = sorted.map((e, idx) => {
     const rank = idx + 1;
     const style = RANK_STYLE[rank] || RANK_STYLE[3];
-    const pessoa = PESSOAS[e.id] || {};
+    const pessoa = PESSOAS[e.slug] || PESSOAS[e.id] || {};
     const photo = pessoa.foto || '';
     const nome = e.nome || pessoa.nome || e.id;
     const pct = e.meta ? Math.min(100, Math.round((e.vendas / e.meta) * 100)) : 0;
