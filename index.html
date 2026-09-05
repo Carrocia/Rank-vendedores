@@ -1396,7 +1396,7 @@ function renderPodium(containerId, entries, options = {}) {
     const style = RANK_STYLE[rank] || RANK_STYLE[3];
     const pessoa = PESSOAS[e.id] || {};
     const photo = pessoa.foto || '';
-    const nome = pessoa.nome || e.id;
+    const nome = e.nome || pessoa.nome || e.id;
     const pct = e.meta ? Math.min(100, Math.round((e.vendas / e.meta) * 100)) : 0;
     const crownHTML = style.crown
       ? '<span class="crown" aria-hidden="true">👑</span><span class="sparkle s1" aria-hidden="true">✨</span><span class="sparkle s2" aria-hidden="true">✨</span>'
