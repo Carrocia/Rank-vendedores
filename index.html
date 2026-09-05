@@ -2786,7 +2786,7 @@ document.documentElement.setAttribute('data-active-tab', 'semanal');
 // Nunca use service_role key no frontend.
 // ================================================================
 const SUPABASE_URL = 'https://xmpurrxwfgzhnrqhrzyt.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_HGi_8HXwyr4SEzoIKunMiA_cmWsFI8U';
+const SUPABASE_ANON_KEY = 'dsOFpRomqKgxAgYlSRcS';
 
 function initSupabase() {
   if (!SUPABASE_URL || SUPABASE_URL === 'COLOCAR_URL_DO_PROJETO') {
@@ -3028,7 +3028,7 @@ function popularFiltrosRelatorio() {
   if (selV) {
     const atual = selV.value;
     selV.innerHTML = '<option value="">Todos</option>' +
-      (_cache.vendedores || []).map(v => `<option value="${v.id}">${v.nome}</option>`).join('');
+      (_cache.vendedores || []).map(v => `<option value="${v.id}" data-slug="${v.slug || ''}">${v.nome}</option>`).join('');
     selV.value = atual;
   }
   const selP = document.getElementById('rel-plano');
@@ -3068,7 +3068,9 @@ async function aplicarFiltrosRelatorio() {
 
   const dataIni = document.getElementById('rel-data-ini').value;
   const dataFim = document.getElementById('rel-data-fim').value;
-  const vendedorId = document.getElementById('rel-vendedor').value;
+  const vendedorSelEl = document.getElementById('rel-vendedor');
+  const vendedorId = vendedorSelEl.value;
+  const vendedorSlug = vendedorSelEl.selectedOptions[0]?.dataset.slug || '';
   const tipoVendedor = document.getElementById('rel-tipo-vendedor').value;
   const planoId = document.getElementById('rel-plano').value;
   const tipoVenda = document.getElementById('rel-tipo-venda').value;
@@ -3107,6 +3109,7 @@ async function aplicarFiltrosRelatorio() {
         data: dataStr,
         hora: extrairHoraRelatorio(v.data_venda),
         vendedorId: v.vendedor_id,
+        vendedorSlug: vend?.slug || v.vendedores?.slug || null,
         vendedorNome: vend?.nome || v.vendedores?.nome || '—',
         vendedorTipo: vend?.tipo || null,
         cliente: v.cliente || null,
@@ -3149,7 +3152,7 @@ async function aplicarFiltrosRelatorio() {
     });
 
     linhas = linhas.filter(l => {
-      if (vendedorId && l.vendedorId !== vendedorId) return false;
+      if (vendedorId && l.vendedorId !== vendedorId && l.vendedorSlug !== vendedorSlug) return false;
       if (tipoVendedor && l.vendedorTipo !== tipoVendedor) return false;
       if (planoId && l.planoId !== planoId) return false;
       if (tipoVenda && l.tipoLinha !== tipoVenda) return false;
