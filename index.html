@@ -3196,11 +3196,16 @@ async function handleNovaVenda(e) {
   const foraFilial = document.getElementById('venda-fora-filial').checked;
   if (!vendedor_id || !plano_id) { showToast('Selecione o vendedor e o plano.', 'warning'); return; }
   if (!data_venda || !hora_venda) { showToast('Informe a data e a hora da venda.', 'warning'); return; }
-  // Monta o timestamp a partir dos componentes LOCAIS de data e hora
-  // digitados manualmente (sem passar por new Date('YYYY-MM-DD'), que
-  // interpretaria a data como UTC e deslocaria o dia/hora). É uma
-  // simples concatenação de string — nenhuma conversão de fuso ocorre.
-  const data_venda_timestamp = `${data_venda}T${hora_venda}:00`;
+  // Monta o instante exato a partir dos componentes LOCAIS de data e
+  // hora digitados manualmente, usando o objeto Date (que conhece o
+  // fuso horário real do navegador) — e só depois converte para UTC/ISO
+  // no momento de enviar ao Supabase. Isso evita o deslocamento que
+  // acontecia ao mandar uma string sem indicador de fuso (o Postgres
+  // assumia UTC na sessão, não o fuso local do navegador).
+  const [anoVenda, mesVenda, diaVenda] = data_venda.split('-').map(Number);
+  const [horaVenda, minutoVenda] = hora_venda.split(':').map(Number);
+  const dataVendaLocal = new Date(anoVenda, mesVenda - 1, diaVenda, horaVenda, minutoVenda, 0, 0);
+  const data_venda_timestamp = dataVendaLocal.toISOString();
   const checkboxes = document.querySelectorAll('input[name="adicionais"]:checked');
   const adicionaisParaSalvar = Array.from(checkboxes).map(cb => {
     const [prod_id, valor_unit] = cb.value.split('|');
