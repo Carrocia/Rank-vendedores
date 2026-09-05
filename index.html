@@ -2168,6 +2168,7 @@ function renderAll(cache) {
   renderAdmRanking(d.rankingMes, cache.vendedores);
   renderAdmVendedoresTable(d);
   renderAdmMetasConfig(cache);
+  renderConfigMetas(cache);
 }
 
 function toggleTheme() {
@@ -3005,6 +3006,157 @@ function renderAdmMetasConfig(cache) {
   setText('meta-fil-mes-m1', mf && mf.mensal_m1 ? (mf.mensal_m1 + ' vendas') : '—');
 }
 
+// ================================================================
+// CONFIGURAÇÃO DE METAS (área administrativa editável)
+// Usa exatamente os mesmos nomes de campo que renderMetasFilial(),
+// renderWeekProgress(), renderMensalProgress() e processarDadosParaRender()
+// já leem (semanal_m1/m2/m3, mensal_m1/m2/m3, meta_m1/m2/m3, meta_vendas),
+// para garantir que o valor salvo apareça automaticamente nos cards
+// públicos depois de carregarDados() — sem tocar em nenhuma dessas funções.
+// ================================================================
+
+// Preenche o formulário (filial + tabela de vendedores) com os dados
+// já carregados em _cache — não faz nenhuma consulta nova ao Supabase.
+function renderConfigMetas(cache) {
+  const mesLabel = (cache.mes && cache.mes.mesNome)
+    ? (cache.mes.mesNome.charAt(0).toUpperCase() + cache.mes.mesNome.slice(1)) + '/' + cache.mes.ano
+    : '—';
+  const periodoEls = [document.getElementById('cfg-fil-periodo'), document.getElementById('cfg-ind-periodo')];
+  periodoEls.forEach(el => { if (el) el.textContent = mesLabel; });
+
+  // Meta da Filial
+  const mf = cache.metasFilial;
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val === null || val === undefined) ? '' : val; };
+  setVal('cfg-fil-sem-m3', mf ? mf.semanal_m3 : null);
+  setVal('cfg-fil-sem-m2', mf ? mf.semanal_m2 : null);
+  setVal('cfg-fil-sem-m1', mf ? mf.semanal_m1 : null);
+  setVal('cfg-fil-mes-m3', mf ? mf.mensal_m3 : null);
+  setVal('cfg-fil-mes-m2', mf ? mf.mensal_m2 : null);
+  setVal('cfg-fil-mes-m1', mf ? mf.mensal_m1 : null);
+
+  // Metas individuais — uma linha por vendedor ativo
+  const tbody = document.getElementById('cfg-metas-vendedores-tbody');
+  if (!tbody) return;
+  const vendedores = cache.vendedores || [];
+  const metas = cache.metas || [];
+  if (vendedores.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Nenhum vendedor carregado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = vendedores.map(v => {
+    const linha = metas.find(m => m.vendedor_id === v.id) || {};
+    const isInterno = v.tipo === 'interno';
+    const tipoLabel = isInterno
+      ? '<span class="adm-badge interno">Interno</span>'
+      : '<span class="adm-badge externo">Externo</span>';
+    const inputM = (campo, valor) => `<input type="number" min="0" step="1" style="width:90px;" id="cfg-meta-${v.id}-${campo}" value="${valor ?? ''}" placeholder="—" ${isInterno ? '' : 'disabled'}>`;
+    const inputVendas = `<input type="number" min="0" step="1" style="width:110px;" id="cfg-meta-${v.id}-vendas" value="${linha.meta_vendas ?? ''}" placeholder="—" ${isInterno ? 'disabled' : ''}>`;
+    return `<tr data-vendedor-id="${v.id}" data-tipo="${v.tipo}">
+      <td><strong>${v.nome}</strong></td>
+      <td>${tipoLabel}</td>
+      <td>${inputM('m3', linha.meta_m3)}</td>
+      <td>${inputM('m2', linha.meta_m2)}</td>
+      <td>${inputM('m1', linha.meta_m1)}</td>
+      <td>${inputVendas}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Lê um <input> numérico e valida: vazio é permitido (= "não definir"),
+// preenchido precisa ser inteiro >= 0. Retorna null se inválido.
+function lerMetaInput(id) {
+  const el = document.getElementById(id);
+  if (!el) return { ok: true, valor: null };
+  const raw = el.value.trim();
+  if (raw === '') return { ok: true, valor: null };
+  const num = Number(raw);
+  if (!Number.isInteger(num) || num < 0) return { ok: false, valor: null };
+  return { ok: true, valor: num };
+}
+
+// Salva/atualiza a meta da filial do mês/ano atual (metas_filial).
+// Usa o registro já carregado em _cache.metasFilial para decidir entre
+// UPDATE (se já existir) ou INSERT (se ainda não existir) — equivalente
+// a um upsert, sem depender de um nome de constraint que não foi informado.
+async function salvarMetaFilial(dados) {
+  const existente = _cache.metasFilial;
+  if (existente && existente.id) {
+    const { error } = await window._supabase.from('metas_filial').update(dados).eq('id', existente.id);
+    if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível salvar a meta da filial.'); }
+  } else {
+    const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dados };
+    const { error } = await window._supabase.from('metas_filial').insert([payload]);
+    if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível criar a meta da filial.'); }
+  }
+}
+
+// Salva/atualiza a meta individual de um vendedor no mês/ano atual (metas).
+// Mesma lógica de UPDATE-ou-INSERT (equivalente a upsert) do item acima.
+async function salvarMetaVendedor(vendedor_id, dados) {
+  const existente = (_cache.metas || []).find(m => m.vendedor_id === vendedor_id);
+  if (existente && existente.id) {
+    const { error } = await window._supabase.from('metas').update(dados).eq('id', existente.id);
+    if (error) { console.error('[salvarMetaVendedor]', error); throw new Error('Não foi possível salvar a meta do vendedor.'); }
+  } else {
+    const payload = { vendedor_id, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dados };
+    const { error } = await window._supabase.from('metas').insert([payload]);
+    if (error) { console.error('[salvarMetaVendedor]', error); throw new Error('Não foi possível criar a meta do vendedor.'); }
+  }
+}
+
+// Handler do botão "💾 Salvar Metas": valida tudo primeiro, só then salva
+// no Supabase e só then chama carregarDados() para refletir os novos
+// valores em toda a interface (pública e administrativa).
+async function handleSalvarMetas() {
+  if (!_dadosCarregados) { alert('Os dados ainda não foram carregados do Supabase.'); return; }
+
+  // 1) Ler e validar a Meta da Filial
+  const camposFilial = ['cfg-fil-sem-m3', 'cfg-fil-sem-m2', 'cfg-fil-sem-m1', 'cfg-fil-mes-m3', 'cfg-fil-mes-m2', 'cfg-fil-mes-m1'];
+  const leiturasFilial = camposFilial.map(lerMetaInput);
+  if (leiturasFilial.some(l => !l.ok)) {
+    alert('Preencha as metas da filial com números inteiros maiores ou iguais a zero (ou deixe em branco).');
+    return;
+  }
+  const dadosFilial = {
+    semanal_m3: leiturasFilial[0].valor, semanal_m2: leiturasFilial[1].valor, semanal_m1: leiturasFilial[2].valor,
+    mensal_m3: leiturasFilial[3].valor, mensal_m2: leiturasFilial[4].valor, mensal_m1: leiturasFilial[5].valor,
+  };
+
+  // 2) Ler e validar as metas individuais de cada vendedor
+  const linhas = document.querySelectorAll('#cfg-metas-vendedores-tbody tr[data-vendedor-id]');
+  const vendedoresParaSalvar = [];
+  for (const linha of linhas) {
+    const vendedor_id = linha.dataset.vendedorId;
+    const tipo = linha.dataset.tipo;
+    const m3 = lerMetaInput(`cfg-meta-${vendedor_id}-m3`);
+    const m2 = lerMetaInput(`cfg-meta-${vendedor_id}-m2`);
+    const m1 = lerMetaInput(`cfg-meta-${vendedor_id}-m1`);
+    const vendas = lerMetaInput(`cfg-meta-${vendedor_id}-vendas`);
+    if (!m3.ok || !m2.ok || !m1.ok || !vendas.ok) {
+      alert('Preencha as metas individuais com números inteiros maiores ou iguais a zero (ou deixe em branco).');
+      return;
+    }
+    const dados = tipo === 'interno'
+      ? { meta_m3: m3.valor, meta_m2: m2.valor, meta_m1: m1.valor }
+      : { meta_vendas: vendas.valor };
+    vendedoresParaSalvar.push({ vendedor_id, dados });
+  }
+
+  // 3) Só depois de validar tudo, gravar no Supabase
+  try {
+    await salvarMetaFilial(dadosFilial);
+    for (const v of vendedoresParaSalvar) {
+      await salvarMetaVendedor(v.vendedor_id, v.dados);
+    }
+    // 4) Só depois de tudo salvo com sucesso, recarregar os dados reais
+    await carregarDados();
+    alert('✅ Metas atualizadas com sucesso!');
+  } catch (err) {
+    console.error('[handleSalvarMetas]', err);
+    alert('Não foi possível salvar as metas. Verifique a conexão com o Supabase.');
+  }
+}
+
 // ── Inicializar totalizador quando a seção for aberta ────────────
 // (chamado pelo adm_navigateTo, veja listener abaixo)
 
@@ -3066,6 +3218,9 @@ document.querySelectorAll('.adm-nav-item[data-section]').forEach(btn => {
     if (btn.dataset.section === 'outras-filiais') {
       atualizarTotalizador();
       renderFilialLista();
+    }
+    if (btn.dataset.section === 'config-metas' && _dadosCarregados) {
+      renderConfigMetas(_cache);
     }
   });
 });
@@ -3153,6 +3308,7 @@ carregarDados();
         <button class="adm-nav-item" data-section="relatorios"><span class="nav-icon">📈</span>Relatórios</button>
         <button class="adm-nav-item" data-section="ranking-adm"><span class="nav-icon">🏆</span>Ranking</button>
         <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon">🏢</span>Outras Filiais</button>
+        <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon">⚙️</span>Configuração de Metas</button>
         <button class="adm-nav-item danger" id="adm-logout-btn"><span class="nav-icon">🚪</span>Sair</button>
       </nav>
 
@@ -3614,6 +3770,41 @@ carregarDados();
                 </table>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- ── CONFIGURAÇÃO DE METAS ────────────────────────────── -->
+        <section class="adm-section" id="sec-config-metas">
+          <div class="adm-section-title">⚙️ Configuração de Metas</div>
+
+          <div class="adm-form-card">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Meta da Filial — <span id="cfg-fil-periodo">mês/ano atual</span></div>
+            <div class="adm-form-grid">
+              <div class="adm-field"><label>Meta Semanal — M3</label><input type="number" id="cfg-fil-sem-m3" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta Semanal — M2</label><input type="number" id="cfg-fil-sem-m2" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta Semanal — M1</label><input type="number" id="cfg-fil-sem-m1" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta Mensal — M3</label><input type="number" id="cfg-fil-mes-m3" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta Mensal — M2</label><input type="number" id="cfg-fil-mes-m2" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta Mensal — M1</label><input type="number" id="cfg-fil-mes-m1" min="0" step="1" placeholder="Não configurado"></div>
+            </div>
+          </div>
+
+          <div class="adm-form-card">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Metas Individuais — <span id="cfg-ind-periodo">mês/ano atual</span></div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead>
+                  <tr><th>Vendedor</th><th>Tipo</th><th>M3</th><th>M2</th><th>M1</th><th>Meta de Vendas</th></tr>
+                </thead>
+                <tbody id="cfg-metas-vendedores-tbody">
+                  <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Carregando…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
+            <button type="button" class="adm-btn adm-btn-primary" style="width:auto;padding:12px 28px;" onclick="handleSalvarMetas()">💾 Salvar Metas</button>
           </div>
         </section>
 
