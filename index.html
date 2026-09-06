@@ -1535,14 +1535,10 @@ const CONFIG = {
     { nome: "Plano 700MB", vendas: 1, cor: "#ffc94d" },
   ],
 
-  // ---------- Conquistas Recentes ----------
-  // "quando" é opcional — se não quiser mostrar, é só apagar a linha
-  conquistas: [
-    { texto: "🏆 Gabriella atingiu 3 vendas na semana", quando: "Hoje, 10:45" },
-    { texto: "🚀 William assumiu a liderança externa", quando: "Hoje, 09:30" },
-    { texto: "🎯 Filial atingiu 16% da meta semanal", quando: "Hoje, 08:00" },
-    { texto: "⚡ Gabriella é a maior evolução da semana", quando: "Ontem, 17:20" },
-  ],
+  // "Conquistas Recentes" agora é 100% automático — as entradas vêm de
+  // detectarConquistasIndividuais() conforme os vendedores batem cada
+  // meta de verdade. Fica vazio até a primeira conquista real acontecer.
+  conquistas: [],
 };
 
 const PHOTOS = {
@@ -2037,14 +2033,91 @@ function renderDonutChart(vendasPorPlano) {
 }
 
 // ---------- Conquistas Recentes ----------
-function renderConquistas(conquistas) {
-  const lista = conquistas || CONFIG.conquistas || [];
+// ── Data relativa pra "Conquistas Recentes" ──────────────────────
+// Calculada de novo a cada renderização (não é texto fixo salvo) —
+// por isso "Hoje" vira "Ontem" sozinho no dia seguinte, sem que a
+// conquista suma da lista.
+function formatarDataRelativa(dataISO) {
+  const hoje = new Date();
+  const data = new Date(dataISO + 'T12:00:00');
+  const diffDias = Math.round((new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()) - new Date(data.getFullYear(), data.getMonth(), data.getDate())) / 86400000);
+  if (diffDias <= 0) return 'Hoje';
+  if (diffDias === 1) return 'Ontem';
+  if (diffDias <= 6) return 'Há ' + diffDias + ' dias';
+  if (diffDias <= 13) return 'Semana passada';
+  if (diffDias <= 30) return 'Há ' + Math.floor(diffDias / 7) + ' semanas';
+  return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+// Guarda o histórico real de conquistas (persistido no navegador, só
+// pra lembrar "isso já aconteceu e quando" — os dados de origem
+// continuam vindo 100% do Supabase a cada carregamento).
+function lerHistoricoConquistas() {
+  try { return JSON.parse(localStorage.getItem('uni_conquistas_historico') || '[]'); }
+  catch (e) { return []; }
+}
+function salvarHistoricoConquistas(lista) {
+  try { localStorage.setItem('uni_conquistas_historico', JSON.stringify(lista.slice(0, 30))); }
+  catch (e) { /* localStorage indisponível — conquistas desta sessão não persistem, mas nada quebra */ }
+}
+function registrarConquista(historico, chaveUnica, texto) {
+  if (historico.some(c => c.chave === chaveUnica)) return false;
+  const hoje = new Date();
+  const dataISO = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+  historico.unshift({ chave: chaveUnica, texto, data: dataISO });
+  return true;
+}
+
+// Detecta, a cada carregamento de dados, se algum vendedor bateu uma
+// meta individual (M3/M2/M1 pra interno, meta de vendas pra externo)
+// pela primeira vez neste mês — e registra como conquista real.
+function detectarConquistasIndividuais(d, cache) {
+  if (!d || !cache) return;
+  const historico = lerHistoricoConquistas();
+  const mesAno = cache.mes ? `${cache.mes.ano}-${cache.mes.mesNum}` : '';
+  let mudou = false;
+
+  const todos = [...(d.extMes || []), ...(d.intMes || [])];
+  todos.forEach(v => {
+    if (v.tipo === 'interno') {
+      const linhaMeta = (cache.metas || []).find(m => m.vendedor_id === v.id);
+      if (!linhaMeta) return;
+      const tiers = [
+        { campo: 'meta_m3', label: 'M3', medalha: '🥉' },
+        { campo: 'meta_m2', label: 'M2', medalha: '🥈' },
+        { campo: 'meta_m1', label: 'M1', medalha: '🥇' },
+      ];
+      tiers.forEach(t => {
+        const meta = linhaMeta[t.campo];
+        if (!meta) return;
+        if (v.vendas >= meta) {
+          const chave = `${v.id}_${t.campo}_${mesAno}`;
+          const texto = `${t.medalha} ${v.nome} bateu a ${t.label} do mês!`;
+          if (registrarConquista(historico, chave, texto)) mudou = true;
+        }
+      });
+    } else if (v.tipo === 'externo' && v.meta) {
+      if (v.vendas >= v.meta) {
+        const chave = `${v.id}_meta_vendas_${mesAno}`;
+        const texto = `🏆 ${v.nome} bateu a meta de vendas do mês!`;
+        if (registrarConquista(historico, chave, texto)) mudou = true;
+      }
+    }
+  });
+
+  if (mudou) salvarHistoricoConquistas(historico);
+}
+
+// ---------- Conquistas Recentes ----------
+function renderConquistas() {
+  const historico = lerHistoricoConquistas();
+  const lista = historico.slice(0, 8).map(c => ({ texto: c.texto, quando: formatarDataRelativa(c.data) }));
   document.getElementById('conquistasGrid').innerHTML = lista.map(c => `
     <div class="conquista-card">
-      <span class="conquista-texto">${c.texto || c}</span>
+      <span class="conquista-texto">${c.texto}</span>
       ${c.quando ? `<span class="conquista-quando">${c.quando}</span>` : ''}
     </div>
-  `).join('') || '<div style="color:var(--text-muted);font-size:0.82rem;padding:16px;">Sem conquistas ainda.</div>';
+  `).join('') || '<div style="color:var(--text-muted);font-size:0.82rem;padding:16px;">Nenhuma conquista registrada ainda.</div>';
 }
 
 // ================================================================
@@ -2674,6 +2747,7 @@ function renderAll(cache) {
   renderMetasFilial('semanal', d);
   renderEvolucaoChart(d.evolucaoSemana);
   renderDonutChart(d.vendasPorPlano);
+  detectarConquistasIndividuais(d, cache);
   renderConquistas();
 
   // Pódios: sempre dados reais do Supabase
