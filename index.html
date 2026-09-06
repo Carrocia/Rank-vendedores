@@ -422,7 +422,7 @@
     .celebration-title, .celebration-card,
     .signal-rings span, .signal-bars span,
     .adm-report-card .coming::before, .mural-winner-pending .mural-photo-wrap::before,
-    .toast { animation: none !important; }
+    .toast, .skeleton-bar { animation: none !important; }
     .podium-base, .goal-liquid,
     .week-bar-fill, .meta-filial-bar-fill, .podium-mini-bar-fill, .theme-toggle-thumb { transition: none !important; }
   }
@@ -829,6 +829,22 @@
 }
 
 /* ── Toast (substitui o alert() nativo do navegador) ──────────── */
+/* ── Skeleton loading (esqueleto pulsante no lugar de "Carregando…") ── */
+.skeleton-bar {
+  display: inline-block; height: 13px; min-width: 40px; border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.15) 37%, rgba(255,255,255,0.06) 63%);
+  background-size: 400% 100%;
+  animation: skeletonPulse 1.6s ease infinite;
+  vertical-align: middle;
+}
+@keyframes skeletonPulse { 0% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.skeleton-checkbox-item {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px; padding: 12px 14px;
+}
+.skeleton-checkbox-item .skeleton-bar:first-child { width: 16px; height: 16px; min-width: 16px; border-radius: 4px; flex-shrink: 0; }
+
 #toast-container {
   position: fixed; top: 24px; right: 24px; z-index: 9999;
   display: flex; flex-direction: column; gap: 10px;
@@ -848,6 +864,11 @@
 .toast.success { border-left-color: var(--green); }
 .toast.error { border-left-color: #ff5f6e; }
 .toast.warning { border-left-color: #ffc94d; }
+.toast.celebration {
+  border-left-color: #ffc94d;
+  background: linear-gradient(135deg, #1a1710, #14151f 60%);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 24px rgba(255,201,77,0.18);
+}
 .toast-icon {
   flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
@@ -856,6 +877,8 @@
 .toast.success .toast-icon { background: rgba(52,211,153,0.16); }
 .toast.error .toast-icon { background: rgba(255,95,110,0.16); }
 .toast.warning .toast-icon { background: rgba(255,201,77,0.16); }
+.toast.celebration .toast-icon { background: rgba(255,201,77,0.22); font-size: 1.05rem; }
+.toast.celebration .toast-msg { font-weight: 700; color: #ffe1a8; }
 .toast-msg { flex: 1; font-size: 0.84rem; color: var(--text); line-height: 1.4; padding-top: 3px; }
 .toast-close {
   flex-shrink: 0; background: none; border: none; color: var(--text-muted);
@@ -2032,7 +2055,7 @@ function renderConquistas(conquistas) {
 function showToast(message, type = 'success', duration = 4500) {
   const container = document.getElementById('toast-container');
   if (!container) { alert(message); return; } // fallback de segurança, nunca deve ser usado
-  const icons = { success: '✅', error: '⛔', warning: '⚠️' };
+  const icons = { success: '✅', error: '⛔', warning: '⚠️', celebration: '🏆' };
   const toast = document.createElement('div');
   toast.className = 'toast ' + type;
   toast.innerHTML = `
@@ -2600,12 +2623,43 @@ function renderAdmDashboard(d) {
   setText('dash-lider', d.lider || '—');
 }
 
+// Detecta automaticamente quando um vendedor ou a própria filial cruza
+// uma meta pela primeira vez, e avisa com um toast comemorativo — sem
+// precisar do botão manual "Anunciar Destaque". Usa localStorage só
+// pra lembrar "já avisei isso neste mês", nunca pra guardar os dados
+// em si (que continuam vindo 100% do Supabase a cada carregamento).
+function verificarConquistasDeMetas(d) {
+  if (!d || !d.mes) return;
+  const chave = 'uni_metas_avisadas_' + d.mes.ano + '-' + d.mes.mesNum;
+  let avisadas = {};
+  try { avisadas = JSON.parse(localStorage.getItem(chave) || '{}'); } catch (e) { avisadas = {}; }
+
+  const todos = [...(d.extMes || []), ...(d.intMes || [])];
+  todos.forEach(v => {
+    if (!v.meta || avisadas[v.id]) return;
+    if (v.vendas >= v.meta) {
+      showToast(`${v.nome} bateu a meta do mês! (${v.vendas}/${v.meta} vendas)`, 'celebration', 8000);
+      avisadas[v.id] = true;
+    }
+  });
+
+  if (d.metasFilial && d.metasFilial.mensal_m1 && !avisadas['__filial_m1']) {
+    if (d.totalMes >= d.metasFilial.mensal_m1) {
+      showToast(`A filial bateu a Meta Mensal M1! (${d.totalMes}/${d.metasFilial.mensal_m1} vendas)`, 'celebration', 8000);
+      avisadas['__filial_m1'] = true;
+    }
+  }
+
+  try { localStorage.setItem(chave, JSON.stringify(avisadas)); } catch (e) { /* localStorage indisponível — só não avisa de novo nesta sessão */ }
+}
+
 function renderAll(cache) {
   document.getElementById('celebrateBtn').style.display = CONFIG.mostrarBotaoDestaque ? 'inline-flex' : 'none';
 
   renderHistorico();
 
   const d = processarDadosParaRender(cache);
+  verificarConquistasDeMetas(d);
 
   // KPIs do cabeçalho — 100% derivados dos dados reais carregados do Supabase
   const kpiSemana = document.getElementById('kpiSemana');
@@ -4328,7 +4382,7 @@ carregarDados();
         <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);">Painel Administrativo</div>
         <div style="font-size:1.1rem;font-weight:800;color:var(--heading-color);margin-top:2px;">UNI Internet — Alta Floresta D'Oeste</div>
       </div>
-      <div style="font-size:0.78rem;color:var(--text-muted);" id="adm-user-info">Carregando…</div>
+      <div style="font-size:0.78rem;color:var(--text-muted);" id="adm-user-info"><span class="skeleton-bar" style="width:140px;"></span></div>
     </div>
 
     <div class="adm-panel-inner">
@@ -4473,7 +4527,9 @@ carregarDados();
                     Adicionais contratados <span style="font-weight:400;color:var(--text-muted);font-style:italic;">(não contam como venda M1/M2/M3, mas somam no valor)</span>
                   </label>
                   <div class="adm-adicionais-check" id="adicionais-check-venda">
-                    <div style="color:var(--text-muted);font-size:0.8rem;">Carregando adicionais…</div>
+                    <div class="skeleton-checkbox-item"><span class="skeleton-bar"></span><span class="skeleton-bar" style="width:120px;"></span></div>
+                    <div class="skeleton-checkbox-item"><span class="skeleton-bar"></span><span class="skeleton-bar" style="width:150px;"></span></div>
+                    <div class="skeleton-checkbox-item"><span class="skeleton-bar"></span><span class="skeleton-bar" style="width:100px;"></span></div>
                   </div>
                 </div>
 
@@ -4508,7 +4564,9 @@ carregarDados();
                 </tr>
               </thead>
               <tbody id="adm-adicionais-tbody">
-                <tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Carregando…</td></tr>
+                <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:70%;"></span></td><td><span class="skeleton-bar" style="width:60%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td><td><span class="skeleton-bar" style="width:80%;"></span></td></tr>
+                <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:65%;"></span></td><td><span class="skeleton-bar" style="width:55%;"></span></td><td><span class="skeleton-bar" style="width:45%;"></span></td><td><span class="skeleton-bar" style="width:75%;"></span></td></tr>
+                <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:60%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td><td><span class="skeleton-bar" style="width:55%;"></span></td><td><span class="skeleton-bar" style="width:70%;"></span></td></tr>
               </tbody>
             </table>
           </div>
@@ -4837,7 +4895,9 @@ carregarDados();
                     Adicionais (opcional)
                   </label>
                   <div class="adm-adicionais-check" id="adicionais-check-filial">
-                    <div style="color:var(--text-muted);font-size:0.8rem;">Carregando adicionais…</div>
+                    <div class="skeleton-checkbox-item"><span class="skeleton-bar"></span><span class="skeleton-bar" style="width:120px;"></span></div>
+                    <div class="skeleton-checkbox-item"><span class="skeleton-bar"></span><span class="skeleton-bar" style="width:150px;"></span></div>
+                    <div class="skeleton-checkbox-item"><span class="skeleton-bar"></span><span class="skeleton-bar" style="width:100px;"></span></div>
                   </div>
                 </div>
 
@@ -4917,7 +4977,9 @@ carregarDados();
                   <tr><th>Vendedor</th><th>Tipo</th><th>M3</th><th>M2</th><th>M1</th><th>Meta de Vendas</th></tr>
                 </thead>
                 <tbody id="cfg-metas-vendedores-tbody">
-                  <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Carregando…</td></tr>
+                  <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:70%;"></span></td><td><span class="skeleton-bar" style="width:55%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td></tr>
+                  <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:60%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td></tr>
+                  <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:65%;"></span></td><td><span class="skeleton-bar" style="width:55%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td></tr>
                 </tbody>
               </table>
             </div>
