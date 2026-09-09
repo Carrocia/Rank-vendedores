@@ -11,6 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   :root {
     --bg: #060810;
@@ -1156,6 +1157,16 @@
 .adm-badge.interno { background: rgba(33,217,255,0.12); color: var(--accent); }
 .adm-badge.externo { background: rgba(252,201,77,0.12); color: #fcc94d; }
 
+.adm-btn-status {
+  font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+  padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer;
+  color: #04202b; background: linear-gradient(135deg, #21d9bf, #2d5fff);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.adm-btn-status:hover { opacity: 0.9; }
+.adm-btn-status:active { transform: scale(0.96); }
+.adm-btn-status:disabled { opacity: 0.5; cursor: default; transform: none; }
+
 .vt-pct-wrap { display: flex; align-items: center; gap: 8px; min-width: 90px; }
 .vt-pct-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
 .vt-pct-bar-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent), #34d399); transition: width 0.6s ease; }
@@ -1268,6 +1279,78 @@
   .adm-nav-item.active { border-bottom-color: var(--accent); background: rgba(33,217,255,0.05); }
   .adm-content { padding: 16px 0 0; }
 }
+</style>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CARD "STATUS DO CAÇADOR" — visual só, gerado pelo ADM
+     (botão "Gerar Status" na tabela de vendedores) e convertido em
+     PNG via html2canvas. Prefixo "sc-" em todas as classes pra nunca
+     colidir com o resto do CSS do site.
+     ═══════════════════════════════════════════════════════════════ -->
+<style id="status-card-styles">
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Chakra+Petch:wght@400;500;600;700&display=swap');
+
+#sc-offscreen { position: absolute; left: -9999px; top: 0; width: 600px; height: 900px; }
+
+.sc-card {
+  width: 600px; height: 900px;
+  font-family: 'Chakra Petch', sans-serif;
+  background: radial-gradient(ellipse at 50% 0%, #0d1730 0%, #060a16 55%, #030509 100%);
+  position: relative;
+  overflow: hidden;
+}
+.sc-card * { box-sizing: border-box; }
+.sc-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.sc-orb {
+  position: absolute; width: 500px; height: 500px;
+  top: -180px; left: 50%; transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(56,189,248,0) 70%);
+}
+.sc-frame {
+  position: absolute; top: 28px; left: 28px; right: 28px; bottom: 28px;
+  border: 1px solid rgba(94,234,255,0.35);
+  box-shadow: 0 0 0 1px rgba(94,234,255,0.08) inset, 0 0 24px rgba(56,189,248,0.15) inset, 0 0 40px rgba(56,189,248,0.12);
+}
+.sc-corner { position: absolute; width: 34px; height: 34px; border: 2.5px solid #5eeaff; }
+.sc-corner.tl { top: 14px; left: 14px; border-right: none; border-bottom: none; }
+.sc-corner.tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
+.sc-corner.bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
+.sc-corner.br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
+.sc-content { position: relative; z-index: 2; padding: 62px 52px 44px; height: 100%; display: flex; flex-direction: column; }
+.sc-kicker { text-align: center; font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 8px; color: #5eeaff; }
+.sc-kicker-sub { text-align: center; font-size: 10px; letter-spacing: 3px; color: rgba(148,178,201,0.55); margin-top: 4px; }
+.sc-divider { width: 100%; height: 1px; margin-top: 20px; background: linear-gradient(90deg, transparent, rgba(94,234,255,0.6), transparent); }
+.sc-identity { display: flex; align-items: center; gap: 20px; margin-top: 30px; }
+.sc-avatar-ring { width: 92px; height: 92px; border-radius: 50%; padding: 3px; background: conic-gradient(from 180deg, #5eeaff, #7c5cff, #5eeaff); flex-shrink: 0; }
+.sc-avatar-inner { width: 100%; height: 100%; border-radius: 50%; background: #0a1120; display: flex; align-items: center; justify-content: center; overflow: hidden; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 34px; color: #cdeeff; }
+.sc-avatar-inner img { width: 100%; height: 100%; object-fit: cover; }
+.sc-id-text { flex: 1; }
+.sc-name-row { display: flex; align-items: center; gap: 10px; }
+.sc-name { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 30px; color: #f2fbff; }
+.sc-rank-badge { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 15px; color: #04202b; width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+.sc-title-flavor { margin-top: 4px; font-size: 13px; font-style: italic; color: #8fb8cc; }
+.sc-class-tag { margin-top: 8px; display: inline-block; font-size: 10.5px; letter-spacing: 2px; color: #5eeaff; border: 1px solid rgba(94,234,255,0.4); padding: 3px 10px; border-radius: 3px; }
+.sc-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }
+.sc-stat-tile { border: 1px solid rgba(94,234,255,0.22); background: linear-gradient(180deg, rgba(94,234,255,0.06), rgba(94,234,255,0.01)); border-radius: 6px; padding: 12px 14px; }
+.sc-stat-label { font-size: 10px; letter-spacing: 2px; color: rgba(148,178,201,0.7); }
+.sc-stat-value { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 24px; color: #f2fbff; margin-top: 3px; }
+.sc-stat-value .sc-unit { font-size: 13px; color: #5eeaff; font-weight: 600; margin-left: 3px; }
+.sc-section-label { margin-top: 32px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 4px; color: #5eeaff; display: flex; align-items: center; gap: 10px; }
+.sc-section-label::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(94,234,255,0.5), transparent); }
+.sc-goal-row { margin-top: 16px; }
+.sc-goal-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: #cdeeff; margin-bottom: 5px; }
+.sc-goal-head .sc-goal-pct { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #5eeaff; }
+.sc-bar-track { width: 100%; height: 9px; background: rgba(94,234,255,0.08); border: 1px solid rgba(94,234,255,0.25); border-radius: 5px; overflow: hidden; }
+.sc-bar-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #5eeaff, #7c5cff); }
+.sc-footer { margin-top: auto; padding-top: 26px; text-align: center; }
+.sc-quote { font-size: 12.5px; font-style: italic; color: rgba(148,178,201,0.65); }
+.sc-brandline { margin-top: 14px; font-size: 9.5px; letter-spacing: 3px; color: rgba(148,178,201,0.35); }
 </style>
 </head>
 <body>
@@ -2156,6 +2239,10 @@ let _cache = {
   vendaMaisRecente: null,
   semana: null, mes: null,
 };
+// Último resultado de processarDadosParaRender(), guardado por renderAll()
+// para o card "Status do Caçador" reaproveitar (sem recalcular tudo de
+// novo) quando o admin clica em "Gerar Status".
+let _ultimoProcessado = null;
 // true somente após um carregamento bem-sucedido de dados reais do Supabase
 let _dadosCarregados = false;
 
@@ -2736,6 +2823,7 @@ function renderAll(cache) {
   renderHistorico();
 
   const d = processarDadosParaRender(cache);
+  _ultimoProcessado = d;
   verificarConquistasDeMetas(d);
 
   // KPIs do cabeçalho — 100% derivados dos dados reais carregados do Supabase
@@ -4386,6 +4474,151 @@ function renderAdmVendedoresTable(d) {
   });
 }
 
+// ================================================================
+// CARD "STATUS DO CAÇADOR" — gerado só pelo ADM (botão "Gerar Status"
+// na tabela de Equipe de Vendas). Preenche o template oculto (#sc-card,
+// no fim do <body>) com dados JÁ CALCULADOS por processarDadosParaRender()
+// — nada de número é inventado aqui. As únicas camadas de "gamificação"
+// em cima dos dados reais são: nível (= vendas do mês), sequência
+// (dias seguidos com venda), rank (posição no ranking da semana) e o
+// título de flavor — documentado função a função abaixo.
+// html2canvas() fotografa o template e vira PNG pra download.
+// ================================================================
+
+// Sequência de dias seguidos com pelo menos 1 venda, olhando as vendas
+// do mês corrente já carregadas em cache (não faz nova consulta ao
+// Supabase). Conta a partir do dia mais recente com venda pra trás,
+// dia a dia, parando no primeiro buraco.
+function calcularSequenciaDias(vendasDoVendedor) {
+  const dias = new Set();
+  vendasDoVendedor.forEach(v => {
+    const dataStr = String(v.data_venda || '').slice(0, 10);
+    if (dataStr) dias.add(dataStr);
+  });
+  if (dias.size === 0) return 0;
+  const datasOrdenadas = [...dias].sort().reverse(); // mais recente primeiro
+  let sequencia = 1;
+  let anterior = new Date(datasOrdenadas[0] + 'T12:00:00');
+  for (let i = 1; i < datasOrdenadas.length; i++) {
+    const atual = new Date(datasOrdenadas[i] + 'T12:00:00');
+    const diffDias = Math.round((anterior - atual) / 86400000);
+    if (diffDias === 1) { sequencia++; anterior = atual; }
+    else break;
+  }
+  return sequencia;
+}
+
+// Rank (S/A/B/C) = posição do vendedor no ranking DESTA semana, dentro
+// do próprio grupo (interno concorre com interno, externo com externo)
+// — o mesmo critério já usado nos pódios da página pública.
+function calcularRankVendedor(slug, tipo, d) {
+  const grupo = (tipo === 'interno' ? d.intSem : d.extSem).slice().sort((a, b) => b.vendas - a.vendas);
+  const posicao = grupo.findIndex(v => v.slug === slug);
+  const vendas = posicao >= 0 ? grupo[posicao].vendas : 0;
+  if (vendas === 0) return 'C';
+  if (posicao === 0) return 'S';
+  if (posicao <= 2) return 'A';
+  return 'B';
+}
+
+const SC_CORES_RANK = {
+  S: 'linear-gradient(135deg, #ffd76a, #ff9f43)',
+  A: 'linear-gradient(135deg, #5eeaff, #7c5cff)',
+  B: 'linear-gradient(135deg, #5eeaff, #2d5fff)',
+  C: 'linear-gradient(135deg, #64748b, #475569)',
+};
+// Pool de títulos por faixa de rank — a escolha dentro da faixa é
+// determinística (baseada no nº de vendas do mês), não aleatória, pra
+// gerar o mesmo card duas vezes seguidas sem ficar trocando de frase.
+const SC_TITULOS_POR_RANK = {
+  S: ['A Fechadora de Contratos', 'Lenda da Semana', 'Imparável'],
+  A: ['Caçador(a) Experiente', 'Sempre Entre os Melhores', 'Rota de Ataque Consistente'],
+  B: ['Em Ascensão', 'Construindo o Ranking', 'Ganhando Força'],
+  C: ['Começando a Jornada', 'Pronta pra Despertar'],
+};
+
+async function gerarStatusVendedor(slug, evt) {
+  const d = _ultimoProcessado;
+  if (!d) { showToast('Ainda não há dados carregados para gerar o card.', 'warning'); return; }
+
+  const vendedorSemana = [...d.intSem, ...d.extSem].find(v => v.slug === slug);
+  const vendedorMes = [...d.intMes, ...d.extMes].find(v => v.slug === slug);
+  if (!vendedorSemana || !vendedorMes) { showToast('Vendedor não encontrado.', 'error'); return; }
+
+  const vendedorCadastro = (_cache.vendedores || []).find(v => (v.slug || v.id) === slug);
+  const tipo = vendedorSemana.tipo;
+
+  // sequência: precisa das vendas do próprio vendedor no mês (já em cache)
+  const vendasDoVendedor = vendedorCadastro
+    ? (_cache.vendasMes || []).filter(v => v.vendedor_id === vendedorCadastro.id)
+    : [];
+  const sequencia = calcularSequenciaDias(vendasDoVendedor);
+
+  const rank = calcularRankVendedor(slug, tipo, d);
+  const titulos = SC_TITULOS_POR_RANK[rank];
+  const flavor = titulos[vendedorMes.vendas % titulos.length];
+
+  const nivel = vendedorMes.vendas;
+  const ticketMedio = vendedorMes.vendas ? (vendedorMes.valor / vendedorMes.vendas) : 0;
+
+  const mf = d.metasFilial;
+  const pctIndividual = vendedorMes.meta ? Math.min(100, Math.round((vendedorMes.vendas / vendedorMes.meta) * 100)) : null;
+  const pctSemanaEquipe = (mf && mf.semanal_m3) ? Math.min(100, Math.round((d.totalSemana / mf.semanal_m3) * 100)) : null;
+  const pctGlobalMes = d.pctMensal || 0;
+
+  // ── Preenche o template oculto ──────────────────────────────────
+  const foto = PHOTOS[slug];
+  const avatarEl = document.getElementById('sc-avatar');
+  avatarEl.innerHTML = foto ? `<img src="${foto}" alt="">` : vendedorSemana.nome.charAt(0).toUpperCase();
+
+  document.getElementById('sc-name').textContent = vendedorSemana.nome;
+  const rankEl = document.getElementById('sc-rank');
+  rankEl.textContent = rank;
+  rankEl.style.background = SC_CORES_RANK[rank];
+  document.getElementById('sc-flavor').textContent = `"${flavor}"`;
+  document.getElementById('sc-class').textContent = (tipo === 'interno' ? 'VENDEDOR(A) · INTERNO' : 'VENDEDOR(A) · EXTERNO');
+
+  document.getElementById('sc-nivel').textContent = nivel;
+  document.getElementById('sc-sequencia').innerHTML = `${sequencia}<span class="sc-unit">${sequencia === 1 ? 'dia' : 'dias'}</span>`;
+  document.getElementById('sc-vendas-semana').textContent = vendedorSemana.vendas;
+  document.getElementById('sc-ticket').textContent = ticketMedio ? ('R$' + ticketMedio.toFixed(0)) : '—';
+
+  const setGoal = (barId, pctId, pct) => {
+    document.getElementById(pctId).textContent = pct === null ? 'Sem meta' : pct + '%';
+    document.getElementById(barId).style.width = (pct || 0) + '%';
+  };
+  setGoal('sc-goal1-bar', 'sc-goal1-pct', pctIndividual);
+  setGoal('sc-goal2-bar', 'sc-goal2-pct', pctSemanaEquipe);
+  setGoal('sc-goal3-bar', 'sc-goal3-pct', pctGlobalMes);
+
+  document.getElementById('sc-data-geracao').textContent = 'GERADO EM ' + new Date().toLocaleDateString('pt-BR').toUpperCase();
+
+  // ── Fotografa o template e baixa como PNG ───────────────────────
+  const btn = evt ? evt.target.closest('button') : null;
+  const textoOriginalBtn = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
+  try {
+    if (typeof html2canvas === 'undefined') { showToast('Biblioteca de imagem não carregada.', 'error'); return; }
+    const canvas = await html2canvas(document.getElementById('sc-card'), { backgroundColor: null, scale: 2 });
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Status_${vendedorSemana.nome}_${new Date().toISOString().split('T')[0]}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Card gerado com sucesso!', 'success');
+  } catch (err) {
+    console.error('[gerarStatusVendedor]', err);
+    showToast('Não foi possível gerar o card.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
+  }
+}
+
+
 // Popula a seção "Metas Configuradas" do ADM com dados reais das
 // tabelas metas (individuais) e metas_filial (semanal/mensal).
 function renderAdmMetasConfig(cache) {
@@ -4932,7 +5165,7 @@ carregarDados();
           <div class="adm-table-wrap">
             <table class="adm-table" id="adm-vendedores-table">
               <thead>
-                <tr><th>Foto</th><th>Nome</th><th>Tipo</th><th>Meta mensal</th><th>Vendas (mês)</th><th>% Meta</th></tr>
+                <tr><th>Foto</th><th>Nome</th><th>Tipo</th><th>Meta mensal</th><th>Vendas (mês)</th><th>% Meta</th><th>Status</th></tr>
               </thead>
               <tbody>
                 <tr>
@@ -4940,30 +5173,35 @@ carregarDados();
                   <td><strong>Gabriella</strong></td><td><span class="adm-badge interno">Interno</span></td>
                   <td id="vt-meta-gabriella">—</td>
                   <td id="vt-mes-gabriella">—</td><td id="vt-pct-gabriella">—</td>
+                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('gabriella', event)">⚡ Gerar Status</button></td>
                 </tr>
                 <tr>
                   <td><img src="" id="vt-foto-lorena" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="Lorena"></td>
                   <td><strong>Lorena</strong></td><td><span class="adm-badge interno">Interno</span></td>
                   <td id="vt-meta-lorena">—</td>
                   <td id="vt-mes-lorena">—</td><td id="vt-pct-lorena">—</td>
+                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('lorena', event)">⚡ Gerar Status</button></td>
                 </tr>
                 <tr>
                   <td><img src="" id="vt-foto-lohayne" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="Lohayne"></td>
                   <td><strong>Lohayne</strong></td><td><span class="adm-badge interno">Interno</span></td>
                   <td id="vt-meta-lohayne">—</td>
                   <td id="vt-mes-lohayne">—</td><td id="vt-pct-lohayne">—</td>
+                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('lohayne', event)">⚡ Gerar Status</button></td>
                 </tr>
                 <tr>
                   <td><img src="" id="vt-foto-ian" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="Ian"></td>
                   <td><strong>Ian</strong></td><td><span class="adm-badge externo">Externo</span></td>
                   <td id="vt-meta-ian">—</td>
                   <td id="vt-mes-ian">—</td><td id="vt-pct-ian">—</td>
+                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('ian', event)">⚡ Gerar Status</button></td>
                 </tr>
                 <tr>
                   <td><img src="" id="vt-foto-william" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="William"></td>
                   <td><strong>William</strong></td><td><span class="adm-badge externo">Externo</span></td>
                   <td id="vt-meta-william">—</td>
                   <td id="vt-mes-william">—</td><td id="vt-pct-william">—</td>
+                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('william', event)">⚡ Gerar Status</button></td>
                 </tr>
               </tbody>
             </table>
@@ -5328,6 +5566,77 @@ carregarDados();
 </div><!-- fim adm-panel-overlay -->
 
 <div id="toast-container" aria-live="polite"></div>
+
+<!-- Template oculto do card "Status do Caçador" — fica fora da tela,
+     só é preenchido e fotografado (html2canvas) quando o admin clica
+     em "Gerar Status"; nunca aparece na página normalmente. -->
+<div id="sc-offscreen">
+  <div class="sc-card" id="sc-card">
+    <div class="sc-grid"></div>
+    <div class="sc-orb"></div>
+    <div class="sc-frame"></div>
+    <div class="sc-corner tl"></div>
+    <div class="sc-corner tr"></div>
+    <div class="sc-corner bl"></div>
+    <div class="sc-corner br"></div>
+    <div class="sc-content">
+      <div class="sc-kicker">STATUS DO CAÇADOR</div>
+      <div class="sc-kicker-sub">UNI INTERNET · RANKING DE VENDAS</div>
+      <div class="sc-divider"></div>
+
+      <div class="sc-identity">
+        <div class="sc-avatar-ring"><div class="sc-avatar-inner" id="sc-avatar"></div></div>
+        <div class="sc-id-text">
+          <div class="sc-name-row">
+            <div class="sc-name" id="sc-name">—</div>
+            <div class="sc-rank-badge" id="sc-rank">—</div>
+          </div>
+          <div class="sc-title-flavor" id="sc-flavor">—</div>
+          <div class="sc-class-tag" id="sc-class">—</div>
+        </div>
+      </div>
+
+      <div class="sc-stats-grid">
+        <div class="sc-stat-tile">
+          <div class="sc-stat-label">NÍVEL</div>
+          <div class="sc-stat-value" id="sc-nivel">—</div>
+        </div>
+        <div class="sc-stat-tile">
+          <div class="sc-stat-label">SEQUÊNCIA</div>
+          <div class="sc-stat-value" id="sc-sequencia">—</div>
+        </div>
+        <div class="sc-stat-tile">
+          <div class="sc-stat-label">VENDAS NA SEMANA</div>
+          <div class="sc-stat-value" id="sc-vendas-semana">—</div>
+        </div>
+        <div class="sc-stat-tile">
+          <div class="sc-stat-label">TICKET MÉDIO</div>
+          <div class="sc-stat-value" id="sc-ticket">—</div>
+        </div>
+      </div>
+
+      <div class="sc-section-label">PROGRESSO DE METAS</div>
+
+      <div class="sc-goal-row">
+        <div class="sc-goal-head"><span>Meta Individual — Mês</span><span class="sc-goal-pct" id="sc-goal1-pct">—</span></div>
+        <div class="sc-bar-track"><div class="sc-bar-fill" id="sc-goal1-bar" style="width:0%"></div></div>
+      </div>
+      <div class="sc-goal-row">
+        <div class="sc-goal-head"><span>Meta da Semana — Equipe</span><span class="sc-goal-pct" id="sc-goal2-pct">—</span></div>
+        <div class="sc-bar-track"><div class="sc-bar-fill" id="sc-goal2-bar" style="width:0%"></div></div>
+      </div>
+      <div class="sc-goal-row">
+        <div class="sc-goal-head"><span>Meta Global — Mês</span><span class="sc-goal-pct" id="sc-goal3-pct">—</span></div>
+        <div class="sc-bar-track"><div class="sc-bar-fill" id="sc-goal3-bar" style="width:0%"></div></div>
+      </div>
+
+      <div class="sc-footer">
+        <div class="sc-quote" id="sc-quote">"Continue avançando, Caçador. O próximo nível te espera."</div>
+        <div class="sc-brandline" id="sc-data-geracao">GERADO EM —</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
