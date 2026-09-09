@@ -5284,15 +5284,13 @@ async function gerarDestaqueDoMes(slug, evt) {
     const pRect = photoEl.getBoundingClientRect();
     const cx = (pRect.left - rect.left + pRect.width / 2) * REC_SCALE;
     const cy = (pRect.top - rect.top + pRect.height / 2) * REC_SCALE;
-    // O quadrado que gira precisa ficar fora da foto em QUALQUER ângulo —
-    // inclusive girado 45° (virando losango), que é o momento em que os
-    // LADOS dele ficam mais perto do centro. Pra nunca cruzar a foto
-    // (que é quadrada), o lado do quadro tem que ficar, no mínimo, tão
-    // longe do centro quanto o CANTO da foto (a distância mais longe
-    // dela) — por isso usamos a metade da diagonal da foto, não da largura.
-    const meioDiagonalFoto = (Math.max(pRect.width, pRect.height) / 2) * Math.SQRT2;
-    const meioLadoQuadro = (meioDiagonalFoto + 14) * REC_SCALE;
-    // retângulo da foto — as partículas nunca são desenhadas por cima dele
+    // Tamanho original (mais próximo da foto, mais bonito). Não precisa
+    // ser grande o bastante pra nunca tocar a foto — a foto é redesenhada
+    // POR CIMA do quadrado logo depois (mais abaixo), então qualquer
+    // parte que "passasse" por cima fica sempre escondida atrás dela.
+    const meioLadoQuadro = (pRect.width / 2 + 10) * REC_SCALE;
+    // retângulo da foto — usado tanto pra nunca desenhar partícula em
+    // cima dela quanto pra redesenhá-la por cima do quadrado depois
     const fotoX0 = (pRect.left - rect.left) * REC_SCALE, fotoY0 = (pRect.top - rect.top) * REC_SCALE;
     const fotoX1 = fotoX0 + pRect.width * REC_SCALE, fotoY1 = fotoY0 + pRect.height * REC_SCALE;
     const dentroDaFoto = (x, y) => x >= fotoX0 && x <= fotoX1 && y >= fotoY0 && y <= fotoY1;
@@ -5416,6 +5414,16 @@ async function gerarDestaqueDoMes(slug, evt) {
         }
         ctx.stroke();
         ctx.restore();
+
+        // redesenha a FOTO por cima do quadrado — não importa se ele
+        // (em algum ângulo, tipo losango) passar por baixo da área da
+        // foto: ela é recortada de volta da imagem-base e pintada por
+        // cima, então o quadrado sempre fica atrás, nunca na frente.
+        ctx.drawImage(
+          baseCanvas,
+          fotoX0, fotoY0, fotoX1 - fotoX0, fotoY1 - fotoY0,
+          fotoX0, fotoY0, fotoX1 - fotoX0, fotoY1 - fotoY0
+        );
       }
 
       // partículas de sinal subindo, sempre por trás da foto
