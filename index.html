@@ -5171,40 +5171,10 @@ async function gerarGifCelebracao() {
 // pro selo "Nº_ em vendas" — nada aqui é inventado.
 // ================================================================
 
-// Conta de 0 até o valor final animando de verdade no DOM — igual à
-// função do seu modelo. Usada antes da captura, pra a "contagem"
-// aparecer nos frames do GIF também.
-function dmAnimateNumber(el, target, duration = 1100) {
-  const start = performance.now();
-  return new Promise(resolve => {
-    function tick(now) {
-      const p = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      el.textContent = Math.round(target * eased);
-      if (p < 1) requestAnimationFrame(tick);
-      else { el.textContent = target; resolve(); }
-    }
-    requestAnimationFrame(tick);
-  });
-}
-
-// Monta as partículas reais (a mesma função do seu modelo) — ficam
-// atrás do conteúdo (z-index 0 no container, z-index 1 no resto),
-// então NUNCA aparecem por cima da foto: sobem por trás dela.
-function dmBuildParticles() {
-  const field = document.getElementById('dm-particles');
-  const colors = ['#21d9ff', '#7c5cff', '#ffffff'];
-  let html = '';
-  for (let i = 0; i < 16; i++) {
-    const left = (Math.random() * 100).toFixed(1);
-    const size = (2 + Math.random() * 2.5).toFixed(1);
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    const duration = (7 + Math.random() * 6).toFixed(1);
-    const delay = (Math.random() * 10).toFixed(1);
-    html += `<span class="dm-particle" style="left:${left}%;width:${size}px;height:${size}px;background:${color};animation-duration:${duration}s;animation-delay:-${delay}s;"></span>`;
-  }
-  field.innerHTML = html;
-}
+// (a contagem dos números agora acontece DENTRO do vídeo, desenhada em
+// canvas — veja gerarDestaqueDoMes; não precisa mais animar no DOM,
+// nem popular partículas de CSS: as partículas do vídeo também são
+// desenhadas em canvas, quadro a quadro, dentro da mesma função.)
 
 const DM_FRASES = [
   'Seu foco, comprometimento e dedicação são inspiração para todo o time. Continue assim.',
@@ -5248,8 +5218,10 @@ async function gerarDestaqueDoMes(slug, evt) {
   document.getElementById('dm-stat-tier-label').textContent = tiers.badgeTier ? 'Melhor Meta' : 'Sem Meta Batida';
   document.getElementById('dm-quote').textContent = DM_FRASES[vendedorMes.vendas % DM_FRASES.length];
   document.getElementById('dm-footer').textContent = `UNI Internet · ${mesNome} ${ano}`;
-  // (as partículas agora são desenhadas em canvas na hora do vídeo — não
-  // precisa mais popular o container de partículas do CSS aqui)
+  // números finais só pra MEDIR a caixa certa (tamanho/posição) — depois
+  // são apagados antes da foto-base, porque quem "conta" é o vídeo
+  document.getElementById('dm-stat-vendas').textContent = vendedorMes.vendas;
+  document.getElementById('dm-stat-pct').textContent = pctMeta !== null ? (pctMeta + '%') : '—';
 
   const btn = evt ? evt.target.closest('button') : null;
   const textoOriginalBtn = btn ? btn.textContent : null;
@@ -5266,31 +5238,37 @@ async function gerarDestaqueDoMes(slug, evt) {
       return;
     }
 
-    // dispara a contagem dos números — igual ao seu modelo — e espera
-    // ela terminar antes de começar a gravar (assim o vídeo já começa
-    // com os números certos, não em "0")
-    await Promise.all([
-      dmAnimateNumber(document.getElementById('dm-stat-vendas'), vendedorMes.vendas),
-      pctMeta !== null
-        ? dmAnimateNumber(document.getElementById('dm-stat-pct'), pctMeta).then(() => {
-            document.getElementById('dm-stat-pct').textContent = pctMeta + '%';
-          })
-        : Promise.resolve(document.getElementById('dm-stat-pct').textContent = '—'),
-    ]);
-
     // Vídeo fluido: tira UMA foto base só (nome, textos, foto — tudo
-    // parado) e desenha o anel girando + as partículas subindo direto
-    // em canvas, quadro a quadro, em alta velocidade. Tirar uma foto
-    // nova do card a cada frame (como era antes) é lento e trava o
-    // vídeo; desenhar formas simples em canvas é praticamente
-    // instantâneo, então dá pra gravar a 30 quadros/segundo de verdade.
+    // parado, os NÚMEROS ficam de fora) e desenha em canvas, quadro a
+    // quadro: o anel girando, as partículas subindo, os números
+    // contando de 0 até o valor final, e um pulso de brilho no selo
+    // de posição e na "Melhor Meta" quando a contagem termina. Tudo
+    // isso é desenho simples (rápido) — só a foto-base usa o
+    // html2canvas, uma vez só, então não trava o vídeo.
     const cardEl = document.getElementById('dm-card');
     const photoEl = document.getElementById('dm-photo');
     const rect = cardEl.getBoundingClientRect();
     const REC_SCALE = 2;
 
-    // esconde o anel estático e as partículas do CSS só na hora de
-    // tirar a foto-base — quem vai "animar" de verdade é o canvas
+    // mede a caixa (posição + tamanho de fonte) de cada elemento que
+    // vamos desenhar por cima manualmente, ANTES de esconder/apagar nada
+    function medirCentro(el) {
+      const r = el.getBoundingClientRect();
+      return {
+        x: (r.left - rect.left + r.width / 2) * REC_SCALE,
+        y: (r.top - rect.top + r.height / 2) * REC_SCALE,
+        fonteSize: parseFloat(getComputedStyle(el).fontSize) * REC_SCALE,
+      };
+    }
+    const posVendas = medirCentro(document.getElementById('dm-stat-vendas'));
+    const posPct = medirCentro(document.getElementById('dm-stat-pct'));
+    const posRankChip = medirCentro(document.getElementById('dm-rank-chip'));
+    const posTier = medirCentro(document.getElementById('dm-stat-tier'));
+
+    // agora sim: apaga os números, esconde o anel/partículas do CSS
+    // (quem desenha eles agora é o canvas) e tira a foto-base
+    document.getElementById('dm-stat-vendas').textContent = '';
+    document.getElementById('dm-stat-pct').textContent = '';
     const ringEl = cardEl.querySelector('.dm-photo-ring');
     const particlesEl = document.getElementById('dm-particles');
     const ringOpacidadeOriginal = ringEl.style.opacity;
@@ -5300,6 +5278,8 @@ async function gerarDestaqueDoMes(slug, evt) {
     const baseCanvas = await html2canvas(cardEl, { backgroundColor: '#070a12', scale: REC_SCALE });
     ringEl.style.opacity = ringOpacidadeOriginal;
     particlesEl.style.opacity = particlesOpacidadeOriginal;
+    document.getElementById('dm-stat-vendas').textContent = vendedorMes.vendas;
+    document.getElementById('dm-stat-pct').textContent = pctMeta !== null ? (pctMeta + '%') : '—';
 
     const pRect = photoEl.getBoundingClientRect();
     const cx = (pRect.left - rect.left + pRect.width / 2) * REC_SCALE;
@@ -5310,15 +5290,29 @@ async function gerarDestaqueDoMes(slug, evt) {
     const fotoX1 = fotoX0 + pRect.width * REC_SCALE, fotoY1 = fotoY0 + pRect.height * REC_SCALE;
     const dentroDaFoto = (x, y) => x >= fotoX0 && x <= fotoX1 && y >= fotoY0 && y <= fotoY1;
 
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = baseCanvas.width;
-    recCanvas.height = baseCanvas.height;
-    const ctx = recCanvas.getContext('2d');
+    // ── Tela cheia formato Stories/Status (1080×1920) — o card fica
+    // centralizado, com fundo degradê preenchendo tudo em volta.
+    const OUT_W = 1080, OUT_H = 1920;
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = OUT_W;
+    outCanvas.height = OUT_H;
+    const ctx = outCanvas.getContext('2d');
     const suportaConic = typeof ctx.createConicGradient === 'function';
+    const escalaCard = Math.min((OUT_W * 0.9) / baseCanvas.width, (OUT_H * 0.82) / baseCanvas.height);
+    const cardOffsetX = (OUT_W - baseCanvas.width * escalaCard) / 2;
+    const cardOffsetY = (OUT_H - baseCanvas.height * escalaCard) / 2;
 
-    const CICLO_ALTURA = recCanvas.height + 60;
+    function desenharFundoTela() {
+      const grad = ctx.createLinearGradient(0, 0, 0, OUT_H);
+      grad.addColorStop(0, '#0c1120');
+      grad.addColorStop(1, '#070a12');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, OUT_W, OUT_H);
+    }
+
+    const CICLO_ALTURA = baseCanvas.height + 60;
     const particulas = Array.from({ length: 20 }, () => ({
-      x: Math.random() * recCanvas.width,
+      x: Math.random() * baseCanvas.width,
       offsetY: Math.random() * CICLO_ALTURA,
       vy: (18 + Math.random() * 16) * REC_SCALE / 30, // px por quadro (a ~30fps)
       amplitude: (8 + Math.random() * 16) * REC_SCALE,
@@ -5329,24 +5323,68 @@ async function gerarDestaqueDoMes(slug, evt) {
     }));
 
     const FPS = 30;
-    const stream = recCanvas.captureStream(FPS);
+    const stream = outCanvas.captureStream(FPS);
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000 });
     const chunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
     const gravacaoParada = new Promise(resolve => { recorder.onstop = resolve; });
 
     recorder.start();
 
+    // linha do tempo (em quadros, a 30fps): entrada 0-0.5s, contagem dos
+    // números 0.3s-1.6s, pulso de brilho logo depois da contagem terminar
+    const ENTRADA_QUADROS = FPS * 0.5;
+    const CONTAGEM_INICIO = FPS * 0.3;
+    const CONTAGEM_DURACAO = FPS * 1.3;
+    const PULSO_INICIO = CONTAGEM_INICIO + CONTAGEM_DURACAO;
+    const PULSO_DURACAO = FPS * 0.45;
+
+    function valorAnimado(alvo, quadro) {
+      const t = Math.max(0, Math.min(1, (quadro - CONTAGEM_INICIO) / CONTAGEM_DURACAO));
+      const eased = 1 - Math.pow(1 - t, 3);
+      return Math.round(alvo * eased);
+    }
+    function desenharPulso(p, quadro) {
+      const t = (quadro - PULSO_INICIO) / PULSO_DURACAO;
+      if (t < 0 || t > 1) return;
+      const alpha = Math.sin(t * Math.PI) * 0.55;
+      const raio = 55 * REC_SCALE;
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, raio);
+      glow.addColorStop(0, `rgba(33,217,255,${alpha.toFixed(3)})`);
+      glow.addColorStop(1, 'rgba(33,217,255,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, raio, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     const DURACAO_MS = 5000;
     let quadro = 0;
     let animando = true;
     function desenharQuadro() {
       if (!animando) return;
-      ctx.clearRect(0, 0, recCanvas.width, recCanvas.height);
+      desenharFundoTela();
+
+      // entrada suave: escala 0.92→1 + fade-in nos primeiros ~0,5s
+      const entradaT = Math.min(1, quadro / ENTRADA_QUADROS);
+      const entradaEase = 1 - Math.pow(1 - entradaT, 3);
+      const escalaEntrada = 0.92 + 0.08 * entradaEase;
+
+      ctx.save();
+      ctx.globalAlpha = entradaEase;
+      ctx.translate(cardOffsetX + (baseCanvas.width * escalaCard) / 2, cardOffsetY + (baseCanvas.height * escalaCard) / 2);
+      ctx.scale(escalaCard * escalaEntrada, escalaCard * escalaEntrada);
+      ctx.translate(-baseCanvas.width / 2, -baseCanvas.height / 2);
+
       ctx.drawImage(baseCanvas, 0, 0);
+
+      // pulso de brilho no selo de posição e na "Melhor Meta", logo
+      // que a contagem termina — dá aquele "carimbo" da conquista
+      desenharPulso(posRankChip, quadro);
+      desenharPulso(posTier, quadro);
 
       // anel girando ao redor da foto (nunca por dentro dela)
       const anguloAtual = (quadro / FPS) * (Math.PI * 2 / 3); // 1 volta a cada 3s
@@ -5366,7 +5404,7 @@ async function gerarDestaqueDoMes(slug, evt) {
       // partículas de sinal subindo, sempre por trás da foto
       particulas.forEach(p => {
         const posInCycle = (((quadro * p.vy) + p.offsetY) % CICLO_ALTURA) / CICLO_ALTURA;
-        const y = recCanvas.height - posInCycle * CICLO_ALTURA;
+        const y = baseCanvas.height - posInCycle * CICLO_ALTURA;
         const x = p.x + Math.sin(quadro * p.freq + p.fase) * p.amplitude;
         if (dentroDaFoto(x, y)) return;
         const alpha = Math.max(0.05, Math.sin(Math.PI * posInCycle));
@@ -5379,6 +5417,24 @@ async function gerarDestaqueDoMes(slug, evt) {
         ctx.fill();
         ctx.restore();
       });
+
+      // números contando — desenhados por cima, na posição exata onde
+      // ficavam na foto-base (que saiu com esses campos em branco)
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(33,217,255,0.5)';
+      ctx.shadowBlur = 10 * REC_SCALE;
+      ctx.fillStyle = '#21d9ff';
+
+      ctx.font = `900 ${posVendas.fonteSize}px Poppins, sans-serif`;
+      ctx.fillText(String(valorAnimado(vendedorMes.vendas, quadro)), posVendas.x, posVendas.y);
+
+      ctx.font = `900 ${posPct.fonteSize}px Poppins, sans-serif`;
+      const textoPct = pctMeta !== null ? (valorAnimado(pctMeta, quadro) + '%') : '—';
+      ctx.fillText(textoPct, posPct.x, posPct.y);
+
+      ctx.shadowBlur = 0;
+      ctx.restore();
 
       quadro++;
       requestAnimationFrame(desenharQuadro);
