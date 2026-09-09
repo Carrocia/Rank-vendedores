@@ -5225,7 +5225,7 @@ async function gerarDestaqueDoMes(slug, evt) {
 
   const btn = evt ? evt.target.closest('button') : null;
   const textoOriginalBtn = btn ? btn.textContent : null;
-  if (btn) { btn.disabled = true; btn.textContent = 'Gravando vídeo... (5s)'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Gravando vídeo... (12s)'; }
   try {
     if (typeof html2canvas === 'undefined') {
       showToast('Biblioteca de imagem não carregada.', 'error');
@@ -5284,7 +5284,14 @@ async function gerarDestaqueDoMes(slug, evt) {
     const pRect = photoEl.getBoundingClientRect();
     const cx = (pRect.left - rect.left + pRect.width / 2) * REC_SCALE;
     const cy = (pRect.top - rect.top + pRect.height / 2) * REC_SCALE;
-    const raioAnel = (pRect.width / 2 + 12) * REC_SCALE;
+    // O quadrado que gira precisa ficar fora da foto em QUALQUER ângulo —
+    // inclusive girado 45° (virando losango), que é o momento em que os
+    // LADOS dele ficam mais perto do centro. Pra nunca cruzar a foto
+    // (que é quadrada), o lado do quadro tem que ficar, no mínimo, tão
+    // longe do centro quanto o CANTO da foto (a distância mais longe
+    // dela) — por isso usamos a metade da diagonal da foto, não da largura.
+    const meioDiagonalFoto = (Math.max(pRect.width, pRect.height) / 2) * Math.SQRT2;
+    const meioLadoQuadro = (meioDiagonalFoto + 14) * REC_SCALE;
     // retângulo da foto — as partículas nunca são desenhadas por cima dele
     const fotoX0 = (pRect.left - rect.left) * REC_SCALE, fotoY0 = (pRect.top - rect.top) * REC_SCALE;
     const fotoX1 = fotoX0 + pRect.width * REC_SCALE, fotoY1 = fotoY0 + pRect.height * REC_SCALE;
@@ -5297,7 +5304,6 @@ async function gerarDestaqueDoMes(slug, evt) {
     outCanvas.width = OUT_W;
     outCanvas.height = OUT_H;
     const ctx = outCanvas.getContext('2d');
-    const suportaConic = typeof ctx.createConicGradient === 'function';
     const escalaCard = Math.min((OUT_W * 0.9) / baseCanvas.width, (OUT_H * 0.82) / baseCanvas.height);
     const cardOffsetX = (OUT_W - baseCanvas.width * escalaCard) / 2;
     const cardOffsetY = (OUT_H - baseCanvas.height * escalaCard) / 2;
@@ -5361,7 +5367,7 @@ async function gerarDestaqueDoMes(slug, evt) {
       ctx.fill();
     }
 
-    const DURACAO_MS = 5000;
+    const DURACAO_MS = 12000;
     let quadro = 0;
     let animando = true;
     function desenharQuadro() {
@@ -5386,19 +5392,30 @@ async function gerarDestaqueDoMes(slug, evt) {
       desenharPulso(posRankChip, quadro);
       desenharPulso(posTier, quadro);
 
-      // anel girando ao redor da foto (nunca por dentro dela)
-      const anguloAtual = (quadro / FPS) * (Math.PI * 2 / 3); // 1 volta a cada 3s
-      if (suportaConic) {
-        const grad = ctx.createConicGradient(anguloAtual, cx, cy);
+      // quadro girando ao redor da foto (nunca por dentro dela, em
+      // NENHUM ângulo — o cálculo de meioLadoQuadro já garante isso) —
+      // ao girar, passa por "losango" nos 45°, dando a sensação de ir
+      // mudando de forma, em vez de um círculo sempre igual
+      const anguloAtual = (quadro / FPS) * (Math.PI * 2 / 5); // 1 volta a cada 5s
+      {
+        const meioLado = meioLadoQuadro;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(anguloAtual);
+        const grad = ctx.createLinearGradient(-meioLado, -meioLado, meioLado, meioLado);
         grad.addColorStop(0, '#21d9ff');
-        grad.addColorStop(0.32, 'rgba(33,217,255,0)');
-        grad.addColorStop(0.68, 'rgba(33,217,255,0)');
+        grad.addColorStop(0.5, 'rgba(33,217,255,0.12)');
         grad.addColorStop(1, '#21d9ff');
-        ctx.beginPath();
-        ctx.arc(cx, cy, raioAnel, 0, Math.PI * 2);
         ctx.strokeStyle = grad;
         ctx.lineWidth = 2.5 * REC_SCALE;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(-meioLado, -meioLado, meioLado * 2, meioLado * 2, 16 * REC_SCALE);
+        } else {
+          ctx.rect(-meioLado, -meioLado, meioLado * 2, meioLado * 2);
+        }
         ctx.stroke();
+        ctx.restore();
       }
 
       // partículas de sinal subindo, sempre por trás da foto
@@ -6217,7 +6234,7 @@ carregarDados();
           <div class="adm-section-title" style="margin-top:36px;">🌟 Destaque do Mês</div>
           <div class="adm-card" style="max-width:520px;">
             <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.5;">
-              Escolha quem é o destaque do mês — o sistema grava um <strong>vídeo de 5 segundos</strong>
+              Escolha quem é o destaque do mês — o sistema grava um <strong>vídeo de 12 segundos</strong>
               (a animação de verdade rodando: anel girando, partículas subindo — pronto pra postar
               como Status/Stories) com a posição real no ranking mensal, quantas vendas fez e a
               melhor meta individual que bateu (M1/M2/M3). Peça exclusiva pro destaque —
