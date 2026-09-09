@@ -1565,11 +1565,13 @@
 .dm-name {
   text-align: center; font-size: clamp(1.5rem, 6vw, 1.85rem); font-weight: 800;
   margin-top: 34px;
-  background: linear-gradient(90deg, #fff 40%, var(--dm-accent) 50%, #fff 60%);
-  background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
-  animation: dmNameShimmer 5s ease-in-out infinite 1.3s;
+  /* Antes usava background-clip:text pra um brilho passando pelo nome,
+     mas essa técnica não é bem suportada pela biblioteca que "fotografa"
+     o card pra gerar o vídeo/imagem — vira um retângulo branco sólido.
+     Cor sólida + leve glow no lugar (fica bonito e sempre renderiza certo). */
+  color: #ffffff;
+  text-shadow: 0 0 18px rgba(33,217,255,0.35);
 }
-@keyframes dmNameShimmer { 0% { background-position: 200% 0; } 50% { background-position: 0% 0; } 100% { background-position: -200% 0; } }
 .dm-role { text-align: center; font-size: 0.78rem; color: var(--dm-text-muted); margin-top: 6px; letter-spacing: 0.3px; }
 
 .dm-stats-row { display: flex; align-items: center; justify-content: center; gap: 0; margin: 30px 0 28px; }
@@ -5250,17 +5252,22 @@ async function gerarDestaqueDoMes(slug, evt) {
 
   const btn = evt ? evt.target.closest('button') : null;
   const textoOriginalBtn = btn ? btn.textContent : null;
-  if (btn) { btn.disabled = true; btn.textContent = 'Gerando GIF... (leva uns 10s)'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Gravando vídeo... (5s)'; }
   try {
-    if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') {
-      showToast('Bibliotecas de imagem/GIF não carregadas.', 'error');
+    if (typeof html2canvas === 'undefined') {
+      showToast('Biblioteca de imagem não carregada.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
+      return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+      showToast('Esse navegador não suporta gravação de vídeo. Tente no Chrome.', 'error');
       if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
       return;
     }
 
     // dispara a contagem dos números — igual ao seu modelo — e espera
-    // ela terminar antes de começar a fotografar (assim os primeiros
-    // frames do GIF já mostram os números certos, não "0")
+    // ela terminar antes de começar a gravar (assim o vídeo já começa
+    // com os números certos, não em "0")
     await Promise.all([
       dmAnimateNumber(document.getElementById('dm-stat-vendas'), vendedorMes.vendas),
       pctMeta !== null
@@ -5270,53 +5277,58 @@ async function gerarDestaqueDoMes(slug, evt) {
         : Promise.resolve(document.getElementById('dm-stat-pct').textContent = '—'),
     ]);
 
-    // Fotografa o card VÁRIAS vezes seguidas — capturando a animação
-    // de verdade rodando (anel girando, partículas subindo, brilho no
-    // nome, linha "shimmer" da borda) — em vez de desenhar algo à
-    // parte. É literalmente o mesmo efeito do seu modelo, só virando
-    // GIF em vez de ficar preso numa página.
+    // Vídeo de verdade (não GIF): grava um <canvas> onde ficamos
+    // "colando" fotografias sucessivas do card (a animação de verdade
+    // rodando — anel girando, partículas subindo, linha da borda) e
+    // usamos a gravação NATIVA do navegador (MediaRecorder), sem
+    // precisar de nenhuma biblioteca externa pra codificar nada.
     const cardEl = document.getElementById('dm-card');
-    const TOTAL_FRAMES = 28;
-    const INTERVALO_MS = 90;
-    const frames = [];
-    for (let f = 0; f < TOTAL_FRAMES; f++) {
-      const canvas = await html2canvas(cardEl, { backgroundColor: '#070a12', scale: 1.5 });
-      frames.push(canvas);
+    const rect = cardEl.getBoundingClientRect();
+    const REC_SCALE = 2;
+    const recCanvas = document.createElement('canvas');
+    recCanvas.width = Math.round(rect.width * REC_SCALE);
+    recCanvas.height = Math.round(rect.height * REC_SCALE);
+    const recCtx = recCanvas.getContext('2d');
+
+    const FPS = 12;
+    const stream = recCanvas.captureStream(FPS);
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? 'video/webm;codecs=vp9'
+      : 'video/webm';
+    const recorder = new MediaRecorder(stream, { mimeType });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    const gravacaoParada = new Promise(resolve => { recorder.onstop = resolve; });
+
+    recorder.start();
+
+    const DURACAO_MS = 5000;
+    const INTERVALO_MS = 100; // ~10 fotos por segundo do card animando
+    const inicio = performance.now();
+    while (performance.now() - inicio < DURACAO_MS) {
+      const snap = await html2canvas(cardEl, { backgroundColor: '#070a12', scale: REC_SCALE });
+      recCtx.clearRect(0, 0, recCanvas.width, recCanvas.height);
+      recCtx.drawImage(snap, 0, 0, recCanvas.width, recCanvas.height);
       await new Promise(r => setTimeout(r, INTERVALO_MS));
     }
 
-    const workerBlob = await fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js').then(r => {
-      if (!r.ok) throw new Error('Não foi possível carregar o worker do gif.js');
-      return r.blob();
-    });
+    recorder.stop();
+    await gravacaoParada;
 
-    const gif = new GIF({
-      workers: 2,
-      quality: 8,
-      workerScript: URL.createObjectURL(workerBlob),
-      width: frames[0].width,
-      height: frames[0].height,
-      background: '#070a12',
-      repeat: 0, // looping infinito — ideal pra Stories/status
-    });
-    frames.forEach(canvas => gif.addFrame(canvas, { delay: INTERVALO_MS }));
-
-    gif.on('finished', (blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `DestaqueDoMes_${nomeCompleto.replace(/\s+/g, '_')}_${mesNome}${ano}.gif`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showToast('GIF de Destaque do Mês gerado com sucesso!', 'success');
-      if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
-    });
-    gif.render();
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DestaqueDoMes_${nomeCompleto.replace(/\s+/g, '_')}_${mesNome}${ano}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Vídeo de Destaque do Mês gerado com sucesso!', 'success');
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
   } catch (err) {
     console.error('[gerarDestaqueDoMes]', err);
-    showToast('Não foi possível gerar o GIF.', 'error');
+    showToast('Não foi possível gerar o vídeo.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
   }
 }
@@ -6073,11 +6085,11 @@ carregarDados();
           <div class="adm-section-title" style="margin-top:36px;">🌟 Destaque do Mês</div>
           <div class="adm-card" style="max-width:520px;">
             <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.5;">
-              Escolha quem é o destaque do mês — o sistema gera um <strong>GIF animado</strong>
-              (com o mesmo efeito de sinal do card de comemoração — pronto pra postar como
-              Status/Stories) com a posição real no ranking mensal, quantas vendas fez e a
+              Escolha quem é o destaque do mês — o sistema grava um <strong>vídeo de 5 segundos</strong>
+              (a animação de verdade rodando: anel girando, partículas subindo — pronto pra postar
+              como Status/Stories) com a posição real no ranking mensal, quantas vendas fez e a
               melhor meta individual que bateu (M1/M2/M3). Peça exclusiva pro destaque —
-              diferente do card de meta individual.
+              diferente do card de meta individual. Baixa em .webm (funciona bem no Chrome).
             </p>
             <div class="adm-field">
               <label>Vendedor destaque</label>
@@ -6090,7 +6102,7 @@ carregarDados();
                 <option value="william">William</option>
               </select>
             </div>
-            <button type="button" class="adm-btn" id="dm-gerar-btn" onclick="gerarDestaqueDoMes(document.getElementById('dm-vendedor').value, event)">🌟 Gerar GIF de Destaque do Mês</button>
+            <button type="button" class="adm-btn" id="dm-gerar-btn" onclick="gerarDestaqueDoMes(document.getElementById('dm-vendedor').value, event)">🌟 Gerar Vídeo de Destaque do Mês</button>
           </div>
         </section>
 
