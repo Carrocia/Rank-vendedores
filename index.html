@@ -5248,7 +5248,8 @@ async function gerarDestaqueDoMes(slug, evt) {
   document.getElementById('dm-stat-tier-label').textContent = tiers.badgeTier ? 'Melhor Meta' : 'Sem Meta Batida';
   document.getElementById('dm-quote').textContent = DM_FRASES[vendedorMes.vendas % DM_FRASES.length];
   document.getElementById('dm-footer').textContent = `UNI Internet · ${mesNome} ${ano}`;
-  dmBuildParticles();
+  // (as partículas agora são desenhadas em canvas na hora do vídeo — não
+  // precisa mais popular o container de partículas do CSS aqui)
 
   const btn = evt ? evt.target.closest('button') : null;
   const textoOriginalBtn = btn ? btn.textContent : null;
@@ -5277,25 +5278,62 @@ async function gerarDestaqueDoMes(slug, evt) {
         : Promise.resolve(document.getElementById('dm-stat-pct').textContent = '—'),
     ]);
 
-    // Vídeo de verdade (não GIF): grava um <canvas> onde ficamos
-    // "colando" fotografias sucessivas do card (a animação de verdade
-    // rodando — anel girando, partículas subindo, linha da borda) e
-    // usamos a gravação NATIVA do navegador (MediaRecorder), sem
-    // precisar de nenhuma biblioteca externa pra codificar nada.
+    // Vídeo fluido: tira UMA foto base só (nome, textos, foto — tudo
+    // parado) e desenha o anel girando + as partículas subindo direto
+    // em canvas, quadro a quadro, em alta velocidade. Tirar uma foto
+    // nova do card a cada frame (como era antes) é lento e trava o
+    // vídeo; desenhar formas simples em canvas é praticamente
+    // instantâneo, então dá pra gravar a 30 quadros/segundo de verdade.
     const cardEl = document.getElementById('dm-card');
+    const photoEl = document.getElementById('dm-photo');
     const rect = cardEl.getBoundingClientRect();
     const REC_SCALE = 2;
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = Math.round(rect.width * REC_SCALE);
-    recCanvas.height = Math.round(rect.height * REC_SCALE);
-    const recCtx = recCanvas.getContext('2d');
 
-    const FPS = 12;
+    // esconde o anel estático e as partículas do CSS só na hora de
+    // tirar a foto-base — quem vai "animar" de verdade é o canvas
+    const ringEl = cardEl.querySelector('.dm-photo-ring');
+    const particlesEl = document.getElementById('dm-particles');
+    const ringOpacidadeOriginal = ringEl.style.opacity;
+    const particlesOpacidadeOriginal = particlesEl.style.opacity;
+    ringEl.style.opacity = '0';
+    particlesEl.style.opacity = '0';
+    const baseCanvas = await html2canvas(cardEl, { backgroundColor: '#070a12', scale: REC_SCALE });
+    ringEl.style.opacity = ringOpacidadeOriginal;
+    particlesEl.style.opacity = particlesOpacidadeOriginal;
+
+    const pRect = photoEl.getBoundingClientRect();
+    const cx = (pRect.left - rect.left + pRect.width / 2) * REC_SCALE;
+    const cy = (pRect.top - rect.top + pRect.height / 2) * REC_SCALE;
+    const raioAnel = (pRect.width / 2 + 12) * REC_SCALE;
+    // retângulo da foto — as partículas nunca são desenhadas por cima dele
+    const fotoX0 = (pRect.left - rect.left) * REC_SCALE, fotoY0 = (pRect.top - rect.top) * REC_SCALE;
+    const fotoX1 = fotoX0 + pRect.width * REC_SCALE, fotoY1 = fotoY0 + pRect.height * REC_SCALE;
+    const dentroDaFoto = (x, y) => x >= fotoX0 && x <= fotoX1 && y >= fotoY0 && y <= fotoY1;
+
+    const recCanvas = document.createElement('canvas');
+    recCanvas.width = baseCanvas.width;
+    recCanvas.height = baseCanvas.height;
+    const ctx = recCanvas.getContext('2d');
+    const suportaConic = typeof ctx.createConicGradient === 'function';
+
+    const CICLO_ALTURA = recCanvas.height + 60;
+    const particulas = Array.from({ length: 20 }, () => ({
+      x: Math.random() * recCanvas.width,
+      offsetY: Math.random() * CICLO_ALTURA,
+      vy: (18 + Math.random() * 16) * REC_SCALE / 30, // px por quadro (a ~30fps)
+      amplitude: (8 + Math.random() * 16) * REC_SCALE,
+      freq: 0.03 + Math.random() * 0.04,
+      fase: Math.random() * Math.PI * 2,
+      raio: (1.6 + Math.random() * 2.2) * REC_SCALE,
+      cor: Math.random() > 0.5 ? '33,217,255' : '124,140,255',
+    }));
+
+    const FPS = 30;
     const stream = recCanvas.captureStream(FPS);
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType });
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
     const chunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
     const gravacaoParada = new Promise(resolve => { recorder.onstop = resolve; });
@@ -5303,14 +5341,52 @@ async function gerarDestaqueDoMes(slug, evt) {
     recorder.start();
 
     const DURACAO_MS = 5000;
-    const INTERVALO_MS = 100; // ~10 fotos por segundo do card animando
-    const inicio = performance.now();
-    while (performance.now() - inicio < DURACAO_MS) {
-      const snap = await html2canvas(cardEl, { backgroundColor: '#070a12', scale: REC_SCALE });
-      recCtx.clearRect(0, 0, recCanvas.width, recCanvas.height);
-      recCtx.drawImage(snap, 0, 0, recCanvas.width, recCanvas.height);
-      await new Promise(r => setTimeout(r, INTERVALO_MS));
+    let quadro = 0;
+    let animando = true;
+    function desenharQuadro() {
+      if (!animando) return;
+      ctx.clearRect(0, 0, recCanvas.width, recCanvas.height);
+      ctx.drawImage(baseCanvas, 0, 0);
+
+      // anel girando ao redor da foto (nunca por dentro dela)
+      const anguloAtual = (quadro / FPS) * (Math.PI * 2 / 3); // 1 volta a cada 3s
+      if (suportaConic) {
+        const grad = ctx.createConicGradient(anguloAtual, cx, cy);
+        grad.addColorStop(0, '#21d9ff');
+        grad.addColorStop(0.32, 'rgba(33,217,255,0)');
+        grad.addColorStop(0.68, 'rgba(33,217,255,0)');
+        grad.addColorStop(1, '#21d9ff');
+        ctx.beginPath();
+        ctx.arc(cx, cy, raioAnel, 0, Math.PI * 2);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2.5 * REC_SCALE;
+        ctx.stroke();
+      }
+
+      // partículas de sinal subindo, sempre por trás da foto
+      particulas.forEach(p => {
+        const posInCycle = (((quadro * p.vy) + p.offsetY) % CICLO_ALTURA) / CICLO_ALTURA;
+        const y = recCanvas.height - posInCycle * CICLO_ALTURA;
+        const x = p.x + Math.sin(quadro * p.freq + p.fase) * p.amplitude;
+        if (dentroDaFoto(x, y)) return;
+        const alpha = Math.max(0.05, Math.sin(Math.PI * posInCycle));
+        ctx.save();
+        ctx.shadowColor = `rgba(${p.cor},0.9)`;
+        ctx.shadowBlur = 8 * REC_SCALE;
+        ctx.beginPath();
+        ctx.arc(x, y, p.raio, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.cor},${alpha.toFixed(3)})`;
+        ctx.fill();
+        ctx.restore();
+      });
+
+      quadro++;
+      requestAnimationFrame(desenharQuadro);
     }
+    requestAnimationFrame(desenharQuadro);
+
+    await new Promise(r => setTimeout(r, DURACAO_MS));
+    animando = false;
 
     recorder.stop();
     await gravacaoParada;
