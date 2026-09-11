@@ -1961,7 +1961,9 @@ function renderPodium(containerId, entries, options = {}) {
   const mode = options.mode || 'semanal';
   const metasIndividuais = options.metasIndividuais;
   const vendasMesPorId = options.vendasMesPorId || {};
-  const sorted = [...entries].sort((a, b) => b.vendas - a.vendas);
+  // Critério de desempate: quando duas pessoas têm o MESMO número de
+  // vendas, quem tem maior valor total de vendas fica na frente.
+  const sorted = [...entries].sort((a, b) => (b.vendas - a.vendas) || ((b.valor || 0) - (a.valor || 0)));
   const container = document.getElementById(containerId);
   container.innerHTML = sorted.map((e, idx) => {
     const rank = idx + 1;
@@ -2955,8 +2957,8 @@ function processarDadosParaRender(cache) {
 
   // Calcular destaques da semana automaticamente
   const todasSemana = [...extSem, ...intSem];
-  const liderExternoSem = extSem.sort((a,b) => b.vendas - a.vendas)[0];
-  const liderInternoSem = intSem.sort((a,b) => b.vendas - a.vendas)[0];
+  const liderExternoSem = extSem.sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0];
+  const liderInternoSem = intSem.sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0];
   const maiorEvolucao = todasSemana.reduce((a,b) => (b.evolucao||0) > (a.evolucao||0) ? b : a, todasSemana[0] || {});
   const todasMensal = [...extMes, ...intMes];
   const maiorPct = todasMensal.reduce((a,b) => {
@@ -3168,8 +3170,8 @@ function showCelebration() {
     return;
   }
   const d = processarDadosParaRender(_cache);
-  const topExterno = d.extMes.length ? [...d.extMes].sort((a,b) => b.vendas - a.vendas)[0] : null;
-  const topInterno = d.intMes.length ? [...d.intMes].sort((a,b) => b.vendas - a.vendas)[0] : null;
+  const topExterno = d.extMes.length ? [...d.extMes].sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0] : null;
+  const topInterno = d.intMes.length ? [...d.intMes].sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0] : null;
 
   const mesNome = d.mes && d.mes.mesNome ? (d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1)) : CONFIG.mesReferencia;
   document.getElementById('celebrationSubtitle').innerHTML =
@@ -4744,7 +4746,9 @@ function calcularSequenciaDias(vendasDoVendedor) {
 // Retorna null se o vendedor não tiver nenhuma venda na semana (não
 // faz sentido "ranquear" quem está zerado).
 function calcularPosicaoRanking(slug, tipo, d) {
-  const grupo = (tipo === 'interno' ? d.intSem : d.extSem).slice().sort((a, b) => b.vendas - a.vendas);
+  // mesmo critério de desempate do pódio público: em caso de empate no
+  // número de vendas, quem tem maior valor total fica na frente
+  const grupo = (tipo === 'interno' ? d.intSem : d.extSem).slice().sort((a, b) => (b.vendas - a.vendas) || ((b.valor || 0) - (a.valor || 0)));
   const posicao = grupo.findIndex(v => v.slug === slug);
   const vendas = posicao >= 0 ? grupo[posicao].vendas : 0;
   if (vendas === 0) return null;
@@ -5128,8 +5132,9 @@ async function gerarDestaqueDoMes(slug, evt) {
   if (!vendedorMes) { showToast('Vendedor não encontrado.', 'error'); return; }
 
   // posição real no ranking MENSAL, dentro do próprio grupo (interno/externo)
-  // — vira o número dentro da medalha
-  const grupo = (vendedorMes.tipo === 'interno' ? d.intMes : d.extMes).slice().sort((a, b) => b.vendas - a.vendas);
+  // — vira o número dentro da medalha. Mesmo critério de desempate:
+  // em caso de empate no número de vendas, maior valor total decide.
+  const grupo = (vendedorMes.tipo === 'interno' ? d.intMes : d.extMes).slice().sort((a, b) => (b.vendas - a.vendas) || ((b.valor || 0) - (a.valor || 0)));
   const posicao = grupo.findIndex(v => v.slug === slug) + 1;
 
   const mesNome = (d.mes && d.mes.mesNome) ? (d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1)) : CONFIG.mesReferencia;
