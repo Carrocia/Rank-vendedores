@@ -1219,6 +1219,17 @@
 .adm-btn-status:active { transform: scale(0.96); }
 .adm-btn-status:disabled { opacity: 0.5; cursor: default; transform: none; }
 
+.adm-btn-excluir {
+  font-size: 1rem; line-height: 1; white-space: nowrap;
+  padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444; background: rgba(239,68,68,0.08); cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.adm-btn-excluir:hover { background: rgba(239,68,68,0.18); transform: translateY(-1px); }
+.adm-btn-excluir:active { transform: scale(0.94); }
+.adm-btn-excluir:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+
 .vt-pct-wrap { display: flex; align-items: center; gap: 8px; min-width: 90px; }
 .vt-pct-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
 .vt-pct-bar-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent), #34d399); transition: width 0.6s ease; }
@@ -3682,12 +3693,16 @@ function renderRelatorioTabela() {
         vendedorTxt = l.vendedorNome;
         tipoTxt = l.vendedorTipo === 'interno' ? 'Interno' : (l.vendedorTipo === 'externo' ? 'Externo' : '—');
       }
+      const acoesTxt = l.tipoLinha === 'outra_filial'
+        ? '—'
+        : `<button type="button" class="adm-btn-excluir" onclick="handleExcluirVenda('${l.id}')" title="Excluir esta venda">🗑️</button>`;
       return `<tr>
         <td>${dataFmt}</td><td>${l.hora || '—'}</td><td>${vendedorTxt}</td><td>${tipoTxt}</td>
         <td>${l.cliente || '—'}</td><td>${l.planoNome}</td><td>${veloc}</td>
         <td>${adicionaisTxt}</td><td><strong>${valorFmt}</strong></td><td>${origemTxt}</td>
+        <td>${acoesTxt}</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);">Nenhuma venda encontrada para os filtros selecionados.</td></tr>';
+    }).join('') : '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);">Nenhuma venda encontrada para os filtros selecionados.</td></tr>';
   }
 
   const contagem = document.getElementById('rel-contagem');
@@ -4203,6 +4218,41 @@ async function saveVenda(dados) {
     .single();
   if (error) { console.error('[saveVenda]', error); throw new Error('Não foi possível registrar a venda.'); }
   return data;
+}
+
+// ── Exclusão de venda ───────────────────────────────────────────
+// Apaga primeiro os adicionais vinculados (FK venda_id) e só depois a
+// venda em si, pra não esbarrar em erro de chave estrangeira caso a
+// tabela não tenha ON DELETE CASCADE configurado.
+async function deleteVenda(venda_id) {
+  const { error: errAdic } = await window._supabase
+    .from('venda_adicionais')
+    .delete()
+    .eq('venda_id', venda_id);
+  if (errAdic) { console.error('[deleteVenda - adicionais]', errAdic); throw new Error('Não foi possível excluir os adicionais da venda.'); }
+
+  const { error } = await window._supabase
+    .from('vendas')
+    .delete()
+    .eq('id', venda_id);
+  if (error) { console.error('[deleteVenda]', error); throw new Error('Não foi possível excluir a venda.'); }
+}
+
+// Chamado pelo botão 🗑️ da tabela de relatório. Pede confirmação antes
+// de excluir (ação irreversível), depois recarrega dados e relatório.
+async function handleExcluirVenda(venda_id) {
+  if (!venda_id) return;
+  const confirmado = window.confirm('Tem certeza que deseja excluir esta venda? Essa ação não pode ser desfeita.');
+  if (!confirmado) return;
+  try {
+    await deleteVenda(venda_id);
+    showToast('Venda excluída com sucesso!', 'success');
+    await carregarDados();
+    if (typeof aplicarFiltrosRelatorio === 'function') await aplicarFiltrosRelatorio();
+  } catch (err) {
+    console.error('[handleExcluirVenda]', err);
+    showToast('Não foi possível excluir a venda.', 'error');
+  }
 }
 
 async function saveVendaAdicionais(venda_id, adicionais) {
@@ -5900,12 +5950,13 @@ carregarDados();
                 <thead>
                   <tr>
                     <th>Data</th><th>Hora</th><th>Vendedor</th><th>Tipo</th><th>Cliente</th>
-                    <th>Plano</th><th>Velocidade</th><th>Adicionais</th><th>Valor Total</th><th>Origem</th>
+                    <th>Plano</th><th>Velocidade</th><th>Adicionais</th><th>Valor Total</th><th>Origem</th><th>Ações</th>
                   </tr>
                 </thead>
                 <tbody id="rel-tabela-body">
-                  <tr><td colspan="10" style="text-align:center;color:var(--text-muted);">Clique em "Aplicar filtros" para carregar o relatório.</td></tr>
+                  <tr><td colspan="11" style="text-align:center;color:var(--text-muted);">Clique em "Aplicar filtros" para carregar o relatório.</td></tr>
                 </tbody>
+
               </table>
             </div>
             <div style="display:flex;justify-content:center;align-items:center;gap:16px;margin-top:16px;" id="rel-paginacao"></div>
