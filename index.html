@@ -3365,6 +3365,17 @@ async function loadMetasFilial(mes, ano) {
   };
 }
 
+// A tabela/`view` de vendas não tem uma coluna própria para o nome do
+// cliente — ele é digitado no formulário e salvo dentro do campo
+// `observacao`, no formato "Cliente: Fulano — outras observações".
+// Esta função recupera esse nome de volta a partir da observação,
+// para usar como fallback nos relatórios quando não houver v.cliente.
+function extrairClienteDeObservacao(observacao) {
+  if (!observacao) return null;
+  const match = String(observacao).match(/Cliente:\s*([^—]+)/i);
+  return match ? match[1].trim() || null : null;
+}
+
 async function loadVendas(de, ate) {
   const { data, error } = await window._supabase
     .from('vendas_publicas')
@@ -3564,7 +3575,7 @@ async function aplicarFiltrosRelatorio() {
         vendedorSlug: vend?.slug || v.vendedores?.slug || null,
         vendedorNome: vend?.nome || v.vendedores?.nome || '—',
         vendedorTipo: vend?.tipo || null,
-        cliente: v.cliente || null,
+        cliente: v.cliente || extrairClienteDeObservacao(v.observacao) || null,
         planoId: v.plano_id,
         planoNome: plano?.nome || v.planos?.nome || '—',
         velocidade: plano?.velocidade_mb || null,
