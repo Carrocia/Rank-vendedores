@@ -4168,7 +4168,23 @@ function exportarRelatorioPDF() {
   // desenhado acima, então pulamos ela aqui pra não cobrir o título).
   let _primeiraPaginaDetalhamento = true;
   doc.autoTable({
-    startY: y, theme: 'grid', styles: { fontSize: 7.5 }, headStyles: { fillColor: corAccent2 },
+    startY: y, theme: 'grid', styles: { fontSize: 7.5, cellPadding: 2, overflow: 'linebreak', valign: 'top' }, headStyles: { fillColor: corAccent2 },
+    // Larguras fixas (mm) pra cada coluna: evita que o autoTable
+    // espreme a coluna "Cliente" quando outras colunas (Plano,
+    // Adicionais) têm texto longo, o que fazia o nome sair cortado.
+    columnStyles: {
+      0: { cellWidth: 18 },  // Data
+      1: { cellWidth: 12 },  // Hora
+      2: { cellWidth: 26 },  // Vendedor
+      3: { cellWidth: 30 },  // Cliente
+      4: { cellWidth: 32 },  // Plano
+      5: { cellWidth: 44 },  // Adicionais
+      6: { cellWidth: 20, halign: 'right' },  // Total
+    },
+    // Nunca divide uma linha entre duas páginas: se ela não couber
+    // inteira na página atual, a linha inteira (incluindo o nome do
+    // cliente) passa pra próxima página, em vez de cortar no meio.
+    rowPageBreak: 'avoid',
     head: [['Data', 'Hora', 'Vendedor', 'Cliente', 'Plano', 'Adicionais', 'Total']],
     body: linhas.map(l => [
       l.data ? l.data.split('-').reverse().join('/') : '—',
@@ -4179,7 +4195,7 @@ function exportarRelatorioPDF() {
       l.adicionaisNomes.join(', ') || '—',
       fmt(l.valorTotal),
     ]),
-    margin: { left: 14, right: 14, top: 20 },
+    margin: { left: 14, right: 14, top: 20, bottom: 20 },
     didDrawPage: () => {
       if (_primeiraPaginaDetalhamento) { _primeiraPaginaDetalhamento = false; return; }
       desenharFundoRelatorioPDF(doc);
