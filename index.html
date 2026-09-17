@@ -3878,6 +3878,12 @@ async function exportarRelatorioExcel() {
   const linhas = _relatorioState.linhas;
   if (!linhas.length) { showToast('Nenhuma venda para exportar.', 'warning'); return; }
 
+  // Opção "🙈 Ocultar valores financeiros": quando marcada, o relatório
+  // exportado (Excel/PDF) some com R$ Valor Total, Ticket Médio e as
+  // colunas de valor das tabelas — útil pra compartilhar só os números
+  // de quantidade/desempenho sem expor os valores em dinheiro.
+  const ocultarFinanceiro = !!document.getElementById('rel-ocultar-financeiro')?.checked;
+
   const totalVendas = linhas.length;
   const valorTotal = linhas.reduce((s, l) => s + l.valorTotal, 0);
   const ticketMedio = totalVendas ? valorTotal / totalVendas : 0;
@@ -3929,8 +3935,10 @@ async function exportarRelatorioExcel() {
   linha += 1;
   const kpis = [
     ['Total de Vendas', totalVendas, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
-    ['Valor Total', valorTotal, fmtMoeda, EXCEL_COR_AZUL, EXCEL_COR_AZUL_TINT],
-    ['Ticket Médio', ticketMedio, fmtMoeda, EXCEL_COR_AZUL, EXCEL_COR_AZUL_TINT],
+    ...(ocultarFinanceiro ? [] : [
+      ['Valor Total', valorTotal, fmtMoeda, EXCEL_COR_AZUL, EXCEL_COR_AZUL_TINT],
+      ['Ticket Médio', ticketMedio, fmtMoeda, EXCEL_COR_AZUL, EXCEL_COR_AZUL_TINT],
+    ]),
     ['Vendas da Equipe', vendasEquipe, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
     ['Vendas Fora da Filial', vendasForaFilial, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
     ['Vendas de Outras Filiais', vendasOutrasFiliais, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
@@ -3943,22 +3951,24 @@ async function exportarRelatorioExcel() {
 
   excelTituloSecao(ws, linha, 'Vendas por Vendedor', EXCEL_COR_TEAL, EXCEL_COR_TEAL_ESCURO);
   linha += 1;
-  excelCabecalhoTabela(ws, linha, ['Vendedor', 'Tipo', 'Vendas', 'Valor'], EXCEL_COR_TEAL);
+  excelCabecalhoTabela(ws, linha, ocultarFinanceiro ? ['Vendedor', 'Tipo', 'Vendas'] : ['Vendedor', 'Tipo', 'Vendas', 'Valor'], EXCEL_COR_TEAL);
   linha += 1;
   porVendedor.forEach((v, i) => {
-    excelLinhaDados(ws, linha, [v.vendedor, v.tipo, v.vendas, v.valor], i % 2 === 1);
-    ws.getCell(linha, 4).numFmt = fmtMoeda;
+    const dados = ocultarFinanceiro ? [v.vendedor, v.tipo, v.vendas] : [v.vendedor, v.tipo, v.vendas, v.valor];
+    excelLinhaDados(ws, linha, dados, i % 2 === 1);
+    if (!ocultarFinanceiro) ws.getCell(linha, 4).numFmt = fmtMoeda;
     linha++;
   });
   linha += 1;
 
   excelTituloSecao(ws, linha, 'Vendas por Plano', EXCEL_COR_AZUL, EXCEL_COR_AZUL_ESCURO);
   linha += 1;
-  excelCabecalhoTabela(ws, linha, ['Plano', 'Velocidade', 'Vendas', 'Valor'], EXCEL_COR_AZUL);
+  excelCabecalhoTabela(ws, linha, ocultarFinanceiro ? ['Plano', 'Velocidade', 'Vendas'] : ['Plano', 'Velocidade', 'Vendas', 'Valor'], EXCEL_COR_AZUL);
   linha += 1;
   porPlano.forEach((v, i) => {
-    excelLinhaDados(ws, linha, [v.plano, v.velocidade, v.vendas, v.valor], i % 2 === 1);
-    ws.getCell(linha, 4).numFmt = fmtMoeda;
+    const dados = ocultarFinanceiro ? [v.plano, v.velocidade, v.vendas] : [v.plano, v.velocidade, v.vendas, v.valor];
+    excelLinhaDados(ws, linha, dados, i % 2 === 1);
+    if (!ocultarFinanceiro) ws.getCell(linha, 4).numFmt = fmtMoeda;
     linha++;
   });
   linha += 1;
@@ -3996,7 +4006,7 @@ async function exportarRelatorioExcel() {
   const wsDet = wb.addWorksheet('Vendas', {
     views: [{ state: 'frozen', ySplit: 2, showGridLines: false }],
   });
-  const colunasDet = [
+  const colunasDetTodas = [
     { header: 'ID', key: 'id', width: 10 },
     { header: 'Data', key: 'data', width: 12 },
     { header: 'Hora', key: 'hora', width: 8 },
@@ -4005,43 +4015,45 @@ async function exportarRelatorioExcel() {
     { header: 'Cliente', key: 'cliente', width: 18 },
     { header: 'Plano', key: 'plano', width: 22 },
     { header: 'Velocidade', key: 'velocidade', width: 12 },
-    { header: 'Valor do Plano', key: 'valorPlano', width: 14 },
+    { header: 'Valor do Plano', key: 'valorPlano', width: 14, financeiro: true },
     { header: 'Adicionais', key: 'adicionais', width: 26 },
-    { header: 'Valor dos Adicionais', key: 'valorAdicionais', width: 16 },
-    { header: 'Valor Total', key: 'valorTotal', width: 14 },
+    { header: 'Valor dos Adicionais', key: 'valorAdicionais', width: 16, financeiro: true },
+    { header: 'Valor Total', key: 'valorTotal', width: 14, financeiro: true },
     { header: 'Fora da Filial', key: 'foraFilial', width: 12 },
     { header: 'Origem', key: 'origem', width: 14 },
     { header: 'Filial de Origem', key: 'filialOrigem', width: 16 },
     { header: 'Observação', key: 'observacao', width: 26 },
   ];
+  // Com "Ocultar valores financeiros" marcado, tiramos as 3 colunas de
+  // valor em R$ da planilha de detalhamento também.
+  const colunasDet = ocultarFinanceiro ? colunasDetTodas.filter(c => !c.financeiro) : colunasDetTodas;
   excelTituloFaixaCompleta(wsDet, colunasDet.length);
   excelCabecalhoTabela(wsDet, 2, colunasDet.map(c => c.header), EXCEL_COR_AZUL);
   colunasDet.forEach((c, i) => { wsDet.getColumn(i + 1).width = c.width; });
 
   linhas.forEach((l, i) => {
-    const valores = [
-      l.id || '—',
-      l.data ? l.data.split('-').reverse().join('/') : '—',
-      l.hora || '—',
-      l.tipoLinha === 'outra_filial' ? 'Outra filial' : l.vendedorNome,
-      l.tipoLinha === 'outra_filial' ? '—' : (l.vendedorTipo === 'interno' ? 'Interno' : l.vendedorTipo === 'externo' ? 'Externo' : '—'),
-      l.cliente || '—',
-      l.planoNome,
-      l.velocidade ? l.velocidade + ' Mbps' : '—',
-      l.valorPlano,
-      l.adicionaisNomes.join(', ') || '—',
-      l.valorAdicionais,
-      l.valorTotal,
-      l.foraFilial ? 'Sim' : 'Não',
-      l.tipoLinha === 'outra_filial' ? 'Outra filial' : (l.foraFilial ? 'Fora da filial' : 'Nossa filial'),
-      l.filialOrigem || '—',
-      l.observacao || '—',
+    const valoresTodos = [
+      { v: l.id || '—' },
+      { v: l.data ? l.data.split('-').reverse().join('/') : '—' },
+      { v: l.hora || '—' },
+      { v: l.tipoLinha === 'outra_filial' ? 'Outra filial' : l.vendedorNome },
+      { v: l.tipoLinha === 'outra_filial' ? '—' : (l.vendedorTipo === 'interno' ? 'Interno' : l.vendedorTipo === 'externo' ? 'Externo' : '—') },
+      { v: l.cliente || '—' },
+      { v: l.planoNome },
+      { v: l.velocidade ? l.velocidade + ' Mbps' : '—' },
+      { v: l.valorPlano, financeiro: true },
+      { v: l.adicionaisNomes.join(', ') || '—' },
+      { v: l.valorAdicionais, financeiro: true },
+      { v: l.valorTotal, financeiro: true },
+      { v: l.foraFilial ? 'Sim' : 'Não' },
+      { v: l.tipoLinha === 'outra_filial' ? 'Outra filial' : (l.foraFilial ? 'Fora da filial' : 'Nossa filial') },
+      { v: l.filialOrigem || '—' },
+      { v: l.observacao || '—' },
     ];
+    const valores = (ocultarFinanceiro ? valoresTodos.filter(x => !x.financeiro) : valoresTodos).map(x => x.v);
     const rowNum = i + 3;
     excelLinhaDados(wsDet, rowNum, valores, i % 2 === 1);
-    wsDet.getCell(rowNum, 9).numFmt = fmtMoeda;
-    wsDet.getCell(rowNum, 11).numFmt = fmtMoeda;
-    wsDet.getCell(rowNum, 12).numFmt = fmtMoeda;
+    colunasDet.forEach((c, idx) => { if (c.financeiro) wsDet.getCell(rowNum, idx + 1).numFmt = fmtMoeda; });
   });
   wsDet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: colunasDet.length } };
   // Moldura ao redor de toda a tabela de detalhamento (mesmo tratamento da aba Resumo).
@@ -4080,6 +4092,11 @@ function exportarRelatorioPDF() {
   const linhas = _relatorioState.linhas;
   if (!linhas.length) { showToast('Nenhuma venda para exportar.', 'warning'); return; }
 
+  // Opção "🙈 Ocultar valores financeiros" (mesma do Excel): quando
+  // marcada, tira R$ Valor Total, Ticket Médio e as colunas de valor
+  // das tabelas do PDF também.
+  const ocultarFinanceiro = !!document.getElementById('rel-ocultar-financeiro')?.checked;
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   // Cores extraídas do modelo oficial (mesmo degradê teal → azul do logo
@@ -4117,8 +4134,12 @@ function exportarRelatorioPDF() {
   doc.text('RESUMO', 14, y); y += 6;
   doc.autoTable({
     startY: y, theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: corAccent2 },
-    head: [['Total de Vendas', 'Valor Total', 'Ticket Médio', 'Vendas da Equipe', 'Outras Filiais']],
-    body: [[totalVendas, fmt(valorTotal), fmt(ticketMedio), vendasEquipe, vendasOutras]],
+    head: [ocultarFinanceiro
+      ? ['Total de Vendas', 'Vendas da Equipe', 'Outras Filiais']
+      : ['Total de Vendas', 'Valor Total', 'Ticket Médio', 'Vendas da Equipe', 'Outras Filiais']],
+    body: [ocultarFinanceiro
+      ? [totalVendas, vendasEquipe, vendasOutras]
+      : [totalVendas, fmt(valorTotal), fmt(ticketMedio), vendasEquipe, vendasOutras]],
     margin: { left: 14, right: 14 },
   });
   y = doc.lastAutoTable.finalY + 10;
@@ -4127,8 +4148,8 @@ function exportarRelatorioPDF() {
   doc.text('VENDAS POR VENDEDOR', 14, y); y += 6;
   doc.autoTable({
     startY: y, theme: 'striped', styles: { fontSize: 8.5 }, headStyles: { fillColor: corAccent },
-    head: [['Vendedor', 'Tipo', 'Vendas', 'Valor']],
-    body: porVendedor.map(v => [v.vendedor, v.tipo, v.vendas, fmt(v.valor)]),
+    head: [ocultarFinanceiro ? ['Vendedor', 'Tipo', 'Vendas'] : ['Vendedor', 'Tipo', 'Vendas', 'Valor']],
+    body: porVendedor.map(v => ocultarFinanceiro ? [v.vendedor, v.tipo, v.vendas] : [v.vendedor, v.tipo, v.vendas, fmt(v.valor)]),
     margin: { left: 14, right: 14 },
   });
   y = doc.lastAutoTable.finalY + 10;
@@ -4138,8 +4159,8 @@ function exportarRelatorioPDF() {
   doc.text('VENDAS POR PLANO', 14, y); y += 6;
   doc.autoTable({
     startY: y, theme: 'striped', styles: { fontSize: 8.5 }, headStyles: { fillColor: corAccent },
-    head: [['Plano', 'Velocidade', 'Vendas', 'Valor']],
-    body: porPlano.map(v => [v.plano, v.velocidade, v.vendas, fmt(v.valor)]),
+    head: [ocultarFinanceiro ? ['Plano', 'Velocidade', 'Vendas'] : ['Plano', 'Velocidade', 'Vendas', 'Valor']],
+    body: porPlano.map(v => ocultarFinanceiro ? [v.plano, v.velocidade, v.vendas] : [v.plano, v.velocidade, v.vendas, fmt(v.valor)]),
     margin: { left: 14, right: 14 },
   });
   y = doc.lastAutoTable.finalY + 10;
@@ -4162,17 +4183,31 @@ function exportarRelatorioPDF() {
   doc.text('DETALHAMENTO DAS VENDAS', 14, y); y += 6;
   // Tabela de detalhamento pode quebrar em várias páginas sozinha
   // (linhas demais para caber na página atual). O jspdf-autotable
-  // chama didDrawPage a cada página nova ANTES de desenhar as linhas
-  // daquela página — usamos isso para repetir o fundo do modelo
-  // também nessas páginas "automáticas" (a 1ª página já tem o fundo
-  // desenhado acima, então pulamos ela aqui pra não cobrir o título).
+  // chama willDrawPage a cada página nova ANTES de desenhar o
+  // cabeçalho/linhas daquela página — por isso usamos esse hook (e
+  // não o didDrawPage, que só dispara DEPOIS que a página já foi
+  // desenhada: usá-lo aqui pintava o fundo em cima das linhas recém
+  // desenhadas e "sumia" com elas, que era exatamente o bug relatado
+  // — a página 2 em diante ficava só com o fundo, sem nenhuma linha).
+  // A 1ª página já tem o fundo desenhado manualmente acima (antes do
+  // título "DETALHAMENTO DAS VENDAS"), então pulamos ela aqui pra não
+  // cobrir o que já foi escrito nela (Resumo, Vendas por Vendedor etc.).
   let _primeiraPaginaDetalhamento = true;
   doc.autoTable({
     startY: y, theme: 'grid', styles: { fontSize: 7.5, cellPadding: 2, overflow: 'linebreak', valign: 'top' }, headStyles: { fillColor: corAccent2 },
     // Larguras fixas (mm) pra cada coluna: evita que o autoTable
     // espreme a coluna "Cliente" quando outras colunas (Plano,
     // Adicionais) têm texto longo, o que fazia o nome sair cortado.
-    columnStyles: {
+    // Sem a coluna "Total" (financeiro oculto), a largura dela é
+    // redistribuída pra "Adicionais".
+    columnStyles: ocultarFinanceiro ? {
+      0: { cellWidth: 18 },  // Data
+      1: { cellWidth: 12 },  // Hora
+      2: { cellWidth: 26 },  // Vendedor
+      3: { cellWidth: 30 },  // Cliente
+      4: { cellWidth: 32 },  // Plano
+      5: { cellWidth: 64 },  // Adicionais
+    } : {
       0: { cellWidth: 18 },  // Data
       1: { cellWidth: 12 },  // Hora
       2: { cellWidth: 26 },  // Vendedor
@@ -4185,18 +4220,23 @@ function exportarRelatorioPDF() {
     // inteira na página atual, a linha inteira (incluindo o nome do
     // cliente) passa pra próxima página, em vez de cortar no meio.
     rowPageBreak: 'avoid',
-    head: [['Data', 'Hora', 'Vendedor', 'Cliente', 'Plano', 'Adicionais', 'Total']],
-    body: linhas.map(l => [
-      l.data ? l.data.split('-').reverse().join('/') : '—',
-      l.hora || '—',
-      l.tipoLinha === 'outra_filial' ? ('🏢 ' + l.filialOrigem) : l.vendedorNome,
-      l.cliente || '—',
-      l.planoNome + (l.velocidade ? ' - ' + l.velocidade + ' Mbps' : ''),
-      l.adicionaisNomes.join(', ') || '—',
-      fmt(l.valorTotal),
-    ]),
+    head: [ocultarFinanceiro
+      ? ['Data', 'Hora', 'Vendedor', 'Cliente', 'Plano', 'Adicionais']
+      : ['Data', 'Hora', 'Vendedor', 'Cliente', 'Plano', 'Adicionais', 'Total']],
+    body: linhas.map(l => {
+      const linha = [
+        l.data ? l.data.split('-').reverse().join('/') : '—',
+        l.hora || '—',
+        l.tipoLinha === 'outra_filial' ? ('🏢 ' + l.filialOrigem) : l.vendedorNome,
+        l.cliente || '—',
+        l.planoNome + (l.velocidade ? ' - ' + l.velocidade + ' Mbps' : ''),
+        l.adicionaisNomes.join(', ') || '—',
+      ];
+      if (!ocultarFinanceiro) linha.push(fmt(l.valorTotal));
+      return linha;
+    }),
     margin: { left: 14, right: 14, top: 20, bottom: 20 },
-    didDrawPage: () => {
+    willDrawPage: () => {
       if (_primeiraPaginaDetalhamento) { _primeiraPaginaDetalhamento = false; return; }
       desenharFundoRelatorioPDF(doc);
     },
@@ -5956,7 +5996,11 @@ carregarDados();
           <div class="adm-form-card">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
               <span id="rel-contagem" style="font-size:0.82rem;color:var(--text-muted);">—</span>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--text-muted);cursor:pointer;user-select:none;">
+                  <input type="checkbox" id="rel-ocultar-financeiro" style="width:auto;">
+                  🙈 Ocultar valores financeiros
+                </label>
                 <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:10px 18px;" onclick="exportarRelatorioExcel()">📊 Exportar Excel</button>
                 <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:10px 18px;" onclick="exportarRelatorioPDF()">📄 Exportar PDF</button>
               </div>
