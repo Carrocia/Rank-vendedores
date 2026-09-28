@@ -770,6 +770,8 @@
   .meta-filial-bar-track { height: 11px; background: var(--surface-hover); border-radius: 20px; overflow: hidden; border: 1px solid var(--border); }
   .meta-filial-bar-fill { height: 100%; width: 0%; border-radius: 20px; transition: width 1.1s cubic-bezier(0.4,0,0.2,1); }
   .meta-filial-pct { display: block; font-size: 0.76rem; font-weight: 700; margin-top: 10px; }
+  .meta-filial-card.breached { --card-accent: #ff4d4f; }
+  .meta-filial-card.breached .meta-filial-atual { color: #ff4d4f; }
 
   /* ---------- Evolução da Semana ---------- */
   .evo-chart-card {
@@ -1676,6 +1678,19 @@
     <div class="metas-filial-grid" id="metasFilialGrid"></div>
   </section>
 
+  <!-- ===== RENOVAÇÕES E CANCELAMENTOS DO MÊS (sempre mensal) ===== -->
+  <div class="podium-cols">
+    <section class="podium-section">
+      <h2 id="renovacoesTitle">🔄 Renovações — Mês</h2>
+      <div class="metas-filial-grid" id="renovacoesGrid"></div>
+    </section>
+
+    <section class="podium-section">
+      <h2 id="cancelamentosTitle">⚠️ Cancelamentos — Mês</h2>
+      <div class="metas-filial-grid" id="cancelamentosGrid"></div>
+    </section>
+  </div>
+
   <!-- ===== EVOLUÇÃO DA SEMANA ===== -->
   <section class="podium-section">
     <h2>📈 Evolução da Semana</h2>
@@ -2283,6 +2298,70 @@ function renderMetasFilial(periodo = 'semanal', d) {
   });
 }
 
+// ---------- Renovações e Cancelamentos do Mês (sempre mensal) ----------
+// Diferente das metas de vendas, aqui nada vem calculado a partir das
+// vendas lançadas: tanto as metas M1/M2/M3 quanto o "atual" são
+// digitados manualmente pelo admin (ver handleSalvarRenovCancel) e só
+// lidos aqui de _cache.metasRenovCancel.
+function renderRenovacaoCancelamento(d) {
+  const gridRenov = document.getElementById('renovacoesGrid');
+  const gridCancel = document.getElementById('cancelamentosGrid');
+  if (!gridRenov || !gridCancel) return;
+  const rc = d && d.metasRenovCancel;
+  if (!rc) {
+    gridRenov.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
+    gridCancel.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
+    return;
+  }
+
+  // Renovações: quanto mais alto melhor, igual às metas de vendas —
+  // M3 é a faixa mais fácil, M1 a mais difícil.
+  const renovAtual = rc.renovacoes_atual || 0;
+  const renovMetas = [
+    { label: 'M1', meta: rc.renovacoes_m1 },
+    { label: 'M2', meta: rc.renovacoes_m2 },
+    { label: 'M3', meta: rc.renovacoes_m3 },
+  ];
+  gridRenov.innerHTML = renovMetas.map(m => {
+    const pct = m.meta ? Math.min(100, Math.round((renovAtual / m.meta) * 100)) : 0;
+    return `
+    <div class="meta-filial-card">
+      <span class="meta-filial-label">${m.label}</span>
+      <div class="meta-filial-numbers">
+        <span class="meta-filial-atual">${renovAtual}</span>
+        <span class="meta-filial-sep">/ ${m.meta ?? '—'} renovações</span>
+      </div>
+      <div class="meta-filial-bar-track"><div class="meta-filial-bar-fill" style="width:${pct}%"></div></div>
+      <span class="meta-filial-pct">${pct}% concluído</span>
+    </div>`;
+  }).join('');
+
+  // Cancelamentos: é o contrário — são TETOS que não podem ser
+  // ultrapassados, por isso a ordem visual é M1, M2, M3 (M1 é o teto
+  // mais apertado/rígido; M3 o mais largo/tolerante). Se o realizado
+  // passar do teto daquela faixa, o card fica vermelho ("estourou").
+  const cancelAtual = rc.cancelamentos_atual || 0;
+  const cancelMetas = [
+    { label: 'M1', meta: rc.cancelamentos_m1 },
+    { label: 'M2', meta: rc.cancelamentos_m2 },
+    { label: 'M3', meta: rc.cancelamentos_m3 },
+  ];
+  gridCancel.innerHTML = cancelMetas.map(m => {
+    const pct = m.meta ? Math.min(100, Math.round((cancelAtual / m.meta) * 100)) : 0;
+    const estourou = m.meta != null && cancelAtual > m.meta;
+    return `
+    <div class="meta-filial-card${estourou ? ' breached' : ''}">
+      <span class="meta-filial-label">${m.label}</span>
+      <div class="meta-filial-numbers">
+        <span class="meta-filial-atual">${cancelAtual}</span>
+        <span class="meta-filial-sep">/ ${m.meta ?? '—'} cancelamentos</span>
+      </div>
+      <div class="meta-filial-bar-track"><div class="meta-filial-bar-fill" style="width:${pct}%"></div></div>
+      <span class="meta-filial-pct">${estourou ? '⚠️ Limite ultrapassado' : pct + '% do limite usado'}</span>
+    </div>`;
+  }).join('');
+}
+
 // ---------- Evolução da Semana (barras) ----------
 function renderEvolucaoChart(vendasPorDia) {
   const diasLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
@@ -2471,7 +2550,7 @@ function showToast(message, type = 'success', duration = 4500) {
 // ================================================================
 let _cache = {
   vendedores: [], planos: [], adicionais: [], filiais: [],
-  metasFilial: null, metas: [],
+  metasFilial: null, metas: [], metasRenovCancel: null,
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
   vendaMaisRecente: null,
   semana: null, mes: null,
@@ -2575,7 +2654,7 @@ async function carregarDados() {
     const semanaAnterior = calcularPeriodoSemanaAnterior();
 
     // Carregar em paralelo
-    const [vendedores, planos, adicionais, filiais, metasFilial, metas,
+    const [vendedores, planos, adicionais, filiais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior] = await Promise.all([
       loadVendedores(),
       loadPlanos(),
@@ -2583,6 +2662,7 @@ async function carregarDados() {
       loadFiliais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
       loadMetas(_cache.mes.mesNum, _cache.mes.ano),
+      loadMetasRenovCancel(_cache.mes.mesNum, _cache.mes.ano),
       loadVendas(_cache.semana.de, _cache.semana.ate),
       loadVendas(_cache.mes.de, _cache.mes.ate),
       loadVendasOutrasFiliais(_cache.mes.de, _cache.mes.ate),
@@ -2596,6 +2676,7 @@ async function carregarDados() {
     _cache.filiais = filiais;
     _cache.metasFilial = metasFilial;
     _cache.metas = metas;
+    _cache.metasRenovCancel = metasRenovCancel;
     _cache.vendasSemana = vendasSemana;
     _cache.vendasMes = vendasMes;
     _cache.vendasFiliais = vendasFiliais;
@@ -2797,7 +2878,7 @@ function popularSelectFiliais(filiais) {
 function processarDadosParaRender(cache) {
   if (!cache) return null;
   const { vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente,
-          semana, mes, metasFilial, metas, vendedores, planos, vendasSemanaAnterior } = cache;
+          semana, mes, metasFilial, metas, metasRenovCancel, vendedores, planos, vendasSemanaAnterior } = cache;
 
   // Meta individual de cada vendedor, buscada da tabela metas (mes/ano/vendedor_id).
   // Internos usam a faixa M3 (base) para o cálculo de % e ritmo;
@@ -2982,7 +3063,7 @@ function processarDadosParaRender(cache) {
     extSem, intSem, extMes, intMes,
     totalSemana, totalMes, pctMensal, lider,
     evolucaoSemana, vendasPorPlano,
-    metasFilial, semana, mes,
+    metasFilial, metasRenovCancel, semana, mes,
     liderExternoSem, liderInternoSem, maiorEvolucao, maiorPct,
     vendaRecenteLabel,
     rankingMes,
@@ -3074,6 +3155,7 @@ function renderAll(cache) {
   renderWeekProgress(d);
   renderDestaquesSemana(d);
   renderMetasFilial('semanal', d);
+  renderRenovacaoCancelamento(d);
   renderEvolucaoChart(d.evolucaoSemana);
   renderDonutChart(d.vendasPorPlano);
   detectarConquistasIndividuais(d, cache);
@@ -3373,6 +3455,34 @@ async function loadMetasFilial(mes, ano) {
     mensal_m3: data.meta_mensal_m3,
     mensal_m2: data.meta_mensal_m2,
     mensal_m1: data.meta_mensal_m1,
+  };
+}
+
+// Renovações/Cancelamentos são só mensais e não vêm de nenhuma venda
+// lançada — são digitados manualmente pelo admin (tanto as metas M1/M2/M3
+// quanto o "quanto já foi feito no mês"), por isso moram numa tabela à
+// parte (metas_renovacao_cancelamento), 1 linha por mes/ano.
+async function loadMetasRenovCancel(mes, ano) {
+  const { data, error } = await window._supabase
+    .from('metas_renovacao_cancelamento')
+    .select('*')
+    .eq('mes', mes)
+    .eq('ano', ano)
+    .single();
+  if (error) { console.error('[loadMetasRenovCancel]', error); return null; }
+  if (!data) return null;
+  return {
+    id: data.id,
+    mes: data.mes,
+    ano: data.ano,
+    renovacoes_m3: data.renovacoes_meta_m3,
+    renovacoes_m2: data.renovacoes_meta_m2,
+    renovacoes_m1: data.renovacoes_meta_m1,
+    renovacoes_atual: data.renovacoes_atual,
+    cancelamentos_m3: data.cancelamentos_meta_m3,
+    cancelamentos_m2: data.cancelamentos_meta_m2,
+    cancelamentos_m1: data.cancelamentos_meta_m1,
+    cancelamentos_atual: data.cancelamentos_atual,
   };
 }
 
@@ -5364,7 +5474,7 @@ function renderConfigMetas(cache) {
   const mesLabel = (cache.mes && cache.mes.mesNome)
     ? (cache.mes.mesNome.charAt(0).toUpperCase() + cache.mes.mesNome.slice(1)) + '/' + cache.mes.ano
     : '—';
-  const periodoEls = [document.getElementById('cfg-fil-periodo'), document.getElementById('cfg-ind-periodo')];
+  const periodoEls = [document.getElementById('cfg-fil-periodo'), document.getElementById('cfg-ind-periodo'), document.getElementById('cfg-renov-periodo'), document.getElementById('cfg-cancel-periodo')];
   periodoEls.forEach(el => { if (el) el.textContent = mesLabel; });
 
   // Meta da Filial
@@ -5376,6 +5486,18 @@ function renderConfigMetas(cache) {
   setVal('cfg-fil-mes-m3', mf ? mf.mensal_m3 : null);
   setVal('cfg-fil-mes-m2', mf ? mf.mensal_m2 : null);
   setVal('cfg-fil-mes-m1', mf ? mf.mensal_m1 : null);
+
+  // Renovações e Cancelamentos do mês (manuais, sem cálculo — só o
+  // que já estiver salvo em _cache.metasRenovCancel)
+  const rc = cache.metasRenovCancel;
+  setVal('cfg-renov-m3', rc ? rc.renovacoes_m3 : null);
+  setVal('cfg-renov-m2', rc ? rc.renovacoes_m2 : null);
+  setVal('cfg-renov-m1', rc ? rc.renovacoes_m1 : null);
+  setVal('cfg-renov-atual', rc ? rc.renovacoes_atual : null);
+  setVal('cfg-cancel-m3', rc ? rc.cancelamentos_m3 : null);
+  setVal('cfg-cancel-m2', rc ? rc.cancelamentos_m2 : null);
+  setVal('cfg-cancel-m1', rc ? rc.cancelamentos_m1 : null);
+  setVal('cfg-cancel-atual', rc ? rc.cancelamentos_atual : null);
 
   // Metas individuais — uma linha por vendedor ativo
   const tbody = document.getElementById('cfg-metas-vendedores-tbody');
@@ -5461,6 +5583,31 @@ async function salvarMetaVendedor(vendedor_id, dados) {
   }
 }
 
+// Salva/atualiza Renovações + Cancelamentos do mês (metas M1/M2/M3 e o
+// "atual" de cada um) — tudo numa linha só por mes/ano, sem depender de
+// nenhuma venda lançada (é o admin quem digita os números).
+async function salvarMetaRenovCancel(dados) {
+  const dadosSupabase = {
+    renovacoes_meta_m3: dados.renovacoes_m3,
+    renovacoes_meta_m2: dados.renovacoes_m2,
+    renovacoes_meta_m1: dados.renovacoes_m1,
+    renovacoes_atual: dados.renovacoes_atual ?? 0,
+    cancelamentos_meta_m3: dados.cancelamentos_m3,
+    cancelamentos_meta_m2: dados.cancelamentos_m2,
+    cancelamentos_meta_m1: dados.cancelamentos_m1,
+    cancelamentos_atual: dados.cancelamentos_atual ?? 0,
+  };
+  const existente = _cache.metasRenovCancel;
+  if (existente && existente.id) {
+    const { error } = await window._supabase.from('metas_renovacao_cancelamento').update(dadosSupabase).eq('id', existente.id);
+    if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível salvar as metas de renovação/cancelamento.'); }
+  } else {
+    const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
+    const { error } = await window._supabase.from('metas_renovacao_cancelamento').insert([payload]);
+    if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível criar as metas de renovação/cancelamento.'); }
+  }
+}
+
 // Handler do botão "💾 Salvar Metas": valida tudo primeiro, só then salva
 // no Supabase e só then chama carregarDados() para refletir os novos
 // valores em toda a interface (pública e administrativa).
@@ -5499,13 +5646,27 @@ async function handleSalvarMetas() {
     vendedoresParaSalvar.push({ vendedor_id, dados });
   }
 
-  // 3) Só depois de validar tudo, gravar no Supabase
+  // 3) Ler e validar Renovações e Cancelamentos do mês
+  const camposRenovCancel = ['cfg-renov-m3', 'cfg-renov-m2', 'cfg-renov-m1', 'cfg-renov-atual',
+                             'cfg-cancel-m3', 'cfg-cancel-m2', 'cfg-cancel-m1', 'cfg-cancel-atual'];
+  const leiturasRenovCancel = camposRenovCancel.map(lerMetaInput);
+  if (leiturasRenovCancel.some(l => !l.ok)) {
+    showToast('Preencha Renovações/Cancelamentos com números inteiros maiores ou iguais a zero (ou deixe em branco).', 'warning');
+    return;
+  }
+  const dadosRenovCancel = {
+    renovacoes_m3: leiturasRenovCancel[0].valor, renovacoes_m2: leiturasRenovCancel[1].valor, renovacoes_m1: leiturasRenovCancel[2].valor, renovacoes_atual: leiturasRenovCancel[3].valor,
+    cancelamentos_m3: leiturasRenovCancel[4].valor, cancelamentos_m2: leiturasRenovCancel[5].valor, cancelamentos_m1: leiturasRenovCancel[6].valor, cancelamentos_atual: leiturasRenovCancel[7].valor,
+  };
+
+  // 4) Só depois de validar tudo, gravar no Supabase
   try {
     await salvarMetaFilial(dadosFilial);
     for (const v of vendedoresParaSalvar) {
       await salvarMetaVendedor(v.vendedor_id, v.dados);
     }
-    // 4) Só depois de tudo salvo com sucesso, recarregar os dados reais
+    await salvarMetaRenovCancel(dadosRenovCancel);
+    // 5) Só depois de tudo salvo com sucesso, recarregar os dados reais
     await carregarDados();
     showToast('Metas atualizadas com sucesso!', 'success');
   } catch (err) {
@@ -6314,6 +6475,27 @@ carregarDados();
                   <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:65%;"></span></td><td><span class="skeleton-bar" style="width:55%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td></tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div class="adm-form-card">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">🔄 Renovações — <span id="cfg-renov-periodo">mês/ano atual</span></div>
+            <div class="adm-form-grid">
+              <div class="adm-field"><label>Meta M3</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta M1</label><input type="number" id="cfg-renov-m1" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Renovações feitas até agora no mês</label><input type="number" id="cfg-renov-atual" min="0" step="1" placeholder="0"></div>
+            </div>
+          </div>
+
+          <div class="adm-form-card">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">⚠️ Cancelamentos — <span id="cfg-cancel-periodo">mês/ano atual</span></div>
+            <p style="font-size:0.8rem;color:var(--text-muted);margin:-4px 0 14px;">Aqui é o contrário das outras metas: são tetos que não podem ser ultrapassados. Por isso a ordem é M1 (mais rígido) → M3 (mais tolerante).</p>
+            <div class="adm-form-grid">
+              <div class="adm-field"><label>Meta M1</label><input type="number" id="cfg-cancel-m1" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-cancel-m2" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta M3</label><input type="number" id="cfg-cancel-m3" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Cancelamentos feitos até agora no mês</label><input type="number" id="cfg-cancel-atual" min="0" step="1" placeholder="0"></div>
             </div>
           </div>
 
