@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ranking de Vendas | UNI Internet</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas do Relatório de Vendas (só exportação Excel/PDF, client-side) -->
@@ -772,6 +773,87 @@
   .meta-filial-pct { display: block; font-size: 0.76rem; font-weight: 700; margin-top: 10px; }
   .meta-filial-card.breached { --card-accent: #ff4d4f; }
   .meta-filial-card.breached .meta-filial-atual { color: #ff4d4f; }
+
+  /* ================================================================
+     RENOVAÇÕES / RISCO DE CHURN — painel dedicado (glassmorphism)
+     Classes próprias (churn-*), sem herdar .meta-filial-card, pra não
+     afetar o card de "Metas da Filial" (vendas) que usa esse estilo.
+     ================================================================ */
+  .churn-dash {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+    font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif;
+    margin-bottom: 50px;
+  }
+  .churn-panel { min-width: 0; }
+  .churn-panel-title {
+    font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif;
+    font-size: 0.82rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--text-muted); margin-bottom: 18px;
+  }
+  .churn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+
+  .churn-card {
+    position: relative;
+    background: linear-gradient(155deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 26px 24px 22px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+  }
+  .churn-card:hover { transform: translateY(-2px); }
+
+  .churn-card-label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.6px; color: var(--churn-accent, #5eead4);
+  }
+  .churn-card-numbers { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 18px; }
+  .churn-card-atual { font-size: 2.35rem; font-weight: 800; color: var(--heading-color); letter-spacing: -0.5px; }
+  .churn-card-sep { font-size: 0.86rem; color: var(--text-muted); font-weight: 500; }
+
+  .churn-bar-track { height: 6px; background: rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; }
+  .churn-bar-fill {
+    height: 100%; width: 0%; border-radius: 20px;
+    background: var(--churn-accent, #5eead4);
+    transition: width 1.1s cubic-bezier(0.4,0,0.2,1);
+  }
+  .churn-card-pct { display: block; font-size: 0.78rem; font-weight: 600; margin-top: 12px; color: var(--text-muted); }
+
+  /* tons neon sutis por card — renovação (padrão neutro ciano/violeta) */
+  .churn-grid:not(.is-churn) .churn-card:nth-child(1) { --churn-accent: #5eead4; }
+  .churn-grid:not(.is-churn) .churn-card:nth-child(2) { --churn-accent: #7c9bff; }
+  .churn-grid:not(.is-churn) .churn-card:nth-child(3) { --churn-accent: #a78bfa; }
+
+  /* Risco de Churn — estado padrão (dentro do limite): mesmo tom neutro */
+  .churn-grid.is-churn .churn-card { --churn-accent: #5eead4; }
+
+  /* Estado de ALERTA (75–89%): âmbar */
+  .churn-card.is-alerta {
+    --churn-accent: #f7b955;
+    border-color: rgba(247,185,85,0.45);
+    box-shadow: 0 8px 30px rgba(247,185,85,0.12), 0 0 0 1px rgba(247,185,85,0.15), 0 0 24px rgba(247,185,85,0.18);
+  }
+
+  /* Estado CRÍTICO (>=90%): vermelho/alaranjado */
+  .churn-card.is-critico {
+    --churn-accent: #ff5f6e;
+    border-color: rgba(255,95,110,0.5);
+    box-shadow: 0 8px 30px rgba(255,95,110,0.14), 0 0 0 1px rgba(255,95,110,0.2), 0 0 28px rgba(255,95,110,0.22);
+  }
+  .churn-card.is-critico .churn-card-atual { color: #ff5f6e; }
+
+  .churn-badge {
+    display: inline-block; font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.6px; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 50px; margin-bottom: 14px;
+  }
+  .churn-badge.badge-alerta { background: rgba(247,185,85,0.15); color: #f7b955; }
+  .churn-badge.badge-critico { background: rgba(255,95,110,0.16); color: #ff5f6e; }
+
+  @media (max-width: 860px) {
+    .churn-dash { grid-template-columns: 1fr; }
+  }
 
   /* ---------- Evolução da Semana ---------- */
   .evo-chart-card {
@@ -1678,16 +1760,16 @@
     <div class="metas-filial-grid" id="metasFilialGrid"></div>
   </section>
 
-  <!-- ===== RENOVAÇÕES E CANCELAMENTOS DO MÊS (sempre mensal) ===== -->
-  <div class="podium-cols">
-    <section class="podium-section">
-      <h2 id="renovacoesTitle">🔄 Renovações — Mês</h2>
-      <div class="metas-filial-grid" id="renovacoesGrid"></div>
+  <!-- ===== RENOVAÇÕES E RISCO DE CHURN DO MÊS (sempre mensal) ===== -->
+  <div class="churn-dash">
+    <section class="churn-panel">
+      <h2 class="churn-panel-title" id="renovacoesTitle">Renovações — Mês</h2>
+      <div class="churn-grid" id="renovacoesGrid"></div>
     </section>
 
-    <section class="podium-section">
-      <h2 id="cancelamentosTitle">⚠️ Cancelamentos — Mês</h2>
-      <div class="metas-filial-grid" id="cancelamentosGrid"></div>
+    <section class="churn-panel">
+      <h2 class="churn-panel-title" id="cancelamentosTitle">Risco de Churn</h2>
+      <div class="churn-grid" id="cancelamentosGrid"></div>
     </section>
   </div>
 
@@ -2298,11 +2380,11 @@ function renderMetasFilial(periodo = 'semanal', d) {
   });
 }
 
-// ---------- Renovações e Cancelamentos do Mês (sempre mensal) ----------
+// ---------- Renovações e Risco de Churn do Mês (sempre mensal) ----------
 // Diferente das metas de vendas, aqui nada vem calculado a partir das
 // vendas lançadas: tanto as metas M1/M2/M3 quanto o "atual" são
-// digitados manualmente pelo admin (ver handleSalvarRenovCancel) e só
-// lidos aqui de _cache.metasRenovCancel.
+// digitados manualmente pelo admin (ver handleSalvarMetas) e só lidos
+// aqui de _cache.metasRenovCancel.
 function renderRenovacaoCancelamento(d) {
   const gridRenov = document.getElementById('renovacoesGrid');
   const gridCancel = document.getElementById('cancelamentosGrid');
@@ -2315,7 +2397,8 @@ function renderRenovacaoCancelamento(d) {
   }
 
   // Renovações: quanto mais alto melhor, igual às metas de vendas —
-  // M3 é a faixa mais fácil, M1 a mais difícil.
+  // M3 é a faixa mais fácil, M1 a mais difícil. Sem estado de alerta
+  // aqui (não é uma métrica de risco).
   const renovAtual = rc.renovacoes_atual || 0;
   const renovMetas = [
     { label: 'M1', meta: rc.renovacoes_m1 },
@@ -2325,39 +2408,49 @@ function renderRenovacaoCancelamento(d) {
   gridRenov.innerHTML = renovMetas.map(m => {
     const pct = m.meta ? Math.min(100, Math.round((renovAtual / m.meta) * 100)) : 0;
     return `
-    <div class="meta-filial-card">
-      <span class="meta-filial-label">${m.label}</span>
-      <div class="meta-filial-numbers">
-        <span class="meta-filial-atual">${renovAtual}</span>
-        <span class="meta-filial-sep">/ ${m.meta ?? '—'} renovações</span>
+    <div class="churn-card">
+      <span class="churn-card-label">${m.label}</span>
+      <div class="churn-card-numbers">
+        <span class="churn-card-atual">${renovAtual}</span>
+        <span class="churn-card-sep">/ ${m.meta ?? '—'} renovações</span>
       </div>
-      <div class="meta-filial-bar-track"><div class="meta-filial-bar-fill" style="width:${pct}%"></div></div>
-      <span class="meta-filial-pct">${pct}% concluído</span>
+      <div class="churn-bar-track"><div class="churn-bar-fill" style="width:${pct}%"></div></div>
+      <span class="churn-card-pct">${pct}% concluído</span>
     </div>`;
   }).join('');
 
-  // Cancelamentos: é o contrário — são TETOS que não podem ser
-  // ultrapassados, por isso a ordem visual é M1, M2, M3 (M1 é o teto
-  // mais apertado/rígido; M3 o mais largo/tolerante). Se o realizado
-  // passar do teto daquela faixa, o card fica vermelho ("estourou").
+  // Risco de Churn (cancelamentos): é o contrário das outras metas —
+  // são TETOS que não podem ser ultrapassados, por isso a ordem visual
+  // é M1, M2, M3 (M1 é o teto mais apertado/rígido; M3 o mais
+  // largo/tolerante). O percentual usado do limite decide o estado
+  // visual do card: >=90% = crítico (vermelho + badge "Ação Imediata
+  // Necessária"); 75–89% = alerta (âmbar + badge "Ação Pendente").
   const cancelAtual = rc.cancelamentos_atual || 0;
   const cancelMetas = [
     { label: 'M1', meta: rc.cancelamentos_m1 },
     { label: 'M2', meta: rc.cancelamentos_m2 },
     { label: 'M3', meta: rc.cancelamentos_m3 },
   ];
+  gridCancel.className = 'churn-grid is-churn';
   gridCancel.innerHTML = cancelMetas.map(m => {
     const pct = m.meta ? Math.min(100, Math.round((cancelAtual / m.meta) * 100)) : 0;
     const estourou = m.meta != null && cancelAtual > m.meta;
+    const critico = estourou || pct >= 90;
+    const alerta = !critico && pct >= 75;
+    const estadoClasse = critico ? ' is-critico' : (alerta ? ' is-alerta' : '');
+    const badge = critico
+      ? '<span class="churn-badge badge-critico">Ação Imediata Necessária</span>'
+      : (alerta ? '<span class="churn-badge badge-alerta">Ação Pendente</span>' : '');
     return `
-    <div class="meta-filial-card${estourou ? ' breached' : ''}">
-      <span class="meta-filial-label">${m.label}</span>
-      <div class="meta-filial-numbers">
-        <span class="meta-filial-atual">${cancelAtual}</span>
-        <span class="meta-filial-sep">/ ${m.meta ?? '—'} cancelamentos</span>
+    <div class="churn-card${estadoClasse}">
+      ${badge}
+      <span class="churn-card-label">${m.label}</span>
+      <div class="churn-card-numbers">
+        <span class="churn-card-atual">${cancelAtual}</span>
+        <span class="churn-card-sep">/ ${m.meta ?? '—'} cancelamentos</span>
       </div>
-      <div class="meta-filial-bar-track"><div class="meta-filial-bar-fill" style="width:${pct}%"></div></div>
-      <span class="meta-filial-pct">${estourou ? '⚠️ Limite ultrapassado' : pct + '% do limite usado'}</span>
+      <div class="churn-bar-track"><div class="churn-bar-fill" style="width:${pct}%"></div></div>
+      <span class="churn-card-pct">${estourou ? 'Limite ultrapassado' : pct + '% do limite usado'}</span>
     </div>`;
   }).join('');
 }
