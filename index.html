@@ -3047,7 +3047,7 @@ function processarDadosParaRender(cache) {
     // os 10 primeiros caracteres ("YYYY-MM-DD") evita concatenar
     // duas horas na mesma string (o que gerava Invalid Date e
     // fazia toda a contagem cair fora dos dias reais).
-    const dataStr = dataLocalStr(v.data_venda);
+    const dataStr = String(v.data_venda).slice(0, 10);
     const d = new Date(dataStr + 'T12:00:00');
     const diaSemana = d.getDay(); // 0=Dom
     if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
@@ -3590,18 +3590,13 @@ function extrairClienteDeObservacao(observacao) {
   return match ? match[1].trim() || null : null;
 }
 
-// ── Helpers de data (fuso local) ─────────────────────────────────
-// Converte "YYYY-MM-DD" em [início, fim-exclusivo) no fuso LOCAL, em ISO/UTC.
-// Assim vendas feitas em qualquer hora do último dia do período entram.
-function limitesPeriodoISO(de, ate) {
-  const [y1, m1, d1] = String(de).slice(0, 10).split('-').map(Number);
-  const [y2, m2, d2] = String(ate).slice(0, 10).split('-').map(Number);
-  return {
-    inicio: new Date(y1, m1 - 1, d1, 0, 0, 0, 0).toISOString(),
-    fimExclusivo: new Date(y2, m2 - 1, d2 + 1, 0, 0, 0, 0).toISOString(),
-  };
+// Data "YYYY-MM-DD" -> início do DIA SEGUINTE (fuso local), em ISO.
+// data_venda é timestamp; comparar com "<= YYYY-MM-DD" cortava o dia todo.
+function fimDoDiaExclusivo(ate) {
+  const [y, m, d] = String(ate).slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d + 1, 0, 0, 0, 0).toISOString();
 }
-// Extrai "YYYY-MM-DD" no fuso LOCAL de um data_venda (data pura ou timestamp).
+// "YYYY-MM-DD" da data_venda no fuso LOCAL (o slice(0,10) pegava a data UTC).
 function dataLocalStr(raw) {
   const str = String(raw || '');
   if (str.length > 10 && str[10] === 'T') {
@@ -3615,12 +3610,11 @@ function dataLocalStr(raw) {
 }
 
 async function loadVendas(de, ate) {
-  const { inicio, fimExclusivo } = limitesPeriodoISO(de, ate);
   const { data, error } = await window._supabase
     .from('vendas_publicas')
     .select('*')
-    .gte('data_venda', inicio)
-    .lt('data_venda', fimExclusivo)
+    .gte('data_venda', de)
+    .lt('data_venda', fimDoDiaExclusivo(ate))
     .order('data_venda', { ascending: false });
   if (error) {
     console.error('[loadVendas]', error);
@@ -3649,13 +3643,8 @@ async function loadVendasOutrasFiliais(de, ate) {
     .from('vendas_outras_filiais_publicas')
     .select('*')
     .order('data_venda', { ascending: false });
-  if (de && ate) {
-    const { inicio, fimExclusivo } = limitesPeriodoISO(de, ate);
-    query = query.gte('data_venda', inicio).lt('data_venda', fimExclusivo);
-  } else {
-    if (de) query = query.gte('data_venda', limitesPeriodoISO(de, de).inicio);
-    if (ate) query = query.lt('data_venda', limitesPeriodoISO(ate, ate).fimExclusivo);
-  }
+  if (de) query = query.gte('data_venda', de);
+  if (ate) query = query.lt('data_venda', fimDoDiaExclusivo(ate));
   const { data, error } = await query;
   if (error) { console.error('[loadVendasOutrasFiliais]', error); return []; }
   return data;
@@ -5094,7 +5083,7 @@ function renderAdmVendedoresTable(d) {
 function calcularSequenciaDias(vendasDoVendedor) {
   const dias = new Set();
   vendasDoVendedor.forEach(v => {
-    const dataStr = dataLocalStr(v.data_venda);
+    const dataStr = String(v.data_venda || '').slice(0, 10);
     if (dataStr) dias.add(dataStr);
   });
   if (dias.size === 0) return 0;
