@@ -3047,7 +3047,7 @@ function processarDadosParaRender(cache) {
     // os 10 primeiros caracteres ("YYYY-MM-DD") evita concatenar
     // duas horas na mesma string (o que gerava Invalid Date e
     // fazia toda a contagem cair fora dos dias reais).
-    const dataStr = String(v.data_venda).slice(0, 10);
+    const dataStr = dataLocalStr(v.data_venda);
     const d = new Date(dataStr + 'T12:00:00');
     const diaSemana = d.getDay(); // 0=Dom
     if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
@@ -3059,7 +3059,7 @@ function processarDadosParaRender(cache) {
   // cada registro), mas nunca entram em ranking, meta individual ou
   // evolução individual de vendedor (elas não pertencem a ninguém).
   (vendasFiliais || []).forEach(v => {
-    const dataStr = String(v.data_venda || '').slice(0, 10);
+    const dataStr = dataLocalStr(v.data_venda);
     if (dataStr < semana.de || dataStr > semana.ate) return; // fora da semana atual
     const d = new Date(dataStr + 'T12:00:00');
     const diaSemana = d.getDay(); // 0=Dom
@@ -3118,7 +3118,7 @@ function processarDadosParaRender(cache) {
 
   const vendasOutrasFiliaisSemana = (vendasFiliais || [])
     .filter(v => {
-      const dataStr = String(v.data_venda || '').slice(0, 10);
+      const dataStr = dataLocalStr(v.data_venda);
       return dataStr >= semana.de && dataStr <= semana.ate;
     })
     .reduce((s, v) => s + Number(v.quantidade || 1), 0);
@@ -3590,12 +3590,37 @@ function extrairClienteDeObservacao(observacao) {
   return match ? match[1].trim() || null : null;
 }
 
+// ── Helpers de data (fuso local) ─────────────────────────────────
+// Converte "YYYY-MM-DD" em [início, fim-exclusivo) no fuso LOCAL, em ISO/UTC.
+// Assim vendas feitas em qualquer hora do último dia do período entram.
+function limitesPeriodoISO(de, ate) {
+  const [y1, m1, d1] = String(de).slice(0, 10).split('-').map(Number);
+  const [y2, m2, d2] = String(ate).slice(0, 10).split('-').map(Number);
+  return {
+    inicio: new Date(y1, m1 - 1, d1, 0, 0, 0, 0).toISOString(),
+    fimExclusivo: new Date(y2, m2 - 1, d2 + 1, 0, 0, 0, 0).toISOString(),
+  };
+}
+// Extrai "YYYY-MM-DD" no fuso LOCAL de um data_venda (data pura ou timestamp).
+function dataLocalStr(raw) {
+  const str = String(raw || '');
+  if (str.length > 10 && str[10] === 'T') {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const pad = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+  }
+  return str.slice(0, 10);
+}
+
 async function loadVendas(de, ate) {
+  const { inicio, fimExclusivo } = limitesPeriodoISO(de, ate);
   const { data, error } = await window._supabase
     .from('vendas_publicas')
     .select('*')
-    .gte('data_venda', de)
-    .lte('data_venda', ate)
+    .gte('data_venda', inicio)
+    .lt('data_venda', fimExclusivo)
     .order('data_venda', { ascending: false });
   if (error) {
     console.error('[loadVendas]', error);
@@ -3624,8 +3649,13 @@ async function loadVendasOutrasFiliais(de, ate) {
     .from('vendas_outras_filiais_publicas')
     .select('*')
     .order('data_venda', { ascending: false });
-  if (de) query = query.gte('data_venda', de);
-  if (ate) query = query.lte('data_venda', ate);
+  if (de && ate) {
+    const { inicio, fimExclusivo } = limitesPeriodoISO(de, ate);
+    query = query.gte('data_venda', inicio).lt('data_venda', fimExclusivo);
+  } else {
+    if (de) query = query.gte('data_venda', limitesPeriodoISO(de, de).inicio);
+    if (ate) query = query.lt('data_venda', limitesPeriodoISO(ate, ate).fimExclusivo);
+  }
   const { data, error } = await query;
   if (error) { console.error('[loadVendasOutrasFiliais]', error); return []; }
   return data;
@@ -3775,7 +3805,7 @@ async function aplicarFiltrosRelatorio() {
 
     let linhas = [];
     vendasBase.forEach(v => {
-      const dataStr = String(v.data_venda || '').slice(0, 10);
+      const dataStr = dataLocalStr(v.data_venda);
       if (dataStr < dataIni || dataStr > dataFim) return;
       const vend = (_cache.vendedores || []).find(x => x.id === v.vendedor_id);
       const plano = (_cache.planos || []).find(p => p.id === v.plano_id);
@@ -3803,7 +3833,7 @@ async function aplicarFiltrosRelatorio() {
       });
     });
     (filiaisBase || []).forEach(v => {
-      const dataStr = String(v.data_venda || '').slice(0, 10);
+      const dataStr = dataLocalStr(v.data_venda);
       if (dataStr < dataIni || dataStr > dataFim) return;
       const planoFilial = (_cache.planos || []).find(p => p.id === v.plano_id);
       linhas.push({
@@ -4617,7 +4647,7 @@ function calcularPeriodoSemana() {
   const dom = new Date(seg);
   dom.setDate(seg.getDate() + 6);
   dom.setHours(23, 59, 59, 999);
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const dias = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   const labelDia = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
   return {
@@ -4639,7 +4669,7 @@ function calcularPeriodoSemanaAnterior() {
   seg.setDate(seg.getDate() - 7);
   const dom = new Date(atual.fim);
   dom.setDate(dom.getDate() - 7);
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   return { de: fmt(seg), ate: fmt(dom) };
 }
 
@@ -4649,7 +4679,7 @@ function calcularPeriodoMes() {
   const mes = hoje.getMonth(); // 0-based
   const inicio = new Date(ano, mes, 1);
   const fim = new Date(ano, mes + 1, 0);
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   return {
     de: fmt(inicio), ate: fmt(fim),
     diaAtual: hoje.getDate(),
@@ -5064,7 +5094,7 @@ function renderAdmVendedoresTable(d) {
 function calcularSequenciaDias(vendasDoVendedor) {
   const dias = new Set();
   vendasDoVendedor.forEach(v => {
-    const dataStr = String(v.data_venda || '').slice(0, 10);
+    const dataStr = dataLocalStr(v.data_venda);
     if (dataStr) dias.add(dataStr);
   });
   if (dias.size === 0) return 0;
