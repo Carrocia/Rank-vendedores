@@ -1726,6 +1726,11 @@
     <div class="mural-grid" id="muralGrid"></div>
   </section>
 
+  <section class="podium-section mural-section" id="muralRenovSection">
+    <h2>Mural de Renovações — Destaque do Mês</h2>
+    <div class="mural-grid" id="muralRenovGrid"></div>
+  </section>
+
   <main class="ranking-panel anim-in" data-tab-panel="semanal">
     <div class="podium-cols">
     <section class="podium-section">
@@ -2172,7 +2177,7 @@ function renderGoal(containerId, goal) {
   requestAnimationFrame(tick);
 }
 
-function renderMuralPerson(person, role) {
+function renderMuralPerson(person, role, formatador = formatVendas) {
   if (!person) {
     return `
       <div class="mural-winner mural-winner-pending">
@@ -2192,14 +2197,14 @@ function renderMuralPerson(person, role) {
       </div>
       <span class="mural-role">${role}</span>
       <span class="mural-name">${pessoa.nome || ''}</span>
-      <span class="mural-value">${formatVendas(person.vendas)}</span>
+      <span class="mural-value">${formatador(person.vendas)}</span>
     </div>`;
 }
 
 // ── Destaque do mês fechado, calculado sozinho a partir das vendas ──
-function calcularPeriodoMesAnterior() {
+function calcularPeriodoMesAnterior(n = 1) {
   const hoje = new Date();
-  const ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth() - n, 1);
   const fim = new Date(ini.getFullYear(), ini.getMonth() + 1, 0);
   const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const nome = ini.toLocaleDateString('pt-BR', { month: 'long' });
@@ -2227,15 +2232,24 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
   return { mes: periodo.mesNome, interno: vencedor('interno'), externo: vencedor('externo') };
 }
 
-// Histórico manual + o mês que acabou de fechar (automático).
-// Um bloco manual com dados do mesmo mês tem prioridade sobre o automático.
+// Mural = card "A definir" do mês atual (automático) + últimos meses
+// fechados calculados sozinhos + meses antigos digitados à mão em
+// HISTORICO_DESTAQUES. Se um mês existe nos dois, vale o digitado à mão.
 function historicoCompleto() {
-  const lista = HISTORICO_DESTAQUES.slice();
-  const auto = _cache && _cache.destaqueMesAnterior;
-  if (auto && (auto.interno || auto.externo)) {
-    const i = lista.findIndex(h => String(h.mes).toLowerCase() === auto.mes.toLowerCase());
-    if (i === -1) lista.unshift(auto);
-    else if (!lista[i].interno && !lista[i].externo) lista[i] = auto;
+  const chave = h => String(h.mes).toLowerCase();
+  const manuais = HISTORICO_DESTAQUES.filter(h => h.interno || h.externo);
+  const autos = (_cache && _cache.destaquesAuto) || [];
+  const lista = [];
+  autos.forEach(a => {
+    if (!(a.interno || a.externo)) return;
+    lista.push(manuais.find(m => chave(m) === chave(a)) || a);
+  });
+  manuais.forEach(m => { if (!lista.some(x => chave(x) === chave(m))) lista.push(m); });
+
+  // card do mês em andamento, sempre no topo, "A definir"
+  const nomeAtual = (() => { const n = calcularPeriodoMes().mesNome; return n.charAt(0).toUpperCase() + n.slice(1); })();
+  if (!lista.some(x => chave(x) === nomeAtual.toLowerCase())) {
+    lista.unshift({ mes: nomeAtual, interno: null, externo: null });
   }
   return lista;
 }
@@ -2245,6 +2259,7 @@ function renderHistorico() {
   const historico = historicoCompleto();
   if (!historico.length) {
     container.innerHTML = '<p class="mural-empty">Nenhum destaque registrado ainda.</p>';
+    renderMuralRenovacoes();
     return;
   }
   container.innerHTML = historico.map(h => `
@@ -2256,6 +2271,126 @@ function renderHistorico() {
       </div>
     </div>
   `).join('');
+  renderMuralRenovacoes();
+}
+
+// ---------- Mural de Renovações (cadastro manual no ADM) ----------
+const NOMES_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const formatRenovacoes = n => `${n} ${Number(n) === 1 ? 'renovação' : 'renovações'}`;
+
+async function loadDestaquesRenovacao() {
+  // Se a tabela ainda não foi criada, não quebra o site: só fica vazio.
+  const { data, error } = await window._supabase
+    .from('destaques_renovacao')
+    .select('*')
+    .order('ano', { ascending: false })
+    .order('mes', { ascending: false })
+    .limit(36);
+  if (error) { console.warn('[loadDestaquesRenovacao] a tabela destaques_renovacao existe?', error.message); return []; }
+  return data || [];
+}
+
+function renderMuralRenovacoes() {
+  const container = document.getElementById('muralRenovGrid');
+  if (!container) return;
+  const regs = (_cache && _cache.destaquesRenovacao) || [];
+  const hoje = new Date();
+  const atual = { mes: hoje.getMonth() + 1, ano: hoje.getFullYear() };
+  const d = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const anterior = { mes: d.getMonth() + 1, ano: d.getFullYear() };
+  const cadastrado = m => regs.some(r => Number(r.mes) === m.mes && Number(r.ano) === m.ano);
+
+  const cards = regs.map(r => ({ mes: Number(r.mes), ano: Number(r.ano), vendedor: r.vendedor, quantidade: Number(r.quantidade) || 0 }));
+  if (!cadastrado(anterior)) cards.push({ ...anterior, pendente: true });
+  if (!cadastrado(atual)) cards.push({ ...atual, pendente: true });
+  cards.sort((a, b) => (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes));
+
+  container.innerHTML = cards.map(c => {
+    const rotulo = NOMES_MESES[c.mes - 1] + (c.ano !== atual.ano ? '/' + c.ano : '');
+    const pessoa = c.pendente ? null : { id: c.vendedor, vendas: c.quantidade };
+    return `
+      <div class="mural-card">
+        <span class="mural-month">${rotulo}</span>
+        <div class="mural-pair">
+          ${renderMuralPerson(pessoa, 'Renovações', formatRenovacoes)}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ---------- ADM: cadastro do destaque de renovações ----------
+function popularAdmRenovacoes() {
+  const sel = document.getElementById('renov-vendedor');
+  if (sel) {
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Selecione o vendedor</option>' +
+      (_cache.vendedores || []).map(v => `<option value="${v.slug || v.id}">${v.nome}</option>`).join('');
+    if (atual) sel.value = atual;
+  }
+  const mesEl = document.getElementById('renov-mes');
+  if (mesEl && !mesEl.value) {
+    const d = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1); // mês que acabou de fechar
+    mesEl.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+  const tbody = document.getElementById('renov-destaques-tbody');
+  if (!tbody) return;
+  const regs = _cache.destaquesRenovacao || [];
+  if (!regs.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhum destaque cadastrado ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = regs.map(r => {
+    const v = (_cache.vendedores || []).find(x => (x.slug || x.id) === r.vendedor);
+    return `<tr>
+      <td>${NOMES_MESES[Number(r.mes) - 1]}/${r.ano}</td>
+      <td><strong>${v ? v.nome : r.vendedor}</strong></td>
+      <td>${r.quantidade}</td>
+      <td><button type="button" class="adm-btn-excluir" onclick="excluirDestaqueRenovacao('${r.id}')" title="Excluir">🗑️</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function salvarDestaqueRenovacao() {
+  const mesVal = document.getElementById('renov-mes').value;      // "YYYY-MM"
+  const vendedor = document.getElementById('renov-vendedor').value;
+  const qtdRaw = document.getElementById('renov-qtd').value.trim();
+  const quantidade = Number(qtdRaw);
+  if (!mesVal || !vendedor || qtdRaw === '' || !Number.isInteger(quantidade) || quantidade < 0) {
+    showToast('Escolha o mês, o vendedor e informe a quantidade de renovações (número inteiro).', 'warning');
+    return;
+  }
+  const [ano, mes] = mesVal.split('-').map(Number);
+  try {
+    const { data: existente, error: errBusca } = await window._supabase
+      .from('destaques_renovacao').select('id').eq('mes', mes).eq('ano', ano).limit(1);
+    if (errBusca) throw errBusca;
+    let error;
+    if (existente && existente.length) {
+      ({ error } = await window._supabase.from('destaques_renovacao').update({ vendedor, quantidade }).eq('id', existente[0].id));
+    } else {
+      ({ error } = await window._supabase.from('destaques_renovacao').insert([{ mes, ano, vendedor, quantidade }]));
+    }
+    if (error) throw error;
+    document.getElementById('renov-qtd').value = '';
+    await carregarDados();
+    showToast('Destaque de renovações salvo!', 'success');
+  } catch (err) {
+    console.error('[salvarDestaqueRenovacao]', err);
+    showToast('Não foi possível salvar o destaque: ' + (err.message || err), 'error');
+  }
+}
+
+async function excluirDestaqueRenovacao(id) {
+  if (!confirm('Excluir este destaque de renovações?')) return;
+  try {
+    const { error } = await window._supabase.from('destaques_renovacao').delete().eq('id', id);
+    if (error) throw error;
+    await carregarDados();
+    showToast('Destaque excluído.', 'success');
+  } catch (err) {
+    console.error('[excluirDestaqueRenovacao]', err);
+    showToast('Não foi possível excluir: ' + (err.message || err), 'error');
+  }
 }
 
 // ---------- Card "Meta da Semana" ----------
@@ -2790,11 +2925,13 @@ async function carregarDados() {
     _cache.semana = calcularPeriodoSemana();
     _cache.mes = calcularPeriodoMes();
     const semanaAnterior = calcularPeriodoSemanaAnterior();
-    _cache.mesAnterior = calcularPeriodoMesAnterior();
+    // últimos 3 meses fechados — usados no mural de destaques (automático)
+    const mesesFechados = [1, 2, 3].map(n => calcularPeriodoMesAnterior(n));
+    const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate).catch(() => [])));
 
     // Carregar em paralelo
     const [vendedores, planos, adicionais, filiais, metasFilial, metas, metasRenovCancel,
-           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior, vendasMesAnterior] = await Promise.all([
+           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior, destaquesRenovacao] = await Promise.all([
       loadVendedores(),
       loadPlanos(),
       loadAdicionais(),
@@ -2807,7 +2944,7 @@ async function carregarDados() {
       loadVendasOutrasFiliais(_cache.mes.de, _cache.mes.ate),
       loadVendaMaisRecente(),
       loadVendas(semanaAnterior.de, semanaAnterior.ate),
-      loadVendas(_cache.mesAnterior.de, _cache.mesAnterior.ate),
+      loadDestaquesRenovacao(),
     ]);
 
     _cache.vendedores = vendedores;
@@ -2822,7 +2959,10 @@ async function carregarDados() {
     _cache.vendasFiliais = vendasFiliais;
     _cache.vendaMaisRecente = vendaMaisRecente;
     _cache.vendasSemanaAnterior = vendasSemanaAnterior;
-    _cache.destaqueMesAnterior = calcularDestaqueMes(_cache.mesAnterior, vendasMesAnterior, vendedores);
+    const vendasFechados = await pFechados;
+    _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(m, vendasFechados[i], vendedores));
+    _cache.destaquesRenovacao = destaquesRenovacao;
+    popularAdmRenovacoes();
 
     // Atualizar formulários ADM com dados reais
     popularSelectVendedores(vendedores);
@@ -5717,12 +5857,14 @@ async function salvarMetaFilial(dados) {
   // convertidos aqui para os nomes reais das colunas do Supabase
   // (meta_semanal_m3, meta_mensal_m3, ...) antes de update/insert.
   const dadosSupabase = {
-    meta_semanal_m3: dados.semanal_m3,
-    meta_semanal_m2: dados.semanal_m2,
-    meta_semanal_m1: dados.semanal_m1,
-    meta_mensal_m3: dados.mensal_m3,
-    meta_mensal_m2: dados.mensal_m2,
-    meta_mensal_m1: dados.mensal_m1,
+    // As colunas de metas_filial são NOT NULL no Supabase: campo em branco
+    // vai como 0 (o site já trata 0 como "meta não definida" e mostra "—").
+    meta_semanal_m3: dados.semanal_m3 ?? 0,
+    meta_semanal_m2: dados.semanal_m2 ?? 0,
+    meta_semanal_m1: dados.semanal_m1 ?? 0,
+    meta_mensal_m3: dados.mensal_m3 ?? 0,
+    meta_mensal_m2: dados.mensal_m2 ?? 0,
+    meta_mensal_m1: dados.mensal_m1 ?? 0,
   };
   const existente = _cache.metasFilial;
   if (existente && existente.id) {
@@ -6011,6 +6153,7 @@ carregarDados();
         <button class="adm-nav-item" data-section="planos"><span class="nav-icon">📦</span>Planos</button>
         <button class="adm-nav-item" data-section="relatorios"><span class="nav-icon">📈</span>Relatórios</button>
         <button class="adm-nav-item" data-section="celebracoes"><span class="nav-icon">🎉</span>Celebrações</button>
+        <button class="adm-nav-item" data-section="renovacoes"><span class="nav-icon">🔄</span>Mural de Renovações</button>
         <button class="adm-nav-item" data-section="ranking-adm"><span class="nav-icon">🏆</span>Ranking</button>
         <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon">🏢</span>Outras Filiais</button>
         <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon">⚙️</span>Configuração de Metas</button>
@@ -6438,6 +6581,32 @@ carregarDados();
               </select>
             </div>
             <button type="button" class="adm-btn" id="dm-gerar-btn" onclick="gerarDestaqueDoMes(document.getElementById('dm-vendedor').value, event)">🌟 Gerar Imagem de Destaque do Mês</button>
+          </div>
+        </section>
+
+        <!-- ── MURAL DE RENOVAÇÕES ─────────────────────────────── -->
+        <section class="adm-section" id="sec-renovacoes">
+          <div class="adm-section-title">🔄 Mural de Renovações</div>
+          <div class="adm-form-card">
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.5;">
+              Cadastre quem foi o destaque de renovações do mês e quantas renovações fez.
+              Aparece no site, no <strong>Mural de Renovações</strong>. Se já existir um destaque
+              para o mês escolhido, ele é atualizado.
+            </p>
+            <div class="adm-form-grid">
+              <div class="adm-field"><label>Mês</label><input type="month" id="renov-mes"></div>
+              <div class="adm-field"><label>Vendedor destaque</label>
+                <select id="renov-vendedor"><option value="">Selecione o vendedor</option></select>
+              </div>
+              <div class="adm-field"><label>Renovações feitas</label><input type="number" id="renov-qtd" min="0" step="1" placeholder="Ex.: 12"></div>
+            </div>
+            <button type="button" class="adm-btn" style="width:auto;padding:12px 28px;" onclick="salvarDestaqueRenovacao()">💾 Salvar destaque</button>
+          </div>
+          <div class="adm-table-wrap">
+            <table class="adm-table">
+              <thead><tr><th>Mês</th><th>Vendedor</th><th>Renovações</th><th>Ação</th></tr></thead>
+              <tbody id="renov-destaques-tbody"></tbody>
+            </table>
           </div>
         </section>
 
