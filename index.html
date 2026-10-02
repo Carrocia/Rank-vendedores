@@ -2196,13 +2196,58 @@ function renderMuralPerson(person, role) {
     </div>`;
 }
 
+// ── Destaque do mês fechado, calculado sozinho a partir das vendas ──
+function calcularPeriodoMesAnterior() {
+  const hoje = new Date();
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const fim = new Date(ini.getFullYear(), ini.getMonth() + 1, 0);
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const nome = ini.toLocaleDateString('pt-BR', { month: 'long' });
+  return { de: fmt(ini), ate: fmt(fim), mesNome: nome.charAt(0).toUpperCase() + nome.slice(1) };
+}
+
+// Mesma regra de contagem do painel: externo "fora da filial" não conta.
+function calcularDestaqueMes(periodo, vendas, vendedores) {
+  const vencedor = tipo => {
+    const mapa = {};
+    (vendedores || []).filter(v => v.tipo === tipo).forEach(v => {
+      mapa[v.id] = { id: v.slug || v.id, vendas: 0, valor: 0 };
+    });
+    (vendas || []).forEach(v => {
+      const e = mapa[v.vendedor_id];
+      if (!e) return;
+      if (tipo === 'externo' && v.fora_filial === true) return;
+      e.vendas += 1;
+      e.valor += Number(v.valor || 0);
+    });
+    const lista = Object.values(mapa).filter(e => e.vendas > 0)
+      .sort((a, b) => (b.vendas - a.vendas) || (b.valor - a.valor));
+    return lista.length ? { id: lista[0].id, vendas: lista[0].vendas } : null;
+  };
+  return { mes: periodo.mesNome, interno: vencedor('interno'), externo: vencedor('externo') };
+}
+
+// Histórico manual + o mês que acabou de fechar (automático).
+// Um bloco manual com dados do mesmo mês tem prioridade sobre o automático.
+function historicoCompleto() {
+  const lista = HISTORICO_DESTAQUES.slice();
+  const auto = _cache && _cache.destaqueMesAnterior;
+  if (auto && (auto.interno || auto.externo)) {
+    const i = lista.findIndex(h => String(h.mes).toLowerCase() === auto.mes.toLowerCase());
+    if (i === -1) lista.unshift(auto);
+    else if (!lista[i].interno && !lista[i].externo) lista[i] = auto;
+  }
+  return lista;
+}
+
 function renderHistorico() {
   const container = document.getElementById('muralGrid');
-  if (!HISTORICO_DESTAQUES.length) {
+  const historico = historicoCompleto();
+  if (!historico.length) {
     container.innerHTML = '<p class="mural-empty">Nenhum destaque registrado ainda.</p>';
     return;
   }
-  container.innerHTML = HISTORICO_DESTAQUES.map(h => `
+  container.innerHTML = historico.map(h => `
     <div class="mural-card">
       <span class="mural-month">${h.mes}</span>
       <div class="mural-pair">
@@ -2745,10 +2790,11 @@ async function carregarDados() {
     _cache.semana = calcularPeriodoSemana();
     _cache.mes = calcularPeriodoMes();
     const semanaAnterior = calcularPeriodoSemanaAnterior();
+    _cache.mesAnterior = calcularPeriodoMesAnterior();
 
     // Carregar em paralelo
     const [vendedores, planos, adicionais, filiais, metasFilial, metas, metasRenovCancel,
-           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior] = await Promise.all([
+           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior, vendasMesAnterior] = await Promise.all([
       loadVendedores(),
       loadPlanos(),
       loadAdicionais(),
@@ -2761,6 +2807,7 @@ async function carregarDados() {
       loadVendasOutrasFiliais(_cache.mes.de, _cache.mes.ate),
       loadVendaMaisRecente(),
       loadVendas(semanaAnterior.de, semanaAnterior.ate),
+      loadVendas(_cache.mesAnterior.de, _cache.mesAnterior.ate),
     ]);
 
     _cache.vendedores = vendedores;
@@ -2775,6 +2822,7 @@ async function carregarDados() {
     _cache.vendasFiliais = vendasFiliais;
     _cache.vendaMaisRecente = vendaMaisRecente;
     _cache.vendasSemanaAnterior = vendasSemanaAnterior;
+    _cache.destaqueMesAnterior = calcularDestaqueMes(_cache.mesAnterior, vendasMesAnterior, vendedores);
 
     // Atualizar formulários ADM com dados reais
     popularSelectVendedores(vendedores);
@@ -3060,7 +3108,7 @@ function processarDadosParaRender(cache) {
   // evolução individual de vendedor (elas não pertencem a ninguém).
   (vendasFiliais || []).forEach(v => {
     const dataStr = dataLocalStr(v.data_venda);
-    if (dataStr < semana.de || dataStr > semana.ate) return; // fora da semana atual
+    if (!dataNoPeriodo(v.data_venda, semana.de, semana.ate)) return; // fora da semana atual
     const d = new Date(dataStr + 'T12:00:00');
     const diaSemana = d.getDay(); // 0=Dom
     if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
@@ -3119,7 +3167,7 @@ function processarDadosParaRender(cache) {
   const vendasOutrasFiliaisSemana = (vendasFiliais || [])
     .filter(v => {
       const dataStr = dataLocalStr(v.data_venda);
-      return dataStr >= semana.de && dataStr <= semana.ate;
+      return dataNoPeriodo(v.data_venda, semana.de, semana.ate);
     })
     .reduce((s, v) => s + Number(v.quantidade || 1), 0);
   // Diferente do total mensal, o total semanal (Meta da Semana, Metas
@@ -3609,6 +3657,15 @@ function dataLocalStr(raw) {
   return str.slice(0, 10);
 }
 
+// Mesma janela que a busca do Supabase usa: vale a data UTC OU a data local.
+// (registros só com data entram como 00:00 UTC; vendas à noite viram o dia
+// seguinte em UTC — com o "OU", as duas situações ficam dentro do período.)
+function dataNoPeriodo(raw, de, ate) {
+  const utc = String(raw || '').slice(0, 10);
+  const loc = dataLocalStr(raw);
+  return (utc >= de && utc <= ate) || (loc >= de && loc <= ate);
+}
+
 async function loadVendas(de, ate) {
   const { data, error } = await window._supabase
     .from('vendas_publicas')
@@ -3795,7 +3852,7 @@ async function aplicarFiltrosRelatorio() {
     let linhas = [];
     vendasBase.forEach(v => {
       const dataStr = dataLocalStr(v.data_venda);
-      if (dataStr < dataIni || dataStr > dataFim) return;
+      if (!dataNoPeriodo(v.data_venda, dataIni, dataFim)) return;
       const vend = (_cache.vendedores || []).find(x => x.id === v.vendedor_id);
       const plano = (_cache.planos || []).find(p => p.id === v.plano_id);
       const adicionais = adicionaisPorVenda[v.id] || [];
@@ -3823,7 +3880,7 @@ async function aplicarFiltrosRelatorio() {
     });
     (filiaisBase || []).forEach(v => {
       const dataStr = dataLocalStr(v.data_venda);
-      if (dataStr < dataIni || dataStr > dataFim) return;
+      if (!dataNoPeriodo(v.data_venda, dataIni, dataFim)) return;
       const planoFilial = (_cache.planos || []).find(p => p.id === v.plano_id);
       linhas.push({
         tipoLinha: 'outra_filial',
@@ -5670,11 +5727,11 @@ async function salvarMetaFilial(dados) {
   const existente = _cache.metasFilial;
   if (existente && existente.id) {
     const { error } = await window._supabase.from('metas_filial').update(dadosSupabase).eq('id', existente.id);
-    if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível salvar a meta da filial.'); }
+    if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível salvar a meta da filial: ' + error.message); }
   } else {
     const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
     const { error } = await window._supabase.from('metas_filial').insert([payload]);
-    if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível criar a meta da filial.'); }
+    if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível criar a meta da filial: ' + error.message); }
   }
 }
 
@@ -5682,16 +5739,30 @@ async function salvarMetaFilial(dados) {
 // Mesma lógica de UPDATE-ou-INSERT (equivalente a upsert) do item acima.
 async function salvarMetaVendedor(vendedor_id, dados) {
   const payload = { vendedor_id, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dados };
-  const { error } = await window._supabase
+  // UPDATE-ou-INSERT (não depende de constraint única para o upsert):
+  // procura a linha do vendedor no mês/ano; se existir atualiza, senão cria.
+  const { data: existente, error: errBusca } = await window._supabase
     .from('metas')
-    .upsert(payload, { onConflict: 'vendedor_id,mes,ano' });
+    .select('id')
+    .eq('vendedor_id', vendedor_id)
+    .eq('mes', payload.mes)
+    .eq('ano', payload.ano)
+    .limit(1);
+  let error = errBusca;
+  if (!error) {
+    if (existente && existente.length) {
+      ({ error } = await window._supabase.from('metas').update(dados).eq('id', existente[0].id));
+    } else {
+      ({ error } = await window._supabase.from('metas').insert([payload]));
+    }
+  }
   if (error) {
     console.error('[salvarMetaVendedor] code:', error.code);
     console.error('[salvarMetaVendedor] message:', error.message);
     console.error('[salvarMetaVendedor] details:', error.details);
     console.error('[salvarMetaVendedor] hint:', error.hint);
     console.error('[salvarMetaVendedor] payload:', payload);
-    throw new Error('Não foi possível salvar a meta do vendedor.');
+    throw new Error('Não foi possível salvar a meta do vendedor: ' + (error.message || error.code));
   }
 }
 
@@ -5712,11 +5783,11 @@ async function salvarMetaRenovCancel(dados) {
   const existente = _cache.metasRenovCancel;
   if (existente && existente.id) {
     const { error } = await window._supabase.from('metas_renovacao_cancelamento').update(dadosSupabase).eq('id', existente.id);
-    if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível salvar as metas de renovação/cancelamento.'); }
+    if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível salvar as metas de renovação/cancelamento: ' + error.message); }
   } else {
     const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
     const { error } = await window._supabase.from('metas_renovacao_cancelamento').insert([payload]);
-    if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível criar as metas de renovação/cancelamento.'); }
+    if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível criar as metas de renovação/cancelamento: ' + error.message); }
   }
 }
 
@@ -5783,7 +5854,7 @@ async function handleSalvarMetas() {
     showToast('Metas atualizadas com sucesso!', 'success');
   } catch (err) {
     console.error('[handleSalvarMetas]', err);
-    showToast('Não foi possível salvar as metas. Verifique a conexão com o Supabase.', 'error');
+    showToast((err && err.message) ? err.message : 'Não foi possível salvar as metas. Verifique a conexão com o Supabase.', 'error');
   }
 }
 
