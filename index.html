@@ -2482,6 +2482,7 @@ function aplicarConfigSite(cfg) {
 }
 
 let _temaAdm = 'auto';
+let _temaPreview = false; // true = há uma prévia não salva; carregarDados() não pode desfazê-la
 function popularAdmTema() {
   const grid = document.getElementById('tema-grid');
   if (!grid) return;
@@ -2504,7 +2505,14 @@ function popularAdmTema() {
     </button>`).join('');
 }
 
+function previaFxAdm() {
+  _temaPreview = true;
+  const fx = document.getElementById('tema-fx').checked;
+  window.uniAplicarTema(_temaAdm === 'auto' ? window.uniTemaAutomatico(new Date()) : _temaAdm, fx);
+}
+
 function escolherTemaAdm(id) {
+  _temaPreview = true;
   _temaAdm = id;
   document.querySelectorAll('#tema-grid .tema-opt').forEach(b => b.classList.toggle('selected', b.dataset.tema === id));
   const fx = document.getElementById('tema-fx').checked;
@@ -2523,11 +2531,17 @@ async function salvarTemaSite() {
       if (error) throw error;
     }
     _cache.configSite = { tema_sazonal: _temaAdm, tema_particulas: fx ? '1' : '0' };
+    _temaPreview = false;
     aplicarConfigSite(_cache.configSite);
     showToast('Tema salvo! O site já está com o novo visual para todos.', 'success');
   } catch (err) {
     console.error('[salvarTemaSite]', err);
-    showToast('Não foi possível salvar o tema: ' + (err.message || err), 'error');
+    const msg = String((err && err.message) || err);
+    if (err && (err.code === 'PGRST205' || /site_config/.test(msg)) && /schema cache|does not exist|permission denied/i.test(msg)) {
+      showToast('A tabela site_config não está disponível no Supabase. Rode o SQL de criação (e o "notify pgrst") no SQL Editor e tente de novo.', 'error', 9000);
+    } else {
+      showToast('Não foi possível salvar o tema: ' + msg, 'error');
+    }
   }
 }
 
@@ -3206,8 +3220,7 @@ async function carregarDados() {
     _cache.destaquesRenovacao = destaquesRenovacao;
     popularAdmRenovacoes();
     _cache.configSite = configSite;
-    aplicarConfigSite(configSite);
-    popularAdmTema();
+    if (!_temaPreview) { aplicarConfigSite(configSite); popularAdmTema(); }
 
     // Atualizar formulários ADM com dados reais
     popularSelectVendedores(vendedores);
@@ -6912,7 +6925,7 @@ carregarDados();
               <strong>pré-visualizar</strong> (só você vê) e depois em <strong>Salvar</strong> para valer para todos.
             </p>
             <div class="tema-grid" id="tema-grid"></div>
-            <label class="tema-check"><input type="checkbox" id="tema-fx" checked> Partículas animadas (confete, pétalas, neve…)</label>
+            <label class="tema-check"><input type="checkbox" id="tema-fx" checked onchange="previaFxAdm()"> Partículas animadas (confete, pétalas, neve…)</label>
             <button type="button" class="adm-btn" style="width:auto;padding:12px 28px;" onclick="salvarTemaSite()">💾 Salvar tema</button>
           </div>
         </section>
