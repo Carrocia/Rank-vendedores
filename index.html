@@ -21,6 +21,14 @@
   if (t !== 'light' && t !== 'dark') {
     t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
   }
+  // Modo TV (?tv=1): sempre escuro (não grava a escolha), a menos que ?theme=light
+  try {
+    var P = new URLSearchParams(location.search);
+    if (P.get('tv') === '1' || P.get('tv') === 'true') {
+      document.documentElement.setAttribute('data-tv', '');
+      if (P.get('theme') !== 'light') t = 'dark';
+    }
+  } catch (e) {}
   document.documentElement.setAttribute('data-theme', t);
 })();
 
@@ -1096,6 +1104,57 @@
   .murais-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
   .murais-duo > .mural-section { min-width: 0; }
   @media (max-width: 1100px) { .murais-duo { grid-template-columns: 1fr; gap: 0; } }
+
+  /* ================= MODO TV (?tv=1) ================= */
+  .tv-enter-btn {
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 0.85rem; padding: 12px 22px; border-radius: 50px;
+    color: var(--accent); background: rgba(var(--accent-rgb), 0.1); border: 1px solid rgba(var(--accent-rgb), 0.35);
+    transition: transform 0.25s ease, background 0.25s ease;
+  }
+  .tv-enter-btn:hover { transform: translateY(-2px); background: rgba(var(--accent-rgb), 0.18); }
+
+  html[data-tv], html[data-tv] body { height: 100%; overflow: hidden; }
+  html[data-tv] body { cursor: none; }
+  html[data-tv].tv-cursor body { cursor: auto; }
+  /* esconde controles do modo normal */
+  html[data-tv] #adm-trigger, html[data-tv] .theme-toggle, html[data-tv] #themeToggle,
+  html[data-tv] .header-copy p { display: none !important; }
+  /* palco: largura fixa de 1480px, escalada por JS para caber na tela */
+  html[data-tv] .page-shell {
+    position: fixed; left: 50%; top: 0; width: 1480px; max-width: none; margin: 0;
+    padding: 18px 28px 0; transform-origin: top center;
+    transform: translateX(-50%) scale(var(--tv-scale, 1));
+  }
+  /* só o cabeçalho e os blocos do slide atual aparecem */
+  html[data-tv] .page-shell > :not(header):not(.dados-error-banner):not(.tv-on) { display: none !important; }
+  html[data-tv] header { margin-bottom: 18px; }
+
+  #tvBar { display: none; }
+  html[data-tv] #tvBar {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; height: 56px; z-index: 50;
+    background: rgba(8, 10, 18, 0.82); backdrop-filter: blur(10px); border-top: 1px solid var(--border);
+  }
+  [data-theme="light"] #tvBar { background: rgba(240, 243, 250, 0.9); }
+  .tv-progress { height: 3px; background: rgba(255,255,255,0.08); }
+  .tv-progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  @keyframes tvProgress { from { width: 0; } to { width: 100%; } }
+  .tv-bar-row { height: 53px; display: flex; align-items: center; gap: 22px; padding: 0 24px; }
+  .tv-title { font-weight: 700; font-size: 1.05rem; color: var(--heading-color, var(--text)); white-space: nowrap; }
+  .tv-dots { display: flex; gap: 7px; flex: 1; }
+  .tv-dots span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.18); transition: background 0.3s, transform 0.3s; }
+  [data-theme="light"] .tv-dots span { background: rgba(0,0,0,0.18); }
+  .tv-dots span.on { background: var(--accent); transform: scale(1.35); }
+  .tv-meta { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+  .tv-meta span { font-weight: 800; font-size: 1.25rem; color: var(--text); }
+  .tv-meta small { font-size: 0.68rem; color: var(--text-muted); }
+  .tv-ctrls { display: flex; gap: 6px; opacity: 0; transition: opacity 0.3s; }
+  html[data-tv].tv-cursor .tv-ctrls { opacity: 1; }
+  .tv-ctrls button {
+    font-family: inherit; font-size: 1rem; cursor: pointer; color: var(--text);
+    background: rgba(255,255,255,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px;
+  }
+  .tv-ctrls button:hover { border-color: var(--accent); }
 </style>
 
 <style id="adm-styles">
@@ -6397,6 +6456,156 @@ document.addEventListener('keydown', e => {
 // acima. carregarDados() já chama initSupabase() internamente.
 // ================================================================
 carregarDados();
+
+// ============================================================
+// MODO TV — abra o site com ?tv=1 (ex.: ...index.html?tv=1&tempo=20)
+// Apresentação automática em tela cheia para a TV da loja: passa os
+// painéis um a um, ajusta o tamanho à tela, atualiza os dados sozinho e
+// mantém a tela acesa. Teclas: ← → (navegar) · espaço (pausar) · F (tela
+// cheia) · Esc (sair). &tempo=SEGUNDOS muda a duração de cada painel.
+// ============================================================
+(function modoTV() {
+  const params = new URLSearchParams(location.search);
+  const ativo = ['1', 'true'].includes(params.get('tv'));
+
+  if (!ativo) { // página normal: só adiciona o botão de entrada
+    const linha = document.querySelector('.tabs-row');
+    if (linha) {
+      const u = new URL(location.href); u.searchParams.set('tv', '1');
+      const a = document.createElement('a');
+      a.className = 'tv-enter-btn'; a.href = u.toString();
+      a.title = 'Apresentação automática para a TV da loja'; a.textContent = '📺 Modo TV';
+      linha.appendChild(a);
+    }
+    return;
+  }
+
+  document.documentElement.setAttribute('data-tv', '');
+  const tempo = Math.max(5, parseInt(params.get('tempo') || '15', 10) || 15) * 1000;
+  const shell = document.querySelector('.page-shell');
+  const porId = id => document.getElementById(id);
+  const secaoDe = id => { const el = porId(id); return el ? el.closest('section') : null; };
+  const E = {
+    meta: porId('metaCardSection'), destaques: secaoDe('destaquesGrid'),
+    rankSemanal: document.querySelector('[data-tab-panel="semanal"]'),
+    rankMensal: document.querySelector('[data-tab-panel="mensal"]'),
+    filial: porId('metasFilialSection'), churn: document.querySelector('.churn-dash'),
+    murais: document.querySelector('.murais-duo'), evolucao: secaoDe('evolucaoChart'),
+    planos: secaoDe('donutChart'), conquistas: secaoDe('conquistasGrid'),
+  };
+  const slides = [
+    { titulo: 'Meta da Semana e Destaques', tab: 'semanal', show: ['meta', 'destaques'] },
+    { titulo: 'Ranking Semanal', tab: 'semanal', show: ['rankSemanal'] },
+    { titulo: 'Metas da Filial — Semana', tab: 'semanal', show: ['filial'] },
+    { titulo: 'Meta do Mês', tab: 'mensal', show: ['meta'] },
+    { titulo: 'Ranking Mensal', tab: 'mensal', show: ['rankMensal'] },
+    { titulo: 'Metas da Filial — Mês', tab: 'mensal', show: ['filial'] },
+    { titulo: 'Renovações e Risco de Churn', show: ['churn'] },
+    { titulo: 'Murais de Destaques', show: ['murais'] },
+    { titulo: 'Evolução e Planos', show: ['evolucao', 'planos'] },
+    { titulo: 'Conquistas Recentes', show: ['conquistas'], vazio: () => { const g = porId('conquistasGrid'); return !g || !g.children.length; } },
+  ];
+  const lista = () => slides.filter(sl => !(sl.vazio && sl.vazio()));
+
+  // ----- barra inferior -----
+  const bar = document.createElement('div');
+  bar.id = 'tvBar';
+  bar.innerHTML = `
+    <div class="tv-progress"><div class="tv-progress-fill" id="tvFill"></div></div>
+    <div class="tv-bar-row">
+      <div class="tv-title" id="tvTitle"></div>
+      <div class="tv-dots" id="tvDots"></div>
+      <div class="tv-meta"><span id="tvClock"></span><small id="tvUpd"></small></div>
+      <div class="tv-ctrls">
+        <button type="button" id="tvPrev" title="Anterior (←)">⏮</button>
+        <button type="button" id="tvPlay" title="Pausar (espaço)">⏸</button>
+        <button type="button" id="tvNext" title="Próximo (→)">⏭</button>
+        <button type="button" id="tvFull" title="Tela cheia (F)">⛶</button>
+        <button type="button" id="tvExit" title="Sair do modo TV (Esc)">✕</button>
+      </div>
+    </div>`;
+  document.body.appendChild(bar);
+  const hhmm = d => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  let atualizadoEm = new Date();
+  const relogio = () => { porId('tvClock').textContent = hhmm(new Date()); porId('tvUpd').textContent = 'dados das ' + hhmm(atualizadoEm); };
+  relogio(); setInterval(relogio, 20000);
+
+  // ----- escala: o palco tem 1480px de largura e é ampliado/reduzido para caber -----
+  let rafAjuste = null;
+  function ajustarEscala() {
+    if (!shell) return;
+    shell.style.setProperty('--tv-scale', '1');
+    const natW = 1480, natH = shell.offsetHeight || 1;
+    const dispH = window.innerHeight - 56;
+    const esc = Math.max(0.4, Math.min(window.innerWidth / natW, dispH / natH, 3));
+    shell.style.setProperty('--tv-scale', esc.toFixed(3));
+    shell.style.top = Math.max(0, (dispH - natH * esc) / 2) + 'px';
+  }
+  const agendarAjuste = () => { cancelAnimationFrame(rafAjuste); rafAjuste = requestAnimationFrame(ajustarEscala); };
+  window.addEventListener('resize', agendarAjuste);
+  if ('ResizeObserver' in window && shell) new ResizeObserver(agendarAjuste).observe(shell);
+
+  // ----- rotação dos painéis -----
+  let idx = -1, timer = null, pausado = false, inicio = 0, restante = tempo;
+  const fill = porId('tvFill');
+  function reiniciarProgresso() {
+    fill.style.animation = 'none'; void fill.offsetWidth;
+    fill.style.animation = `tvProgress ${tempo}ms linear forwards`;
+    fill.style.animationPlayState = pausado ? 'paused' : 'running';
+  }
+  function agendar(ms) { clearTimeout(timer); inicio = Date.now(); restante = ms; if (!pausado) timer = setTimeout(() => mostrar(idx + 1), ms); }
+  function mostrar(i) {
+    const L = lista();
+    idx = ((i % L.length) + L.length) % L.length;
+    const sl = L[idx];
+    if (sl.tab) { const b = document.querySelector(`.tab-button[data-tab="${sl.tab}"]`); if (b && !b.classList.contains('active')) b.click(); }
+    Object.values(E).forEach(el => el && el.classList.remove('tv-on'));
+    sl.show.forEach(k => E[k] && E[k].classList.add('tv-on'));
+    porId('tvTitle').textContent = sl.titulo;
+    porId('tvDots').innerHTML = L.map((_, n) => `<span class="${n === idx ? 'on' : ''}"></span>`).join('');
+    ajustarEscala(); setTimeout(ajustarEscala, 350); // 2ª medição depois das animações de entrada
+    reiniciarProgresso(); agendar(tempo);
+  }
+  function alternarPausa() {
+    pausado = !pausado;
+    if (pausado) { clearTimeout(timer); restante = Math.max(0, restante - (Date.now() - inicio)); }
+    else { agendar(restante || tempo); }
+    fill.style.animationPlayState = pausado ? 'paused' : 'running';
+    porId('tvPlay').textContent = pausado ? '▶' : '⏸';
+  }
+  const sair = () => { const u = new URL(location.href); ['tv', 'tempo'].forEach(k => u.searchParams.delete(k)); location.href = u.toString(); };
+  const telaCheia = () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} };
+  porId('tvPrev').onclick = () => mostrar(idx - 1);
+  porId('tvNext').onclick = () => mostrar(idx + 1);
+  porId('tvPlay').onclick = alternarPausa;
+  porId('tvFull').onclick = telaCheia;
+  porId('tvExit').onclick = sair;
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') mostrar(idx + 1);
+    else if (e.key === 'ArrowLeft') mostrar(idx - 1);
+    else if (e.key === ' ') { e.preventDefault(); alternarPausa(); }
+    else if (e.key === 'f' || e.key === 'F') telaCheia();
+    else if (e.key === 'Escape' && !document.fullscreenElement) sair();
+  });
+  // cursor e botões só aparecem quando o mouse se mexe
+  let tCursor = null;
+  document.addEventListener('mousemove', () => {
+    document.documentElement.classList.add('tv-cursor');
+    clearTimeout(tCursor); tCursor = setTimeout(() => document.documentElement.classList.remove('tv-cursor'), 3000);
+  });
+
+  // ----- manutenção: dados novos a cada 2 min, tela sempre acesa, recarga a cada 6 h -----
+  setInterval(async () => {
+    try { if (typeof carregarDados === 'function') { await carregarDados(); atualizadoEm = new Date(); relogio(); agendarAjuste(); } } catch (e) { console.warn('[modoTV] atualização falhou', e); }
+  }, 120000);
+  let wl = null;
+  const manterAcesa = async () => { try { if ('wakeLock' in navigator) wl = await navigator.wakeLock.request('screen'); } catch (e) {} };
+  manterAcesa();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') manterAcesa(); });
+  setTimeout(() => location.reload(), 6 * 60 * 60 * 1000);
+
+  mostrar(0);
+})();
 </script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
