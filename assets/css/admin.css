@@ -84,9 +84,10 @@
   position: fixed; inset: 0; z-index: 900;
   background: rgba(6,8,16,0.96); backdrop-filter: blur(10px);
   display: none; align-items: center; justify-content: center;
-  overflow-y: auto; padding: 32px 16px;
+  overflow-y: auto; overscroll-behavior: contain; padding: 32px 16px;
 }
 .adm-overlay.active { display: flex; }
+body.adm-modal-open { overflow: hidden; }
 
 /* ── Card base ───────────────────────────────────────────────── */
 .adm-card {
