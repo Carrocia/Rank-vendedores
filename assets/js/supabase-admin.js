@@ -1324,7 +1324,18 @@ function calcularTotais(vendasEquipe, vendasFiliais, metaGlobal) {
 }
 
 // ── Helpers de UI ────────────────────────────────────────────────
+function adm_lockBackgroundScroll() {
+  document.body.classList.add('adm-modal-open');
+}
+
+function adm_unlockBackgroundScrollIfClosed() {
+  const loginAberto = document.getElementById('adm-login-overlay')?.classList.contains('active');
+  const painelAberto = document.getElementById('adm-panel-overlay')?.classList.contains('active');
+  if (!loginAberto && !painelAberto) document.body.classList.remove('adm-modal-open');
+}
+
 function adm_showLogin() {
+  adm_lockBackgroundScroll();
   document.getElementById('adm-login-overlay').classList.add('active');
   document.getElementById('adm-login-error').classList.remove('visible');
   document.getElementById('adm-email').value = '';
@@ -1333,6 +1344,7 @@ function adm_showLogin() {
 
 function adm_hideLogin() {
   document.getElementById('adm-login-overlay').classList.remove('active');
+  adm_unlockBackgroundScrollIfClosed();
 }
 
 // Bibliotecas e fontes usadas só pelo ADM (exportar Excel/PDF, gerar imagens/GIF).
@@ -1362,6 +1374,7 @@ function carregarLibsAdmin() {
 }
 
 function adm_showPanel() {
+  adm_lockBackgroundScroll();
   document.getElementById('adm-panel-overlay').classList.add('active');
   carregarLibsAdmin();
   // popular fotos na tabela de vendedores
@@ -1377,6 +1390,7 @@ function adm_showPanel() {
 
 function adm_hidePanel() {
   document.getElementById('adm-panel-overlay').classList.remove('active');
+  adm_unlockBackgroundScrollIfClosed();
 }
 
 function adm_navigateTo(sectionId) {
