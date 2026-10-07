@@ -71,7 +71,6 @@ async function loadPlanos() {
   const { data, error } = await window._supabase
     .from('planos')
     .select('*')
-    .eq('ativo', true)
     .order('nome');
   if (error) { console.error('[loadPlanos]', error); return []; }
   return data;

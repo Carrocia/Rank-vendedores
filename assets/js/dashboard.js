@@ -1040,6 +1040,7 @@ async function carregarDados() {
     // Atualizar formulários ADM com dados reais
     popularSelectVendedores(vendedores);
     popularSelectPlanos(planos);
+    renderTabelaPlanos(planos);
     popularAdicionaisFormulario(adicionais);
     popularSelectFiliais(filiais);
 
@@ -1068,7 +1069,7 @@ function popularSelectVendedores(vendedores) {
 
 function popularSelectPlanos(planos) {
   const grupos = {};
-  planos.forEach(p => {
+  (planos || []).filter(p => p.ativo !== false).forEach(p => {
     const grupo = p.nome.replace(/\s\d+mb.*/i, '').trim();
     if (!grupos[grupo]) grupos[grupo] = [];
     grupos[grupo].push(p);
@@ -1085,6 +1086,49 @@ function popularSelectPlanos(planos) {
     // espelha exatamente os mesmos planos/preços no dropdown visual
     // customizado (mesmo "grupos" usado acima, nenhum dado novo)
     buildCustomSelectPanel(id, grupos);
+  });
+}
+
+function renderTabelaPlanos(planos) {
+  const tbody = document.getElementById('planos-tbody');
+  if (!tbody) return;
+
+  const lista = Array.isArray(planos) ? planos : [];
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhum plano encontrado no Supabase.</td></tr>';
+    return;
+  }
+
+  const categoriaDoPlano = plano => {
+    const informada = String(plano.categoria || plano.tipo || '').trim();
+    if (informada) return informada;
+    const nome = String(plano.nome || '');
+    if (/\b(empresas?|corporativo|empresarial)\b/i.test(nome)) return 'Empresarial';
+    if (/\bplay\b/i.test(nome)) return 'Residencial + Streaming';
+    return 'Residencial';
+  };
+  const moeda = valor => {
+    const numero = Number(valor);
+    return Number.isFinite(numero)
+      ? numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      : '—';
+  };
+
+  tbody.replaceChildren();
+  lista.forEach(plano => {
+    const tr = document.createElement('tr');
+    const valores = [
+      plano.nome || '—',
+      plano.velocidade_mb != null ? `${plano.velocidade_mb} Mbps` : '—',
+      moeda(plano.valor),
+      categoriaDoPlano(plano),
+    ];
+    valores.forEach(valor => {
+      const td = document.createElement('td');
+      td.textContent = String(valor);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
   });
 }
 
