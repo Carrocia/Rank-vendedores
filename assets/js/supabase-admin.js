@@ -10,6 +10,18 @@ const SUPABASE_ANON_KEY = 'sb_publishable_HGi_8HXwyr4SEzoIKunMiA_cmWsFI8U';
 // Centralizar o ID evita misturar vendas destinadas a outras filiais.
 window.FILIAL_ATUAL_ID = 10;
 window.FILIAL_ATUAL = null;
+window.ADMIN_FILIAL_ID = null;
+let _vendedoresTodasFiliais = [];
+
+function conferirEscopoAdmin(adminData) {
+  const filialAdminId = adminData?.filial_id == null ? null : Number(adminData.filial_id);
+  window.ADMIN_FILIAL_ID = filialAdminId;
+  if (filialAdminId !== null && filialAdminId !== Number(window.FILIAL_ATUAL_ID)) {
+    window.ADMIN_FILIAL_ID = null;
+    return false;
+  }
+  return true;
+}
 
 function initSupabase() {
   if (!SUPABASE_URL || SUPABASE_URL === 'COLOCAR_URL_DO_PROJETO') {
@@ -94,11 +106,15 @@ async function checkAdminSession() {
   // Verificar se o usuário está em admin_usuarios com ativo = true
   const { data, error } = await window._supabase
     .from('admin_usuarios')
-    .select('user_id, nome, ativo')
+    .select('*')
     .eq('user_id', session.user.id)
     .eq('ativo', true)
     .single();
   if (error || !data) return null;
+  if (!conferirEscopoAdmin(data)) {
+    await window._supabase.auth.signOut();
+    return null;
+  }
   return session;
 }
 
@@ -109,7 +125,7 @@ async function loginAdmin(email, password) {
   // Verificar se é admin
   const { data: adminData, error: adminError } = await window._supabase
     .from('admin_usuarios')
-    .select('user_id, nome, ativo')
+    .select('*')
     .eq('user_id', data.user.id)
     .eq('ativo', true)
     .single();
@@ -117,12 +133,17 @@ async function loginAdmin(email, password) {
     await window._supabase.auth.signOut();
     throw new Error('Usuário sem permissão administrativa.');
   }
+  if (!conferirEscopoAdmin(adminData)) {
+    await window._supabase.auth.signOut();
+    throw new Error('Usuário sem permissão administrativa para a regional selecionada.');
+  }
   return data;
 }
 
 async function logoutAdmin() {
   if (!window._supabase) return;
   await window._supabase.auth.signOut();
+  window.ADMIN_FILIAL_ID = null;
 }
 
 // ── Loaders ──────────────────────────────────────────────────────
@@ -151,7 +172,8 @@ async function loadVendedoresTodasFiliais() {
     console.error('[loadVendedoresTodasFiliais]', error);
     throw new Error('Não foi possível carregar os vendedores de todas as regionais.');
   }
-  return data || [];
+  _vendedoresTodasFiliais = data || [];
+  return _vendedoresTodasFiliais;
 }
 
 function popularSelectVendedoresTodasFiliais(vendedores) {
@@ -182,6 +204,7 @@ function popularSelectVendedoresTodasFiliais(vendedores) {
         .forEach(v => {
           const tipo = v.tipo === 'interno' ? 'Interno' : 'Externo';
           const option = new Option(`${v.nome} (${tipo})`, v.id);
+          option.dataset.filialId = v.filial_id == null ? '' : String(v.filial_id);
           if (v.slug) option.dataset.slug = v.slug;
           optgroup.appendChild(option);
         });
@@ -1939,6 +1962,17 @@ async function handleVendaOutraFilial(e) {
   const numeroVenda = document.getElementById('filial-numero-contrato').value.trim();
   const obs = document.getElementById('filial-obs').value.trim();
   if (!filialId || !planoId) { showToast('Selecione a filial de origem e o plano.', 'warning'); return; }
+  if (filialId === Number(window.FILIAL_ATUAL_ID)) {
+    showToast('A filial de origem precisa ser diferente da regional atual.', 'warning');
+    return;
+  }
+  if (vendedorRaw) {
+    const vendedorSelecionado = _vendedoresTodasFiliais.find(v => String(v.id) === String(vendedorRaw));
+    if (!vendedorSelecionado || Number(vendedorSelecionado.filial_id) !== filialId) {
+      showToast('O vendedor selecionado não pertence à filial de origem escolhida.', 'warning');
+      return;
+    }
+  }
   if (!data || !numeroVenda) { showToast('Informe a data e o número do contrato.', 'warning'); return; }
 
   const checkboxes = document.querySelectorAll('input[name="filial-adicionais"]:checked');
@@ -2534,7 +2568,7 @@ async function gerarDestaqueDoMes(slug, evt) {
 
   // ── Preenche o template oculto ──────────────────────────────────
   document.getElementById('dm-mes-pill').textContent = mesNome;
-  document.getElementById('dm-local').textContent = CONFIG.filialLocalizacao;
+  document.getElementById('dm-local').textContent = window.FILIAL_ATUAL?.nome || CONFIG.filialLocalizacao;
   document.getElementById('dm-photo').src = PHOTOS[slug] || '';
   document.getElementById('dm-medalha-img').src = DM_MEDALHAS[Math.min(posicao, 5)] || DM_MEDALHAS[5];
   document.getElementById('dm-name').textContent = nomeCompleto;
