@@ -332,6 +332,7 @@
         <button class="adm-nav-item" data-section="ranking-adm"><span class="nav-icon">🏆</span>Ranking</button>
         <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon">🏢</span>Outras Filiais</button>
         <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon">⚙️</span>Configuração de Metas</button>
+        <button class="adm-nav-item" data-section="admins" id="adm-nav-admins" style="display:none;"><span class="nav-icon">🔐</span>Contas Regionais</button>
         <button class="adm-nav-item danger" id="adm-logout-btn"><span class="nav-icon">🚪</span>Sair</button>
       </nav>
 
@@ -1074,6 +1075,44 @@
 
           <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
             <button type="button" class="adm-btn adm-btn-primary" style="width:auto;padding:12px 28px;" onclick="handleSalvarMetas()">💾 Salvar Metas</button>
+          </div>
+        </section>
+
+        <section class="adm-section" id="sec-admins">
+          <div class="adm-section-title">Contas Administrativas Regionais</div>
+          <div class="adm-form-card">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Criar acesso regional</div>
+            <p class="adm-vendedor-cadastro-hint">Crie uma conta com acesso somente à regional selecionada. A senha inicial é definida aqui e não é exibida novamente.</p>
+            <form id="adm-admin-form" onsubmit="criarAdminRegional(event)">
+              <div class="adm-form-grid">
+                <div class="adm-field">
+                  <label for="adm-admin-email">E-mail da conta</label>
+                  <input id="adm-admin-email" type="email" maxlength="254" autocomplete="off" required placeholder="nome@empresa.com.br">
+                </div>
+                <div class="adm-field">
+                  <label for="adm-admin-filial">Regional autorizada</label>
+                  <select id="adm-admin-filial" required></select>
+                </div>
+                <div class="adm-field">
+                  <label for="adm-admin-senha">Senha inicial (mínimo 8 caracteres)</label>
+                  <input id="adm-admin-senha" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                </div>
+                <div class="adm-field">
+                  <label for="adm-admin-senha-confirmacao">Confirmar senha inicial</label>
+                  <input id="adm-admin-senha-confirmacao" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                </div>
+                <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
+                  <button type="submit" class="adm-btn adm-btn-primary" id="adm-admin-submit" style="width:auto;padding:12px 28px;">Criar conta regional</button>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="adm-section-title" style="font-size:0.95rem;">Contas regionais cadastradas</div>
+          <div class="adm-table-wrap">
+            <table class="adm-table">
+              <thead><tr><th>E-mail</th><th>Regional</th><th>Status</th></tr></thead>
+              <tbody id="adm-admins-tbody"><tr><td colspan="3" class="adm-empty-state">Carregando contas…</td></tr></tbody>
+            </table>
           </div>
         </section>
 

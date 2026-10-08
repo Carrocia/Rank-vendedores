@@ -2072,6 +2072,7 @@ async function adm_showPanel() {
   if (dataEl && !dataEl.value) dataEl.value = hoje;
   prepararCadastroVendedor();
   carregarVendedoresGerenciamento();
+  configurarAbaAdmins();
 
   try {
     const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
@@ -2082,12 +2083,113 @@ async function adm_showPanel() {
   }
 }
 
+function configurarAbaAdmins() {
+  const nav = document.getElementById('adm-nav-admins');
+  const section = document.getElementById('sec-admins');
+  const isSuperAdmin = window.ADMIN_AUTENTICADO && window.ADMIN_FILIAL_ID == null;
+  if (nav) nav.style.display = isSuperAdmin ? '' : 'none';
+  if (section) section.style.display = isSuperAdmin ? '' : 'none';
+  if (!isSuperAdmin) return;
+
+  const select = document.getElementById('adm-admin-filial');
+  if (select && !select.options.length) {
+    (_cache.filiais || []).filter(f => f.ativo !== false).forEach(f => {
+      select.add(new Option(f.nome, String(f.id)));
+    });
+  }
+}
+
+async function carregarAdminsGerenciados() {
+  const tbody = document.getElementById('adm-admins-tbody');
+  if (!tbody || !window._supabase || window.ADMIN_FILIAL_ID != null || !window.ADMIN_AUTENTICADO) return;
+  tbody.innerHTML = '<tr><td colspan="3" class="adm-empty-state">Carregando contas…</td></tr>';
+  const { data, error } = await window._supabase.functions.invoke('gerenciar-admins', { body: { action: 'list' } });
+  if (error || data?.error) {
+    console.error('[carregarAdminsGerenciados]', error || data.error);
+    tbody.innerHTML = `<tr><td colspan="3" class="adm-empty-state">${escapeHtmlText(data?.error || error?.message || 'Não foi possível carregar as contas.')}</td></tr>`;
+    return;
+  }
+  tbody.replaceChildren();
+  const admins = data?.admins || [];
+  if (!admins.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 3;
+    td.className = 'adm-empty-state';
+    td.textContent = 'Nenhuma conta regional cadastrada.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+  admins.forEach(admin => {
+    const tr = document.createElement('tr');
+    const email = document.createElement('td');
+    email.textContent = admin.email || '(e-mail não localizado)';
+    const filial = document.createElement('td');
+    filial.textContent = admin.filial_nome || 'Regional não localizada';
+    const status = document.createElement('td');
+    status.textContent = admin.ativo ? 'Ativa' : 'Inativa';
+    tr.append(email, filial, status);
+    tbody.appendChild(tr);
+  });
+}
+
+async function criarAdminRegional(event) {
+  event.preventDefault();
+  if (!window.ADMIN_AUTENTICADO || window.ADMIN_FILIAL_ID != null || !window._supabase) {
+    showToast('Somente o superadministrador pode criar contas regionais.', 'error');
+    return;
+  }
+  const email = document.getElementById('adm-admin-email').value.trim().toLowerCase();
+  const password = document.getElementById('adm-admin-senha').value;
+  const confirmacao = document.getElementById('adm-admin-senha-confirmacao').value;
+  const filialId = Number(document.getElementById('adm-admin-filial').value);
+  if (password !== confirmacao) {
+    showToast('As senhas não conferem.', 'warning');
+    return;
+  }
+  if (password.length < 8) {
+    showToast('A senha inicial precisa ter pelo menos 8 caracteres.', 'warning');
+    return;
+  }
+  const botao = document.getElementById('adm-admin-submit');
+  botao.disabled = true;
+  botao.textContent = 'Criando conta…';
+  try {
+    const { data, error } = await window._supabase.functions.invoke('gerenciar-admins', {
+      body: { action: 'create', email, password, filial_id: filialId },
+    });
+    if (error || data?.error) {
+      let mensagem = data?.error;
+      if (!mensagem && error?.context?.json) {
+        try { mensagem = (await error.context.json()).error; } catch (_) {}
+      }
+      throw new Error(mensagem || error?.message || 'Não foi possível criar a conta regional.');
+    }
+
+    document.getElementById('adm-admin-form').reset();
+    const filialNome = data?.admin?.filial_nome || 'regional selecionada';
+    showToast(`Conta ${email} criada para ${filialNome}. Envie a senha inicial com segurança.`, 'success');
+    await carregarAdminsGerenciados();
+  } catch (error) {
+    console.error('[criarAdminRegional]', error);
+    showToast(error.message || 'Não foi possível criar a conta regional.', 'error');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Criar conta regional';
+  }
+}
+
 function adm_hidePanel() {
   document.getElementById('adm-panel-overlay').classList.remove('active');
   adm_unlockBackgroundScrollIfClosed();
 }
 
 function adm_navigateTo(sectionId) {
+  if (sectionId === 'admins' && (!window.ADMIN_AUTENTICADO || window.ADMIN_FILIAL_ID != null)) {
+    showToast('Somente o superadministrador pode abrir esta área.', 'error');
+    return;
+  }
   document.querySelectorAll('.adm-nav-item').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
   document.querySelector(`.adm-nav-item[data-section="${sectionId}"]`)?.classList.add('active');
@@ -2096,6 +2198,7 @@ function adm_navigateTo(sectionId) {
     prepararCadastroVendedor();
     carregarVendedoresGerenciamento();
   }
+  if (sectionId === 'admins') carregarAdminsGerenciados();
   // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
   // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
