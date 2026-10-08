@@ -1536,14 +1536,31 @@ function calcularTotais(vendasEquipe, vendasFiliais, metaGlobal, vendasRecebidas
 }
 
 // ── Helpers de UI ────────────────────────────────────────────────
+let _admScrollYBeforeLock = 0;
+
 function adm_lockBackgroundScroll() {
+  if (document.body.classList.contains('adm-modal-open')) return;
+  _admScrollYBeforeLock = window.scrollY || document.documentElement.scrollTop || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${_admScrollYBeforeLock}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
   document.body.classList.add('adm-modal-open');
 }
 
 function adm_unlockBackgroundScrollIfClosed() {
   const loginAberto = document.getElementById('adm-login-overlay')?.classList.contains('active');
   const painelAberto = document.getElementById('adm-panel-overlay')?.classList.contains('active');
-  if (!loginAberto && !painelAberto) document.body.classList.remove('adm-modal-open');
+  if (!loginAberto && !painelAberto) {
+    document.body.classList.remove('adm-modal-open');
+    document.body.style.removeProperty('position');
+    document.body.style.removeProperty('top');
+    document.body.style.removeProperty('left');
+    document.body.style.removeProperty('right');
+    document.body.style.removeProperty('width');
+    window.scrollTo({ top: _admScrollYBeforeLock, left: 0, behavior: 'auto' });
+  }
 }
 
 function adm_showLogin() {
@@ -1587,7 +1604,10 @@ function carregarLibsAdmin() {
 
 function adm_showPanel() {
   adm_lockBackgroundScroll();
-  document.getElementById('adm-panel-overlay').classList.add('active');
+  const painelOverlay = document.getElementById('adm-panel-overlay');
+  painelOverlay.scrollTop = 0;
+  painelOverlay.classList.add('active');
+  requestAnimationFrame(() => painelOverlay.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   carregarLibsAdmin();
   // popular fotos na tabela de vendedores
   ['gabriella','lorena','lohayne','ian','william'].forEach(id => {
@@ -1612,7 +1632,7 @@ function adm_navigateTo(sectionId) {
   document.getElementById('sec-' + sectionId)?.classList.add('active');
   // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
   // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
-  document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'instant' });
+  document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 // ── Cálculo do total na nova venda ──────────────────────────────
