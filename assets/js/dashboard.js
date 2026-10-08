@@ -1004,6 +1004,9 @@ async function carregarDados() {
     const filiais = await loadFiliais();
     configurarFilialAtual(filiais);
     _cache.filiais = filiais;
+    // Restaura a sessão só depois de resolver a filial da URL para validar
+    // o escopo do administrador antes de consultar os dados regionais.
+    if (typeof checkAdminSession === 'function') await checkAdminSession();
     const vendedores = await loadVendedores();
     const vendedorIds = vendedores.map(v => v.id);
     const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate).catch(() => [])));

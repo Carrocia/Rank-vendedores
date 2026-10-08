@@ -11,23 +11,28 @@ const SUPABASE_ANON_KEY = 'sb_publishable_HGi_8HXwyr4SEzoIKunMiA_cmWsFI8U';
 window.FILIAL_ATUAL_ID = 10;
 window.FILIAL_ATUAL = null;
 window.ADMIN_FILIAL_ID = null;
+window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
 
 function conferirEscopoAdmin(adminData) {
   if (adminData?.is_superadmin === true) {
     window.ADMIN_FILIAL_ID = null;
+    window.ADMIN_AUTENTICADO = true;
     return true;
   }
   const filialAdminId = adminData?.filial_id == null ? null : Number(adminData.filial_id);
   if (filialAdminId === null || filialAdminId !== Number(window.FILIAL_ATUAL_ID)) {
     window.ADMIN_FILIAL_ID = null;
+    window.ADMIN_AUTENTICADO = false;
     return false;
   }
   window.ADMIN_FILIAL_ID = filialAdminId;
+  window.ADMIN_AUTENTICADO = true;
   return true;
 }
 
 function initSupabase() {
+  if (window._supabase) return true;
   if (!SUPABASE_URL || SUPABASE_URL === 'COLOCAR_URL_DO_PROJETO') {
     console.warn('[Supabase] URL não configurada.');
     return false;
@@ -104,9 +109,13 @@ async function copiarLinkFilial() {
 
 // ── Auth ─────────────────────────────────────────────────────────
 async function checkAdminSession() {
-  if (!window._supabase) return null;
+  if (!window._supabase) { window.ADMIN_AUTENTICADO = false; return null; }
   const { data: { session } } = await window._supabase.auth.getSession();
-  if (!session) return null;
+  if (!session) {
+    window.ADMIN_FILIAL_ID = null;
+    window.ADMIN_AUTENTICADO = false;
+    return null;
+  }
   // Verificar se o usuário está em admin_usuarios com ativo = true
   const { data, error } = await window._supabase
     .from('admin_usuarios')
@@ -114,7 +123,12 @@ async function checkAdminSession() {
     .eq('user_id', session.user.id)
     .eq('ativo', true)
     .single();
-  if (error || !data) return null;
+  if (error || !data) {
+    window.ADMIN_FILIAL_ID = null;
+    window.ADMIN_AUTENTICADO = false;
+    await window._supabase.auth.signOut();
+    return null;
+  }
   if (!conferirEscopoAdmin(data)) {
     await window._supabase.auth.signOut();
     return null;
@@ -134,6 +148,8 @@ async function loginAdmin(email, password) {
     .eq('ativo', true)
     .single();
   if (adminError || !adminData) {
+    window.ADMIN_FILIAL_ID = null;
+    window.ADMIN_AUTENTICADO = false;
     await window._supabase.auth.signOut();
     throw new Error('Usuário sem permissão administrativa.');
   }
@@ -148,6 +164,7 @@ async function logoutAdmin() {
   if (!window._supabase) return;
   await window._supabase.auth.signOut();
   window.ADMIN_FILIAL_ID = null;
+  window.ADMIN_AUTENTICADO = false;
 }
 
 // ── Loaders ──────────────────────────────────────────────────────
@@ -353,8 +370,9 @@ function dataNoPeriodo(raw, de, ate) {
 }
 
 async function loadVendas(de, ate) {
+  const viewVendas = window.ADMIN_AUTENTICADO ? 'vendas_admin' : 'vendas_ranking_publicas';
   const { data, error } = await window._supabase
-    .from('vendas_ranking_publicas')
+    .from(viewVendas)
     .select('*')
     .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .gte('data_venda', de)
@@ -416,8 +434,11 @@ async function loadVendasAdmin(de, ate) {
 }
 
 async function loadVendasOutrasFiliais(de, ate) {
+  const viewVendas = window.ADMIN_AUTENTICADO
+    ? 'vendas_outras_filiais_admin'
+    : 'vendas_outras_filiais_publicas';
   let query = window._supabase
-    .from('vendas_outras_filiais_publicas')
+    .from(viewVendas)
     .select('*')
     .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .order('data_venda', { ascending: false });
@@ -429,8 +450,9 @@ async function loadVendasOutrasFiliais(de, ate) {
 }
 
 async function loadVendaMaisRecente() {
+  const viewVendas = window.ADMIN_AUTENTICADO ? 'vendas_admin' : 'vendas_ranking_publicas';
   const { data, error } = await window._supabase
-    .from('vendas_ranking_publicas')
+    .from(viewVendas)
     .select('data_venda, vendedor_nome, vendedor_slug')
     .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .order('data_venda', { ascending: false })
@@ -2898,6 +2920,9 @@ document.getElementById('adm-login-btn').addEventListener('click', async () => {
 
   try {
     await loginAdmin(email, password);
+    // Recarrega vendas com a view security_invoker para que as políticas
+    // regionais do administrador se apliquem também aos dados do painel.
+    await carregarDados();
     adm_hideLogin();
     await adm_showPanel();
     document.getElementById('adm-user-info').textContent = '👤 ' + email;

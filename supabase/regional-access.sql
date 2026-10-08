@@ -101,7 +101,8 @@ create policy regional_admin_usuarios_delete_block on public.admin_usuarios
 alter table public.filiais enable row level security;
 drop policy if exists regional_filiais_select on public.filiais;
 create policy regional_filiais_select on public.filiais
-  as restrictive for select to authenticated using (private.admin_tem_acesso());
+  as restrictive for select to authenticated
+  using (private.admin_tem_acesso() or ativo is true);
 drop policy if exists regional_filiais_insert on public.filiais;
 create policy regional_filiais_insert on public.filiais
   as restrictive for insert to authenticated with check (private.admin_e_superadmin());
@@ -254,6 +255,38 @@ drop trigger if exists validar_filial_origem_venda on public.vendas;
 create trigger validar_filial_origem_venda
   before insert or update of vendedor_id, filial_origem_id on public.vendas
   for each row execute function private.validar_filial_origem_venda();
+
+-- Views administrativas executam sob o RLS da sessão. As views públicas
+-- permanecem disponíveis ao site anônimo, mas não podem ser usadas por uma
+-- sessão autenticada para contornar as regras regionais.
+alter view public.vendas_admin set (security_invoker = true);
+
+create or replace view public.vendas_outras_filiais_admin
+with (security_invoker = true)
+as
+select v.id,
+       v.filial_id,
+       v.plano_id,
+       v.quantidade,
+       v.valor_unitario,
+       v.valor_total,
+       v.data_venda,
+       f.nome as filial_nome,
+       p.nome as plano_nome,
+       v.filial_destino_id
+from public.vendas_outras_filiais v
+join public.filiais f on f.id = v.filial_id
+join public.planos p on p.id = v.plano_id;
+
+revoke all on public.vendas_admin from public, anon, authenticated;
+grant select on public.vendas_admin to authenticated;
+revoke all on public.vendas_outras_filiais_admin from public, anon, authenticated;
+grant select on public.vendas_outras_filiais_admin to authenticated;
+
+revoke all on public.vendas_ranking_publicas from public, authenticated;
+grant select on public.vendas_ranking_publicas to anon;
+revoke all on public.vendas_outras_filiais_publicas from public, authenticated;
+grant select on public.vendas_outras_filiais_publicas to anon;
 
 commit;
 
