@@ -137,6 +137,59 @@ async function loadVendedores() {
   return data;
 }
 
+// O formulário de vendas recebidas de outra filial pode registrar vendedores
+// de qualquer regional. Esta lista só é carregada quando o ADM abre, depois do
+// login, e não altera a lista local usada em Nova Venda ou nos rankings.
+async function loadVendedoresTodasFiliais() {
+  const { data, error } = await window._supabase
+    .from('vendedores')
+    .select('id, nome, tipo, filial_id, slug')
+    .eq('ativo', true)
+    .order('filial_id')
+    .order('nome');
+  if (error) {
+    console.error('[loadVendedoresTodasFiliais]', error);
+    throw new Error('Não foi possível carregar os vendedores de todas as regionais.');
+  }
+  return data || [];
+}
+
+function popularSelectVendedoresTodasFiliais(vendedores) {
+  const select = document.getElementById('filial-vendedor');
+  if (!select) return;
+
+  const valorAtual = select.value;
+  const filiais = _cache.filiais || [];
+  const nomeFilial = id => {
+    const filial = filiais.find(f => String(f.id) === String(id));
+    return filial?.nome || 'Regional sem identificação';
+  };
+  const grupos = new Map();
+  (vendedores || []).forEach(v => {
+    const chave = v.filial_id == null ? '__sem_filial__' : String(v.filial_id);
+    if (!grupos.has(chave)) grupos.set(chave, { nome: nomeFilial(v.filial_id), vendedores: [] });
+    grupos.get(chave).vendedores.push(v);
+  });
+
+  select.replaceChildren(new Option('Sem vendedor cadastrado — conta só para a filial', ''));
+  [...grupos.values()]
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    .forEach(grupo => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = grupo.nome;
+      grupo.vendedores
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+        .forEach(v => {
+          const tipo = v.tipo === 'interno' ? 'Interno' : 'Externo';
+          const option = new Option(`${v.nome} (${tipo})`, v.id);
+          if (v.slug) option.dataset.slug = v.slug;
+          optgroup.appendChild(option);
+        });
+      select.appendChild(optgroup);
+    });
+  if (valorAtual) select.value = valorAtual;
+}
+
 async function loadPlanos() {
   const { data, error } = await window._supabase
     .from('planos')
@@ -1602,7 +1655,7 @@ function carregarLibsAdmin() {
   return _libsAdminPromise;
 }
 
-function adm_showPanel() {
+async function adm_showPanel() {
   adm_lockBackgroundScroll();
   const painelOverlay = document.getElementById('adm-panel-overlay');
   painelOverlay.scrollTop = 0;
@@ -1618,6 +1671,14 @@ function adm_showPanel() {
   const hoje = new Date().toISOString().split('T')[0];
   const dataEl = document.getElementById('venda-data');
   if (dataEl && !dataEl.value) dataEl.value = hoje;
+
+  try {
+    const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
+    popularSelectVendedoresTodasFiliais(vendedoresTodasFiliais);
+  } catch (err) {
+    console.error('[adm_showPanel] vendedores por regional', err);
+    showToast(err.message || 'Não foi possível carregar vendedores por regional.', 'error');
+  }
 }
 
 function adm_hidePanel() {
@@ -2749,7 +2810,7 @@ document.getElementById('adm-login-btn').addEventListener('click', async () => {
   try {
     await loginAdmin(email, password);
     adm_hideLogin();
-    adm_showPanel();
+    await adm_showPanel();
     document.getElementById('adm-user-info').textContent = '👤 ' + email;
   } catch (err) {
     errEl.textContent = err.message.includes('permissão')

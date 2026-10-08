@@ -1062,7 +1062,10 @@ async function carregarDados() {
 
 // ── Popular selects do formulário ADM com dados do banco ─────────
 function popularSelectVendedores(vendedores) {
-  const selects = ['venda-vendedor', 'adic-vendedor', 'filial-vendedor'];
+  // Os formulários de vendas normais e de adicionais só oferecem a equipe
+  // da filial atual. O formulário de vendas recebidas é preenchido à parte,
+  // já dentro do ADM, com vendedores agrupados por regional.
+  const selects = ['venda-vendedor', 'adic-vendedor'];
   selects.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
