@@ -1662,11 +1662,6 @@ async function adm_showPanel() {
   painelOverlay.classList.add('active');
   requestAnimationFrame(() => painelOverlay.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   carregarLibsAdmin();
-  // popular fotos na tabela de vendedores
-  ['gabriella','lorena','lohayne','ian','william'].forEach(id => {
-    const el = document.getElementById('vt-foto-' + id);
-    if (el && PHOTOS[id]) el.src = PHOTOS[id];
-  });
   // data padrão no formulário = hoje
   const hoje = new Date().toISOString().split('T')[0];
   const dataEl = document.getElementById('venda-data');
@@ -2019,28 +2014,84 @@ function renderAdmRanking(ranking, vendedores) {
 // Popula a tabela "Equipe de Vendas" no ADM com dados reais:
 // meta individual (tabela metas), vendas do mês e % da meta.
 function renderAdmVendedoresTable(d) {
-  if (!d) return;
-  const todos = [...d.extMes, ...d.intMes];
-  todos.forEach(v => {
-    const metaEl = document.getElementById('vt-meta-' + v.slug);
-    const mesEl = document.getElementById('vt-mes-' + v.slug);
-    const pctEl = document.getElementById('vt-pct-' + v.slug);
-    if (metaEl) metaEl.textContent = v.meta ? (v.meta + ' vendas') : 'Sem meta cadastrada';
-    if (mesEl) mesEl.textContent = v.vendas;
-    if (pctEl) {
-      if (v.meta) {
-        // mesmo número que já era calculado e exibido como texto — a
-        // barra visual é só um espelho dele, limitada a 100% de largura
-        // pra não estourar o layout (o texto continua mostrando o
-        // percentual real, sem limite, exatamente como antes).
-        const pct = Math.round((v.vendas / v.meta) * 100);
-        const pctBarra = Math.max(0, Math.min(100, pct));
-        pctEl.innerHTML = `<div class="vt-pct-wrap"><div class="vt-pct-bar"><div class="vt-pct-bar-fill" style="width:${pctBarra}%"></div></div><span>${pct}%</span></div>`;
-      } else {
-        pctEl.textContent = '—';
-      }
+  const tbody = document.getElementById('adm-vendedores-tbody');
+  if (!tbody) return;
+  if (!d) {
+    tbody.replaceChildren();
+    return;
+  }
+
+  // Os dados já foram filtrados pela filial atual em loadVendedores();
+  // renderizar a partir desses arrays evita nomes fixos de outra regional.
+  const todos = [...(d.intMes || []), ...(d.extMes || [])];
+  if (!todos.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 7;
+    td.className = 'adm-empty-state';
+    td.textContent = 'Nenhum vendedor ativo cadastrado nesta regional.';
+    tr.appendChild(td);
+    tbody.replaceChildren(tr);
+    return;
+  }
+
+  const linhas = todos.map(v => {
+    const tr = document.createElement('tr');
+
+    const fotoTd = document.createElement('td');
+    const foto = PHOTOS[v.slug] || '';
+    if (foto) {
+      const img = document.createElement('img');
+      img.src = foto;
+      img.alt = v.nome;
+      img.style.cssText = 'width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);';
+      fotoTd.appendChild(img);
+    } else {
+      const inicial = document.createElement('span');
+      inicial.className = 'adm-vendedor-avatar-fallback';
+      inicial.textContent = String(v.nome || '?').trim().charAt(0).toUpperCase();
+      inicial.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:2px solid var(--accent);background:var(--surface-hover);color:var(--heading-color);font-weight:800;';
+      fotoTd.appendChild(inicial);
     }
+
+    const nomeTd = document.createElement('td');
+    const nome = document.createElement('strong');
+    nome.textContent = v.nome;
+    nomeTd.appendChild(nome);
+
+    const tipoTd = document.createElement('td');
+    const tipo = document.createElement('span');
+    tipo.className = `adm-badge ${v.tipo === 'interno' ? 'interno' : 'externo'}`;
+    tipo.textContent = v.tipo === 'interno' ? 'Interno' : 'Externo';
+    tipoTd.appendChild(tipo);
+
+    const metaTd = document.createElement('td');
+    metaTd.textContent = v.meta ? `${v.meta} vendas` : 'Sem meta cadastrada';
+
+    const vendasTd = document.createElement('td');
+    vendasTd.textContent = String(v.vendas);
+
+    const pctTd = document.createElement('td');
+    if (v.meta) {
+      const pct = Math.round((v.vendas / v.meta) * 100);
+      const pctBarra = Math.max(0, Math.min(100, pct));
+      pctTd.innerHTML = `<div class="vt-pct-wrap"><div class="vt-pct-bar"><div class="vt-pct-bar-fill" style="width:${pctBarra}%"></div></div><span>${pct}%</span></div>`;
+    } else {
+      pctTd.textContent = '—';
+    }
+
+    const statusTd = document.createElement('td');
+    const statusBtn = document.createElement('button');
+    statusBtn.type = 'button';
+    statusBtn.className = 'adm-btn-status';
+    statusBtn.textContent = '⚡ Gerar Status';
+    statusBtn.addEventListener('click', event => gerarStatusVendedor(v.slug, event));
+    statusTd.appendChild(statusBtn);
+
+    tr.append(fotoTd, nomeTd, tipoTd, metaTd, vendasTd, pctTd, statusTd);
+    return tr;
   });
+  tbody.replaceChildren(...linhas);
 }
 
 // ================================================================

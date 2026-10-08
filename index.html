@@ -537,42 +537,8 @@
               <thead>
                 <tr><th>Foto</th><th>Nome</th><th>Tipo</th><th>Meta mensal</th><th>Vendas (mês)</th><th>% Meta</th><th>Status</th></tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td><img src="" id="vt-foto-gabriella" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="Gabriella"></td>
-                  <td><strong>Gabriella</strong></td><td><span class="adm-badge interno">Interno</span></td>
-                  <td id="vt-meta-gabriella">—</td>
-                  <td id="vt-mes-gabriella">—</td><td id="vt-pct-gabriella">—</td>
-                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('gabriella', event)">⚡ Gerar Status</button></td>
-                </tr>
-                <tr>
-                  <td><img src="" id="vt-foto-lorena" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="Lorena"></td>
-                  <td><strong>Lorena</strong></td><td><span class="adm-badge interno">Interno</span></td>
-                  <td id="vt-meta-lorena">—</td>
-                  <td id="vt-mes-lorena">—</td><td id="vt-pct-lorena">—</td>
-                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('lorena', event)">⚡ Gerar Status</button></td>
-                </tr>
-                <tr>
-                  <td><img src="" id="vt-foto-lohayne" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="Lohayne"></td>
-                  <td><strong>Lohayne</strong></td><td><span class="adm-badge interno">Interno</span></td>
-                  <td id="vt-meta-lohayne">—</td>
-                  <td id="vt-mes-lohayne">—</td><td id="vt-pct-lohayne">—</td>
-                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('lohayne', event)">⚡ Gerar Status</button></td>
-                </tr>
-                <tr>
-                  <td><img src="" id="vt-foto-ian" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="Ian"></td>
-                  <td><strong>Ian</strong></td><td><span class="adm-badge externo">Externo</span></td>
-                  <td id="vt-meta-ian">—</td>
-                  <td id="vt-mes-ian">—</td><td id="vt-pct-ian">—</td>
-                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('ian', event)">⚡ Gerar Status</button></td>
-                </tr>
-                <tr>
-                  <td><img src="" id="vt-foto-william" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" alt="William"></td>
-                  <td><strong>William</strong></td><td><span class="adm-badge externo">Externo</span></td>
-                  <td id="vt-meta-william">—</td>
-                  <td id="vt-mes-william">—</td><td id="vt-pct-william">—</td>
-                  <td><button type="button" class="adm-btn-status" onclick="gerarStatusVendedor('william', event)">⚡ Gerar Status</button></td>
-                </tr>
+              <tbody id="adm-vendedores-tbody">
+                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Carregando vendedores da regional…</td></tr>
               </tbody>
             </table>
           </div>
