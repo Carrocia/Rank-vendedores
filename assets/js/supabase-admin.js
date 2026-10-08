@@ -200,7 +200,7 @@ function dataNoPeriodo(raw, de, ate) {
 
 async function loadVendas(de, ate) {
   const { data, error } = await window._supabase
-    .from('vendas_publicas')
+    .from('vendas_ranking_publicas')
     .select('*')
     .gte('data_venda', de)
     .lt('data_venda', fimDoDiaExclusivo(ate))
@@ -208,6 +208,38 @@ async function loadVendas(de, ate) {
   if (error) {
     console.error('[loadVendas]', error);
     return [];
+  }
+  return (data || []).map(v => ({
+    ...v,
+    vendedores: {
+      id: v.vendedor_id,
+      nome: v.vendedor_nome,
+      slug: v.vendedor_slug
+    },
+    planos: {
+      id: v.plano_id,
+      nome: v.plano_nome
+    },
+    valor: Number(v.valor_plano || 0),
+    valor_plano: Number(v.valor_plano || 0),
+    valor_adicionais: Number(v.valor_adicionais || 0),
+    valor_total: Number(v.valor_total || 0)
+  }));
+}
+
+// Detalhes identificáveis da venda são consultados apenas pelo relatório
+// administrativo. A view vendas_admin deve usar security_invoker e depender
+// das políticas de administrador nas tabelas vendas e venda_adicionais.
+async function loadVendasAdmin(de, ate) {
+  const { data, error } = await window._supabase
+    .from('vendas_admin')
+    .select('*')
+    .gte('data_venda', de)
+    .lt('data_venda', fimDoDiaExclusivo(ate))
+    .order('data_venda', { ascending: false });
+  if (error) {
+    console.error('[loadVendasAdmin]', error);
+    throw error;
   }
   return (data || []).map(v => ({
     ...v,
@@ -241,7 +273,7 @@ async function loadVendasOutrasFiliais(de, ate) {
 
 async function loadVendaMaisRecente() {
   const { data, error } = await window._supabase
-    .from('vendas_publicas')
+    .from('vendas_ranking_publicas')
     .select('data_venda, vendedor_nome, vendedor_slug')
     .order('data_venda', { ascending: false })
     .limit(1)
@@ -362,21 +394,14 @@ async function aplicarFiltrosRelatorio() {
 
   if (!dataIni || !dataFim) { showToast('Selecione o período (data inicial e final).', 'warning'); return; }
 
-  // Reaproveita o cache do mês atual quando o período pedido já está
-  // contido nele; só consulta o Supabase de novo (funções já
-  // existentes) quando o período sai do que já está carregado.
+  // O cache público não contém cliente nem observação. O relatório
+  // administrativo consulta sua view própria, protegida por RLS.
   let vendasBase, filiaisBase;
-  const dentroDoCache = _cache.mes && dataIni >= _cache.mes.de && dataFim <= _cache.mes.ate;
   try {
-    if (dentroDoCache) {
-      vendasBase = _cache.vendasMes || [];
-      filiaisBase = _cache.vendasFiliais || [];
-    } else {
-      [vendasBase, filiaisBase] = await Promise.all([
-        loadVendas(dataIni, dataFim),
-        loadVendasOutrasFiliais(dataIni, dataFim),
-      ]);
-    }
+    [vendasBase, filiaisBase] = await Promise.all([
+      loadVendasAdmin(dataIni, dataFim),
+      loadVendasOutrasFiliais(dataIni, dataFim),
+    ]);
 
     const vendaIds = vendasBase.map(v => v.id).filter(Boolean);
     const adicionaisPorVenda = await loadAdicionaisPorVendas(vendaIds);
