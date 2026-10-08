@@ -681,6 +681,26 @@
             </div>
             <div style="display:flex;justify-content:center;align-items:center;gap:16px;margin-top:16px;" id="rel-paginacao"></div>
           </div>
+
+          <div class="adm-form-card" style="border-color:rgba(248,113,113,0.35);">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">🗑️ Limpeza manual de vendas por mês</div>
+            <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.55;margin:0 0 16px;">
+              Escolha um mês para conferir os registros antes de excluir. A exclusão é permanente e abrange as vendas da Alta Floresta e o histórico agregado de outras filiais daquele mês. Nada é apagado automaticamente.
+            </p>
+            <div class="adm-form-grid">
+              <div class="adm-field">
+                <label>Mês a excluir</label>
+                <input type="month" id="rel-limpeza-mes" onchange="invalidarConferenciaExclusaoMes()">
+              </div>
+              <div class="adm-field" style="align-self:end;">
+                <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:12px 20px;" onclick="conferirExclusaoMes()">Conferir registros</button>
+              </div>
+              <div class="adm-form-full" id="rel-limpeza-resumo" aria-live="polite" style="font-size:0.84rem;color:var(--text-muted);"></div>
+              <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
+                <button type="button" class="adm-btn" id="rel-limpeza-excluir" disabled style="width:auto;padding:12px 22px;background:#b91c1c;opacity:0.55;cursor:not-allowed;" onclick="excluirVendasDoMesConferido()">Excluir mês selecionado</button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- ── CELEBRAÇÕES ─────────────────────────────────────── -->
