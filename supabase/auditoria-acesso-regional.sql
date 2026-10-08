@@ -84,3 +84,28 @@ from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where p.proname in ('apagar_vendas_mes', 'is_admin', 'admin_tem_acesso', 'admin_tem_acesso_filial')
 order by n.nspname, p.proname;
+
+-- 6. Esquema e RLS dos recursos globais compartilhados entre filiais.
+select table_name, column_name, data_type, is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name in ('planos', 'produtos_adicionais', 'site_config')
+order by table_name, ordinal_position;
+
+select c.relname as table_name,
+       c.relrowsecurity as rls_enabled,
+       c.relforcerowsecurity as rls_forced,
+       p.policyname,
+       p.permissive,
+       p.roles,
+       p.cmd,
+       p.qual,
+       p.with_check
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+left join pg_policies p
+  on p.schemaname = n.nspname and p.tablename = c.relname
+where n.nspname = 'public'
+  and c.relkind in ('r', 'p')
+  and c.relname in ('planos', 'produtos_adicionais', 'site_config')
+order by c.relname, p.policyname;
