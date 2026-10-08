@@ -913,6 +913,7 @@ let _cache = {
   vendedores: [], planos: [], adicionais: [], filiais: [],
   metasFilial: null, metas: [], metasRenovCancel: null,
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
+  vendasExternosOrigemSemana: [], vendasExternosOrigemSemanaAnterior: [],
   vendaMaisRecente: null,
   semana: null, mes: null,
 };
@@ -1028,7 +1029,8 @@ async function carregarDados() {
 
     // Carregar os dados da filial selecionada em paralelo.
     const [planos, adicionais, metasFilial, metas, metasRenovCancel,
-           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior, destaquesRenovacao, configSite] = await Promise.all([
+           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
+           vendasExternosOrigemSemana, vendasExternosOrigemSemanaAnterior, destaquesRenovacao, configSite] = await Promise.all([
       loadPlanos(),
       loadAdicionais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
@@ -1039,6 +1041,8 @@ async function carregarDados() {
       loadVendasOutrasFiliais(_cache.mes.de, _cache.mes.ate),
       loadVendaMaisRecente(),
       loadVendas(semanaAnterior.de, semanaAnterior.ate),
+      loadVendasExternosOrigem(_cache.semana.de, _cache.semana.ate),
+      loadVendasExternosOrigem(semanaAnterior.de, semanaAnterior.ate),
       loadDestaquesRenovacao(),
       loadConfigSite(),
     ]);
@@ -1054,6 +1058,8 @@ async function carregarDados() {
     _cache.vendasFiliais = vendasFiliais;
     _cache.vendaMaisRecente = vendaMaisRecente;
     _cache.vendasSemanaAnterior = vendasSemanaAnterior;
+    _cache.vendasExternosOrigemSemana = vendasExternosOrigemSemana;
+    _cache.vendasExternosOrigemSemanaAnterior = vendasExternosOrigemSemanaAnterior;
     const vendasFechados = await pFechados;
     _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(m, vendasFechados[i], vendedores));
     _cache.destaquesRenovacao = destaquesRenovacao;
@@ -1327,7 +1333,8 @@ function popularSelectFiliais(filiais) {
 function processarDadosParaRender(cache) {
   if (!cache) return null;
   const { vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente,
-          semana, mes, metasFilial, metas, metasRenovCancel, vendedores, planos, vendasSemanaAnterior } = cache;
+          semana, mes, metasFilial, metas, metasRenovCancel, vendedores, planos, vendasSemanaAnterior,
+          vendasExternosOrigemSemana = [], vendasExternosOrigemSemanaAnterior = [] } = cache;
 
   // Meta individual de cada vendedor, buscada da tabela metas (mes/ano/vendedor_id).
   // Internos usam a faixa M3 (base) para o cálculo de % e ritmo;
@@ -1387,6 +1394,20 @@ function processarDadosParaRender(cache) {
   const externos = vendedores.filter(v => v.tipo === 'externo');
 
   const extSem = agruparPorVendedor(vendasSemana, externos);
+  // Vendas registradas em outra filial entram somente no ranking semanal
+  // dos vendedores externos da filial de origem. Não alteram metas/totais
+  // da filial de origem nem os rankings e metas mensais individuais.
+  const vendasOrigemSemanaPorId = new Map(vendasExternosOrigemSemana.map(v => [Number(v.vendedor_id), v]));
+  const vendasOrigemSemanaAnteriorPorId = new Map(vendasExternosOrigemSemanaAnterior.map(v => [Number(v.vendedor_id), v]));
+  extSem.forEach(v => {
+    const atual = vendasOrigemSemanaPorId.get(Number(v.id));
+    const anterior = vendasOrigemSemanaAnteriorPorId.get(Number(v.id));
+    if (atual) {
+      v.vendas += Number(atual.vendas || 0);
+      v.valor += Number(atual.valor || 0);
+    }
+    v.evolucao += Number(atual?.vendas || 0) - Number(anterior?.vendas || 0);
+  });
   const intSem = agruparPorVendedor(vendasSemana, internos);
   const extMes = agruparPorVendedor(vendasMes, externos);
   const intMes = agruparPorVendedor(vendasMes, internos);

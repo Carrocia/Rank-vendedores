@@ -756,6 +756,30 @@ async function loadVendas(de, ate) {
   }));
 }
 
+// Retorna apenas totais de vendas feitas por vendedores externos da filial
+// atual, mas recebidas por outra filial. Esse resultado alimenta somente o
+// ranking semanal individual; nunca deve compor os totais da filial nem o mês.
+async function loadVendasExternosOrigem(de, ate) {
+  const [ano, mes, dia] = String(de).slice(0, 10).split('-').map(Number);
+  if (!ano || !mes || !dia || !window._supabase) return [];
+  const inicio = new Date(ano, mes - 1, dia, 0, 0, 0, 0).toISOString();
+  const fim = fimDoDiaExclusivo(ate);
+  const { data, error } = await window._supabase.rpc('ranking_vendas_externos_origem', {
+    p_filial_origem_id: window.FILIAL_ATUAL_ID,
+    p_inicio: inicio,
+    p_fim: fim,
+  });
+  if (error) {
+    console.error('[loadVendasExternosOrigem]', error);
+    return [];
+  }
+  return (data || []).map(item => ({
+    vendedor_id: Number(item.vendedor_id),
+    vendas: Number(item.vendas || 0),
+    valor: Number(item.valor || 0),
+  }));
+}
+
 // Detalhes identificáveis da venda são consultados apenas pelo relatório
 // administrativo. A view vendas_admin deve usar security_invoker e depender
 // das políticas de administrador nas tabelas vendas e venda_adicionais.
