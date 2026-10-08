@@ -6,6 +6,9 @@
 // ================================================================
 const SUPABASE_URL = 'https://xmpurrxwfgzhnrqhrzyt.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_HGi_8HXwyr4SEzoIKunMiA_cmWsFI8U';
+// Esta versão publicada do site representa Alta Floresta D'Oeste.
+// Centralizar o ID evita misturar vendas destinadas a outras filiais.
+window.FILIAL_ATUAL_ID = 10;
 
 function initSupabase() {
   if (!SUPABASE_URL || SUPABASE_URL === 'COLOCAR_URL_DO_PROJETO') {
@@ -202,6 +205,7 @@ async function loadVendas(de, ate) {
   const { data, error } = await window._supabase
     .from('vendas_ranking_publicas')
     .select('*')
+    .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .gte('data_venda', de)
     .lt('data_venda', fimDoDiaExclusivo(ate))
     .order('data_venda', { ascending: false });
@@ -234,6 +238,7 @@ async function loadVendasAdmin(de, ate) {
   const { data, error } = await window._supabase
     .from('vendas_admin')
     .select('*')
+    .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .gte('data_venda', de)
     .lt('data_venda', fimDoDiaExclusivo(ate))
     .order('data_venda', { ascending: false });
@@ -275,6 +280,7 @@ async function loadVendaMaisRecente() {
   const { data, error } = await window._supabase
     .from('vendas_ranking_publicas')
     .select('data_venda, vendedor_nome, vendedor_slug')
+    .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .order('data_venda', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -330,7 +336,7 @@ async function contarVendasDoMesParaLimpeza(mes) {
   if (!limites) throw new Error('Selecione um mês válido.');
   const [vendas, historico] = await Promise.all([
     window._supabase.from('vendas').select('id', { count: 'exact', head: true })
-      .eq('filial_destino_id', 10).gte('data_venda', limites.inicio).lt('data_venda', limites.fim),
+      .eq('filial_destino_id', window.FILIAL_ATUAL_ID).gte('data_venda', limites.inicio).lt('data_venda', limites.fim),
     window._supabase.from('vendas_outras_filiais').select('id', { count: 'exact', head: true })
       .gte('data_venda', limites.inicio).lt('data_venda', limites.fim),
   ]);
@@ -1736,8 +1742,8 @@ async function renderContratosRecebidosOutraFilial() {
   const { data, error } = await window._supabase
     .from('vendas_admin')
     .select('id, data_venda, numero_venda, cliente, vendedor_nome, plano_nome, valor_total, filial_origem_nome, filial_origem_id, filial_destino_id')
-    .eq('filial_destino_id', 10)
-    .neq('filial_origem_id', 10)
+    .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
+    .neq('filial_origem_id', window.FILIAL_ATUAL_ID)
     .order('data_venda', { ascending: false })
     .limit(100);
   if (error) {
@@ -1801,7 +1807,7 @@ async function handleVendaOutraFilial(e) {
     const venda = await saveVenda({
       vendedor_id: vendedorRaw || null,
       filial_origem_id: filialId,
-      filial_destino_id: 10,
+      filial_destino_id: window.FILIAL_ATUAL_ID,
       plano_id: planoId,
       data_venda: instante,
       valor: valorUnit,

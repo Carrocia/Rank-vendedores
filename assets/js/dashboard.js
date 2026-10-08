@@ -1277,7 +1277,7 @@ function popularSelectFiliais(filiais) {
   const el = document.getElementById('filial-origem');
   if (!el) return;
   el.innerHTML = '<option value="">Selecione a filial</option>' +
-    filiais.filter(f => Number(f.id) !== 10 && f.ativo !== false)
+    filiais.filter(f => Number(f.id) !== Number(window.FILIAL_ATUAL_ID) && f.ativo !== false)
       .map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
   const data = document.getElementById('filial-data');
   if (data && !data.value) {
