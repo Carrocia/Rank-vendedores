@@ -1713,6 +1713,10 @@ async function renderFilialLista() {
   tbody.innerHTML = vendas.map(v => {
     const filialNome = v.filial_nome || '—';
     const totalFmt = 'R$ ' + Number(v.valor_total || 0).toFixed(2).replace('.', ',');
+    const dataRaw = String(v.data_venda || '').slice(0, 10);
+    const dataFmt = /^\d{4}-\d{2}-\d{2}$/.test(dataRaw)
+      ? dataRaw.split('-').reverse().join('/')
+      : '—';
     return `<tr>
       <td><strong>${filialNome}</strong></td>
       <td>${v.plano_nome || '—'}</td>
@@ -1720,7 +1724,7 @@ async function renderFilialLista() {
       <td>R$ ${Number(v.valor_unitario || 0).toFixed(2).replace('.', ',')}</td>
       <td>—</td>
       <td><strong>${totalFmt}</strong></td>
-      <td>${v.data_venda || '—'}</td>
+      <td>${dataFmt}</td>
       <td style="color:var(--text-muted)">${v.observacao || '—'}</td>
     </tr>`;
   }).join('');
