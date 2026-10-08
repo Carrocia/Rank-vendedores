@@ -145,6 +145,8 @@
   height: 310px;
 }
 .dm-foto-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dm-photo-fallback { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: linear-gradient(135deg, #10234c, #1b4d7a); color: #fff; font-size: 8rem; font-weight: 800; }
+.dm-photo-fallback[hidden] { display: none; }
 /* Corte diagonal — em vez de clip-path (o html2canvas não desenha
    direito), um retângulo azul sólido, do tamanho da própria marca,
    rotacionado por cima do canto inferior da foto. Muito mais simples

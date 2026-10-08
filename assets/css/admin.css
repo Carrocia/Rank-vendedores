@@ -108,6 +108,11 @@ body.adm-modal-open { overflow: hidden; }
 .adm-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
 .adm-vendedor-cadastro-card { margin-bottom: 22px; }
 .adm-vendedor-cadastro-hint { margin: -4px 0 18px; color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; }
+.adm-vendedor-foto-preview { display: flex; align-items: center; gap: 12px; margin: 2px 0 16px; color: var(--text-muted); font-size: 0.8rem; }
+.adm-vendedor-foto-preview[hidden] { display: none; }
+.adm-vendedor-foto-preview img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
+.adm-vendedor-foto-preview .adm-btn { width: auto; margin: 0; padding: 8px 12px; font-size: 0.76rem; }
+.adm-vendedor-avatar-fallback { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--accent); background: var(--surface-hover); color: var(--heading-color); font-weight: 800; }
 .adm-field label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
 .adm-field input, .adm-field select, .adm-field textarea {
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
@@ -466,6 +471,7 @@ body.adm-modal-open { overflow: hidden; }
 .adm-ranking-pos.p3 { background: rgba(221,154,92,0.2); color: #dd9a5c; }
 .adm-ranking-pos.pn { background: rgba(255,255,255,0.05); color: var(--text-muted); }
 .adm-ranking-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.adm-ranking-photo-fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-hover); color: var(--heading-color); border: 2px solid var(--accent); font-weight: 800; }
 .adm-ranking-info { flex: 1; }
 .adm-ranking-info .name { font-size: 0.9rem; font-weight: 800; color: var(--heading-color); }
 .adm-ranking-info .sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }

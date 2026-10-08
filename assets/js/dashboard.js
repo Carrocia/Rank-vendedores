@@ -69,7 +69,7 @@ function renderPodium(containerId, entries, options = {}) {
     const rank = idx + 1;
     const style = RANK_STYLE[rank] || RANK_STYLE[3];
     const pessoa = PESSOAS[e.slug] || PESSOAS[e.id] || {};
-    const photo = pessoa.foto || '';
+    const photo = e.foto_url || pessoa.foto || '';
     const nome = e.nome || pessoa.nome || e.id;
     const nomeSeguro = escapeHtmlText(nome);
     const avatarHTML = photo
@@ -182,7 +182,7 @@ function renderMuralPerson(person, role, formatador = formatVendas) {
   const pessoa = PESSOAS[person.id] || {};
   const nome = person.nome || pessoa.nome || person.id || '';
   const nomeSeguro = escapeHtmlText(nome);
-  const foto = pessoa.foto || '';
+  const foto = person.foto_url || pessoa.foto || '';
   return `
     <div class="mural-winner">
       <div class="mural-photo-wrap">
@@ -212,7 +212,7 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
   const vencedor = tipo => {
     const mapa = {};
     (vendedores || []).filter(v => v.tipo === tipo).forEach(v => {
-      mapa[v.id] = { id: v.slug || v.id, nome: v.nome, vendas: 0, valor: 0 };
+      mapa[v.id] = { id: v.slug || v.id, nome: v.nome, foto_url: v.foto_url || null, vendas: 0, valor: 0 };
     });
     (vendas || []).forEach(v => {
       const e = mapa[v.vendedor_id];
@@ -223,7 +223,7 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
     });
     const lista = Object.values(mapa).filter(e => e.vendas > 0)
       .sort((a, b) => (b.vendas - a.vendas) || (b.valor - a.valor));
-    return lista.length ? { id: lista[0].id, nome: lista[0].nome, vendas: lista[0].vendas } : null;
+    return lista.length ? { id: lista[0].id, nome: lista[0].nome, foto_url: lista[0].foto_url, vendas: lista[0].vendas } : null;
   };
   return { mes: periodo.mesNome, interno: vencedor('interno'), externo: vencedor('externo') };
 }
@@ -1361,6 +1361,7 @@ function processarDadosParaRender(cache) {
     vendedoresFiltro.forEach(v => {
       mapa[v.id] = {
         id: v.id, slug: v.slug || v.id, nome: v.nome, tipo: v.tipo,
+        foto_url: v.foto_url || null,
         vendas: 0, valor: 0, meta: metaPorVendedor(v.id, v.tipo),
         evolucao: 0, // preenchido abaixo, após contar as vendas da semana atual
       };

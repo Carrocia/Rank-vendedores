@@ -13,6 +13,8 @@ window.FILIAL_ATUAL = null;
 window.ADMIN_FILIAL_ID = null;
 window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
+let _vendedorFotoPreviewUrl = null;
+const BUCKET_FOTOS_VENDEDORES = 'vendedor-fotos';
 
 function conferirEscopoAdmin(adminData) {
   if (adminData?.is_superadmin === true) {
@@ -231,6 +233,44 @@ function slugVendedor(nome, filial) {
     .join('-');
 }
 
+function limparFotoVendedor() {
+  if (_vendedorFotoPreviewUrl) URL.revokeObjectURL(_vendedorFotoPreviewUrl);
+  _vendedorFotoPreviewUrl = null;
+  const input = document.getElementById('adm-vendedor-foto');
+  const preview = document.getElementById('adm-vendedor-foto-preview');
+  const img = document.getElementById('adm-vendedor-foto-preview-img');
+  const nome = document.getElementById('adm-vendedor-foto-preview-nome');
+  if (input) input.value = '';
+  if (img) img.removeAttribute('src');
+  if (nome) nome.textContent = '';
+  if (preview) preview.hidden = true;
+}
+
+function previewFotoVendedor(event) {
+  const input = event.currentTarget;
+  const arquivo = input.files?.[0];
+  if (!arquivo) return;
+  const tiposAceitos = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!tiposAceitos.includes(arquivo.type)) {
+    limparFotoVendedor();
+    showToast('Escolha uma foto JPG, PNG ou WebP.', 'warning');
+    return;
+  }
+  if (arquivo.size > 2 * 1024 * 1024) {
+    limparFotoVendedor();
+    showToast('A foto deve ter no máximo 2 MB.', 'warning');
+    return;
+  }
+  if (_vendedorFotoPreviewUrl) URL.revokeObjectURL(_vendedorFotoPreviewUrl);
+  _vendedorFotoPreviewUrl = URL.createObjectURL(arquivo);
+  const img = document.getElementById('adm-vendedor-foto-preview-img');
+  const nome = document.getElementById('adm-vendedor-foto-preview-nome');
+  const preview = document.getElementById('adm-vendedor-foto-preview');
+  if (img) img.src = _vendedorFotoPreviewUrl;
+  if (nome) nome.textContent = arquivo.name;
+  if (preview) preview.hidden = false;
+}
+
 async function cadastrarVendedor(event) {
   event.preventDefault();
   const form = document.getElementById('adm-vendedor-form');
@@ -242,6 +282,7 @@ async function cadastrarVendedor(event) {
 
   const nome = document.getElementById('adm-vendedor-nome').value.trim();
   const tipo = document.getElementById('adm-vendedor-tipo').value;
+  const arquivoFoto = document.getElementById('adm-vendedor-foto')?.files?.[0] || null;
   const isSuperAdmin = window.ADMIN_FILIAL_ID == null;
   const filialId = isSuperAdmin
     ? Number(document.getElementById('adm-vendedor-filial').value)
@@ -260,13 +301,13 @@ async function cadastrarVendedor(event) {
   botao.disabled = true;
   botao.textContent = 'Cadastrando…';
   try {
-    const { error } = await window._supabase.from('vendedores').insert([{
+    const { data: vendedor, error } = await window._supabase.from('vendedores').insert([{
       nome,
       tipo,
       ativo: true,
       filial_id: filialId,
       slug: slugVendedor(nome, filial),
-    }]);
+    }]).select('id').single();
     if (error) {
       if (error.code === '23505') {
         throw new Error('Já existe um vendedor com esse nome ou identificador nesta regional.');
@@ -277,9 +318,40 @@ async function cadastrarVendedor(event) {
       throw error;
     }
 
+    let erroFoto = null;
+    if (arquivoFoto && vendedor?.id) {
+      const caminhoFoto = `${filialId}/${vendedor.id}/avatar`;
+      const { error: erroUpload } = await window._supabase.storage
+        .from(BUCKET_FOTOS_VENDEDORES)
+        .upload(caminhoFoto, arquivoFoto, {
+          cacheControl: '3600',
+          contentType: arquivoFoto.type,
+          upsert: true,
+        });
+      if (erroUpload) {
+        erroFoto = erroUpload;
+      } else {
+        const { data: urlFoto } = window._supabase.storage
+          .from(BUCKET_FOTOS_VENDEDORES)
+          .getPublicUrl(caminhoFoto);
+        const { error: erroAtualizacaoFoto } = await window._supabase
+          .from('vendedores')
+          .update({ foto_url: urlFoto.publicUrl })
+          .eq('id', vendedor.id)
+          .eq('filial_id', filialId);
+        if (erroAtualizacaoFoto) erroFoto = erroAtualizacaoFoto;
+      }
+    }
+
     form.reset();
+    limparFotoVendedor();
     prepararCadastroVendedor();
-    showToast(`Vendedor cadastrado em ${filial.nome}.`, 'success');
+    showToast(
+      erroFoto
+        ? `Vendedor cadastrado em ${filial.nome}, mas a foto não foi enviada. Confira a configuração do Storage.`
+        : `Vendedor cadastrado em ${filial.nome}.`,
+      erroFoto ? 'warning' : 'success'
+    );
     try {
       const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
       popularSelectVendedoresTodasFiliais(vendedoresTodasFiliais);
@@ -2172,13 +2244,16 @@ function renderAdmRanking(ranking, vendedores) {
   const posClass = (i) => i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : 'pn';
   container.innerHTML = ranking.map((r, i) => {
     const vendedor = (vendedores || []).find(v => v.id === r.vendedor_id);
-    const foto = vendedor ? (PHOTOS[vendedor.slug] || '') : '';
+    const foto = vendedor ? (vendedor.foto_url || PHOTOS[vendedor.slug] || '') : '';
     const nome = escapeHtmlText(vendedor ? vendedor.nome : (r.nome || r.vendedor_id));
+    const avatarHTML = foto
+      ? `<img class="adm-ranking-photo" src="${foto}" alt="${nome}" onerror="this.style.display='none'">`
+      : `<span class="adm-ranking-photo adm-ranking-photo-fallback" aria-label="${nome}">${nome.trim().charAt(0).toUpperCase()}</span>`;
     const tipo = vendedor ? vendedor.tipo : '—';
     const valorFmt = 'R$ ' + Number(r.valor || 0).toFixed(2).replace('.', ',');
     return `<div class="adm-ranking-item">
       <div class="adm-ranking-pos ${posClass(i)}">${i + 1}º</div>
-      <img class="adm-ranking-photo" src="${foto}" alt="${nome}" onerror="this.style.display='none'">
+      ${avatarHTML}
       <div class="adm-ranking-info">
         <div class="name">${nome}</div>
         <div class="sub">${tipo === 'interno' ? 'Vendedor Interno' : 'Vendedor Externo'}</div>
@@ -2219,12 +2294,18 @@ function renderAdmVendedoresTable(d) {
     const tr = document.createElement('tr');
 
     const fotoTd = document.createElement('td');
-    const foto = PHOTOS[v.slug] || '';
+    const foto = v.foto_url || PHOTOS[v.slug] || '';
     if (foto) {
       const img = document.createElement('img');
       img.src = foto;
       img.alt = v.nome;
       img.style.cssText = 'width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);';
+      img.onerror = () => {
+        const inicial = document.createElement('span');
+        inicial.className = 'adm-vendedor-avatar-fallback';
+        inicial.textContent = String(v.nome || '?').trim().charAt(0).toUpperCase();
+        fotoTd.replaceChildren(inicial);
+      };
       fotoTd.appendChild(img);
     } else {
       const inicial = document.createElement('span');
@@ -2383,7 +2464,7 @@ async function gerarStatusVendedor(slug, evt) {
   const frase = poolFrases[vendedorMes.vendas % poolFrases.length];
 
   // ── Preenche o template oculto ──────────────────────────────────
-  const foto = PHOTOS[slug];
+  const foto = vendedorCadastro?.foto_url || PHOTOS[slug];
   const avatarEl = document.getElementById('sc-avatar');
   avatarEl.innerHTML = foto ? `<img src="${foto}" alt="">` : vendedorSemana.nome.charAt(0).toUpperCase();
 
@@ -2526,7 +2607,7 @@ async function gerarGifCelebracao() {
   if (!vendedorSemana) { showToast('Vendedor não encontrado.', 'error'); return; }
 
   // ── Preenche o template oculto ──────────────────────────────────
-  const foto = PHOTOS[slug];
+  const foto = vendedorMes.foto_url || PHOTOS[slug];
   document.getElementById('gf-avatar').innerHTML = foto ? `<img src="${foto}" alt="">` : vendedorSemana.nome.charAt(0).toUpperCase();
   document.getElementById('gf-nome').textContent = vendedorSemana.nome;
   document.getElementById('gf-meta-label').textContent = metaInfo.label;
@@ -2715,7 +2796,21 @@ async function gerarDestaqueDoMes(slug, evt) {
   // ── Preenche o template oculto ──────────────────────────────────
   document.getElementById('dm-mes-pill').textContent = mesNome;
   document.getElementById('dm-local').textContent = window.FILIAL_ATUAL?.nome || CONFIG.filialLocalizacao;
-  document.getElementById('dm-photo').src = PHOTOS[slug] || '';
+  const fotoDestaque = vendedorMes.foto_url || PHOTOS[slug] || '';
+  const fotoDestaqueEl = document.getElementById('dm-photo');
+  const fotoDestaqueFallback = document.getElementById('dm-photo-fallback');
+  if (fotoDestaque) {
+    fotoDestaqueEl.src = fotoDestaque;
+    fotoDestaqueEl.style.display = '';
+    if (fotoDestaqueFallback) fotoDestaqueFallback.hidden = true;
+  } else {
+    fotoDestaqueEl.removeAttribute('src');
+    fotoDestaqueEl.style.display = 'none';
+    if (fotoDestaqueFallback) {
+      fotoDestaqueFallback.textContent = vendedorMes.nome.trim().charAt(0).toUpperCase();
+      fotoDestaqueFallback.hidden = false;
+    }
+  }
   document.getElementById('dm-medalha-img').src = DM_MEDALHAS[Math.min(posicao, 5)] || DM_MEDALHAS[5];
   document.getElementById('dm-name').textContent = nomeCompleto;
   document.getElementById('dm-role2').textContent = cargo;

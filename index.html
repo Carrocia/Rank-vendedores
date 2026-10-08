@@ -553,6 +553,15 @@
                   <label for="adm-vendedor-filial">Regional</label>
                   <select id="adm-vendedor-filial" name="filial_id" required></select>
                 </div>
+                <div class="adm-field adm-form-full">
+                  <label for="adm-vendedor-foto">Foto do vendedor (JPG, PNG ou WebP; até 2 MB)</label>
+                  <input id="adm-vendedor-foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewFotoVendedor(event)">
+                  <div class="adm-vendedor-foto-preview" id="adm-vendedor-foto-preview" hidden>
+                    <img id="adm-vendedor-foto-preview-img" alt="Prévia da foto do vendedor">
+                    <span id="adm-vendedor-foto-preview-nome"></span>
+                    <button type="button" class="adm-btn adm-btn-secondary" onclick="limparFotoVendedor()">Remover foto</button>
+                  </div>
+                </div>
                 <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
                   <button type="submit" class="adm-btn adm-btn-primary" id="adm-vendedor-submit" style="width:auto;padding:12px 28px;">Cadastrar vendedor</button>
                 </div>
@@ -1206,6 +1215,7 @@
     <div class="dm-foto-bloco">
       <div class="dm-foto-card">
         <img id="dm-photo" src="" alt="">
+        <div id="dm-photo-fallback" class="dm-photo-fallback" hidden></div>
         <div class="dm-foto-diagonal"></div>
       </div>
       <img class="dm-medalha" id="dm-medalha-img" src="" alt="Posição">
