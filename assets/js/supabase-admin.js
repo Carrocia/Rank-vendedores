@@ -2103,11 +2103,11 @@ function configurarAbaAdmins() {
 async function carregarAdminsGerenciados() {
   const tbody = document.getElementById('adm-admins-tbody');
   if (!tbody || !window._supabase || window.ADMIN_FILIAL_ID != null || !window.ADMIN_AUTENTICADO) return;
-  tbody.innerHTML = '<tr><td colspan="3" class="adm-empty-state">Carregando contas…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4" class="adm-empty-state">Carregando contas…</td></tr>';
   const { data, error } = await window._supabase.functions.invoke(EDGE_FN_GERENCIAR_ADMINS, { body: { action: 'list' } });
   if (error || data?.error) {
     console.error('[carregarAdminsGerenciados]', error || data.error);
-    tbody.innerHTML = `<tr><td colspan="3" class="adm-empty-state">${escapeHtmlText(data?.error || error?.message || 'Não foi possível carregar as contas.')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="adm-empty-state">${escapeHtmlText(data?.error || error?.message || 'Não foi possível carregar as contas.')}</td></tr>`;
     return;
   }
   tbody.replaceChildren();
@@ -2115,7 +2115,7 @@ async function carregarAdminsGerenciados() {
   if (!admins.length) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 3;
+    td.colSpan = 4;
     td.className = 'adm-empty-state';
     td.textContent = 'Nenhuma conta regional cadastrada.';
     tr.appendChild(td);
@@ -2130,9 +2130,48 @@ async function carregarAdminsGerenciados() {
     filial.textContent = admin.filial_nome || 'Regional não localizada';
     const status = document.createElement('td');
     status.textContent = admin.ativo ? 'Ativa' : 'Inativa';
-    tr.append(email, filial, status);
+    const actions = document.createElement('td');
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'adm-btn adm-btn-small adm-btn-danger';
+    deleteButton.textContent = 'Excluir';
+    deleteButton.setAttribute('aria-label', `Excluir acesso de ${admin.email || 'conta regional'}`);
+    deleteButton.addEventListener('click', () => excluirAdminRegional(admin.user_id, admin.email, deleteButton));
+    actions.appendChild(deleteButton);
+    tr.append(email, filial, status, actions);
     tbody.appendChild(tr);
   });
+}
+
+async function excluirAdminRegional(userId, email, botao) {
+  if (!window.ADMIN_AUTENTICADO || window.ADMIN_FILIAL_ID != null || !window._supabase) {
+    showToast('Somente o superadministrador pode excluir contas regionais.', 'error');
+    return;
+  }
+  const identificacao = email || 'esta conta regional';
+  if (!window.confirm(`Excluir o acesso de ${identificacao}? A conta não poderá mais entrar no painel.`)) return;
+
+  botao.disabled = true;
+  botao.textContent = 'Excluindo…';
+  try {
+    const { data, error } = await window._supabase.functions.invoke(EDGE_FN_GERENCIAR_ADMINS, {
+      body: { action: 'delete', user_id: userId },
+    });
+    if (error || data?.error) {
+      let mensagem = data?.error;
+      if (!mensagem && error?.context?.json) {
+        try { mensagem = (await error.context.json()).error; } catch (_) {}
+      }
+      throw new Error(mensagem || error?.message || 'Não foi possível excluir a conta regional.');
+    }
+    showToast(`Acesso de ${identificacao} excluído.`, 'success');
+    await carregarAdminsGerenciados();
+  } catch (error) {
+    console.error('[excluirAdminRegional]', error);
+    showToast(error.message || 'Não foi possível excluir a conta regional.', 'error');
+    botao.disabled = false;
+    botao.textContent = 'Excluir';
+  }
 }
 
 async function criarAdminRegional(event) {

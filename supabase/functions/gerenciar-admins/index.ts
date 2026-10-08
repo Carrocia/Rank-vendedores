@@ -106,6 +106,53 @@ Deno.serve(async request => {
     return json(200, { admins: result });
   }
 
+  if (body.action === 'delete') {
+    const userId = typeof body.user_id === 'string' ? body.user_id.trim() : '';
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+      return json(400, { error: 'A conta selecionada é inválida.' });
+    }
+    if (userId === user.id) return json(400, { error: 'Você não pode excluir a própria conta.' });
+
+    const { data: target, error: targetError } = await serviceClient
+      .from('admin_usuarios')
+      .select('user_id, filial_id, is_superadmin, ativo')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (targetError) {
+      console.error('[gerenciar-admins] Falha ao localizar conta para exclusão:', targetError.message);
+      return json(500, { error: 'Não foi possível localizar a conta regional.' });
+    }
+    if (!target || target.is_superadmin === true || target.filial_id == null) {
+      return json(404, { error: 'A conta regional não foi encontrada ou não pode ser excluída por esta tela.' });
+    }
+
+    const { data: removedLink, error: unlinkError } = await serviceClient
+      .from('admin_usuarios')
+      .delete()
+      .eq('user_id', userId)
+      .eq('is_superadmin', false)
+      .not('filial_id', 'is', null)
+      .select('user_id, filial_id, is_superadmin, ativo')
+      .maybeSingle();
+    if (unlinkError || !removedLink) {
+      console.error('[gerenciar-admins] Falha ao remover vínculo regional:', unlinkError?.message || 'vínculo não encontrado');
+      return json(500, { error: 'Não foi possível remover o vínculo da conta com a regional.' });
+    }
+
+    const { error: deleteAuthError } = await serviceClient.auth.admin.deleteUser(userId);
+    if (deleteAuthError) {
+      const { error: restoreError } = await serviceClient.from('admin_usuarios').insert(removedLink);
+      if (restoreError) {
+        console.error('[gerenciar-admins] Falha ao restaurar vínculo após erro no Auth:', restoreError.message);
+        return json(500, { error: 'O acesso regional foi removido, mas a conta Auth não pôde ser excluída nem restaurada. Revise esta conta no Supabase.' });
+      }
+      console.error('[gerenciar-admins] Falha ao excluir usuário Auth:', deleteAuthError.message);
+      return json(500, { error: 'Não foi possível excluir a conta de autenticação. O acesso regional foi restaurado.' });
+    }
+
+    return json(200, { deleted: true, user_id: userId });
+  }
+
   if (body.action !== 'create') return json(400, { error: 'Ação inválida.' });
 
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';

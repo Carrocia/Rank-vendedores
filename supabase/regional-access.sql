@@ -82,6 +82,11 @@ grant execute on function private.admin_e_superadmin() to authenticated;
 -- Administradores só leem o próprio vínculo (ou todos se globais).
 -- Nenhum usuário autenticado pode criar, alterar ou remover vínculos pelo cliente.
 alter table public.admin_usuarios enable row level security;
+-- A Edge Function usa a chave secreta do servidor (role service_role) para
+-- autorizar o superadmin e criar/listar vínculos regionais. RLS é ignorada por
+-- essa role, mas os privilégios SQL da tabela ainda precisam estar concedidos.
+grant select, insert, delete on table public.admin_usuarios to service_role;
+grant select on table public.filiais to service_role;
 drop policy if exists regional_admin_usuarios_select on public.admin_usuarios;
 create policy regional_admin_usuarios_select on public.admin_usuarios
   as restrictive for select to authenticated
