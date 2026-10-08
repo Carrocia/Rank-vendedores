@@ -56,3 +56,31 @@ order by a.user_id;
 select id, nome, slug, ativo
 from public.filiais
 order by id;
+
+-- 5. Views e RPCs acessadas pelo painel. Verifique se as views de vendas
+--    respeitam RLS (security_invoker) e se a RPC de limpeza confere filial.
+select n.nspname as schema_name,
+       c.relname as view_name,
+       coalesce(array_to_string(c.reloptions, ', '), '') as view_options,
+       pg_get_viewdef(c.oid, true) as definition
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relkind in ('v', 'm')
+  and c.relname in (
+    'vendas_admin', 'vendas_ranking_publicas',
+    'vendas_outras_filiais_publicas'
+  )
+order by c.relname;
+
+select n.nspname as schema_name,
+       p.proname as function_name,
+       pg_get_function_identity_arguments(p.oid) as arguments,
+       p.prosecdef as security_definer,
+       has_function_privilege('anon', p.oid, 'EXECUTE') as anon_can_execute,
+       has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_can_execute,
+       pg_get_functiondef(p.oid) as definition
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where p.proname in ('apagar_vendas_mes', 'is_admin', 'admin_tem_acesso', 'admin_tem_acesso_filial')
+order by n.nspname, p.proname;
