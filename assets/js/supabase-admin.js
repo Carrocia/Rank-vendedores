@@ -9,6 +9,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_HGi_8HXwyr4SEzoIKunMiA_cmWsFI8U';
 // Esta versão publicada do site representa Alta Floresta D'Oeste.
 // Centralizar o ID evita misturar vendas destinadas a outras filiais.
 window.FILIAL_ATUAL_ID = 10;
+window.FILIAL_ATUAL = null;
 
 function initSupabase() {
   if (!SUPABASE_URL || SUPABASE_URL === 'COLOCAR_URL_DO_PROJETO') {
@@ -18,6 +19,63 @@ function initSupabase() {
   const { createClient } = supabase;
   window._supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   return true;
+}
+
+function configurarFilialAtual(filiais) {
+  const publicadas = (filiais || []).filter(f => f.ativo !== false && f.site_habilitado === true);
+  const parametros = new URLSearchParams(window.location.search);
+  const slugSolicitado = parametros.get('filial');
+  const filialPadrao = publicadas.find(f => Number(f.id) === 10) || publicadas[0];
+  const filial = (slugSolicitado && publicadas.find(f => f.slug === slugSolicitado)) || filialPadrao;
+  if (!filial) throw new Error('Nenhuma filial está habilitada para exibição pública.');
+  if (slugSolicitado && slugSolicitado !== filial.slug) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('filial', filial.slug);
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  window.FILIAL_ATUAL = filial;
+  window.FILIAL_ATUAL_ID = Number(filial.id);
+  const nomeEl = document.getElementById('filial-atual-nome');
+  if (nomeEl) nomeEl.textContent = filial.nome;
+  const adminNome = document.getElementById('filial-atual-admin-nome');
+  if (adminNome) adminNome.textContent = filial.nome;
+  const adminTituloFilial = document.getElementById('filial-atual-admin-titulo');
+  if (adminTituloFilial) adminTituloFilial.textContent = filial.nome;
+  document.title = `Ranking de Vendas | ${filial.nome} | UNI Internet`;
+
+  const seletor = document.getElementById('filial-site-select');
+  if (seletor) {
+    seletor.replaceChildren();
+    publicadas.forEach(f => {
+      const option = document.createElement('option');
+      option.value = f.slug;
+      option.textContent = f.nome;
+      seletor.appendChild(option);
+    });
+    seletor.value = filial.slug;
+    seletor.disabled = publicadas.length < 2;
+  }
+  return filial;
+}
+
+function abrirFilialSite(slug) {
+  if (!slug || !window.FILIAL_ATUAL) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('filial', slug);
+  window.location.assign(url.toString());
+}
+
+async function copiarLinkFilial() {
+  if (!window.FILIAL_ATUAL) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('filial', window.FILIAL_ATUAL.slug);
+  try {
+    await navigator.clipboard.writeText(url.toString());
+    showToast('Link da filial copiado.', 'success');
+  } catch (err) {
+    window.prompt('Copie o link desta filial:', url.toString());
+  }
 }
 
 // ── Auth ─────────────────────────────────────────────────────────
@@ -64,6 +122,7 @@ async function loadVendedores() {
   const { data, error } = await window._supabase
     .from('vendedores')
     .select('*')
+    .eq('filial_id', window.FILIAL_ATUAL_ID)
     .eq('ativo', true)
     .order('nome');
   if (error) { console.error('[loadVendedores]', error); return []; }
@@ -99,10 +158,12 @@ async function loadFiliais() {
   return data;
 }
 
-async function loadMetas(mes, ano) {
+async function loadMetas(mes, ano, vendedorIds = []) {
+  if (!vendedorIds.length) return [];
   const { data, error } = await window._supabase
     .from('metas')
     .select('*')
+    .in('vendedor_id', vendedorIds)
     .eq('mes', mes)
     .eq('ano', ano);
   if (error) { console.error('[loadMetas]', error); return []; }
@@ -113,6 +174,7 @@ async function loadMetasFilial(mes, ano) {
   const { data, error } = await window._supabase
     .from('metas_filial')
     .select('*')
+    .eq('filial_id', window.FILIAL_ATUAL_ID)
     .eq('mes', mes)
     .eq('ano', ano)
     .single();
@@ -142,6 +204,7 @@ async function loadMetasRenovCancel(mes, ano) {
   const { data, error } = await window._supabase
     .from('metas_renovacao_cancelamento')
     .select('*')
+    .eq('filial_id', window.FILIAL_ATUAL_ID)
     .eq('mes', mes)
     .eq('ano', ano)
     .single();
@@ -268,6 +331,7 @@ async function loadVendasOutrasFiliais(de, ate) {
   let query = window._supabase
     .from('vendas_outras_filiais_publicas')
     .select('*')
+    .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .order('data_venda', { ascending: false });
   if (de) query = query.gte('data_venda', de);
   if (ate) query = query.lt('data_venda', fimDoDiaExclusivo(ate));
@@ -338,6 +402,7 @@ async function contarVendasDoMesParaLimpeza(mes) {
     window._supabase.from('vendas').select('id', { count: 'exact', head: true })
       .eq('filial_destino_id', window.FILIAL_ATUAL_ID).gte('data_venda', limites.inicio).lt('data_venda', limites.fim),
     window._supabase.from('vendas_outras_filiais').select('id', { count: 'exact', head: true })
+      .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
       .gte('data_venda', limites.inicio).lt('data_venda', limites.fim),
   ]);
   if (vendas.error) throw vendas.error;
@@ -366,7 +431,8 @@ async function conferirExclusaoMes() {
   try {
     const contagens = await contarVendasDoMesParaLimpeza(mes);
     _mesExclusaoConferido = { mes, ...contagens };
-    if (resumo) resumo.textContent = `${mes}: ${contagens.vendas} vendas da Alta Floresta e ${contagens.historico} lançamentos históricos agregados. A limpeza remove os dois grupos.`;
+    const filialNome = window.FILIAL_ATUAL?.nome || 'filial selecionada';
+    if (resumo) resumo.textContent = `${mes}: ${contagens.vendas} vendas destinadas a ${filialNome} e ${contagens.historico} lançamentos históricos agregados. A limpeza remove os dois grupos.`;
     if (botao) { botao.disabled = false; botao.style.opacity = '1'; botao.style.cursor = 'pointer'; }
   } catch (err) {
     console.error('[conferirExclusaoMes]', err);
@@ -381,13 +447,14 @@ async function excluirVendasDoMesConferido() {
   const quantidade = conferencia.vendas + conferencia.historico;
   if (quantidade === 0) { showToast('Não há registros para excluir nesse mês.', 'warning'); return; }
   const confirmado = window.confirm(
-    `Confirma a exclusão permanente de ${conferencia.vendas} vendas da Alta Floresta e ${conferencia.historico} lançamentos históricos de ${conferencia.mes}? Essa ação não pode ser desfeita.`
+    `Confirma a exclusão permanente de ${conferencia.vendas} vendas e ${conferencia.historico} lançamentos históricos de ${window.FILIAL_ATUAL?.nome || 'esta filial'} em ${conferencia.mes}? Essa ação não pode ser desfeita.`
   );
   if (!confirmado) return;
 
   try {
     const { data, error } = await window._supabase.rpc('apagar_vendas_mes', {
       p_mes: `${conferencia.mes}-01`,
+      p_filial_id: window.FILIAL_ATUAL_ID,
     });
     if (error) throw error;
     const resultado = Array.isArray(data) ? data[0] : data;
@@ -1609,7 +1676,7 @@ async function handleNovaVenda(e) {
   if (obs) partesObs.push(obs);
   const observacaoFinal = partesObs.length ? partesObs.join(' — ') : null;
   try {
-    const venda = await saveVenda({ vendedor_id, plano_id, data_venda: data_venda_timestamp, valor: parseFloat(planoValorStr), cliente: cliente, numero_venda, observacao: observacaoFinal, fora_filial: foraFilial });
+    const venda = await saveVenda({ vendedor_id, filial_origem_id: window.FILIAL_ATUAL_ID, filial_destino_id: window.FILIAL_ATUAL_ID, plano_id, data_venda: data_venda_timestamp, valor: parseFloat(planoValorStr), cliente: cliente, numero_venda, observacao: observacaoFinal, fora_filial: foraFilial });
     if (adicionaisParaSalvar.length > 0) await saveVendaAdicionais(venda.id, adicionaisParaSalvar);
     await carregarDados();
     resetVendaForm();
@@ -2496,7 +2563,7 @@ async function salvarMetaFilial(dados) {
     const { error } = await window._supabase.from('metas_filial').update(dadosSupabase).eq('id', existente.id);
     if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível salvar a meta da filial: ' + error.message); }
   } else {
-    const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
+    const payload = { filial_id: window.FILIAL_ATUAL_ID, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
     const { error } = await window._supabase.from('metas_filial').insert([payload]);
     if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível criar a meta da filial: ' + error.message); }
   }
@@ -2552,7 +2619,7 @@ async function salvarMetaRenovCancel(dados) {
     const { error } = await window._supabase.from('metas_renovacao_cancelamento').update(dadosSupabase).eq('id', existente.id);
     if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível salvar as metas de renovação/cancelamento: ' + error.message); }
   } else {
-    const payload = { mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
+    const payload = { filial_id: window.FILIAL_ATUAL_ID, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
     const { error } = await window._supabase.from('metas_renovacao_cancelamento').insert([payload]);
     if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível criar as metas de renovação/cancelamento: ' + error.message); }
   }

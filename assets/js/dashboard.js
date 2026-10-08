@@ -218,7 +218,9 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
 // HISTORICO_DESTAQUES. Se um mês existe nos dois, vale o digitado à mão.
 function historicoCompleto() {
   const chave = h => String(h.mes).toLowerCase();
-  const manuais = HISTORICO_DESTAQUES.filter(h => h.interno || h.externo);
+  const manuais = window.FILIAL_ATUAL_ID === 10
+    ? HISTORICO_DESTAQUES.filter(h => h.interno || h.externo)
+    : [];
   const autos = (_cache && _cache.destaquesAuto) || [];
   const lista = [];
   autos.forEach(a => {
@@ -264,6 +266,7 @@ async function loadDestaquesRenovacao() {
   const { data, error } = await window._supabase
     .from('destaques_renovacao')
     .select('*')
+    .eq('filial_id', window.FILIAL_ATUAL_ID)
     .order('ano', { ascending: false })
     .order('mes', { ascending: false })
     .limit(36);
@@ -432,13 +435,13 @@ async function salvarDestaqueRenovacao() {
   const [ano, mes] = mesVal.split('-').map(Number);
   try {
     const { data: existente, error: errBusca } = await window._supabase
-      .from('destaques_renovacao').select('id').eq('mes', mes).eq('ano', ano).limit(1);
+      .from('destaques_renovacao').select('id').eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano).limit(1);
     if (errBusca) throw errBusca;
     let error;
     if (existente && existente.length) {
       ({ error } = await window._supabase.from('destaques_renovacao').update({ vendedor, quantidade }).eq('id', existente[0].id));
     } else {
-      ({ error } = await window._supabase.from('destaques_renovacao').insert([{ mes, ano, vendedor, quantidade }]));
+      ({ error } = await window._supabase.from('destaques_renovacao').insert([{ filial_id: window.FILIAL_ATUAL_ID, mes, ano, vendedor, quantidade }]));
     }
     if (error) throw error;
     document.getElementById('renov-qtd').value = '';
@@ -997,17 +1000,21 @@ async function carregarDados() {
     const semanaAnterior = calcularPeriodoSemanaAnterior();
     // últimos 3 meses fechados — usados no mural de destaques (automático)
     const mesesFechados = [1, 2, 3].map(n => calcularPeriodoMesAnterior(n));
+    // Primeiro resolve a filial do link; as demais consultas dependem dela.
+    const filiais = await loadFiliais();
+    configurarFilialAtual(filiais);
+    _cache.filiais = filiais;
+    const vendedores = await loadVendedores();
+    const vendedorIds = vendedores.map(v => v.id);
     const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate).catch(() => [])));
 
-    // Carregar em paralelo
-    const [vendedores, planos, adicionais, filiais, metasFilial, metas, metasRenovCancel,
+    // Carregar os dados da filial selecionada em paralelo.
+    const [planos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior, destaquesRenovacao, configSite] = await Promise.all([
-      loadVendedores(),
       loadPlanos(),
       loadAdicionais(),
-      loadFiliais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
-      loadMetas(_cache.mes.mesNum, _cache.mes.ano),
+      loadMetas(_cache.mes.mesNum, _cache.mes.ano, vendedorIds),
       loadMetasRenovCancel(_cache.mes.mesNum, _cache.mes.ano),
       loadVendas(_cache.semana.de, _cache.semana.ate),
       loadVendas(_cache.mes.de, _cache.mes.ate),
@@ -1021,7 +1028,6 @@ async function carregarDados() {
     _cache.vendedores = vendedores;
     _cache.planos = planos;
     _cache.adicionais = adicionais;
-    _cache.filiais = filiais;
     _cache.metasFilial = metasFilial;
     _cache.metas = metas;
     _cache.metasRenovCancel = metasRenovCancel;
