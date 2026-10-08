@@ -14,12 +14,16 @@ window.ADMIN_FILIAL_ID = null;
 let _vendedoresTodasFiliais = [];
 
 function conferirEscopoAdmin(adminData) {
+  if (adminData?.is_superadmin === true) {
+    window.ADMIN_FILIAL_ID = null;
+    return true;
+  }
   const filialAdminId = adminData?.filial_id == null ? null : Number(adminData.filial_id);
-  window.ADMIN_FILIAL_ID = filialAdminId;
-  if (filialAdminId !== null && filialAdminId !== Number(window.FILIAL_ATUAL_ID)) {
+  if (filialAdminId === null || filialAdminId !== Number(window.FILIAL_ATUAL_ID)) {
     window.ADMIN_FILIAL_ID = null;
     return false;
   }
+  window.ADMIN_FILIAL_ID = filialAdminId;
   return true;
 }
 
