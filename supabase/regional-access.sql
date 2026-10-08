@@ -115,6 +115,56 @@ drop policy if exists regional_filiais_delete on public.filiais;
 create policy regional_filiais_delete on public.filiais
   as restrictive for delete to authenticated using (private.admin_e_superadmin());
 
+-- Catálogos e configuração são globais: todos os administradores ativos
+-- podem consultá-los, mas somente a conta global pode alterar seu conteúdo.
+alter table public.planos enable row level security;
+drop policy if exists regional_planos_select on public.planos;
+create policy regional_planos_select on public.planos
+  as restrictive for select to authenticated using (private.admin_tem_acesso());
+drop policy if exists regional_planos_insert on public.planos;
+create policy regional_planos_insert on public.planos
+  as restrictive for insert to authenticated with check (private.admin_e_superadmin());
+drop policy if exists regional_planos_update on public.planos;
+create policy regional_planos_update on public.planos
+  as restrictive for update to authenticated
+  using (private.admin_e_superadmin())
+  with check (private.admin_e_superadmin());
+drop policy if exists regional_planos_delete on public.planos;
+create policy regional_planos_delete on public.planos
+  as restrictive for delete to authenticated using (private.admin_e_superadmin());
+
+alter table public.produtos_adicionais enable row level security;
+drop policy if exists regional_produtos_adicionais_select on public.produtos_adicionais;
+create policy regional_produtos_adicionais_select on public.produtos_adicionais
+  as restrictive for select to authenticated using (private.admin_tem_acesso());
+drop policy if exists regional_produtos_adicionais_insert on public.produtos_adicionais;
+create policy regional_produtos_adicionais_insert on public.produtos_adicionais
+  as restrictive for insert to authenticated with check (private.admin_e_superadmin());
+drop policy if exists regional_produtos_adicionais_update on public.produtos_adicionais;
+create policy regional_produtos_adicionais_update on public.produtos_adicionais
+  as restrictive for update to authenticated
+  using (private.admin_e_superadmin())
+  with check (private.admin_e_superadmin());
+drop policy if exists regional_produtos_adicionais_delete on public.produtos_adicionais;
+create policy regional_produtos_adicionais_delete on public.produtos_adicionais
+  as restrictive for delete to authenticated using (private.admin_e_superadmin());
+
+alter table public.site_config enable row level security;
+drop policy if exists regional_site_config_select on public.site_config;
+create policy regional_site_config_select on public.site_config
+  as restrictive for select to authenticated using (private.admin_tem_acesso());
+drop policy if exists regional_site_config_insert on public.site_config;
+create policy regional_site_config_insert on public.site_config
+  as restrictive for insert to authenticated with check (private.admin_e_superadmin());
+drop policy if exists regional_site_config_update on public.site_config;
+create policy regional_site_config_update on public.site_config
+  as restrictive for update to authenticated
+  using (private.admin_e_superadmin())
+  with check (private.admin_e_superadmin());
+drop policy if exists regional_site_config_delete on public.site_config;
+create policy regional_site_config_delete on public.site_config
+  as restrictive for delete to authenticated using (private.admin_e_superadmin());
+
 -- Os administradores leem todas as equipes porque o formulário de venda
 -- recebida precisa listar vendedores da filial de origem. A interface local
 -- continua mostrando apenas os vendedores da filial selecionada. Gravações
@@ -271,6 +321,7 @@ select v.id,
        v.valor_unitario,
        v.valor_total,
        v.data_venda,
+       v.observacao,
        f.nome as filial_nome,
        p.nome as plano_nome,
        v.filial_destino_id
