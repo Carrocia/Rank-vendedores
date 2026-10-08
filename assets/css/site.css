@@ -113,13 +113,18 @@
   @keyframes filialPageExit {
     to { opacity: 0; transform: translateY(-5px) scale(0.995); }
   }
-  html.filial-page-entering body {
+  html.filial-page-entering .page-shell {
     animation: filialPageEnter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
-  html.filial-page-exiting body {
+  html.filial-page-exiting .page-shell {
     animation: filialPageExit 240ms ease-in both;
-    pointer-events: none;
   }
+  html.filial-page-entering #themeToggle,
+  html.filial-page-entering #adm-trigger { animation: filialControlsEnter 420ms ease-out both; }
+  html.filial-page-exiting #themeToggle,
+  html.filial-page-exiting #adm-trigger { animation: filialControlsExit 240ms ease-in both; }
+  @keyframes filialControlsEnter { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes filialControlsExit { to { opacity: 0; } }
 
   body {
     font-family: 'Poppins', sans-serif;
@@ -533,7 +538,9 @@
   .podium-base .rank-number { font-size: 1.5rem; font-weight: 900; color: rgba(0,0,0,0.32); }
 
   @media (prefers-reduced-motion: reduce) {
-    html.filial-page-entering body, html.filial-page-exiting body { animation: none !important; }
+    html.filial-page-entering .page-shell, html.filial-page-exiting .page-shell,
+    html.filial-page-entering #themeToggle, html.filial-page-entering #adm-trigger,
+    html.filial-page-exiting #themeToggle, html.filial-page-exiting #adm-trigger { animation: none !important; }
     .bg-fx .orb, .bg-fx .grid, .live-dot,
     .podium-photo-wrap::before, .podium-photo-wrap::after,
     .crown, .sparkle, .podium-base::after,
