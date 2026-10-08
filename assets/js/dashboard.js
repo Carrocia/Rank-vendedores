@@ -1352,6 +1352,11 @@ function processarDadosParaRender(cache) {
   // atual, para a comparação (evolução) ficar consistente.
   const tipoPorVendedor = {};
   (vendedores || []).forEach(v => { tipoPorVendedor[v.id] = v.tipo; });
+  const vendedoresExternosIds = new Set((vendedores || [])
+    .filter(v => v.tipo === 'externo')
+    .map(v => String(v.id)));
+  const isVendaExternaRecebidaDeOutraFilial = v => isVendaRecebidaDeOutraFilial(v)
+    && vendedoresExternosIds.has(String(v.vendedor_id));
   const contarVendasPorVendedor = (vendas) => {
     const mapa = {};
     (vendas || []).forEach(v => {
@@ -1397,8 +1402,19 @@ function processarDadosParaRender(cache) {
   // Vendas registradas em outra filial entram somente no ranking semanal
   // dos vendedores externos da filial de origem. Não alteram metas/totais
   // da filial de origem nem os rankings e metas mensais individuais.
-  const vendasOrigemSemanaPorId = new Map(vendasExternosOrigemSemana.map(v => [Number(v.vendedor_id), v]));
-  const vendasOrigemSemanaAnteriorPorId = new Map(vendasExternosOrigemSemanaAnterior.map(v => [Number(v.vendedor_id), v]));
+  const agregarVendasOrigemPorVendedor = vendas => {
+    const mapa = new Map();
+    vendas.forEach(v => {
+      const id = Number(v.vendedor_id);
+      const atual = mapa.get(id) || { vendas: 0, valor: 0 };
+      atual.vendas += Number(v.vendas || 0);
+      atual.valor += Number(v.valor || 0);
+      mapa.set(id, atual);
+    });
+    return mapa;
+  };
+  const vendasOrigemSemanaPorId = agregarVendasOrigemPorVendedor(vendasExternosOrigemSemana);
+  const vendasOrigemSemanaAnteriorPorId = agregarVendasOrigemPorVendedor(vendasExternosOrigemSemanaAnterior);
   extSem.forEach(v => {
     const atual = vendasOrigemSemanaPorId.get(Number(v.id));
     const anterior = vendasOrigemSemanaAnteriorPorId.get(Number(v.id));
@@ -1417,6 +1433,9 @@ function processarDadosParaRender(cache) {
   const diasLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   const diasContagem = new Array(7).fill(0);
   vendasSemana.forEach(v => {
+    // Venda recebida de outra regional compõe o mês do destino, mas a semana
+    // é atribuída à filial de origem do vendedor externo.
+    if (isVendaExternaRecebidaDeOutraFilial(v)) return;
     // "Evolução da Semana" é um indicador global da filial — vendas
     // fora da filial CONTAM aqui (só ficam de fora da meta GLOBAL
     // mensal, não da semana nem das metas semanais da filial).
@@ -1431,6 +1450,14 @@ function processarDadosParaRender(cache) {
     if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
     const idx = diaSemana === 0 ? 6 : diaSemana - 1;
     diasContagem[idx]++;
+  });
+  (vendasExternosOrigemSemana || []).forEach(v => {
+    const dataStr = String(v.dia || '').slice(0, 10);
+    const d = new Date(dataStr + 'T12:00:00');
+    const diaSemana = d.getDay();
+    if (isNaN(diaSemana)) return;
+    const idx = diaSemana === 0 ? 6 : diaSemana - 1;
+    diasContagem[idx] += Number(v.vendas || 0);
   });
   // Vendas de outras filiais PARA a nossa também representam vendas
   // reais da filial no dia — somam na evolução (pela quantidade de
@@ -1500,10 +1527,15 @@ function processarDadosParaRender(cache) {
       return dataNoPeriodo(v.data_venda, semana.de, semana.ate);
     })
     .reduce((s, v) => s + Number(v.quantidade || 1), 0);
-  // Diferente do total mensal, o total semanal (Meta da Semana, Metas
-  // da Filial — Semana e Evolução da Semana) CONTA as vendas marcadas
-  // como "fora da filial" — elas só ficam de fora da meta GLOBAL mensal.
-  const totalSemana = vendasSemana.length + vendasOutrasFiliaisSemana;
+  // Vendas recebidas de outra regional contam no mês do destino, mas no
+  // semanal são atribuídas à filial de origem do vendedor. Retiramos as
+  // recebidas e somamos as saídas agregadas. A regra semanal existente para
+  // vendas marcadas como fora da filial continua valendo.
+  const vendasRecebidasSemana = vendasSemana.filter(isVendaExternaRecebidaDeOutraFilial).length;
+  const vendasExternosOrigemSemanaTotal = (vendasExternosOrigemSemana || [])
+    .reduce((s, v) => s + Number(v.vendas || 0), 0);
+  const totalSemana = vendasSemana.length - vendasRecebidasSemana
+    + vendasOutrasFiliaisSemana + vendasExternosOrigemSemanaTotal;
   const metaGlobal = (metasFilial && metasFilial.mensal_m1) || null; // sem fallback fictício
   const pctMensal = metaGlobal ? Math.min(100, Math.round((totalMes / metaGlobal) * 100)) : 0;
   const rankingMes = calcularRanking(vendasMes);

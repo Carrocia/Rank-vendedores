@@ -775,6 +775,7 @@ async function loadVendasExternosOrigem(de, ate) {
   }
   return (data || []).map(item => ({
     vendedor_id: Number(item.vendedor_id),
+    dia: String(item.dia || '').slice(0, 10),
     vendas: Number(item.vendas || 0),
     valor: Number(item.valor || 0),
   }));

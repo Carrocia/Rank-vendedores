@@ -2,13 +2,16 @@
 -- individual do vendedor externo da filial de origem.
 -- A função devolve agregados, sem expor cliente, contrato ou observação.
 
-create or replace function public.ranking_vendas_externos_origem(
+drop function if exists public.ranking_vendas_externos_origem(bigint, timestamptz, timestamptz);
+
+create function public.ranking_vendas_externos_origem(
   p_filial_origem_id bigint,
   p_inicio timestamptz,
   p_fim timestamptz
 )
 returns table (
   vendedor_id bigint,
+  dia date,
   vendas bigint,
   valor numeric
 )
@@ -37,6 +40,7 @@ begin
 
   return query
   select v.vendedor_id,
+         (v.data_venda::timestamptz at time zone 'America/Manaus')::date as dia,
          count(*)::bigint as vendas,
          coalesce(sum(v.valor), 0)::numeric as valor
   from public.vendas v
@@ -49,7 +53,8 @@ begin
     and v.fora_filial is not true
     and vendedor.tipo = 'externo'
     and vendedor.ativo is true
-  group by v.vendedor_id;
+  group by v.vendedor_id,
+           (v.data_venda::timestamptz at time zone 'America/Manaus')::date;
 end;
 $function$;
 
