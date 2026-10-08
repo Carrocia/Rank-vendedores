@@ -11,6 +11,14 @@
 <meta property="og:locale" content="pt_BR">
 <meta property="og:title" content="Ranking de Vendas | UNI Internet">
 <meta property="og:description" content="Ranking de vendas, metas e destaques da equipe comercial UNI Internet.">
+<script>
+  try {
+    if (sessionStorage.getItem('uni-filial-transicao') === '1') {
+      sessionStorage.removeItem('uni-filial-transicao');
+      document.documentElement.classList.add('filial-page-entering');
+    }
+  } catch (_) {}
+</script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2321d9ff'/%3E%3Cstop offset='1' stop-color='%237c5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='800' text-anchor='middle' fill='%23060810'%3EU%3C/text%3E%3C/svg%3E">
 <script src="assets/js/bootstrap.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -92,12 +100,12 @@
     </div>
   </header>
 
-  <div class="filial-site-bar" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:0 0 18px;padding:12px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);">
-    <label for="filial-site-select" style="font-size:0.78rem;font-weight:700;color:var(--text-muted);">REGIONAL</label>
-    <select id="filial-site-select" onchange="abrirFilialSite(this.value)" aria-label="Escolher regional" style="width:auto;min-width:210px;max-width:100%;">
+  <div class="filial-site-bar" aria-label="Navegação entre filiais">
+    <label for="filial-site-select">Filial</label>
+    <select id="filial-site-select" onchange="abrirFilialSite(this.value)" aria-label="Escolher filial">
       <option value="">Carregando filiais…</option>
     </select>
-    <button type="button" class="adm-btn adm-btn-secondary" onclick="copiarLinkFilial()" style="width:auto;padding:9px 14px;">🔗 Copiar link desta filial</button>
+    <button type="button" class="filial-link-copy" onclick="copiarLinkFilial()" aria-label="Copiar link desta filial" title="Copiar link desta filial"><span aria-hidden="true">⧉</span></button>
   </div>
 
   <!-- ===== ABAS NO TOPO ===== -->
