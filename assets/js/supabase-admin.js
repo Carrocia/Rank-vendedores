@@ -14,6 +14,7 @@ window.ADMIN_FILIAL_ID = null;
 window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
 let _vendedorFotoPreviewUrl = null;
+let _vendedoresGerenciamento = [];
 const BUCKET_FOTOS_VENDEDORES = 'vendedor-fotos';
 
 function conferirEscopoAdmin(adminData) {
@@ -219,6 +220,137 @@ function prepararCadastroVendedor() {
     if (filialField) filialField.hidden = false;
     if (hint) hint.textContent = 'Não foi possível confirmar a regional deste acesso.';
   }
+  const vendedorEmEdicao = _vendedoresGerenciamento.find(v => Number(v.id) === Number(document.getElementById('adm-vendedor-edit-id')?.value));
+  if (vendedorEmEdicao) {
+    filialSelect.value = String(vendedorEmEdicao.filial_id);
+    filialSelect.disabled = true;
+  }
+}
+
+function limparEstadoEdicaoVendedor() {
+  const idEl = document.getElementById('adm-vendedor-edit-id');
+  const titulo = document.getElementById('adm-vendedor-form-title');
+  const botao = document.getElementById('adm-vendedor-submit');
+  const cancelar = document.getElementById('adm-vendedor-cancel-edit');
+  const filialSelect = document.getElementById('adm-vendedor-filial');
+  if (idEl) idEl.value = '';
+  if (titulo) titulo.textContent = 'Cadastrar vendedor';
+  if (botao) botao.textContent = 'Cadastrar vendedor';
+  if (cancelar) cancelar.hidden = true;
+  if (filialSelect) filialSelect.disabled = window.ADMIN_FILIAL_ID != null;
+}
+
+function cancelarEdicaoVendedor() {
+  const form = document.getElementById('adm-vendedor-form');
+  form?.reset();
+  limparFotoVendedor();
+  limparEstadoEdicaoVendedor();
+  prepararCadastroVendedor();
+}
+
+function iniciarEdicaoVendedor(id) {
+  const vendedor = _vendedoresGerenciamento.find(v => Number(v.id) === Number(id));
+  if (!vendedor || !vendedor.ativo) {
+    showToast('Este vendedor não está disponível para edição.', 'warning');
+    return;
+  }
+  if (window.ADMIN_FILIAL_ID != null && Number(vendedor.filial_id) !== Number(window.ADMIN_FILIAL_ID)) {
+    showToast('Este acesso só pode editar vendedores da própria regional.', 'error');
+    return;
+  }
+
+  const form = document.getElementById('adm-vendedor-form');
+  document.getElementById('adm-vendedor-edit-id').value = String(vendedor.id);
+  document.getElementById('adm-vendedor-nome').value = vendedor.nome || '';
+  document.getElementById('adm-vendedor-tipo').value = vendedor.tipo || '';
+  const filialSelect = document.getElementById('adm-vendedor-filial');
+  if (filialSelect) {
+    filialSelect.value = String(vendedor.filial_id);
+    filialSelect.disabled = true;
+  }
+  document.getElementById('adm-vendedor-form-title').textContent = `Editar vendedor — ${vendedor.nome}`;
+  document.getElementById('adm-vendedor-submit').textContent = 'Salvar alterações';
+  document.getElementById('adm-vendedor-cancel-edit').hidden = false;
+
+  limparFotoVendedor();
+  const fotoAtual = vendedor.foto_url || PHOTOS[vendedor.slug] || '';
+  if (fotoAtual) {
+    document.getElementById('adm-vendedor-foto-preview-img').src = fotoAtual;
+    document.getElementById('adm-vendedor-foto-preview-nome').textContent = 'Foto atual (escolha outra para substituir)';
+    document.getElementById('adm-vendedor-foto-preview').hidden = false;
+  }
+  form?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function carregarVendedoresGerenciamento() {
+  const tbody = document.getElementById('adm-vendedores-inativos-tbody');
+  if (!tbody || !window._supabase || !window.FILIAL_ATUAL_ID) return;
+  const { data, error } = await window._supabase
+    .from('vendedores')
+    .select('id, nome, tipo, slug, filial_id, ativo, foto_url')
+    .eq('filial_id', window.FILIAL_ATUAL_ID)
+    .order('nome');
+  if (error) {
+    console.error('[carregarVendedoresGerenciamento]', error);
+    tbody.innerHTML = '<tr><td colspan="3" class="adm-empty-state">Não foi possível carregar os vendedores desativados.</td></tr>';
+    return;
+  }
+  _vendedoresGerenciamento = data || [];
+  const inativos = _vendedoresGerenciamento.filter(v => !v.ativo);
+  tbody.replaceChildren();
+  if (!inativos.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 3;
+    td.className = 'adm-empty-state';
+    td.textContent = 'Nenhum vendedor desativado nesta regional.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+  inativos.forEach(v => {
+    const tr = document.createElement('tr');
+    const nome = document.createElement('td');
+    nome.textContent = v.nome;
+    const tipo = document.createElement('td');
+    tipo.textContent = v.tipo === 'interno' ? 'Interno' : 'Externo';
+    const acao = document.createElement('td');
+    const reativar = document.createElement('button');
+    reativar.type = 'button';
+    reativar.className = 'adm-btn adm-btn-small';
+    reativar.textContent = 'Reativar';
+    reativar.addEventListener('click', () => alterarStatusVendedor(v.id, true));
+    acao.appendChild(reativar);
+    tr.append(nome, tipo, acao);
+    tbody.appendChild(tr);
+  });
+}
+
+async function alterarStatusVendedor(id, ativo) {
+  const vendedor = _vendedoresGerenciamento.find(v => Number(v.id) === Number(id));
+  if (!vendedor) return;
+  if (window.ADMIN_FILIAL_ID != null && Number(vendedor.filial_id) !== Number(window.ADMIN_FILIAL_ID)) {
+    showToast('Este acesso só pode alterar vendedores da própria regional.', 'error');
+    return;
+  }
+  if (!ativo && !confirm(`Desativar ${vendedor.nome}? O histórico de vendas será preservado.`)) return;
+  try {
+    const { data, error } = await window._supabase
+      .from('vendedores')
+      .update({ ativo })
+      .eq('id', vendedor.id)
+      .eq('filial_id', vendedor.filial_id)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('O banco não autorizou a alteração para esta regional.');
+    showToast(ativo ? `${vendedor.nome} foi reativado.` : `${vendedor.nome} foi desativado.`, 'success');
+    await carregarDados();
+    await carregarVendedoresGerenciamento();
+  } catch (error) {
+    console.error('[alterarStatusVendedor]', error);
+    showToast(error.message || 'Não foi possível alterar o status do vendedor.', 'error');
+  }
 }
 
 function slugVendedor(nome, filial) {
@@ -275,8 +407,9 @@ async function cadastrarVendedor(event) {
   event.preventDefault();
   const form = document.getElementById('adm-vendedor-form');
   const botao = document.getElementById('adm-vendedor-submit');
+  const editId = Number(document.getElementById('adm-vendedor-edit-id')?.value || 0) || null;
   if (!window.ADMIN_AUTENTICADO || !window._supabase) {
-    showToast('Entre com uma conta administrativa para cadastrar vendedores.', 'error');
+    showToast('Entre com uma conta administrativa para gerenciar vendedores.', 'error');
     return;
   }
 
@@ -284,7 +417,10 @@ async function cadastrarVendedor(event) {
   const tipo = document.getElementById('adm-vendedor-tipo').value;
   const arquivoFoto = document.getElementById('adm-vendedor-foto')?.files?.[0] || null;
   const isSuperAdmin = window.ADMIN_FILIAL_ID == null;
-  const filialId = isSuperAdmin
+  const vendedorExistente = editId ? _vendedoresGerenciamento.find(v => Number(v.id) === editId) : null;
+  const filialId = vendedorExistente
+    ? Number(vendedorExistente.filial_id)
+    : isSuperAdmin
     ? Number(document.getElementById('adm-vendedor-filial').value)
     : Number(window.ADMIN_FILIAL_ID);
   const filial = (_cache.filiais || []).find(f => Number(f.id) === filialId);
@@ -294,33 +430,39 @@ async function cadastrarVendedor(event) {
   }
 
   if (!isSuperAdmin && filialId !== Number(window.ADMIN_FILIAL_ID)) {
-    showToast('Este acesso só pode cadastrar vendedores na própria regional.', 'error');
+    showToast('Este acesso só pode gerenciar vendedores da própria regional.', 'error');
+    return;
+  }
+  if (editId && (!vendedorExistente || !vendedorExistente.ativo)) {
+    showToast('O vendedor não está mais ativo para edição. Atualize a página.', 'warning');
     return;
   }
 
   botao.disabled = true;
-  botao.textContent = 'Cadastrando…';
+  botao.textContent = editId ? 'Salvando…' : 'Cadastrando…';
   try {
-    const { data: vendedor, error } = await window._supabase.from('vendedores').insert([{
-      nome,
-      tipo,
-      ativo: true,
-      filial_id: filialId,
-      slug: slugVendedor(nome, filial),
-    }]).select('id').single();
-    if (error) {
-      if (error.code === '23505') {
-        throw new Error('Já existe um vendedor com esse nome ou identificador nesta regional.');
+    let erroFoto = null;
+    let vendedorId = editId || null;
+    let urlFotoSalva = null;
+
+    if (!editId) {
+      const { data: vendedor, error } = await window._supabase.from('vendedores').insert([{
+        nome,
+        tipo,
+        ativo: true,
+        filial_id: filialId,
+        slug: slugVendedor(nome, filial),
+      }]).select('id').single();
+      if (error) {
+        if (error.code === '23505') throw new Error('Já existe um vendedor com esse nome ou identificador nesta regional.');
+        if (error.code === '42501') throw new Error('O banco recusou o cadastro para esta regional. Confira o vínculo do administrador.');
+        throw error;
       }
-      if (error.code === '42501') {
-        throw new Error('O banco recusou o cadastro para esta regional. Confira o vínculo de acesso do administrador.');
-      }
-      throw error;
+      vendedorId = vendedor.id;
     }
 
-    let erroFoto = null;
-    if (arquivoFoto && vendedor?.id) {
-      const caminhoFoto = `${filialId}/${vendedor.id}/avatar`;
+    if (arquivoFoto && vendedorId) {
+      const caminhoFoto = `${filialId}/${vendedorId}/avatar`;
       const { error: erroUpload } = await window._supabase.storage
         .from(BUCKET_FOTOS_VENDEDORES)
         .upload(caminhoFoto, arquivoFoto, {
@@ -334,38 +476,61 @@ async function cadastrarVendedor(event) {
         const { data: urlFoto } = window._supabase.storage
           .from(BUCKET_FOTOS_VENDEDORES)
           .getPublicUrl(caminhoFoto);
-        const { error: erroAtualizacaoFoto } = await window._supabase
-          .from('vendedores')
-          .update({ foto_url: urlFoto.publicUrl })
-          .eq('id', vendedor.id)
-          .eq('filial_id', filialId);
-        if (erroAtualizacaoFoto) erroFoto = erroAtualizacaoFoto;
+        urlFotoSalva = `${urlFoto.publicUrl}${urlFoto.publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`;
       }
+    }
+
+    if (editId) {
+      if (erroFoto) throw new Error(`Não foi possível enviar a nova foto: ${erroFoto.message}`);
+      const alteracoes = { nome, tipo };
+      if (urlFotoSalva) alteracoes.foto_url = urlFotoSalva;
+      const { data, error } = await window._supabase.from('vendedores')
+        .update(alteracoes)
+        .eq('id', vendedorId)
+        .eq('filial_id', filialId)
+        .select('id')
+        .maybeSingle();
+      if (error) {
+        if (error.code === '23505') throw new Error('Já existe outro vendedor com esse nome nesta regional.');
+        if (error.code === '42501') throw new Error('O banco recusou a edição. Aplique a permissão de gerenciamento de vendedores no Supabase.');
+        throw error;
+      }
+      if (!data) throw new Error('O banco não autorizou a edição deste vendedor. Confira a regional da conta.');
+    } else if (urlFotoSalva) {
+      const { error } = await window._supabase.from('vendedores')
+        .update({ foto_url: urlFotoSalva })
+        .eq('id', vendedorId)
+        .eq('filial_id', filialId);
+      if (error) erroFoto = error;
     }
 
     form.reset();
     limparFotoVendedor();
+    limparEstadoEdicaoVendedor();
     prepararCadastroVendedor();
     showToast(
       erroFoto
-        ? `Vendedor cadastrado em ${filial.nome}, mas a foto não foi enviada. Confira a configuração do Storage.`
-        : `Vendedor cadastrado em ${filial.nome}.`,
+        ? `Vendedor salvo em ${filial.nome}, mas a foto não foi vinculada. Confira a configuração do Storage.`
+        : editId ? `${nome} atualizado.` : `Vendedor cadastrado em ${filial.nome}.`,
       erroFoto ? 'warning' : 'success'
     );
     try {
       const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
       popularSelectVendedoresTodasFiliais(vendedoresTodasFiliais);
-      if (filialId === Number(window.FILIAL_ATUAL_ID)) await carregarDados();
+      if (filialId === Number(window.FILIAL_ATUAL_ID)) {
+        await carregarDados();
+        await carregarVendedoresGerenciamento();
+      }
     } catch (reloadError) {
-      console.error('[cadastrarVendedor] cadastro salvo, mas não foi possível atualizar as listas:', reloadError);
-      showToast('Cadastro salvo. Atualize a página para atualizar as listas.', 'warning');
+      console.error('[cadastrarVendedor] alteração salva, mas não foi possível atualizar as listas:', reloadError);
+      showToast('Alteração salva. Atualize a página para atualizar as listas.', 'warning');
     }
   } catch (error) {
     console.error('[cadastrarVendedor]', error);
     showToast(error.message || 'Não foi possível cadastrar o vendedor.', 'error');
   } finally {
     botao.disabled = false;
-    botao.textContent = 'Cadastrar vendedor';
+    botao.textContent = document.getElementById('adm-vendedor-edit-id')?.value ? 'Salvar alterações' : 'Cadastrar vendedor';
   }
 }
 
@@ -1906,6 +2071,7 @@ async function adm_showPanel() {
   const dataEl = document.getElementById('venda-data');
   if (dataEl && !dataEl.value) dataEl.value = hoje;
   prepararCadastroVendedor();
+  carregarVendedoresGerenciamento();
 
   try {
     const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
@@ -1926,7 +2092,10 @@ function adm_navigateTo(sectionId) {
   document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
   document.querySelector(`.adm-nav-item[data-section="${sectionId}"]`)?.classList.add('active');
   document.getElementById('sec-' + sectionId)?.classList.add('active');
-  if (sectionId === 'vendedores') prepararCadastroVendedor();
+  if (sectionId === 'vendedores') {
+    prepararCadastroVendedor();
+    carregarVendedoresGerenciamento();
+  }
   // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
   // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
@@ -2282,7 +2451,7 @@ function renderAdmVendedoresTable(d) {
   if (!todos.length) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 7;
+    td.colSpan = 8;
     td.className = 'adm-empty-state';
     td.textContent = 'Nenhum vendedor ativo cadastrado nesta regional.';
     tr.appendChild(td);
@@ -2349,7 +2518,21 @@ function renderAdmVendedoresTable(d) {
     statusBtn.addEventListener('click', event => gerarStatusVendedor(v.slug, event));
     statusTd.appendChild(statusBtn);
 
-    tr.append(fotoTd, nomeTd, tipoTd, metaTd, vendasTd, pctTd, statusTd);
+    const acoesTd = document.createElement('td');
+    acoesTd.className = 'adm-vendedor-actions';
+    const editarBtn = document.createElement('button');
+    editarBtn.type = 'button';
+    editarBtn.className = 'adm-btn adm-btn-small';
+    editarBtn.textContent = 'Editar';
+    editarBtn.addEventListener('click', () => iniciarEdicaoVendedor(v.id));
+    const desativarBtn = document.createElement('button');
+    desativarBtn.type = 'button';
+    desativarBtn.className = 'adm-btn adm-btn-small adm-btn-danger';
+    desativarBtn.textContent = 'Desativar';
+    desativarBtn.addEventListener('click', () => alterarStatusVendedor(v.id, false));
+    acoesTd.append(editarBtn, desativarBtn);
+
+    tr.append(fotoTd, nomeTd, tipoTd, metaTd, vendasTd, pctTd, statusTd, acoesTd);
     return tr;
   });
   tbody.replaceChildren(...linhas);

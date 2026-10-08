@@ -113,6 +113,15 @@ body.adm-modal-open { overflow: hidden; }
 .adm-vendedor-foto-preview img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
 .adm-vendedor-foto-preview .adm-btn { width: auto; margin: 0; padding: 8px 12px; font-size: 0.76rem; }
 .adm-vendedor-avatar-fallback { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--accent); background: var(--surface-hover); color: var(--heading-color); font-weight: 800; }
+.adm-vendedor-actions { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.adm-btn.adm-btn-small { width: auto; padding: 7px 10px; margin: 0; font-size: 0.72rem; }
+.adm-btn.adm-btn-secondary { width: auto; }
+.adm-btn-danger { color: #ff8c9b; border: 1px solid rgba(255, 100, 125, 0.28); }
+.adm-btn-danger:hover { color: #fff; border-color: #ff647d; background: rgba(255, 100, 125, 0.16); }
+.adm-vendedores-inativos { margin-top: 18px; border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; background: rgba(255,255,255,0.02); }
+.adm-vendedores-inativos summary { padding: 14px 16px; color: var(--text-muted); font-size: 0.84rem; font-weight: 700; cursor: pointer; }
+.adm-vendedores-inativos[open] summary { color: var(--heading-color); border-bottom: 1px solid rgba(255,255,255,0.08); }
+.adm-vendedores-inativos .adm-table-wrap { border: 0; border-radius: 0 0 12px 12px; }
 .adm-field label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
 .adm-field input, .adm-field select, .adm-field textarea {
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);

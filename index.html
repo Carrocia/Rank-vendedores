@@ -533,9 +533,10 @@
         <section class="adm-section" id="sec-vendedores">
           <div class="adm-section-title">Equipe de Vendas</div>
           <div class="adm-form-card adm-vendedor-cadastro-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Cadastrar vendedor</div>
+            <div class="adm-section-title" id="adm-vendedor-form-title" style="font-size:0.95rem;padding-bottom:12px;">Cadastrar vendedor</div>
             <p class="adm-vendedor-cadastro-hint" id="adm-vendedor-escopo-hint">O vendedor será vinculado à filial selecionada.</p>
             <form id="adm-vendedor-form" onsubmit="cadastrarVendedor(event)">
+              <input id="adm-vendedor-edit-id" type="hidden" value="">
               <div class="adm-form-grid">
                 <div class="adm-field">
                   <label for="adm-vendedor-nome">Nome</label>
@@ -554,15 +555,15 @@
                   <select id="adm-vendedor-filial" name="filial_id" required></select>
                 </div>
                 <div class="adm-field adm-form-full">
-                  <label for="adm-vendedor-foto">Foto do vendedor (JPG, PNG ou WebP; até 2 MB)</label>
+                  <label for="adm-vendedor-foto">Foto do vendedor (opcional; JPG, PNG ou WebP; até 2 MB)</label>
                   <input id="adm-vendedor-foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewFotoVendedor(event)">
                   <div class="adm-vendedor-foto-preview" id="adm-vendedor-foto-preview" hidden>
                     <img id="adm-vendedor-foto-preview-img" alt="Prévia da foto do vendedor">
                     <span id="adm-vendedor-foto-preview-nome"></span>
-                    <button type="button" class="adm-btn adm-btn-secondary" onclick="limparFotoVendedor()">Remover foto</button>
                   </div>
                 </div>
                 <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
+                  <button type="button" class="adm-btn adm-btn-secondary" id="adm-vendedor-cancel-edit" onclick="cancelarEdicaoVendedor()" hidden>Cancelar edição</button>
                   <button type="submit" class="adm-btn adm-btn-primary" id="adm-vendedor-submit" style="width:auto;padding:12px 28px;">Cadastrar vendedor</button>
                 </div>
               </div>
@@ -571,13 +572,22 @@
           <div class="adm-table-wrap">
             <table class="adm-table" id="adm-vendedores-table">
               <thead>
-                <tr><th>Foto</th><th>Nome</th><th>Tipo</th><th>Meta mensal</th><th>Vendas (mês)</th><th>% Meta</th><th>Status</th></tr>
+                <tr><th>Foto</th><th>Nome</th><th>Tipo</th><th>Meta mensal</th><th>Vendas (mês)</th><th>% Meta</th><th>Status</th><th>Ações</th></tr>
               </thead>
               <tbody id="adm-vendedores-tbody">
-                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Carregando vendedores da regional…</td></tr>
+                <tr><td colspan="8" style="text-align:center;color:var(--text-muted);">Carregando vendedores da regional…</td></tr>
               </tbody>
             </table>
           </div>
+          <details class="adm-vendedores-inativos" id="adm-vendedores-inativos">
+            <summary>Vendedores desativados</summary>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Nome</th><th>Tipo</th><th>Ação</th></tr></thead>
+                <tbody id="adm-vendedores-inativos-tbody"><tr><td colspan="3" class="adm-empty-state">Carregando…</td></tr></tbody>
+              </table>
+            </div>
+          </details>
         </section>
 
         <!-- ── METAS ───────────────────────────────────────────── -->
