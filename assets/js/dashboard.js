@@ -208,7 +208,7 @@ function calcularPeriodoMesAnterior(n = 1) {
 }
 
 // Mesma regra de contagem do painel: externo "fora da filial" não conta.
-function calcularDestaqueMes(periodo, vendas, vendedores) {
+function calcularDestaqueMes(periodo, vendas, vendedores, vendasOrigemInternos = []) {
   const vencedor = tipo => {
     const mapa = {};
     (vendedores || []).filter(v => v.tipo === tipo).forEach(v => {
@@ -219,6 +219,12 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
       if (!e) return;
       if (tipo === 'externo' && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v))) return;
       e.vendas += 1;
+      e.valor += Number(v.valor || 0);
+    });
+    if (tipo === 'interno') (vendasOrigemInternos || []).forEach(v => {
+      const e = mapa[v.vendedor_id];
+      if (!e) return;
+      e.vendas += Number(v.vendas || 0);
       e.valor += Number(v.valor || 0);
     });
     const lista = Object.values(mapa).filter(e => e.vendas > 0)
@@ -913,7 +919,7 @@ let _cache = {
   vendedores: [], planos: [], adicionais: [], filiais: [],
   metasFilial: null, metas: [], metasRenovCancel: null,
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
-  vendasExternosOrigemSemana: [], vendasExternosOrigemSemanaAnterior: [],
+  vendasOrigemSemana: [], vendasOrigemSemanaAnterior: [], vendasOrigemMes: [],
   vendaMaisRecente: null,
   semana: null, mes: null,
 };
@@ -1026,11 +1032,12 @@ async function carregarDados() {
     const vendedores = await loadVendedores();
     const vendedorIds = vendedores.map(v => v.id);
     const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate).catch(() => [])));
+    const pFechadosOrigem = Promise.all(mesesFechados.map(m => loadVendasOrigem(m.de, m.ate).catch(() => [])));
 
     // Carregar os dados da filial selecionada em paralelo.
     const [planos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
-           vendasExternosOrigemSemana, vendasExternosOrigemSemanaAnterior, destaquesRenovacao, configSite] = await Promise.all([
+           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, destaquesRenovacao, configSite] = await Promise.all([
       loadPlanos(),
       loadAdicionais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
@@ -1041,8 +1048,9 @@ async function carregarDados() {
       loadVendasOutrasFiliais(_cache.mes.de, _cache.mes.ate),
       loadVendaMaisRecente(),
       loadVendas(semanaAnterior.de, semanaAnterior.ate),
-      loadVendasExternosOrigem(_cache.semana.de, _cache.semana.ate),
-      loadVendasExternosOrigem(semanaAnterior.de, semanaAnterior.ate),
+      loadVendasOrigem(_cache.semana.de, _cache.semana.ate),
+      loadVendasOrigem(semanaAnterior.de, semanaAnterior.ate),
+      loadVendasOrigem(_cache.mes.de, _cache.mes.ate),
       loadDestaquesRenovacao(),
       loadConfigSite(),
     ]);
@@ -1058,10 +1066,14 @@ async function carregarDados() {
     _cache.vendasFiliais = vendasFiliais;
     _cache.vendaMaisRecente = vendaMaisRecente;
     _cache.vendasSemanaAnterior = vendasSemanaAnterior;
-    _cache.vendasExternosOrigemSemana = vendasExternosOrigemSemana;
-    _cache.vendasExternosOrigemSemanaAnterior = vendasExternosOrigemSemanaAnterior;
-    const vendasFechados = await pFechados;
-    _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(m, vendasFechados[i], vendedores));
+    _cache.vendasOrigemSemana = vendasOrigemSemana;
+    _cache.vendasOrigemSemanaAnterior = vendasOrigemSemanaAnterior;
+    _cache.vendasOrigemMes = vendasOrigemMes;
+    const [vendasFechados, vendasFechadosOrigem] = await Promise.all([pFechados, pFechadosOrigem]);
+    _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(
+      m, vendasFechados[i], vendedores,
+      vendasFechadosOrigem[i].filter(v => v.tipo === 'interno')
+    ));
     _cache.destaquesRenovacao = destaquesRenovacao;
     popularAdmRenovacoes();
     _cache.configSite = configSite;
@@ -1334,7 +1346,7 @@ function processarDadosParaRender(cache) {
   if (!cache) return null;
   const { vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente,
           semana, mes, metasFilial, metas, metasRenovCancel, vendedores, planos, vendasSemanaAnterior,
-          vendasExternosOrigemSemana = [], vendasExternosOrigemSemanaAnterior = [] } = cache;
+          vendasOrigemSemana = [], vendasOrigemSemanaAnterior = [], vendasOrigemMes = [] } = cache;
 
   // Meta individual de cada vendedor, buscada da tabela metas (mes/ano/vendedor_id).
   // Internos usam a faixa M3 (base) para o cálculo de % e ritmo;
@@ -1355,6 +1367,8 @@ function processarDadosParaRender(cache) {
   const vendedoresExternosIds = new Set((vendedores || [])
     .filter(v => v.tipo === 'externo')
     .map(v => String(v.id)));
+  const isVendaInterregionalComVendedor = v => isVendaRecebidaDeOutraFilial(v)
+    && v.vendedor_id != null;
   const isVendaExternaRecebidaDeOutraFilial = v => isVendaRecebidaDeOutraFilial(v)
     && vendedoresExternosIds.has(String(v.vendedor_id));
   const contarVendasPorVendedor = (vendas) => {
@@ -1399,9 +1413,12 @@ function processarDadosParaRender(cache) {
   const externos = vendedores.filter(v => v.tipo === 'externo');
 
   const extSem = agruparPorVendedor(vendasSemana, externos);
-  // Vendas registradas em outra filial entram somente no ranking semanal
-  // dos vendedores externos da filial de origem. Não alteram metas/totais
-  // da filial de origem nem os rankings e metas mensais individuais.
+  const intSem = agruparPorVendedor(vendasSemana, internos);
+  const extMes = agruparPorVendedor(vendasMes, externos);
+  const intMes = agruparPorVendedor(vendasMes, internos);
+
+  // Vendas interregionais entram no semanal da filial de origem para ambos
+  // os tipos. Na meta individual mensal, o crédito adicional é só do interno.
   const agregarVendasOrigemPorVendedor = vendas => {
     const mapa = new Map();
     vendas.forEach(v => {
@@ -1413,20 +1430,31 @@ function processarDadosParaRender(cache) {
     });
     return mapa;
   };
-  const vendasOrigemSemanaPorId = agregarVendasOrigemPorVendedor(vendasExternosOrigemSemana);
-  const vendasOrigemSemanaAnteriorPorId = agregarVendasOrigemPorVendedor(vendasExternosOrigemSemanaAnterior);
-  extSem.forEach(v => {
-    const atual = vendasOrigemSemanaPorId.get(Number(v.id));
-    const anterior = vendasOrigemSemanaAnteriorPorId.get(Number(v.id));
-    if (atual) {
-      v.vendas += Number(atual.vendas || 0);
-      v.valor += Number(atual.valor || 0);
-    }
-    v.evolucao += Number(atual?.vendas || 0) - Number(anterior?.vendas || 0);
+  const agregarOrigemDoTipo = (vendas, tipo) => agregarVendasOrigemPorVendedor(
+    (vendas || []).filter(v => v.tipo === tipo)
+  );
+  const atualizarRankingSemanalDaOrigem = (ranking, tipo) => {
+    const atualPorId = agregarOrigemDoTipo(vendasOrigemSemana, tipo);
+    const anteriorPorId = agregarOrigemDoTipo(vendasOrigemSemanaAnterior, tipo);
+    ranking.forEach(v => {
+      const atual = atualPorId.get(Number(v.id));
+      const anterior = anteriorPorId.get(Number(v.id));
+      if (atual) {
+        v.vendas += atual.vendas;
+        v.valor += atual.valor;
+      }
+      v.evolucao += Number(atual?.vendas || 0) - Number(anterior?.vendas || 0);
+    });
+  };
+  atualizarRankingSemanalDaOrigem(extSem, 'externo');
+  atualizarRankingSemanalDaOrigem(intSem, 'interno');
+  const vendasOrigemInternosPorId = agregarOrigemDoTipo(vendasOrigemMes, 'interno');
+  intMes.forEach(v => {
+    const adicionais = vendasOrigemInternosPorId.get(Number(v.id));
+    if (!adicionais) return;
+    v.vendas += adicionais.vendas;
+    v.valor += adicionais.valor;
   });
-  const intSem = agruparPorVendedor(vendasSemana, internos);
-  const extMes = agruparPorVendedor(vendasMes, externos);
-  const intMes = agruparPorVendedor(vendasMes, internos);
 
   // Evolução semanal (vendas por dia da semana) — usa exclusivamente
   // as vendas reais da semana atual (vendasSemana), sem depender de metas.
@@ -1434,8 +1462,8 @@ function processarDadosParaRender(cache) {
   const diasContagem = new Array(7).fill(0);
   vendasSemana.forEach(v => {
     // Venda recebida de outra regional compõe o mês do destino, mas a semana
-    // é atribuída à filial de origem do vendedor externo.
-    if (isVendaExternaRecebidaDeOutraFilial(v)) return;
+    // é atribuída à filial de origem do vendedor.
+    if (isVendaInterregionalComVendedor(v)) return;
     // "Evolução da Semana" é um indicador global da filial — vendas
     // fora da filial CONTAM aqui (só ficam de fora da meta GLOBAL
     // mensal, não da semana nem das metas semanais da filial).
@@ -1451,7 +1479,7 @@ function processarDadosParaRender(cache) {
     const idx = diaSemana === 0 ? 6 : diaSemana - 1;
     diasContagem[idx]++;
   });
-  (vendasExternosOrigemSemana || []).forEach(v => {
+  (vendasOrigemSemana || []).forEach(v => {
     const dataStr = String(v.dia || '').slice(0, 10);
     const d = new Date(dataStr + 'T12:00:00');
     const diaSemana = d.getDay();
@@ -1527,15 +1555,14 @@ function processarDadosParaRender(cache) {
       return dataNoPeriodo(v.data_venda, semana.de, semana.ate);
     })
     .reduce((s, v) => s + Number(v.quantidade || 1), 0);
-  // Vendas recebidas de outra regional contam no mês do destino, mas no
-  // semanal são atribuídas à filial de origem do vendedor. Retiramos as
-  // recebidas e somamos as saídas agregadas. A regra semanal existente para
-  // vendas marcadas como fora da filial continua valendo.
-  const vendasRecebidasSemana = vendasSemana.filter(isVendaExternaRecebidaDeOutraFilial).length;
-  const vendasExternosOrigemSemanaTotal = (vendasExternosOrigemSemana || [])
+  // Vendas entre regionais com vendedor contam no mês do destino, mas na
+  // semana ficam na filial de origem do vendedor. Vendas de outras filiais
+  // sem vendedor seguem na contagem da filial destino.
+  const vendasRecebidasSemana = vendasSemana.filter(isVendaInterregionalComVendedor).length;
+  const vendasOrigemSemanaTotal = (vendasOrigemSemana || [])
     .reduce((s, v) => s + Number(v.vendas || 0), 0);
   const totalSemana = vendasSemana.length - vendasRecebidasSemana
-    + vendasOutrasFiliaisSemana + vendasExternosOrigemSemanaTotal;
+    + vendasOutrasFiliaisSemana + vendasOrigemSemanaTotal;
   const metaGlobal = (metasFilial && metasFilial.mensal_m1) || null; // sem fallback fictício
   const pctMensal = metaGlobal ? Math.min(100, Math.round((totalMes / metaGlobal) * 100)) : 0;
   const rankingMes = calcularRanking(vendasMes);

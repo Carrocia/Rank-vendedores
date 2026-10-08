@@ -1,16 +1,18 @@
--- Inclui vendas recebidas por outra filial apenas no ranking semanal
--- individual do vendedor externo da filial de origem.
+-- Atribui vendas entre regionais à filial do vendedor nos dados semanais
+-- nos indicadores semanais da origem e na meta individual mensal dos internos.
 -- A função devolve agregados, sem expor cliente, contrato ou observação.
 
 drop function if exists public.ranking_vendas_externos_origem(bigint, timestamptz, timestamptz);
+drop function if exists public.ranking_vendas_por_origem(bigint, timestamptz, timestamptz);
 
-create function public.ranking_vendas_externos_origem(
+create function public.ranking_vendas_por_origem(
   p_filial_origem_id bigint,
   p_inicio timestamptz,
   p_fim timestamptz
 )
 returns table (
   vendedor_id bigint,
+  tipo text,
   dia date,
   vendas bigint,
   valor numeric
@@ -25,8 +27,8 @@ begin
      or p_inicio is null
      or p_fim is null
      or p_fim <= p_inicio
-     or p_fim > p_inicio + interval '8 days' then
-    raise exception 'Período inválido para consulta do ranking semanal.'
+     or p_fim > p_inicio + interval '32 days' then
+    raise exception 'Período inválido para consulta de desempenho regional.'
       using errcode = '22023';
   end if;
 
@@ -40,6 +42,7 @@ begin
 
   return query
   select v.vendedor_id,
+         vendedor.tipo::text,
          (v.data_venda::timestamptz at time zone 'America/Manaus')::date as dia,
          count(*)::bigint as vendas,
          coalesce(sum(v.valor), 0)::numeric as valor
@@ -51,14 +54,13 @@ begin
     and v.data_venda >= p_inicio
     and v.data_venda < p_fim
     and v.fora_filial is not true
-    and vendedor.tipo = 'externo'
-    and vendedor.ativo is true
   group by v.vendedor_id,
+           vendedor.tipo,
            (v.data_venda::timestamptz at time zone 'America/Manaus')::date;
 end;
 $function$;
 
-revoke all on function public.ranking_vendas_externos_origem(bigint, timestamptz, timestamptz)
+revoke all on function public.ranking_vendas_por_origem(bigint, timestamptz, timestamptz)
   from public, anon, authenticated;
-grant execute on function public.ranking_vendas_externos_origem(bigint, timestamptz, timestamptz)
+grant execute on function public.ranking_vendas_por_origem(bigint, timestamptz, timestamptz)
   to anon, authenticated;

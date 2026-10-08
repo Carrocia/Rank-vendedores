@@ -756,25 +756,25 @@ async function loadVendas(de, ate) {
   }));
 }
 
-// Retorna apenas totais de vendas feitas por vendedores externos da filial
-// atual, mas recebidas por outra filial. Esse resultado alimenta somente o
-// ranking semanal individual; nunca deve compor os totais da filial nem o mês.
-async function loadVendasExternosOrigem(de, ate) {
+// Retorna agregados de vendas interregionais originadas na filial atual,
+// sem cliente, contrato ou observação.
+async function loadVendasOrigem(de, ate) {
   const [ano, mes, dia] = String(de).slice(0, 10).split('-').map(Number);
   if (!ano || !mes || !dia || !window._supabase) return [];
   const inicio = new Date(ano, mes - 1, dia, 0, 0, 0, 0).toISOString();
   const fim = fimDoDiaExclusivo(ate);
-  const { data, error } = await window._supabase.rpc('ranking_vendas_externos_origem', {
+  const { data, error } = await window._supabase.rpc('ranking_vendas_por_origem', {
     p_filial_origem_id: window.FILIAL_ATUAL_ID,
     p_inicio: inicio,
     p_fim: fim,
   });
   if (error) {
-    console.error('[loadVendasExternosOrigem]', error);
+    console.error('[loadVendasOrigem]', error);
     return [];
   }
   return (data || []).map(item => ({
     vendedor_id: Number(item.vendedor_id),
+    tipo: String(item.tipo || ''),
     dia: String(item.dia || '').slice(0, 10),
     vendas: Number(item.vendas || 0),
     valor: Number(item.valor || 0),
@@ -2793,6 +2793,10 @@ async function gerarStatusVendedor(slug, evt) {
   const vendasDoVendedor = vendedorCadastro
     ? (_cache.vendasMes || []).filter(v => v.vendedor_id === vendedorCadastro.id)
     : [];
+  if (vendedorCadastro && tipo === 'interno') {
+    (_cache.vendasOrigemMes || []).filter(v => v.tipo === 'interno' && v.vendedor_id === vendedorCadastro.id)
+      .forEach(v => vendasDoVendedor.push({ data_venda: v.dia }));
+  }
   const sequencia = calcularSequenciaDias(vendasDoVendedor);
 
   const posicao = calcularPosicaoRanking(slug, tipo, d);
