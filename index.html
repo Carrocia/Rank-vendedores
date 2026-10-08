@@ -957,7 +957,20 @@
             </form>
           </div>
 
-          <!-- lista de registros de vendas de outras filiais, persistidos no Supabase -->
+          <div class="adm-form-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+              <div class="adm-section-title" style="font-size:0.95rem;padding:0;border:none;">Vendas recebidas com contrato</div>
+              <span style="font-size:0.72rem;color:var(--text-muted);">Até os 100 lançamentos mais recentes.</span>
+            </div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Origem</th><th>Contrato</th><th>Cliente</th><th>Vendedor</th><th>Plano</th><th>Total</th><th>Data</th></tr></thead>
+                <tbody id="filial-contratos-body"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Carregando vendas recebidas…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- histórico agregado antigo de vendas de outras filiais -->
           <div class="adm-form-card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div class="adm-section-title" style="font-size:0.95rem;padding:0;border:none;">Histórico agregado anterior</div>
@@ -965,7 +978,7 @@
             </div>
             <div id="filial-lista-wrap">
               <div id="filial-lista-vazia" style="text-align:center;padding:30px;color:var(--text-muted);font-size:0.82rem;">
-                Nenhum lançamento agregado antigo encontrado. Novos contratos são registrados no relatório de vendas.
+                Nenhum lançamento agregado antigo encontrado. Os contratos recentes aparecem na tabela acima.
               </div>
               <div class="adm-table-wrap" id="filial-tabela-wrap" style="display:none;">
                 <table class="adm-table">
