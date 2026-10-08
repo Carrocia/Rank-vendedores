@@ -1064,17 +1064,27 @@ async function carregarDados() {
 function popularSelectVendedores(vendedores) {
   // Os formulários de vendas normais e de adicionais só oferecem a equipe
   // da filial atual. O formulário de vendas recebidas é preenchido à parte,
-  // já dentro do ADM, com vendedores agrupados por regional.
-  const selects = ['venda-vendedor', 'adic-vendedor'];
-  selects.forEach(id => {
+  // já dentro do ADM, com vendedores agrupados por regional. Celebrações e
+  // Destaque do Mês também usam apenas a equipe da filial atual.
+  const selects = [
+    { id: 'venda-vendedor', tipo: 'id', placeholder: 'Selecione o vendedor' },
+    { id: 'adic-vendedor', tipo: 'id', placeholder: 'Selecione o vendedor' },
+    { id: 'cel-vendedor', tipo: 'slug', placeholder: 'Selecione o vendedor' },
+    { id: 'dm-vendedor', tipo: 'slug', placeholder: 'Selecione o vendedor' },
+  ];
+  selects.forEach(({ id, tipo, placeholder }) => {
     const el = document.getElementById(id);
     if (!el) return;
     const val = el.value;
-    const placeholder = id === 'filial-vendedor'
-      ? '<option value="">Sem vendedor cadastrado — conta só para a filial</option>'
-      : '<option value="">Selecione o vendedor</option>';
-    el.innerHTML = placeholder +
-      vendedores.map(v => `<option value="${v.id}" data-slug="${v.slug || ''}">${v.nome} (${v.tipo === 'interno' ? 'Interno' : 'Externo'})</option>`).join('');
+    el.replaceChildren(new Option(placeholder, ''));
+    (vendedores || []).forEach(v => {
+      const option = new Option(
+        `${v.nome} (${v.tipo === 'interno' ? 'Interno' : 'Externo'})`,
+        tipo === 'slug' ? (v.slug || v.id) : v.id
+      );
+      if (v.slug) option.dataset.slug = v.slug;
+      el.appendChild(option);
+    });
     if (val) el.value = val;
   });
 }
