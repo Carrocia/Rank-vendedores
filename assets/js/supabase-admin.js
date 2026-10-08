@@ -305,6 +305,100 @@ let _relatorioState = {
   porPagina: 20,
 };
 
+let _mesExclusaoConferido = null;
+
+function invalidarConferenciaExclusaoMes() {
+  _mesExclusaoConferido = null;
+  const botao = document.getElementById('rel-limpeza-excluir');
+  const resumo = document.getElementById('rel-limpeza-resumo');
+  if (botao) { botao.disabled = true; botao.style.opacity = '0.55'; botao.style.cursor = 'not-allowed'; }
+  if (resumo) resumo.textContent = 'Confira novamente os registros para o mês selecionado.';
+}
+
+function limitesMesSelecionado(mes) {
+  const [ano, numeroMes] = String(mes || '').split('-').map(Number);
+  if (!ano || !numeroMes || numeroMes < 1 || numeroMes > 12) return null;
+  const proximoMes = numeroMes === 12 ? `${ano + 1}-01` : `${ano}-${String(numeroMes + 1).padStart(2, '0')}`;
+  return {
+    inicio: new Date(`${mes}-01T00:00:00-04:00`).toISOString(),
+    fim: new Date(`${proximoMes}-01T00:00:00-04:00`).toISOString(),
+  };
+}
+
+async function contarVendasDoMesParaLimpeza(mes) {
+  const limites = limitesMesSelecionado(mes);
+  if (!limites) throw new Error('Selecione um mês válido.');
+  const [vendas, historico] = await Promise.all([
+    window._supabase.from('vendas').select('id', { count: 'exact', head: true })
+      .eq('filial_destino_id', 10).gte('data_venda', limites.inicio).lt('data_venda', limites.fim),
+    window._supabase.from('vendas_outras_filiais').select('id', { count: 'exact', head: true })
+      .gte('data_venda', limites.inicio).lt('data_venda', limites.fim),
+  ]);
+  if (vendas.error) throw vendas.error;
+  if (historico.error) throw historico.error;
+  return { vendas: vendas.count || 0, historico: historico.count || 0 };
+}
+
+async function conferirExclusaoMes() {
+  const campo = document.getElementById('rel-limpeza-mes');
+  const resumo = document.getElementById('rel-limpeza-resumo');
+  const botao = document.getElementById('rel-limpeza-excluir');
+  const mes = campo?.value;
+  invalidarConferenciaExclusaoMes();
+  if (!mes) { showToast('Escolha o mês que deseja conferir.', 'warning'); return; }
+
+  const [ano, numeroMes] = mes.split('-').map(Number);
+  const selecionado = new Date(ano, numeroMes - 1, 1);
+  const hoje = new Date();
+  const mesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  if (selecionado >= mesAtual) {
+    showToast('A limpeza manual está disponível apenas para meses já encerrados.', 'warning');
+    return;
+  }
+
+  if (resumo) resumo.textContent = 'Conferindo os registros do mês…';
+  try {
+    const contagens = await contarVendasDoMesParaLimpeza(mes);
+    _mesExclusaoConferido = { mes, ...contagens };
+    if (resumo) resumo.textContent = `${mes}: ${contagens.vendas} vendas da Alta Floresta e ${contagens.historico} lançamentos históricos agregados. A limpeza remove os dois grupos.`;
+    if (botao) { botao.disabled = false; botao.style.opacity = '1'; botao.style.cursor = 'pointer'; }
+  } catch (err) {
+    console.error('[conferirExclusaoMes]', err);
+    if (resumo) resumo.textContent = 'Não foi possível consultar os registros. Verifique a conexão e as permissões do Supabase.';
+    showToast(err.message || 'Não foi possível conferir o mês.', 'error');
+  }
+}
+
+async function excluirVendasDoMesConferido() {
+  const conferencia = _mesExclusaoConferido;
+  if (!conferencia) { showToast('Confira o mês novamente antes de excluir.', 'warning'); return; }
+  const quantidade = conferencia.vendas + conferencia.historico;
+  if (quantidade === 0) { showToast('Não há registros para excluir nesse mês.', 'warning'); return; }
+  const confirmado = window.confirm(
+    `Confirma a exclusão permanente de ${conferencia.vendas} vendas da Alta Floresta e ${conferencia.historico} lançamentos históricos de ${conferencia.mes}? Essa ação não pode ser desfeita.`
+  );
+  if (!confirmado) return;
+
+  try {
+    const { data, error } = await window._supabase.rpc('apagar_vendas_mes', {
+      p_mes: `${conferencia.mes}-01`,
+    });
+    if (error) throw error;
+    const resultado = Array.isArray(data) ? data[0] : data;
+    _mesExclusaoConferido = null;
+    const botao = document.getElementById('rel-limpeza-excluir');
+    if (botao) { botao.disabled = true; botao.style.opacity = '0.55'; botao.style.cursor = 'not-allowed'; }
+    const resumo = document.getElementById('rel-limpeza-resumo');
+    if (resumo) resumo.textContent = `Exclusão concluída: ${resultado?.vendas_apagadas ?? conferencia.vendas} vendas e ${resultado?.registros_historicos_apagados ?? conferencia.historico} lançamentos históricos removidos de ${conferencia.mes}.`;
+    showToast('Registros do mês excluídos.', 'success');
+    await carregarDados();
+    if (typeof aplicarFiltrosRelatorio === 'function') await aplicarFiltrosRelatorio();
+  } catch (err) {
+    console.error('[excluirVendasDoMesConferido]', err);
+    showToast(err.message || 'Não foi possível excluir os registros. Confira se a função SQL foi criada no Supabase.', 'error');
+  }
+}
+
 // Busca os nomes dos adicionais de cada venda (a view vendas_publicas
 // só traz o valor agregado, não os nomes) — única consulta nova deste
 // módulo, e só busca o que realmente falta.
