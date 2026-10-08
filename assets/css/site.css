@@ -51,7 +51,75 @@
     outline-offset: 2px;
   }
 
+  .filial-site-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    margin: -6px 0 10px;
+    min-height: 32px;
+  }
+  .filial-site-bar label {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .filial-site-bar select {
+    width: auto;
+    max-width: min(240px, 62vw);
+    padding: 5px 24px 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background-color: transparent;
+    color: var(--text-muted);
+    font: 500 0.76rem 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  .filial-site-bar select:hover:not(:disabled),
+  .filial-site-bar select:focus-visible {
+    border-color: var(--border);
+    background-color: var(--surface);
+    color: var(--text);
+  }
+  .filial-site-bar select:disabled { opacity: 0.78; cursor: default; }
+  .filial-site-bar option { background: var(--surface-solid); color: var(--text); }
+  .filial-link-copy {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font: 600 1rem/1 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  .filial-link-copy:hover {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--accent);
+  }
+
   html, body { background: var(--bg); }
+
+  @keyframes filialPageEnter {
+    from { opacity: 0; transform: translateY(9px) scale(0.995); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes filialPageExit {
+    to { opacity: 0; transform: translateY(-5px) scale(0.995); }
+  }
+  html.filial-page-entering body {
+    animation: filialPageEnter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  html.filial-page-exiting body {
+    animation: filialPageExit 240ms ease-in both;
+    pointer-events: none;
+  }
 
   body {
     font-family: 'Poppins', sans-serif;
@@ -465,6 +533,7 @@
   .podium-base .rank-number { font-size: 1.5rem; font-weight: 900; color: rgba(0,0,0,0.32); }
 
   @media (prefers-reduced-motion: reduce) {
+    html.filial-page-entering body, html.filial-page-exiting body { animation: none !important; }
     .bg-fx .orb, .bg-fx .grid, .live-dot,
     .podium-photo-wrap::before, .podium-photo-wrap::after,
     .crown, .sparkle, .podium-base::after,
