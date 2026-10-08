@@ -1689,6 +1689,7 @@ function atualizarTotalizadorComDados(totais) {
 
 // ── Renderizar a tabela de registros da sessão ───────────────────
 async function renderFilialLista() {
+  await renderContratosRecebidosOutraFilial();
   const vazio = document.getElementById('filial-lista-vazia');
   const wrap = document.getElementById('filial-tabela-wrap');
   const tbody = document.getElementById('filial-tabela-body');
@@ -1721,6 +1722,43 @@ async function renderFilialLista() {
       <td><strong>${totalFmt}</strong></td>
       <td>${v.data_venda || '—'}</td>
       <td style="color:var(--text-muted)">${v.observacao || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function renderContratosRecebidosOutraFilial() {
+  const tbody = document.getElementById('filial-contratos-body');
+  if (!tbody || !window._supabase) return;
+  const { data, error } = await window._supabase
+    .from('vendas_admin')
+    .select('id, data_venda, numero_venda, cliente, vendedor_nome, plano_nome, valor_total, filial_origem_nome, filial_origem_id, filial_destino_id')
+    .eq('filial_destino_id', 10)
+    .neq('filial_origem_id', 10)
+    .order('data_venda', { ascending: false })
+    .limit(100);
+  if (error) {
+    console.error('[renderContratosRecebidosOutraFilial]', error);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Não foi possível carregar os contratos recebidos. Consulte o relatório de vendas.</td></tr>';
+    return;
+  }
+  if (!data?.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Nenhuma venda recebida com contrato encontrada.</td></tr>';
+    return;
+  }
+  const escapar = valor => String(valor ?? '—').replace(/[&<>"']/g, caractere => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[caractere]);
+  tbody.innerHTML = data.map(v => {
+    const dataVenda = v.data_venda ? new Date(v.data_venda).toLocaleDateString('pt-BR') : '—';
+    const total = 'R$ ' + Number(v.valor_total || 0).toFixed(2).replace('.', ',');
+    return `<tr>
+      <td>${escapar(v.filial_origem_nome)}</td>
+      <td><strong>${escapar(v.numero_venda)}</strong></td>
+      <td>${escapar(v.cliente)}</td>
+      <td>${escapar(v.vendedor_nome || 'Sem vendedor')}</td>
+      <td>${escapar(v.plano_nome)}</td>
+      <td><strong>${total}</strong></td>
+      <td>${escapar(dataVenda)}</td>
     </tr>`;
   }).join('');
 }
@@ -1774,6 +1812,7 @@ async function handleVendaOutraFilial(e) {
     });
     if (adicionaisFilial.length > 0) await saveVendaAdicionais(venda.id, adicionaisFilial);
     await carregarDados();
+    await renderFilialLista();
     resetFilialForm();
     showToast('Venda da filial registrada com sucesso!', 'success');
   } catch (err) {
