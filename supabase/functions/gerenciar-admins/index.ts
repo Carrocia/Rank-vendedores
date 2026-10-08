@@ -1,8 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { corsHeaders as sdkCorsHeaders } from 'npm:@supabase/supabase-js@^2/cors';
 
 const corsHeaders = {
+  ...sdkCorsHeaders,
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, x-client-info, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
 };
