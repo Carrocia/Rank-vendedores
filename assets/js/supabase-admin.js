@@ -1098,12 +1098,14 @@ function exportarRelatorioPDF() {
 
 // ── Saves ────────────────────────────────────────────────────────
 async function saveVenda(dados) {
-  // dados: { vendedor_id, plano_id, data_venda, valor, cliente, numero_venda, observacao }
+  // dados: { vendedor_id, plano_id, data_venda, valor, cliente, numero_venda, observacao, filial_origem_id, filial_destino_id }
   // valor = preço praticado NO MOMENTO DA VENDA (não recalcular depois)
   const { data, error } = await window._supabase
     .from('vendas')
     .insert([{
       vendedor_id: dados.vendedor_id,
+      filial_origem_id: dados.filial_origem_id,
+      filial_destino_id: dados.filial_destino_id,
       plano_id: dados.plano_id,
       data_venda: dados.data_venda,
       valor: dados.valor,          // snapshot do preço no momento
@@ -1315,8 +1317,12 @@ function diasCalendario(d1, d2) {
 // Critério 2 (empate): maior valor total (plano + adicionais)
 function calcularRanking(vendas) {
   const agrupado = {};
+  const vendedoresExternos = new Set((_cache?.vendedores || []).filter(v => v.tipo === 'externo').map(v => String(v.id)));
   for (const v of vendas) {
     const id = v.vendedor_id;
+    if (id == null) continue;
+    const vendaRecebidaDeOutraFilial = v.filial_origem_id != null && v.filial_destino_id != null && Number(v.filial_origem_id) !== Number(v.filial_destino_id);
+    if (vendedoresExternos.has(String(id)) && (v.fora_filial === true || vendaRecebidaDeOutraFilial)) continue;
     if (!agrupado[id]) {
       agrupado[id] = {
         vendedor_id: id,
@@ -1345,9 +1351,10 @@ function calcularRanking(vendas) {
     );
 }
 
-function calcularTotais(vendasEquipe, vendasFiliais, metaGlobal) {
+function calcularTotais(vendasEquipe, vendasFiliais, metaGlobal, vendasRecebidas = []) {
   const equipe = vendasEquipe.length;
-  const filiais = vendasFiliais.reduce((s, v) => s + Number(v.quantidade || 1), 0);
+  const filiaisLegado = vendasFiliais.reduce((s, v) => s + Number(v.quantidade || 1), 0);
+  const filiais = filiaisLegado + vendasRecebidas.length;
   const total = equipe + filiais;
   const pct = metaGlobal > 0 ? Math.min(100, Math.round((total / metaGlobal) * 100)) : 0;
   return { equipe, filiais, total, pct, metaGlobal };
@@ -1549,16 +1556,17 @@ function calcularTotalFilial() {
   const planoValorPadrao = planoEl.value ? parseFloat(planoEl.value.split('|')[1] || 0) : 0;
   const valorCustom = parseFloat(document.getElementById('filial-valor').value);
   const valorUnit = isNaN(valorCustom) ? planoValorPadrao : valorCustom;
-  const qtd = parseInt(document.getElementById('filial-qtd').value) || 1;
   const checkboxes = document.querySelectorAll('input[name="filial-adicionais"]:checked');
   const adicionaisValor = Array.from(checkboxes).reduce((acc, cb) => acc + parseFloat(cb.value.split('|')[1] || 0), 0);
-  const total = (valorUnit * qtd) + adicionaisValor;
+  const total = valorUnit + adicionaisValor;
   document.getElementById('filial-total').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
 }
 
 function resetFilialForm() {
   document.getElementById('adm-filial-form').reset();
   document.getElementById('filial-total').textContent = 'R$ 0,00';
+  const data = document.getElementById('filial-data');
+  if (data) data.value = new Date().toLocaleDateString('en-CA');
   resetCustomSelect('filial-plano');
 }
 
@@ -1627,16 +1635,18 @@ async function renderFilialLista() {
 async function handleVendaOutraFilial(e) {
   e.preventDefault();
 
-  const filialId = document.getElementById('filial-origem').value;
+  const filialId = Number(document.getElementById('filial-origem').value);
+  const vendedorRaw = document.getElementById('filial-vendedor').value;
   const planoRaw = document.getElementById('filial-plano').value;
-  const [planoId, planoValorPadraoStr] = planoRaw.split('|');
-  const planoNome = document.getElementById('filial-plano').selectedOptions[0]?.text || planoId;
-  const qtd = parseInt(document.getElementById('filial-qtd').value) || 1;
+  const [planoId, planoValorPadraoStr] = (planoRaw || '').split('|');
   const valorCustom = parseFloat(document.getElementById('filial-valor').value);
   const valorUnit = isNaN(valorCustom) ? parseFloat(planoValorPadraoStr) : valorCustom;
   const data = document.getElementById('filial-data').value;
-  const obs = document.getElementById('filial-obs').value;
-  if (!filialId || !planoId) { showToast('Selecione a filial e o plano.', 'warning'); return; }
+  const cliente = document.getElementById('filial-cliente').value.trim();
+  const numeroVenda = document.getElementById('filial-numero-contrato').value.trim();
+  const obs = document.getElementById('filial-obs').value.trim();
+  if (!filialId || !planoId) { showToast('Selecione a filial de origem e o plano.', 'warning'); return; }
+  if (!data || !numeroVenda) { showToast('Informe a data e o número do contrato.', 'warning'); return; }
 
   const checkboxes = document.querySelectorAll('input[name="filial-adicionais"]:checked');
   const adicionais = Array.from(checkboxes).map(cb => {
@@ -1644,37 +1654,37 @@ async function handleVendaOutraFilial(e) {
     return { id: aid, valor: parseFloat(aval) };
   });
   const adicionaisValor = adicionais.reduce((s, a) => s + a.valor, 0);
-  const valorTotal = (valorUnit * qtd) + adicionaisValor;
-
-  const dados = {
-    filial_id: filialId,
-    plano_id: planoId,
-    plano_nome: planoNome,
-    quantidade: qtd,
-    valor_unitario: valorUnit,
-    adicionais,
-    valor_adicionais: adicionaisValor,
-    valor_total: valorTotal,
-    data_venda: data,
-    obs,
-    tipo: 'outra_filial', // garante separação no banco
-    vendedor_id: null,    // nunca atribuir a nenhum vendedor
-  };
+  const valorTotal = valorUnit + adicionaisValor;
+  const [ano, mes, dia] = data.split('-').map(Number);
+  const instante = new Date(ano, mes - 1, dia, 12, 0, 0).toISOString();
+  const partesObs = [];
+  if (cliente) partesObs.push('Cliente: ' + cliente);
+  if (obs) partesObs.push(obs);
 
   try {
-    const vendaFilial = await registrarVendaOutraFilial(dados);
-    const checkboxesF = document.querySelectorAll('input[name="filial-adicionais"]:checked');
-    const adicionaisFilial = Array.from(checkboxesF).map(cb => {
+    const venda = await saveVenda({
+      vendedor_id: vendedorRaw || null,
+      filial_origem_id: filialId,
+      filial_destino_id: 10,
+      plano_id: planoId,
+      data_venda: instante,
+      valor: valorUnit,
+      cliente,
+      numero_venda: numeroVenda,
+      observacao: partesObs.join(' — ') || null,
+      fora_filial: false,
+    });
+    const adicionaisFilial = Array.from(checkboxes).map(cb => {
       const [prod_id, valor_unit] = cb.value.split('|');
       return { produto_adicional_id: prod_id, quantidade: 1, valor_unitario: parseFloat(valor_unit) };
     });
-    if (adicionaisFilial.length > 0) await saveVendaOutraFilialAdicionais(vendaFilial.id, adicionaisFilial);
+    if (adicionaisFilial.length > 0) await saveVendaAdicionais(venda.id, adicionaisFilial);
     await carregarDados();
     resetFilialForm();
     showToast('Venda da filial registrada com sucesso!', 'success');
   } catch (err) {
     console.error('[handleVendaOutraFilial]', err);
-    showToast('Não foi possível registrar a venda da filial.', 'error');
+    showToast(err.message || 'Não foi possível registrar a venda da filial.', 'error');
   }
 }
 

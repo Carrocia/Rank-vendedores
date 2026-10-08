@@ -202,7 +202,7 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
     (vendas || []).forEach(v => {
       const e = mapa[v.vendedor_id];
       if (!e) return;
-      if (tipo === 'externo' && v.fora_filial === true) return;
+      if (tipo === 'externo' && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v))) return;
       e.vendas += 1;
       e.valor += Number(v.valor || 0);
     });
@@ -1056,12 +1056,15 @@ async function carregarDados() {
 
 // ── Popular selects do formulário ADM com dados do banco ─────────
 function popularSelectVendedores(vendedores) {
-  const selects = ['venda-vendedor', 'adic-vendedor'];
+  const selects = ['venda-vendedor', 'adic-vendedor', 'filial-vendedor'];
   selects.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const val = el.value;
-    el.innerHTML = '<option value="">Selecione o vendedor</option>' +
+    const placeholder = id === 'filial-vendedor'
+      ? '<option value="">Sem vendedor cadastrado — conta só para a filial</option>'
+      : '<option value="">Selecione o vendedor</option>';
+    el.innerHTML = placeholder +
       vendedores.map(v => `<option value="${v.id}" data-slug="${v.slug || ''}">${v.nome} (${v.tipo === 'interno' ? 'Interno' : 'Externo'})</option>`).join('');
     if (val) el.value = val;
   });
@@ -1265,11 +1268,22 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') document.querySelectorAll('.custom-select.open').forEach(w => w.classList.remove('open'));
 });
 
+function isVendaRecebidaDeOutraFilial(venda) {
+  return venda?.filial_origem_id != null && venda?.filial_destino_id != null &&
+    Number(venda.filial_origem_id) !== Number(venda.filial_destino_id);
+}
+
 function popularSelectFiliais(filiais) {
   const el = document.getElementById('filial-origem');
   if (!el) return;
   el.innerHTML = '<option value="">Selecione a filial</option>' +
-    filiais.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+    filiais.filter(f => Number(f.id) !== 10 && f.ativo !== false)
+      .map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+  const data = document.getElementById('filial-data');
+  if (data && !data.value) {
+    const hoje = new Date();
+    data.value = [hoje.getFullYear(), String(hoje.getMonth() + 1).padStart(2, '0'), String(hoje.getDate()).padStart(2, '0')].join('-');
+  }
 }
 
 // ── Processar dados para renderização ────────────────────────────
@@ -1297,7 +1311,7 @@ function processarDadosParaRender(cache) {
   const contarVendasPorVendedor = (vendas) => {
     const mapa = {};
     (vendas || []).forEach(v => {
-      if (tipoPorVendedor[v.vendedor_id] === 'externo' && v.fora_filial === true) return;
+      if (tipoPorVendedor[v.vendedor_id] === 'externo' && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v))) return;
       mapa[v.vendedor_id] = (mapa[v.vendedor_id] || 0) + 1;
     });
     return mapa;
@@ -1319,7 +1333,7 @@ function processarDadosParaRender(cache) {
         // Venda externa "fora da filial" não conta para a meta
         // individual/semanal do vendedor externo (mas continua
         // existindo no banco normalmente — só não entra nesta contagem).
-        if (mapa[v.vendedor_id].tipo === 'externo' && v.fora_filial === true) return;
+        if (mapa[v.vendedor_id].tipo === 'externo' && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v))) return;
         mapa[v.vendedor_id].vendas += 1;
         mapa[v.vendedor_id].valor += Number(v.valor || 0);
       }
@@ -1468,7 +1482,12 @@ function processarDadosParaRender(cache) {
     // meta global da filial: vendas fora da filial não entram na
     // contagem "nossa equipe" do totalizador (calcularTotais em si
     // não foi alterada — só o array de entrada é filtrado aqui).
-    totalGlobal: calcularTotais(vendasMes.filter(v => v.fora_filial !== true), vendasFiliais, metaGlobal),
+    totalGlobal: calcularTotais(
+      vendasMes.filter(v => v.fora_filial !== true && !isVendaRecebidaDeOutraFilial(v)),
+      vendasFiliais,
+      metaGlobal,
+      vendasMes.filter(v => v.fora_filial !== true && isVendaRecebidaDeOutraFilial(v))
+    ),
   };
 }
 
