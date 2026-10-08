@@ -60,10 +60,18 @@ function configurarFilialAtual(filiais) {
 }
 
 function abrirFilialSite(slug) {
-  if (!slug || !window.FILIAL_ATUAL) return;
+  if (!slug || !window.FILIAL_ATUAL || slug === window.FILIAL_ATUAL.slug) return;
+  if (document.documentElement.classList.contains('filial-page-exiting')) return;
   const url = new URL(window.location.href);
   url.searchParams.set('filial', slug);
-  window.location.assign(url.toString());
+  const reduzirMovimento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduzirMovimento) {
+    window.location.assign(url.toString());
+    return;
+  }
+  try { sessionStorage.setItem('uni-filial-transicao', '1'); } catch (_) {}
+  document.documentElement.classList.add('filial-page-exiting');
+  window.setTimeout(() => window.location.assign(url.toString()), 240);
 }
 
 async function copiarLinkFilial() {
