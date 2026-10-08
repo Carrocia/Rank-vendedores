@@ -179,6 +179,124 @@ async function loadVendedores() {
   return data;
 }
 
+function prepararCadastroVendedor() {
+  const form = document.getElementById('adm-vendedor-form');
+  const filialSelect = document.getElementById('adm-vendedor-filial');
+  const filialField = document.getElementById('adm-vendedor-filial-field');
+  const hint = document.getElementById('adm-vendedor-escopo-hint');
+  if (!form || !filialSelect) return;
+
+  const filiais = (_cache.filiais || []).filter(f => f.ativo !== false);
+  const isSuperAdmin = window.ADMIN_AUTENTICADO && window.ADMIN_FILIAL_ID == null;
+  const filialDoAdmin = isSuperAdmin
+    ? null
+    : filiais.find(f => Number(f.id) === Number(window.ADMIN_FILIAL_ID));
+
+  filialSelect.replaceChildren();
+  if (isSuperAdmin) {
+    filiais.forEach(filial => {
+      const option = new Option(filial.nome, String(filial.id));
+      filialSelect.add(option);
+    });
+    filialSelect.disabled = false;
+    filialSelect.required = true;
+    filialSelect.value = String(window.FILIAL_ATUAL_ID);
+    if (filialField) filialField.hidden = false;
+    if (hint) hint.textContent = 'Como superadministrador, você pode escolher a regional do novo vendedor.';
+  } else if (filialDoAdmin) {
+    filialSelect.add(new Option(filialDoAdmin.nome, String(filialDoAdmin.id)));
+    filialSelect.value = String(filialDoAdmin.id);
+    filialSelect.disabled = true;
+    filialSelect.required = false;
+    if (filialField) filialField.hidden = false;
+    if (hint) hint.textContent = `Este acesso cadastra vendedores somente em ${filialDoAdmin.nome}.`;
+  } else {
+    filialSelect.add(new Option('Filial não disponível para este acesso', ''));
+    filialSelect.disabled = true;
+    filialSelect.required = false;
+    if (filialField) filialField.hidden = false;
+    if (hint) hint.textContent = 'Não foi possível confirmar a regional deste acesso.';
+  }
+}
+
+function slugVendedor(nome, filial) {
+  const normalizar = valor => String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return [normalizar(nome), normalizar(filial?.slug || filial?.nome)]
+    .filter(Boolean)
+    .join('-');
+}
+
+async function cadastrarVendedor(event) {
+  event.preventDefault();
+  const form = document.getElementById('adm-vendedor-form');
+  const botao = document.getElementById('adm-vendedor-submit');
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) {
+    showToast('Entre com uma conta administrativa para cadastrar vendedores.', 'error');
+    return;
+  }
+
+  const nome = document.getElementById('adm-vendedor-nome').value.trim();
+  const tipo = document.getElementById('adm-vendedor-tipo').value;
+  const isSuperAdmin = window.ADMIN_FILIAL_ID == null;
+  const filialId = isSuperAdmin
+    ? Number(document.getElementById('adm-vendedor-filial').value)
+    : Number(window.ADMIN_FILIAL_ID);
+  const filial = (_cache.filiais || []).find(f => Number(f.id) === filialId);
+  if (!nome || !['interno', 'externo'].includes(tipo) || !filial) {
+    showToast('Informe um nome, tipo e regional válidos.', 'warning');
+    return;
+  }
+
+  if (!isSuperAdmin && filialId !== Number(window.ADMIN_FILIAL_ID)) {
+    showToast('Este acesso só pode cadastrar vendedores na própria regional.', 'error');
+    return;
+  }
+
+  botao.disabled = true;
+  botao.textContent = 'Cadastrando…';
+  try {
+    const { error } = await window._supabase.from('vendedores').insert([{
+      nome,
+      tipo,
+      ativo: true,
+      filial_id: filialId,
+      slug: slugVendedor(nome, filial),
+    }]);
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('Já existe um vendedor com esse nome ou identificador nesta regional.');
+      }
+      if (error.code === '42501') {
+        throw new Error('O banco recusou o cadastro para esta regional. Confira o vínculo de acesso do administrador.');
+      }
+      throw error;
+    }
+
+    form.reset();
+    prepararCadastroVendedor();
+    showToast(`Vendedor cadastrado em ${filial.nome}.`, 'success');
+    try {
+      const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
+      popularSelectVendedoresTodasFiliais(vendedoresTodasFiliais);
+      if (filialId === Number(window.FILIAL_ATUAL_ID)) await carregarDados();
+    } catch (reloadError) {
+      console.error('[cadastrarVendedor] cadastro salvo, mas não foi possível atualizar as listas:', reloadError);
+      showToast('Cadastro salvo. Atualize a página para atualizar as listas.', 'warning');
+    }
+  } catch (error) {
+    console.error('[cadastrarVendedor]', error);
+    showToast(error.message || 'Não foi possível cadastrar o vendedor.', 'error');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Cadastrar vendedor';
+  }
+}
+
 // O formulário de vendas recebidas de outra filial pode registrar vendedores
 // de qualquer regional. Esta lista só é carregada quando o ADM abre, depois do
 // login, e não altera a lista local usada em Nova Venda ou nos rankings.
@@ -1715,6 +1833,7 @@ async function adm_showPanel() {
   const hoje = new Date().toISOString().split('T')[0];
   const dataEl = document.getElementById('venda-data');
   if (dataEl && !dataEl.value) dataEl.value = hoje;
+  prepararCadastroVendedor();
 
   try {
     const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
@@ -1735,6 +1854,7 @@ function adm_navigateTo(sectionId) {
   document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
   document.querySelector(`.adm-nav-item[data-section="${sectionId}"]`)?.classList.add('active');
   document.getElementById('sec-' + sectionId)?.classList.add('active');
+  if (sectionId === 'vendedores') prepararCadastroVendedor();
   // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
   // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
@@ -2053,7 +2173,7 @@ function renderAdmRanking(ranking, vendedores) {
   container.innerHTML = ranking.map((r, i) => {
     const vendedor = (vendedores || []).find(v => v.id === r.vendedor_id);
     const foto = vendedor ? (PHOTOS[vendedor.slug] || '') : '';
-    const nome = vendedor ? vendedor.nome : (r.nome || r.vendedor_id);
+    const nome = escapeHtmlText(vendedor ? vendedor.nome : (r.nome || r.vendedor_id));
     const tipo = vendedor ? vendedor.tipo : '—';
     const valorFmt = 'R$ ' + Number(r.valor || 0).toFixed(2).replace('.', ',');
     return `<div class="adm-ranking-item">

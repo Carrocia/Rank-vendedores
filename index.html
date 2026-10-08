@@ -532,6 +532,33 @@
         <!-- ── VENDEDORES ──────────────────────────────────────── -->
         <section class="adm-section" id="sec-vendedores">
           <div class="adm-section-title">Equipe de Vendas</div>
+          <div class="adm-form-card adm-vendedor-cadastro-card">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Cadastrar vendedor</div>
+            <p class="adm-vendedor-cadastro-hint" id="adm-vendedor-escopo-hint">O vendedor será vinculado à filial selecionada.</p>
+            <form id="adm-vendedor-form" onsubmit="cadastrarVendedor(event)">
+              <div class="adm-form-grid">
+                <div class="adm-field">
+                  <label for="adm-vendedor-nome">Nome</label>
+                  <input id="adm-vendedor-nome" name="nome" type="text" maxlength="120" autocomplete="off" required placeholder="Nome do vendedor">
+                </div>
+                <div class="adm-field">
+                  <label for="adm-vendedor-tipo">Tipo</label>
+                  <select id="adm-vendedor-tipo" name="tipo" required>
+                    <option value="">Selecione o tipo</option>
+                    <option value="interno">Interno</option>
+                    <option value="externo">Externo</option>
+                  </select>
+                </div>
+                <div class="adm-field" id="adm-vendedor-filial-field">
+                  <label for="adm-vendedor-filial">Regional</label>
+                  <select id="adm-vendedor-filial" name="filial_id" required></select>
+                </div>
+                <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
+                  <button type="submit" class="adm-btn adm-btn-primary" id="adm-vendedor-submit" style="width:auto;padding:12px 28px;">Cadastrar vendedor</button>
+                </div>
+              </div>
+            </form>
+          </div>
           <div class="adm-table-wrap">
             <table class="adm-table" id="adm-vendedores-table">
               <thead>

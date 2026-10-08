@@ -1,5 +1,11 @@
 // ritmo do mes: compara a % da meta de cada vendedor com o % de
 // dias do mes que ja passaram (CONFIG.mesRitmo)
+function escapeHtmlText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
 function computeRitmo(pct) {
   const { diaAtual, diasNoMes } = calcularPeriodoMes();
   const esperado = (diaAtual / diasNoMes) * 100;
@@ -65,6 +71,10 @@ function renderPodium(containerId, entries, options = {}) {
     const pessoa = PESSOAS[e.slug] || PESSOAS[e.id] || {};
     const photo = pessoa.foto || '';
     const nome = e.nome || pessoa.nome || e.id;
+    const nomeSeguro = escapeHtmlText(nome);
+    const avatarHTML = photo
+      ? `<img class="podium-photo" src="${photo}" alt="${nomeSeguro}">`
+      : `<div class="podium-photo podium-photo-fallback" aria-label="${nomeSeguro}">${escapeHtmlText(String(nome || '?').trim().charAt(0).toUpperCase())}</div>`;
     const pct = e.meta ? Math.min(100, Math.round((e.vendas / e.meta) * 100)) : 0;
     const crownHTML = style.crown
       ? '<span class="crown" aria-hidden="true">👑</span><span class="sparkle s1" aria-hidden="true">✨</span><span class="sparkle s2" aria-hidden="true">✨</span>'
@@ -96,16 +106,16 @@ function renderPodium(containerId, entries, options = {}) {
     const tooltipVendas = mode === 'semanal' ? formatVendas(e.vendas) : '';
     const tooltipMeta = e.meta ? `${Math.min(100,Math.round((e.vendas/e.meta)*100))}% da meta mensal` : '';
     const tooltipContent = mode === 'semanal'
-      ? `<strong>${nome}</strong>${tooltipVendas}`
-      : `<strong>${nome}</strong>${tooltipMeta}`;
+      ? `<strong>${nomeSeguro}</strong>${tooltipVendas}`
+      : `<strong>${nomeSeguro}</strong>${tooltipMeta}`;
     return `<div class="podium-stand" data-rank="${rank}" style="--rank-color:${style.color};--rank-color-dark:${style.dark};--rank-glow:${style.glow};--gold-c:#ffc94d;">
       <div class="podium-tooltip">${tooltipContent}</div>
       <div class="podium-photo-wrap" data-tier="${tierAttr}">
         ${crownHTML}
-        <img class="podium-photo" src="${photo}" alt="${nome}">
+        ${avatarHTML}
         ${badgesHTML}
       </div>
-      <span class="podium-name" style="margin-bottom:6px;">${nome}</span>
+      <span class="podium-name" style="margin-bottom:6px;">${nomeSeguro}</span>
       ${subHTML}
       <div class="podium-base" data-final-height="${style.height}" style="--shimmer-delay:${shimmerDelay}">
         <span class="rank-number">${rank}º</span>
@@ -170,14 +180,19 @@ function renderMuralPerson(person, role, formatador = formatVendas) {
       </div>`;
   }
   const pessoa = PESSOAS[person.id] || {};
+  const nome = person.nome || pessoa.nome || person.id || '';
+  const nomeSeguro = escapeHtmlText(nome);
+  const foto = pessoa.foto || '';
   return `
     <div class="mural-winner">
       <div class="mural-photo-wrap">
         <span class="mural-crown" aria-hidden="true">👑</span>
-        <img class="mural-photo" src="${pessoa.foto || ''}" alt="${pessoa.nome || ''}">
+        ${foto
+          ? `<img class="mural-photo" src="${foto}" alt="${nomeSeguro}">`
+          : `<div class="mural-photo mural-photo-fallback" aria-label="${nomeSeguro}">${escapeHtmlText(String(nome || '?').trim().charAt(0).toUpperCase())}</div>`}
       </div>
       <span class="mural-role">${role}</span>
-      <span class="mural-name">${pessoa.nome || ''}</span>
+      <span class="mural-name">${nomeSeguro}</span>
       <span class="mural-value">${formatador(person.vendas)}</span>
     </div>`;
 }
@@ -197,7 +212,7 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
   const vencedor = tipo => {
     const mapa = {};
     (vendedores || []).filter(v => v.tipo === tipo).forEach(v => {
-      mapa[v.id] = { id: v.slug || v.id, vendas: 0, valor: 0 };
+      mapa[v.id] = { id: v.slug || v.id, nome: v.nome, vendas: 0, valor: 0 };
     });
     (vendas || []).forEach(v => {
       const e = mapa[v.vendedor_id];
@@ -208,7 +223,7 @@ function calcularDestaqueMes(periodo, vendas, vendedores) {
     });
     const lista = Object.values(mapa).filter(e => e.vendas > 0)
       .sort((a, b) => (b.vendas - a.vendas) || (b.valor - a.valor));
-    return lista.length ? { id: lista[0].id, vendas: lista[0].vendas } : null;
+    return lista.length ? { id: lista[0].id, nome: lista[0].nome, vendas: lista[0].vendas } : null;
   };
   return { mes: periodo.mesNome, interno: vencedor('interno'), externo: vencedor('externo') };
 }

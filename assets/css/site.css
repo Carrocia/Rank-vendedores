@@ -487,6 +487,7 @@
     box-shadow: 0 0 0 4px var(--rank-glow), 0 10px 26px var(--shadow-hover);
     display: block;
   }
+  .podium-photo-fallback { display: flex; align-items: center; justify-content: center; color: var(--heading-color); font-size: 2.2rem; font-weight: 900; text-transform: uppercase; }
   .crown {
     position: absolute; top: -30px; left: 50%; z-index: 3;
     transform: translateX(-50%) rotate(-6deg); font-size: 2.1rem;
@@ -586,6 +587,7 @@
     position: relative; z-index: 1; width: 100%; height: 100%; border-radius: 50%;
     object-fit: cover; border: 3px solid var(--gold);
   }
+  .mural-photo-fallback { display: flex; align-items: center; justify-content: center; background: var(--surface-hover); color: var(--heading-color); font-size: 1.5rem; font-weight: 900; }
   .mural-crown {
     position: absolute; top: -16px; left: 50%; z-index: 2;
     transform: translateX(-50%) rotate(-6deg); font-size: 1.1rem;
