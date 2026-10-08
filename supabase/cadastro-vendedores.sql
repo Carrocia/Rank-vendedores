@@ -17,30 +17,37 @@ begin
 end;
 $block$;
 
-create sequence if not exists public.vendedores_id_seq;
 do $block$
 declare
   maior_id bigint;
+  sequencia_id regclass;
   ultimo_id_sequencia bigint;
   sequencia_ja_usada boolean;
 begin
-  select max(id) into maior_id from public.vendedores;
-  select last_value, is_called
-    into ultimo_id_sequencia, sequencia_ja_usada
-    from public.vendedores_id_seq;
-  if maior_id is not null and (maior_id > ultimo_id_sequencia or not sequencia_ja_usada) then
-    perform setval('public.vendedores_id_seq'::regclass, maior_id, true);
-  elsif maior_id is null and not sequencia_ja_usada then
-    perform setval('public.vendedores_id_seq'::regclass, 1, false);
+  sequencia_id := pg_get_serial_sequence('public.vendedores', 'id')::regclass;
+  if sequencia_id is null then
+    sequencia_id := to_regclass('public.vendedores_id_seq');
+    if sequencia_id is null then
+      execute 'create sequence public.vendedores_id_seq';
+      sequencia_id := 'public.vendedores_id_seq'::regclass;
+    end if;
+    execute format(
+      'alter table public.vendedores alter column id set default nextval(%L::regclass)',
+      sequencia_id::text
+    );
   end if;
+
+  select max(id) into maior_id from public.vendedores;
+  execute format('select last_value, is_called from %s', sequencia_id)
+    into ultimo_id_sequencia, sequencia_ja_usada;
+  if maior_id is not null and (maior_id > ultimo_id_sequencia or not sequencia_ja_usada) then
+    perform setval(sequencia_id, maior_id, true);
+  elsif maior_id is null and not sequencia_ja_usada then
+    perform setval(sequencia_id, 1, false);
+  end if;
+  execute format('grant usage, select on sequence %s to authenticated', sequencia_id);
 end;
 $block$;
-
-alter sequence public.vendedores_id_seq owned by public.vendedores.id;
-alter table public.vendedores
-  alter column id set default nextval('public.vendedores_id_seq'::regclass);
-
-grant usage, select on sequence public.vendedores_id_seq to authenticated;
 grant insert on table public.vendedores to authenticated;
 
 alter table public.vendedores
