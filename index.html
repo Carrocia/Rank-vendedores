@@ -421,6 +421,11 @@
                   <input type="text" id="venda-cliente" placeholder="Nome completo" required>
                 </div>
 
+                <div class="adm-field">
+                  <label>Número do contrato</label>
+                  <input type="text" id="venda-numero-contrato" placeholder="Número único do contrato" required autocomplete="off">
+                </div>
+
                 <div class="adm-form-full">
                   <div class="adm-adicional-item">
                     <input type="checkbox" id="venda-fora-filial" name="fora_filial">
@@ -795,9 +800,8 @@
 
           <!-- card explicativo -->
           <div style="background:rgba(var(--accent2-rgb),0.08);border:1px solid rgba(var(--accent2-rgb),0.25);border-radius:14px;padding:16px 20px;font-size:0.82rem;color:var(--text-muted);line-height:1.6;">
-            ⚠️ <strong style="color:var(--heading-color);">Atenção:</strong>
-            Vendas registradas aqui <strong>NÃO</strong> são atribuídas a nenhum vendedor da equipe e <strong>NÃO</strong> contam para metas individuais (M1/M2/M3).
-            Elas <strong>SIM</strong> contam para a <strong>meta global da filial</strong> e ficam registradas para relatórios por filial de origem.
+            <strong style="color:var(--heading-color);">Histórico preservado:</strong>
+            os lançamentos antigos de outras filiais continuam disponíveis para consulta abaixo. O formulário antigo foi desativado para novos registros enquanto as vendas com contrato passam a usar um fluxo único.
           </div>
 
           <!-- card totalizador: nossa equipe + outras filiais = total global -->
@@ -830,8 +834,8 @@
             </div>
           </div>
 
-          <!-- formulário de registro -->
-          <div class="adm-form-card">
+          <!-- Formulário legado desativado; os registros históricos continuam abaixo. -->
+          <div class="adm-form-card" hidden>
             <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Registrar Venda de Outra Filial</div>
             <form id="adm-filial-form" onsubmit="handleVendaOutraFilial(event)">
               <div class="adm-form-grid">
