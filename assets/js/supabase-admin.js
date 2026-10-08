@@ -15,6 +15,7 @@ window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
 let _vendedorFotoPreviewUrl = null;
 let _vendedoresGerenciamento = [];
+const EDGE_FN_GERENCIAR_ADMINS = 'rapid-task';
 const BUCKET_FOTOS_VENDEDORES = 'vendedor-fotos';
 
 function conferirEscopoAdmin(adminData) {
@@ -2103,7 +2104,7 @@ async function carregarAdminsGerenciados() {
   const tbody = document.getElementById('adm-admins-tbody');
   if (!tbody || !window._supabase || window.ADMIN_FILIAL_ID != null || !window.ADMIN_AUTENTICADO) return;
   tbody.innerHTML = '<tr><td colspan="3" class="adm-empty-state">Carregando contas…</td></tr>';
-  const { data, error } = await window._supabase.functions.invoke('gerenciar-admins', { body: { action: 'list' } });
+  const { data, error } = await window._supabase.functions.invoke(EDGE_FN_GERENCIAR_ADMINS, { body: { action: 'list' } });
   if (error || data?.error) {
     console.error('[carregarAdminsGerenciados]', error || data.error);
     tbody.innerHTML = `<tr><td colspan="3" class="adm-empty-state">${escapeHtmlText(data?.error || error?.message || 'Não foi possível carregar as contas.')}</td></tr>`;
@@ -2156,7 +2157,7 @@ async function criarAdminRegional(event) {
   botao.disabled = true;
   botao.textContent = 'Criando conta…';
   try {
-    const { data, error } = await window._supabase.functions.invoke('gerenciar-admins', {
+    const { data, error } = await window._supabase.functions.invoke(EDGE_FN_GERENCIAR_ADMINS, {
       body: { action: 'create', email, password, filial_id: filialId },
     });
     if (error || data?.error) {
