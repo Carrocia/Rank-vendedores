@@ -1098,7 +1098,7 @@ function exportarRelatorioPDF() {
 
 // ── Saves ────────────────────────────────────────────────────────
 async function saveVenda(dados) {
-  // dados: { vendedor_id, plano_id, data_venda, valor, observacao }
+  // dados: { vendedor_id, plano_id, data_venda, valor, cliente, numero_venda, observacao }
   // valor = preço praticado NO MOMENTO DA VENDA (não recalcular depois)
   const { data, error } = await window._supabase
     .from('vendas')
@@ -1108,12 +1108,17 @@ async function saveVenda(dados) {
       data_venda: dados.data_venda,
       valor: dados.valor,          // snapshot do preço no momento
       cliente: dados.cliente || null,
+      numero_venda: dados.numero_venda,
       observacao: dados.observacao || null,
       fora_filial: dados.fora_filial === true,
     }])
     .select()
     .single();
-  if (error) { console.error('[saveVenda]', error); throw new Error('Não foi possível registrar a venda.'); }
+  if (error) {
+    console.error('[saveVenda]', error);
+    if (error.code === '23505') throw new Error('Este número de contrato já foi registrado.');
+    throw new Error('Não foi possível registrar a venda.');
+  }
   return data;
 }
 
@@ -1466,10 +1471,12 @@ async function handleNovaVenda(e) {
   const data_venda = document.getElementById('venda-data').value;
   const hora_venda = document.getElementById('venda-hora').value;
   const cliente = document.getElementById('venda-cliente').value.trim();
+  const numero_venda = document.getElementById('venda-numero-contrato').value.trim();
   const obs = document.getElementById('venda-obs').value.trim();
   const foraFilial = document.getElementById('venda-fora-filial').checked;
   if (!vendedor_id || !plano_id) { showToast('Selecione o vendedor e o plano.', 'warning'); return; }
   if (!data_venda || !hora_venda) { showToast('Informe a data e a hora da venda.', 'warning'); return; }
+  if (!numero_venda) { showToast('Informe o número do contrato.', 'warning'); return; }
   // Monta o instante exato a partir dos componentes LOCAIS de data e
   // hora digitados manualmente, usando o objeto Date (que conhece o
   // fuso horário real do navegador) — e só depois converte para UTC/ISO
@@ -1495,14 +1502,14 @@ async function handleNovaVenda(e) {
   if (obs) partesObs.push(obs);
   const observacaoFinal = partesObs.length ? partesObs.join(' — ') : null;
   try {
-    const venda = await saveVenda({ vendedor_id, plano_id, data_venda: data_venda_timestamp, valor: parseFloat(planoValorStr), cliente: cliente, observacao: observacaoFinal, fora_filial: foraFilial });
+    const venda = await saveVenda({ vendedor_id, plano_id, data_venda: data_venda_timestamp, valor: parseFloat(planoValorStr), cliente: cliente, numero_venda, observacao: observacaoFinal, fora_filial: foraFilial });
     if (adicionaisParaSalvar.length > 0) await saveVendaAdicionais(venda.id, adicionaisParaSalvar);
     await carregarDados();
     resetVendaForm();
     showToast('Venda registrada com sucesso!', 'success');
   } catch (err) {
     console.error('[handleNovaVenda]', err);
-    showToast('Não foi possível registrar a venda.', 'error');
+    showToast(err.message || 'Não foi possível registrar a venda.', 'error');
   }
 }
 
