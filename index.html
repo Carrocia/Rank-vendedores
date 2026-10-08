@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ranking de Vendas | UNI Internet</title>
-<meta name="description" content="Ranking de vendas, metas e destaques da equipe comercial UNI Internet — Alta Floresta D'Oeste.">
+<meta name="description" content="Ranking de vendas, metas e destaques da equipe comercial UNI Internet.">
 <meta name="theme-color" content="#060810" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#e8ecf4" media="(prefers-color-scheme: light)">
 <meta property="og:type" content="website">
@@ -69,7 +69,7 @@
       </div>
       <div class="header-copy">
         <span class="season-badge" id="seasonBadge" hidden></span>
-        <h1>Ranking de Vendas</h1>
+        <h1>Ranking de Vendas — <span id="filial-atual-nome">Alta Floresta D'Oeste</span></h1>
         <p>Quem está na liderança da semana e do mês — vendas externas e internas lado a lado.</p>
       </div>
       <div class="header-kpis">
@@ -91,6 +91,14 @@
     </div>
     </div>
   </header>
+
+  <div class="filial-site-bar" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:0 0 18px;padding:12px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);">
+    <label for="filial-site-select" style="font-size:0.78rem;font-weight:700;color:var(--text-muted);">REGIONAL</label>
+    <select id="filial-site-select" onchange="abrirFilialSite(this.value)" aria-label="Escolher regional" style="width:auto;min-width:210px;max-width:100%;">
+      <option value="">Carregando filiais…</option>
+    </select>
+    <button type="button" class="adm-btn adm-btn-secondary" onclick="copiarLinkFilial()" style="width:auto;padding:9px 14px;">🔗 Copiar link desta filial</button>
+  </div>
 
   <!-- ===== ABAS NO TOPO ===== -->
   <div class="tabs-row">
@@ -265,7 +273,7 @@
     <div class="adm-login-logo">
       <div style="font-size:2rem;">🔐</div>
       <h2>Painel Administrativo</h2>
-      <span>UNI Internet — Filial Alta Floresta D'Oeste</span>
+      <span>UNI Internet — Filial <span id="filial-atual-admin-nome">Alta Floresta D'Oeste</span></span>
     </div>
     <div class="adm-field">
       <label>E-mail</label>
@@ -291,7 +299,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 20px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:20px;">
       <div>
         <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);">Painel Administrativo</div>
-        <div style="font-size:1.1rem;font-weight:800;color:var(--heading-color);margin-top:2px;">UNI Internet — Alta Floresta D'Oeste</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--heading-color);margin-top:2px;">UNI Internet — <span id="filial-atual-admin-titulo">Alta Floresta D'Oeste</span></div>
       </div>
       <div style="font-size:0.78rem;color:var(--text-muted);" id="adm-user-info"><span class="skeleton-bar" style="width:140px;"></span></div>
     </div>
@@ -685,7 +693,7 @@
           <div class="adm-form-card" style="border-color:rgba(248,113,113,0.35);">
             <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">🗑️ Limpeza manual de vendas por mês</div>
             <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.55;margin:0 0 16px;">
-              Escolha um mês para conferir os registros antes de excluir. A exclusão é permanente e abrange as vendas da Alta Floresta e o histórico agregado de outras filiais daquele mês. Nada é apagado automaticamente.
+              Escolha um mês para conferir os registros antes de excluir. A exclusão é permanente e abrange as vendas destinadas à filial selecionada e o histórico agregado recebido naquele mês. Nada é apagado automaticamente.
             </p>
             <div class="adm-form-grid">
               <div class="adm-field">
