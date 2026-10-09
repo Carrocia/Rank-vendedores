@@ -333,19 +333,21 @@
         <div class="adm-sidebar-logo">
           <span>Menu</span>
         </div>
-        <button class="adm-nav-item active" data-section="dashboard"><span class="nav-icon">📊</span>Dashboard</button>
+        <button class="adm-nav-item active" data-section="dashboard"><span class="nav-icon">📊</span>Dashboard da Filial</button>
         <button class="adm-nav-item" data-section="nova-venda"><span class="nav-icon">➕</span>Nova Venda</button>
-        <button class="adm-nav-item" data-section="adicionais"><span class="nav-icon">🔌</span>Adicionais</button>
+        <button class="adm-nav-item" data-section="adicionais"><span class="nav-icon">🔌</span>Vendas Adicionais</button>
         <button class="adm-nav-item" data-section="vendedores"><span class="nav-icon">👥</span>Vendedores</button>
-        <button class="adm-nav-item" data-section="metas"><span class="nav-icon">🎯</span>Metas</button>
-        <button class="adm-nav-item" data-section="planos"><span class="nav-icon">📦</span>Planos</button>
+        <button class="adm-nav-item" data-section="metas" id="adm-nav-metas" style="display:none;"><span class="nav-icon">🎯</span>Metas</button>
+        <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon">⚙️</span>Metas da Filial e Equipe</button>
         <button class="adm-nav-item" data-section="relatorios"><span class="nav-icon">📈</span>Relatórios</button>
-        <button class="adm-nav-item" data-section="celebracoes"><span class="nav-icon">🎉</span>Celebrações</button>
+        <button class="adm-nav-item" data-section="ranking-adm"><span class="nav-icon">🏆</span>Ranking da Filial</button>
+        <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon">🏢</span>Vendas Recebidas</button>
         <button class="adm-nav-item" data-section="renovacoes"><span class="nav-icon">🔄</span>Mural de Renovações</button>
-        <button class="adm-nav-item" data-section="tema"><span class="nav-icon">🎨</span>Tema do Site</button>
-        <button class="adm-nav-item" data-section="ranking-adm"><span class="nav-icon">🏆</span>Ranking</button>
-        <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon">🏢</span>Outras Filiais</button>
-        <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon">⚙️</span>Configuração de Metas</button>
+        <button class="adm-nav-item" data-section="celebracoes"><span class="nav-icon">🎉</span>Celebrações</button>
+        <div class="adm-sidebar-group-label" id="adm-nav-global-label" style="display:none;">GESTÃO DA REDE</div>
+        <button class="adm-nav-item" data-section="rede" id="adm-nav-rede" style="display:none;"><span class="nav-icon">🌐</span>Visão da Rede</button>
+        <button class="adm-nav-item" data-section="planos" id="adm-nav-planos" style="display:none;"><span class="nav-icon">📦</span>Planos</button>
+        <button class="adm-nav-item" data-section="tema" id="adm-nav-tema" style="display:none;"><span class="nav-icon">🎨</span>Tema do Site</button>
         <button class="adm-nav-item" data-section="admins" id="adm-nav-admins" style="display:none;"><span class="nav-icon">🔐</span>Contas Regionais</button>
         <button class="adm-nav-item" data-section="filiais-admin" id="adm-nav-filiais" style="display:none;"><span class="nav-icon">🏬</span>Filiais e Regionais</button>
         <button class="adm-nav-item danger" id="adm-logout-btn"><span class="nav-icon">🚪</span>Sair</button>
@@ -383,6 +385,40 @@
               <div class="value" id="dash-lider">—</div>
               <div class="sub">maior nº de vendas</div>
             </div>
+          </div>
+        </section>
+
+        <section class="adm-section" id="sec-rede" style="display:none;">
+          <div class="adm-section-title">Visão da Rede</div>
+          <p class="adm-vendedor-cadastro-hint">Acompanhe as bases em conjunto. Os dados de vendas consideram a filial de destino no mês selecionado.</p>
+          <div class="adm-form-card">
+            <div class="adm-form-grid" style="align-items:end;">
+              <div class="adm-field"><label for="adm-rede-mes">Mês de referência</label><input type="month" id="adm-rede-mes"></div>
+              <div class="adm-field"><label for="adm-rede-filial">Filial</label><select id="adm-rede-filial"><option value="">Todas as filiais</option></select></div>
+              <div class="adm-field" style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button type="button" class="adm-btn adm-btn-primary" id="adm-rede-atualizar" style="width:auto;padding:12px 24px;">Atualizar visão</button>
+                <button type="button" class="adm-btn adm-btn-secondary" id="adm-rede-exportar" style="width:auto;padding:12px 24px;" disabled>Exportar comparativo</button>
+              </div>
+            </div>
+          </div>
+          <div class="adm-stats-row" id="adm-rede-stats">
+            <div class="adm-stat-card"><div class="label">Filiais ativas</div><div class="value" id="rede-filiais-ativas">—</div><div class="sub">bases cadastradas e ativas</div></div>
+            <div class="adm-stat-card"><div class="label">Vendas no período</div><div class="value" id="rede-vendas">—</div><div class="sub">atribuídas à filial de destino</div></div>
+            <div class="adm-stat-card"><div class="label">Valor no período</div><div class="value" id="rede-valor">—</div><div class="sub">planos e adicionais</div></div>
+            <div class="adm-stat-card"><div class="label">Filiais sem equipe</div><div class="value" id="rede-sem-equipe">—</div><div class="sub">sem vendedores ativos</div></div>
+            <div class="adm-stat-card"><div class="label">Filiais sem meta</div><div class="value" id="rede-sem-meta">—</div><div class="sub">meta mensal M1 não configurada</div></div>
+            <div class="adm-stat-card"><div class="label">Filiais sem acesso</div><div class="value" id="rede-sem-acesso">—</div><div class="sub">sem conta regional ativa</div></div>
+          </div>
+          <div class="adm-form-card">
+            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Pontos que precisam de atenção</div>
+            <ul id="adm-rede-alertas" class="adm-rede-alertas"><li class="adm-empty-state">Selecione “Atualizar visão” para carregar os dados.</li></ul>
+          </div>
+          <div class="adm-section-title" style="font-size:0.95rem;">Comparativo por filial</div>
+          <div class="adm-table-wrap">
+            <table class="adm-table">
+              <thead><tr><th>Filial</th><th>Ranking público</th><th>Equipe ativa</th><th>Acesso regional</th><th>Vendas</th><th>Valor vendido</th><th>Meta M1</th><th>Atingimento</th><th>Situação</th></tr></thead>
+              <tbody id="adm-rede-tbody"><tr><td colspan="9" class="adm-empty-state">Selecione “Atualizar visão” para carregar os dados.</td></tr></tbody>
+            </table>
           </div>
         </section>
 
@@ -834,7 +870,7 @@
 
         <!-- ── RANKING ADM ─────────────────────────────────────── -->
         <section class="adm-section" id="sec-ranking-adm">
-          <div class="adm-section-title">Ranking Administrativo</div>
+          <div class="adm-section-title">Ranking da Filial</div>
           <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">
             Ordenação: 1º critério — quantidade de vendas principais; 2º critério — maior valor total vendido no período.
           </div>
@@ -859,7 +895,7 @@
           </div>
 
           <!-- card totalizador: nossa equipe + outras filiais = total global -->
-          <div class="adm-form-card" id="card-totalizador">
+          <div class="adm-form-card" id="card-totalizador" style="display:none;">
             <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;margin-bottom:16px;">📊 Composição da Meta Global</div>
             <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:12px;text-align:center;">
               <div style="background:rgba(var(--accent-rgb),0.07);border:1px solid rgba(var(--accent-rgb),0.2);border-radius:14px;padding:18px 12px;">

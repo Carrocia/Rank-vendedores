@@ -279,6 +279,7 @@ body.adm-modal-open { overflow: hidden; }
   margin-bottom: 8px; text-align: center;
 }
 .adm-sidebar-logo span { font-size:0.72rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
+.adm-sidebar-group-label { padding: 18px 20px 7px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.07); color: var(--text-muted); font-size: 0.62rem; font-weight: 800; letter-spacing: 1px; }
 .adm-nav-item {
   display: flex; align-items: center; gap: 10px;
   padding: 11px 20px; cursor: pointer; border: none; background: transparent;
@@ -341,6 +342,11 @@ body.adm-modal-open { overflow: hidden; }
 
 /* ── tabela / lista ─────────────────────────────────────────── */
 .adm-table-wrap { overflow-x: auto; }
+.adm-rede-alertas { margin: 0; padding-left: 22px; color: var(--text-muted); display: grid; gap: 9px; font-size: 0.84rem; }
+.adm-rede-alertas li::marker { color: var(--accent); }
+.adm-rede-alerta-ok { list-style: none; margin-left: -22px; color: #34d399; }
+.adm-rede-status-atencao { color: #fbbf24; }
+.adm-rede-status-ok { color: #34d399; font-weight: 700; }
 .adm-table {
   width: 100%; border-collapse: collapse;
   font-size: 0.84rem;

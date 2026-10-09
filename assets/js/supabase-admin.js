@@ -16,6 +16,7 @@ let _vendedoresTodasFiliais = [];
 let _vendedorFotoPreviewUrl = null;
 let _vendedoresGerenciamento = [];
 let _filialGerenciadaEmEdicaoId = null;
+let _dashboardRedeDados = null;
 const EDGE_FN_GERENCIAR_ADMINS = 'rapid-task';
 const BUCKET_FOTOS_VENDEDORES = 'vendedor-fotos';
 
@@ -2101,6 +2102,8 @@ async function adm_showPanel() {
   carregarVendedoresGerenciamento();
   configurarAbaAdmins();
   configurarAbaFiliais();
+  configurarNavegacaoAdmin();
+  adm_navigateTo('dashboard');
 
   try {
     const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
@@ -2108,6 +2111,291 @@ async function adm_showPanel() {
   } catch (err) {
     console.error('[adm_showPanel] vendedores por regional', err);
     showToast(err.message || 'Não foi possível carregar vendedores por regional.', 'error');
+  }
+}
+
+function configurarNavegacaoAdmin() {
+  const superAdmin = ehSuperAdminAtual();
+  const elementosSuperAdmin = ['adm-nav-rede', 'adm-nav-planos', 'adm-nav-tema', 'adm-nav-admins', 'adm-nav-filiais'];
+  elementosSuperAdmin.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = superAdmin ? '' : 'none';
+  });
+  const grupoGlobal = document.getElementById('adm-nav-global-label');
+  if (grupoGlobal) grupoGlobal.style.display = superAdmin ? '' : 'none';
+  const navMetasLegado = document.getElementById('adm-nav-metas');
+  if (navMetasLegado) navMetasLegado.style.display = 'none';
+  const secMetasLegado = document.getElementById('sec-metas');
+  if (secMetasLegado) secMetasLegado.style.display = 'none';
+  const secRede = document.getElementById('sec-rede');
+  if (secRede) secRede.style.display = superAdmin ? '' : 'none';
+  const totalizador = document.getElementById('card-totalizador');
+  if (totalizador) totalizador.style.display = superAdmin ? '' : 'none';
+
+  const seletorFilial = document.getElementById('adm-rede-filial');
+  if (superAdmin && seletorFilial && !seletorFilial.dataset.carregado) {
+    (_cache.filiais || []).forEach(f => seletorFilial.add(new Option(f.nome, String(f.id))));
+    seletorFilial.dataset.carregado = 'true';
+  }
+  const mesInput = document.getElementById('adm-rede-mes');
+  if (mesInput && !mesInput.value) {
+    const hoje = new Date();
+    mesInput.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  }
+}
+
+function formatarQuantidadeRede(valor) {
+  return Number(valor || 0).toLocaleString('pt-BR');
+}
+
+function formatarMoedaRede(valor) {
+  return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function carregarVendasRede(inicio, fim) {
+  const carregarPagina = async offset => {
+    const { data, error } = await window._supabase
+      .from('vendas_admin')
+      .select('id, filial_destino_id, valor_total, data_venda')
+      .gte('data_venda', inicio)
+      .lt('data_venda', fim)
+      .order('id')
+      .range(offset, offset + 999);
+    if (error) throw error;
+    return data || [];
+  };
+  return (async () => {
+    const todas = [];
+    for (let offset = 0; offset < 100000; offset += 1000) {
+      const pagina = await carregarPagina(offset);
+      todas.push(...pagina);
+      if (pagina.length < 1000) return todas;
+    }
+    throw new Error('O período tem mais de 100 mil vendas. Reduza o período para carregar o comparativo.');
+  })();
+}
+
+async function carregarDashboardRede() {
+  if (!ehSuperAdminAtual() || !window._supabase) return;
+  const inputMes = document.getElementById('adm-rede-mes');
+  const tbody = document.getElementById('adm-rede-tbody');
+  const alertas = document.getElementById('adm-rede-alertas');
+  const botao = document.getElementById('adm-rede-atualizar');
+  if (!inputMes || !tbody || !alertas) return;
+  const [ano, mes] = inputMes.value.split('-').map(Number);
+  if (!ano || !mes || mes < 1 || mes > 12) {
+    showToast('Escolha um mês válido para comparar as filiais.', 'warning');
+    return;
+  }
+  const inicio = new Date(ano, mes - 1, 1).toISOString();
+  const fimDia = new Date(ano, mes, 0);
+  const fim = fimDoDiaExclusivo(`${ano}-${String(mes).padStart(2, '0')}-${String(fimDia.getDate()).padStart(2, '0')}`);
+  const textoOriginal = botao?.textContent;
+  if (botao) { botao.disabled = true; botao.textContent = 'Carregando…'; }
+  const botaoExportar = document.getElementById('adm-rede-exportar');
+  if (botaoExportar) botaoExportar.disabled = true;
+  _dashboardRedeDados = null;
+  tbody.innerHTML = '<tr><td colspan="9" class="adm-empty-state">Carregando comparativo…</td></tr>';
+  alertas.replaceChildren();
+  try {
+    const [filiaisResult, metasResult, vendedoresResult, vendas] = await Promise.all([
+      window._supabase.from('filiais').select('id, nome, ativo, site_habilitado').order('nome'),
+      window._supabase.from('metas_filial').select('filial_id, meta_mensal_m1').eq('mes', mes).eq('ano', ano),
+      window._supabase.from('vendedores').select('id, filial_id').eq('ativo', true),
+      carregarVendasRede(inicio, fim),
+    ]);
+    const erro = filiaisResult.error || metasResult.error || vendedoresResult.error;
+    if (erro) throw erro;
+    let admins = null;
+    try {
+      const respostaAdmins = await window._supabase.functions.invoke(EDGE_FN_GERENCIAR_ADMINS, { body: { action: 'list' } });
+      if (respostaAdmins.error || respostaAdmins.data?.error) throw respostaAdmins.error || new Error(respostaAdmins.data.error);
+      admins = respostaAdmins.data?.admins || [];
+    } catch (errorAdmins) {
+      console.warn('[carregarDashboardRede] Não foi possível conferir contas regionais:', errorAdmins);
+    }
+    _dashboardRedeDados = {
+      filiais: filiaisResult.data || [],
+      metas: metasResult.data || [],
+      vendedores: vendedoresResult.data || [],
+      vendas,
+      admins,
+      mes,
+      ano,
+    };
+    const exportar = document.getElementById('adm-rede-exportar');
+    if (exportar) exportar.disabled = false;
+    const seletor = document.getElementById('adm-rede-filial');
+    if (seletor) {
+      const filtroAnterior = seletor.value;
+      seletor.replaceChildren(new Option('Todas as filiais', ''));
+      _dashboardRedeDados.filiais.forEach(f => seletor.add(new Option(f.nome, String(f.id))));
+      seletor.value = _dashboardRedeDados.filiais.some(f => String(f.id) === filtroAnterior) ? filtroAnterior : '';
+    }
+    renderDashboardRede();
+  } catch (error) {
+    console.error('[carregarDashboardRede]', error);
+    tbody.innerHTML = `<tr><td colspan="9" class="adm-empty-state">${escapeHtmlText(error.message || 'Não foi possível carregar as informações da rede.')}</td></tr>`;
+    const li = document.createElement('li');
+    li.className = 'adm-empty-state';
+    li.textContent = 'Não foi possível verificar os alertas. Confira as permissões do superadministrador.';
+    alertas.appendChild(li);
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = textoOriginal || 'Atualizar visão'; }
+  }
+}
+
+function exportarComparativoRede() {
+  const dados = _dashboardRedeDados;
+  if (!dados) {
+    showToast('Atualize a visão da rede antes de exportar.', 'warning');
+    return;
+  }
+  const filtro = document.getElementById('adm-rede-filial')?.value || '';
+  const filiais = dados.filiais.filter(f => !filtro || String(f.id) === filtro);
+  const equipePorFilial = new Map();
+  dados.vendedores.forEach(v => equipePorFilial.set(String(v.filial_id), (equipePorFilial.get(String(v.filial_id)) || 0) + 1));
+  const contaAtivaPorFilial = new Set((dados.admins || []).filter(a => a.ativo === true).map(a => String(a.filial_id)));
+  const metaPorFilial = new Map((dados.metas || []).map(m => [String(m.filial_id), Number(m.meta_mensal_m1 || 0)]));
+  const vendasPorFilial = new Map();
+  dados.vendas.forEach(v => {
+    const id = String(v.filial_destino_id);
+    const atual = vendasPorFilial.get(id) || { quantidade: 0, valor: 0 };
+    atual.quantidade += 1;
+    atual.valor += Number(v.valor_total || 0);
+    vendasPorFilial.set(id, atual);
+  });
+  const linhas = [
+    ['Filial', 'Ativa', 'Ranking público', 'Vendedores ativos', 'Acesso regional', 'Vendas no mês (destino)', 'Valor vendido', 'Meta mensal M1', 'Atingimento'],
+    ...filiais.map(f => {
+      const resumo = vendasPorFilial.get(String(f.id)) || { quantidade: 0, valor: 0 };
+      const vendas = resumo.quantidade;
+      const meta = metaPorFilial.get(String(f.id)) || 0;
+      return [f.nome, f.ativo ? 'Sim' : 'Não', f.site_habilitado ? 'Ativo' : 'Desativado',
+        equipePorFilial.get(String(f.id)) || 0,
+        dados.admins == null ? 'Não verificado' : contaAtivaPorFilial.has(String(f.id)) ? 'Ativo' : 'Sem conta ativa',
+        vendas, resumo.valor.toFixed(2).replace('.', ','), meta || '', meta ? `${Math.round((vendas / meta) * 100)}%` : ''];
+    }),
+  ];
+  const csv = '\uFEFF' + linhas.map(linha => linha.map(celula => {
+    let valor = String(celula ?? '');
+    if (/^[=+\-@\t\r]/.test(valor)) valor = `'${valor}`;
+    return `"${valor.replace(/"/g, '""')}"`;
+  }).join(';')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `comparativo-filiais-${dados.ano}-${String(dados.mes).padStart(2, '0')}.csv`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function renderDashboardRede() {
+  const dados = _dashboardRedeDados;
+  if (!dados) return;
+  const filtro = document.getElementById('adm-rede-filial')?.value || '';
+  const filiais = dados.filiais.filter(f => !filtro || String(f.id) === filtro);
+  const vendedoresPorFilial = new Map();
+  dados.vendedores.forEach(v => {
+    const id = String(v.filial_id);
+    vendedoresPorFilial.set(id, (vendedoresPorFilial.get(id) || 0) + 1);
+  });
+  const metasPorFilial = new Map((dados.metas || []).map(m => [String(m.filial_id), Number(m.meta_mensal_m1 || 0)]));
+  const vendasPorFilial = new Map();
+  dados.vendas.forEach(v => {
+    const id = String(v.filial_destino_id);
+    const atual = vendasPorFilial.get(id) || { quantidade: 0, valor: 0 };
+    atual.quantidade += 1;
+    atual.valor += Number(v.valor_total || 0);
+    vendasPorFilial.set(id, atual);
+  });
+
+  const ativas = filiais.filter(f => f.ativo === true);
+  const semEquipe = ativas.filter(f => !vendedoresPorFilial.get(String(f.id))).length;
+  const semMeta = ativas.filter(f => !(metasPorFilial.get(String(f.id)) > 0)).length;
+  const adminsPorFilial = new Map();
+  (dados.admins || []).filter(admin => admin.ativo === true).forEach(admin => {
+    const id = String(admin.filial_id);
+    adminsPorFilial.set(id, (adminsPorFilial.get(id) || 0) + 1);
+  });
+  const semAcesso = dados.admins == null ? null : ativas.filter(f => !adminsPorFilial.get(String(f.id))).length;
+  const totalVendas = filiais.reduce((soma, f) => soma + (vendasPorFilial.get(String(f.id))?.quantidade || 0), 0);
+  const totalValor = filiais.reduce((soma, f) => soma + (vendasPorFilial.get(String(f.id))?.valor || 0), 0);
+  const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  setText('rede-filiais-ativas', formatarQuantidadeRede(ativas.length));
+  setText('rede-vendas', formatarQuantidadeRede(totalVendas));
+  setText('rede-valor', formatarMoedaRede(totalValor));
+  setText('rede-sem-equipe', formatarQuantidadeRede(semEquipe));
+  setText('rede-sem-meta', formatarQuantidadeRede(semMeta));
+  setText('rede-sem-acesso', semAcesso == null ? '—' : formatarQuantidadeRede(semAcesso));
+
+  const tbody = document.getElementById('adm-rede-tbody');
+  tbody.replaceChildren();
+  if (!filiais.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 9; td.className = 'adm-empty-state'; td.textContent = 'Nenhuma filial encontrada.';
+    tr.appendChild(td); tbody.appendChild(tr);
+  }
+  filiais.forEach(f => {
+    const equipe = vendedoresPorFilial.get(String(f.id)) || 0;
+    const resumoVendas = vendasPorFilial.get(String(f.id)) || { quantidade: 0, valor: 0 };
+    const vendas = resumoVendas.quantidade;
+    const meta = metasPorFilial.get(String(f.id)) || 0;
+    const percentual = meta ? Math.round((vendas / meta) * 100) : null;
+    const adminAtivo = dados.admins == null ? null : Boolean(adminsPorFilial.get(String(f.id)));
+    const problemas = [];
+    if (!f.ativo) problemas.push('Inativa');
+    else {
+      if (!equipe) problemas.push('Sem equipe');
+      if (dados.admins && !adminAtivo) problemas.push('Sem acesso regional');
+      if (!meta) problemas.push('Sem meta');
+      if (!vendas) problemas.push('Sem vendas');
+      if (!f.site_habilitado) problemas.push('Ranking público desativado');
+    }
+    const valores = [
+      f.nome,
+      f.ativo && f.site_habilitado ? 'Ativo' : 'Desativado',
+      formatarQuantidadeRede(equipe),
+      adminAtivo == null ? 'Não verificado' : adminAtivo ? 'Ativo' : 'Sem conta ativa',
+      formatarQuantidadeRede(vendas),
+      formatarMoedaRede(resumoVendas.valor),
+      meta ? `${formatarQuantidadeRede(meta)} vendas` : 'Não configurada',
+      percentual == null ? '—' : `${percentual}%`,
+      problemas.length ? problemas.join(' · ') : 'Em operação',
+    ];
+    const tr = document.createElement('tr');
+    valores.forEach((valor, index) => {
+      const td = document.createElement('td');
+      td.textContent = valor;
+      if (index === 8) td.className = problemas.length ? 'adm-rede-status-atencao' : 'adm-rede-status-ok';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  const listaAlertas = document.getElementById('adm-rede-alertas');
+  listaAlertas.replaceChildren();
+  const problemas = [];
+  ativas.forEach(f => {
+    const equipe = vendedoresPorFilial.get(String(f.id)) || 0;
+    const vendas = vendasPorFilial.get(String(f.id))?.quantidade || 0;
+    const meta = metasPorFilial.get(String(f.id)) || 0;
+    if (!equipe) problemas.push({ filialId: String(f.id), texto: `${f.nome}: cadastre vendedores ativos.` });
+    if (dados.admins && !adminsPorFilial.get(String(f.id))) problemas.push({ filialId: String(f.id), texto: `${f.nome}: crie uma conta administrativa regional.` });
+    if (!meta) problemas.push({ filialId: String(f.id), texto: `${f.nome}: configure a meta mensal M1 de ${dados.mes}/${dados.ano}.` });
+    if (!vendas) problemas.push({ filialId: String(f.id), texto: `${f.nome}: ainda não há vendas destinadas a esta filial no período.` });
+    if (!f.site_habilitado) problemas.push({ filialId: String(f.id), texto: `${f.nome}: o ranking público está desativado.` });
+  });
+  const listaFinal = filtro ? problemas.filter(item => item.filialId === filtro) : problemas;
+  if (!listaFinal.length) {
+    const li = document.createElement('li'); li.className = 'adm-rede-alerta-ok';
+    li.textContent = 'Nenhum ponto de atenção nas filiais ativas neste período.'; listaAlertas.appendChild(li);
+  } else {
+    listaFinal.forEach(item => {
+      const li = document.createElement('li'); li.textContent = item.texto; listaAlertas.appendChild(li);
+    });
   }
 }
 
@@ -2403,7 +2691,7 @@ function adm_hidePanel() {
 }
 
 function adm_navigateTo(sectionId) {
-  if (['admins', 'filiais-admin'].includes(sectionId) && !ehSuperAdminAtual()) {
+  if (['rede', 'admins', 'filiais-admin', 'planos', 'tema'].includes(sectionId) && !ehSuperAdminAtual()) {
     showToast('Somente o superadministrador pode abrir esta área.', 'error');
     return;
   }
@@ -2417,6 +2705,7 @@ function adm_navigateTo(sectionId) {
   }
   if (sectionId === 'admins') carregarAdminsGerenciados();
   if (sectionId === 'filiais-admin') carregarFiliaisGerenciadas();
+  if (sectionId === 'rede') carregarDashboardRede();
   // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
   // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
@@ -3688,6 +3977,10 @@ document.querySelectorAll('.adm-nav-item[data-section]').forEach(btn => {
     }
   });
 });
+
+document.getElementById('adm-rede-atualizar')?.addEventListener('click', carregarDashboardRede);
+document.getElementById('adm-rede-filial')?.addEventListener('change', () => renderDashboardRede());
+document.getElementById('adm-rede-exportar')?.addEventListener('click', exportarComparativoRede);
 
 // Fechar painel com Escape
 document.addEventListener('keydown', e => {
