@@ -874,7 +874,7 @@ function invalidarConferenciaExclusaoMes() {
   _mesExclusaoConferido = null;
   const botao = document.getElementById('rel-limpeza-excluir');
   const resumo = document.getElementById('rel-limpeza-resumo');
-  if (botao) { botao.disabled = true; botao.style.opacity = '0.55'; botao.style.cursor = 'not-allowed'; }
+  if (botao) botao.disabled = true;
   if (resumo) resumo.textContent = 'Confira novamente os registros para o mês selecionado.';
 }
 
@@ -926,7 +926,7 @@ async function conferirExclusaoMes() {
     _mesExclusaoConferido = { mes, ...contagens };
     const filialNome = window.FILIAL_ATUAL?.nome || 'filial selecionada';
     if (resumo) resumo.textContent = `${mes}: ${contagens.vendas} vendas destinadas a ${filialNome} e ${contagens.historico} lançamentos históricos agregados. A limpeza remove os dois grupos.`;
-    if (botao) { botao.disabled = false; botao.style.opacity = '1'; botao.style.cursor = 'pointer'; }
+    if (botao) botao.disabled = false;
   } catch (err) {
     console.error('[conferirExclusaoMes]', err);
     if (resumo) resumo.textContent = 'Não foi possível consultar os registros. Verifique a conexão e as permissões do Supabase.';
@@ -953,7 +953,7 @@ async function excluirVendasDoMesConferido() {
     const resultado = Array.isArray(data) ? data[0] : data;
     _mesExclusaoConferido = null;
     const botao = document.getElementById('rel-limpeza-excluir');
-    if (botao) { botao.disabled = true; botao.style.opacity = '0.55'; botao.style.cursor = 'not-allowed'; }
+    if (botao) botao.disabled = true;
     const resumo = document.getElementById('rel-limpeza-resumo');
     if (resumo) resumo.textContent = `Exclusão concluída: ${resultado?.vendas_apagadas ?? conferencia.vendas} vendas e ${resultado?.registros_historicos_apagados ?? conferencia.historico} lançamentos históricos removidos de ${conferencia.mes}.`;
     showToast('Registros do mês excluídos.', 'success');

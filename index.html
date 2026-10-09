@@ -318,12 +318,12 @@
   <div id="adm-panel">
 
     <!-- cabeçalho do painel -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 20px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:20px;">
+    <div class="adm-panel-header">
       <div>
-        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);">Painel Administrativo</div>
-        <div style="font-size:1.1rem;font-weight:800;color:var(--heading-color);margin-top:2px;">UNI Internet — <span id="filial-atual-admin-titulo">Alta Floresta D'Oeste</span></div>
+        <div class="adm-panel-kicker">Painel Administrativo</div>
+        <div class="adm-panel-title">UNI Internet — <span id="filial-atual-admin-titulo">Alta Floresta D'Oeste</span></div>
       </div>
-      <div style="font-size:0.78rem;color:var(--text-muted);" id="adm-user-info"><span class="skeleton-bar" style="width:140px;"></span></div>
+      <div class="adm-panel-user" id="adm-user-info"><span class="skeleton-bar"></span></div>
     </div>
 
     <div class="adm-panel-inner">
@@ -425,16 +425,16 @@
           </div>
         </section>
 
-        <section class="adm-section" id="sec-rede" style="display:none;">
+        <section class="adm-section" id="sec-rede">
           <div class="adm-section-title">Visão da Rede</div>
           <p class="adm-vendedor-cadastro-hint">Acompanhe as bases em conjunto. Os dados de vendas consideram a filial de destino no mês selecionado.</p>
           <div class="adm-form-card">
-            <div class="adm-form-grid" style="align-items:end;">
+            <div class="adm-form-grid adm-form-grid-align-end">
               <div class="adm-field"><label for="adm-rede-mes">Mês de referência</label><input type="month" id="adm-rede-mes"></div>
               <div class="adm-field"><label for="adm-rede-filial">Filial</label><select id="adm-rede-filial"><option value="">Todas as filiais</option></select></div>
-              <div class="adm-field" style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button type="button" class="adm-btn adm-btn-primary" id="adm-rede-atualizar" style="width:auto;padding:12px 24px;">Atualizar visão</button>
-                <button type="button" class="adm-btn adm-btn-secondary" id="adm-rede-exportar" style="width:auto;padding:12px 24px;" disabled>Exportar comparativo</button>
+              <div class="adm-field adm-form-actions">
+                <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="adm-rede-atualizar">Atualizar visão</button>
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="adm-rede-exportar" disabled>Exportar comparativo</button>
               </div>
             </div>
           </div>
@@ -447,10 +447,10 @@
             <div class="adm-stat-card"><div class="label">Filiais sem acesso</div><div class="value" id="rede-sem-acesso">—</div><div class="sub">sem conta regional ativa</div></div>
           </div>
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Pontos que precisam de atenção</div>
+            <div class="adm-section-title adm-subsection-title">Pontos que precisam de atenção</div>
             <ul id="adm-rede-alertas" class="adm-rede-alertas"><li class="adm-empty-state">Selecione “Atualizar visão” para carregar os dados.</li></ul>
           </div>
-          <div class="adm-section-title" style="font-size:0.95rem;">Comparativo por filial</div>
+          <div class="adm-section-title adm-subsection-title is-plain">Comparativo por filial</div>
           <div class="adm-table-wrap">
             <table class="adm-table">
               <thead><tr><th>Filial</th><th>Ranking público</th><th>Equipe ativa</th><th>Acesso regional</th><th>Vendas</th><th>Valor vendido</th><th>Meta M1</th><th>Atingimento</th><th>Situação</th></tr></thead>
@@ -488,7 +488,7 @@
                     </button>
                     <div class="custom-select-panel" id="venda-plano-panel"></div>
                   </div>
-                  <select id="venda-plano" onchange="calcularTotal()" style="display:none;">
+                  <select class="adm-select-source" id="venda-plano" onchange="calcularTotal()">
                     <option value="">Selecione o plano</option>
                     <optgroup label="Uni Fibra">
                       <option value="uni-fibra-500|99.90">Uni Fibra 500mb — R$ 99,90</option>
@@ -543,12 +543,12 @@
 
                 <div class="adm-field adm-form-full">
                   <label>Observação (opcional)</label>
-                  <textarea id="venda-obs" rows="2" placeholder="Informações adicionais…" style="resize:vertical;"></textarea>
+                  <textarea id="venda-obs" rows="2" placeholder="Informações adicionais…"></textarea>
                 </div>
 
                 <div class="adm-form-full">
-                  <label style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);display:block;margin-bottom:10px;">
-                    Adicionais contratados <span style="font-weight:400;color:var(--text-muted);font-style:italic;">(não contam como venda M1/M2/M3, mas somam no valor)</span>
+                  <label class="adm-field-label-block">
+                    Adicionais contratados <span class="hint">(não contam como venda M1/M2/M3, mas somam no valor)</span>
                   </label>
                   <div class="adm-adicionais-check" id="adicionais-check-venda">
                     <div class="skeleton-checkbox-item"><span class="skeleton-bar"></span><span class="skeleton-bar" style="width:120px;"></span></div>
@@ -564,9 +564,9 @@
                   </div>
                 </div>
 
-                <div class="adm-form-full" style="display:flex;gap:12px;justify-content:flex-end;">
-                  <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:12px 24px;" onclick="resetVendaForm()">Limpar</button>
-                  <button type="submit" class="adm-btn adm-btn-primary" style="width:auto;padding:12px 28px;">Registrar Venda</button>
+                <div class="adm-form-full adm-form-actions">
+                  <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="resetVendaForm()">Limpar</button>
+                  <button type="submit" class="adm-btn adm-btn-primary adm-btn-inline">Registrar Venda</button>
                 </div>
 
               </div>
@@ -595,7 +595,7 @@
             </table>
           </div>
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Registrar Venda de Adicional Avulso</div>
+            <div class="adm-section-title adm-subsection-title">Registrar Venda de Adicional Avulso</div>
             <form id="adm-adicional-form" onsubmit="handleNovoAdicional(event)">
               <div class="adm-form-grid">
                 <div class="adm-field">
@@ -610,8 +610,8 @@
                 <div class="adm-field"><label>Valor unitário (R$)</label><input type="number" id="adic-valor" placeholder="0.00" step="0.01" min="0" required></div>
                 <div class="adm-field"><label>Data</label><input type="date" id="adic-data" required></div>
                 <div class="adm-field"><label>Observação (opcional)</label><input type="text" id="adic-obs" placeholder="Opcional"></div>
-                <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
-                  <button type="submit" class="adm-btn adm-btn-primary" style="width:auto;padding:12px 28px;">Registrar Adicional</button>
+                <div class="adm-form-full adm-form-actions">
+                  <button type="submit" class="adm-btn adm-btn-primary adm-btn-inline">Registrar Adicional</button>
                 </div>
               </div>
             </form>
@@ -622,7 +622,7 @@
         <section class="adm-section" id="sec-vendedores">
           <div class="adm-section-title">Equipe de Vendas</div>
           <div class="adm-form-card adm-vendedor-cadastro-card">
-            <div class="adm-section-title" id="adm-vendedor-form-title" style="font-size:0.95rem;padding-bottom:12px;">Cadastrar vendedor</div>
+            <div class="adm-section-title adm-subsection-title" id="adm-vendedor-form-title">Cadastrar vendedor</div>
             <p class="adm-vendedor-cadastro-hint" id="adm-vendedor-escopo-hint">O vendedor será vinculado à filial selecionada.</p>
             <form id="adm-vendedor-form" onsubmit="cadastrarVendedor(event)">
               <input id="adm-vendedor-edit-id" type="hidden" value="">
@@ -651,9 +651,9 @@
                     <span id="adm-vendedor-foto-preview-nome"></span>
                   </div>
                 </div>
-                <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
+                <div class="adm-form-full adm-form-actions">
                   <button type="button" class="adm-btn adm-btn-secondary" id="adm-vendedor-cancel-edit" onclick="cancelarEdicaoVendedor()" hidden>Cancelar edição</button>
-                  <button type="submit" class="adm-btn adm-btn-primary" id="adm-vendedor-submit" style="width:auto;padding:12px 28px;">Cadastrar vendedor</button>
+                  <button type="submit" class="adm-btn adm-btn-primary adm-btn-inline" id="adm-vendedor-submit">Cadastrar vendedor</button>
                 </div>
               </div>
             </form>
@@ -664,7 +664,7 @@
                 <tr><th>Foto</th><th>Nome</th><th>Tipo</th><th>Meta mensal</th><th>Vendas (mês)</th><th>% Meta</th><th>Status</th><th>Ações</th></tr>
               </thead>
               <tbody id="adm-vendedores-tbody">
-                <tr><td colspan="8" style="text-align:center;color:var(--text-muted);">Carregando vendedores da regional…</td></tr>
+                <tr><td colspan="8" class="adm-inline-status">Carregando vendedores da regional…</td></tr>
               </tbody>
             </table>
           </div>
@@ -707,8 +707,8 @@
               <div class="adm-meta-row"><span class="mkey">M1</span><div><div class="mval" id="meta-fil-mes-m1">—</div></div></div>
             </div>
           </div>
-          <div class="adm-form-card" style="opacity:0.65;text-align:center;padding:24px;">
-            <div style="font-size:0.82rem;color:var(--text-muted);">⚙️ Os valores acima já vêm do Supabase (<code>loadMetas()</code> / <code>loadMetasFilial()</code>). A edição de metas por formulário ainda não foi implementada nesta versão — os valores são somente leitura.</div>
+          <div class="adm-form-card adm-readonly-note">
+            <p>⚙️ Os valores acima já vêm do Supabase (<code>loadMetas()</code> / <code>loadMetasFilial()</code>). A edição de metas por formulário ainda não foi implementada nesta versão — os valores são somente leitura.</p>
           </div>
         </section>
 
@@ -719,7 +719,7 @@
             <table class="adm-table">
               <thead><tr><th>Plano</th><th>Velocidade</th><th>Valor/mês</th><th>Categoria</th></tr></thead>
               <tbody id="planos-tbody">
-                <tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Carregando planos do Supabase…</td></tr>
+                <tr><td colspan="4" class="adm-inline-status">Carregando planos do Supabase…</td></tr>
               </tbody>
             </table>
           </div>
@@ -759,9 +759,9 @@
                   <option value="outra_filial">Venda de outra filial</option>
                 </select>
               </div>
-              <div class="adm-form-full" style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
-                <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:12px 24px;" onclick="limparFiltrosRelatorio()">🔄 Limpar filtros</button>
-                <button type="button" class="adm-btn adm-btn-primary" style="width:auto;padding:12px 24px;" onclick="aplicarFiltrosRelatorio()">🔎 Aplicar filtros</button>
+              <div class="adm-form-full adm-form-actions">
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="limparFiltrosRelatorio()">🔄 Limpar filtros</button>
+                <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" onclick="aplicarFiltrosRelatorio()">🔎 Aplicar filtros</button>
               </div>
             </div>
           </div>
@@ -771,15 +771,15 @@
 
           <!-- Tabela + exportação -->
           <div class="adm-form-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-              <span id="rel-contagem" style="font-size:0.82rem;color:var(--text-muted);">—</span>
-              <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--text-muted);cursor:pointer;user-select:none;">
-                  <input type="checkbox" id="rel-ocultar-financeiro" style="width:auto;">
+            <div class="adm-section-heading-row">
+              <span id="rel-contagem" class="adm-inline-status is-left">—</span>
+              <div class="adm-form-actions">
+                <label class="adm-inline-checkbox">
+                  <input type="checkbox" id="rel-ocultar-financeiro">
                   🙈 Ocultar valores financeiros
                 </label>
-                <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:10px 18px;" onclick="exportarRelatorioExcel()">📊 Exportar Excel</button>
-                <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:10px 18px;" onclick="exportarRelatorioPDF()">📄 Exportar PDF</button>
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="exportarRelatorioExcel()">📊 Exportar Excel</button>
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="exportarRelatorioPDF()">📄 Exportar PDF</button>
               </div>
             </div>
             <div class="adm-table-wrap">
@@ -791,17 +791,17 @@
                   </tr>
                 </thead>
                 <tbody id="rel-tabela-body">
-                  <tr><td colspan="11" style="text-align:center;color:var(--text-muted);">Clique em "Aplicar filtros" para carregar o relatório.</td></tr>
+                  <tr><td colspan="11" class="adm-inline-status">Clique em "Aplicar filtros" para carregar o relatório.</td></tr>
                 </tbody>
 
               </table>
             </div>
-            <div style="display:flex;justify-content:center;align-items:center;gap:16px;margin-top:16px;" id="rel-paginacao"></div>
+            <div class="adm-pagination" id="rel-paginacao"></div>
           </div>
 
-          <div class="adm-form-card" style="border-color:rgba(248,113,113,0.35);">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">🗑️ Limpeza manual de vendas por mês</div>
-            <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.55;margin:0 0 16px;">
+          <div class="adm-form-card adm-danger-card">
+            <div class="adm-section-title adm-subsection-title">🗑️ Limpeza manual de vendas por mês</div>
+            <p class="adm-muted-copy">
               Escolha um mês para conferir os registros antes de excluir. A exclusão é permanente e abrange as vendas destinadas à filial selecionada e o histórico agregado recebido naquele mês. Nada é apagado automaticamente.
             </p>
             <div class="adm-form-grid">
@@ -809,12 +809,12 @@
                 <label>Mês a excluir</label>
                 <input type="month" id="rel-limpeza-mes" onchange="invalidarConferenciaExclusaoMes()">
               </div>
-              <div class="adm-field" style="align-self:end;">
-                <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:12px 20px;" onclick="conferirExclusaoMes()">Conferir registros</button>
+              <div class="adm-field adm-field-align-end">
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="conferirExclusaoMes()">Conferir registros</button>
               </div>
-              <div class="adm-form-full" id="rel-limpeza-resumo" aria-live="polite" style="font-size:0.84rem;color:var(--text-muted);"></div>
-              <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
-                <button type="button" class="adm-btn" id="rel-limpeza-excluir" disabled style="width:auto;padding:12px 22px;background:#b91c1c;opacity:0.55;cursor:not-allowed;" onclick="excluirVendasDoMesConferido()">Excluir mês selecionado</button>
+              <div class="adm-form-full adm-status-copy" id="rel-limpeza-resumo" aria-live="polite"></div>
+              <div class="adm-form-full adm-form-actions">
+                <button type="button" class="adm-btn adm-btn-inline adm-btn-danger-solid" id="rel-limpeza-excluir" disabled onclick="excluirVendasDoMesConferido()">Excluir mês selecionado</button>
               </div>
             </div>
           </div>
@@ -823,8 +823,8 @@
         <!-- ── CELEBRAÇÕES ─────────────────────────────────────── -->
         <section class="adm-section" id="sec-celebracoes">
           <div class="adm-section-title">🎉 Celebrações — GIF de Meta Batida</div>
-          <div class="adm-card" style="max-width:520px;">
-            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.5;">
+          <div class="adm-card adm-compact-card">
+            <p class="adm-description">
               Escolha o vendedor e qual meta ele bateu — o sistema gera um GIF animado de
               parabéns (anéis de sinal + partículas subindo, no mesmo estilo do card de
               desempenho) mostrando a meta alcançada e qual é a próxima, pronto pra
@@ -842,13 +842,13 @@
                 <option value="">Selecione o vendedor primeiro</option>
               </select>
             </div>
-            <div id="cel-preview-info" style="font-size:0.8rem;color:var(--text-muted);margin:4px 0 18px;min-height:18px;"></div>
+            <div id="cel-preview-info" class="adm-preview-status"></div>
             <button type="button" class="adm-btn" id="cel-gerar-btn" onclick="gerarGifCelebracao()">🎬 Gerar GIF de Comemoração</button>
           </div>
 
-          <div class="adm-section-title" style="margin-top:36px;">🌟 Destaque do Mês</div>
-          <div class="adm-card" style="max-width:520px;">
-            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.5;">
+          <div class="adm-section-title adm-section-title-spaced">🌟 Destaque do Mês</div>
+          <div class="adm-card adm-compact-card">
+            <p class="adm-description">
               Escolha quem é o destaque do mês — o sistema gera uma <strong>arte (imagem)</strong> pronta
               pra postar, no estilo certificado (selo de posição, "Parabéns" e mensagem), com a posição
               real no ranking mensal e o mês certo. Peça exclusiva pro destaque — diferente do card de
@@ -868,7 +868,7 @@
         <section class="adm-section" id="sec-renovacoes">
           <div class="adm-section-title">🔄 Mural de Renovações</div>
           <div class="adm-form-card">
-            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.5;">
+            <p class="adm-description">
               Cadastre quem foi o destaque de renovações do mês e quantas renovações fez.
               Aparece no site, no <strong>Mural de Renovações</strong>. Se já existir um destaque
               para o mês escolhido, ele é atualizado.
@@ -880,7 +880,7 @@
               </div>
               <div class="adm-field"><label>Renovações feitas</label><input type="number" id="renov-qtd" min="0" step="1" placeholder="Ex.: 12"></div>
             </div>
-            <button type="button" class="adm-btn" style="width:auto;padding:12px 28px;" onclick="salvarDestaqueRenovacao()">💾 Salvar destaque</button>
+            <button type="button" class="adm-btn adm-btn-inline" onclick="salvarDestaqueRenovacao()">💾 Salvar destaque</button>
           </div>
           <div class="adm-table-wrap">
             <table class="adm-table">
@@ -894,29 +894,29 @@
         <section class="adm-section" id="sec-tema">
           <div class="adm-section-title">🎨 Tema do Site</div>
           <div class="adm-form-card">
-            <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;">
+            <p class="adm-description is-compact">
               O site já troca de tema sozinho conforme a data (Outubro Rosa, Natal, Black Friday etc.).
               Aqui você pode <strong>forçar um tema</strong> ou voltar ao visual padrão. Clique num tema para
               <strong>pré-visualizar</strong> (só você vê) e depois em <strong>Salvar</strong> para valer para todos.
             </p>
             <div class="tema-grid" id="tema-grid"></div>
             <label class="tema-check"><input type="checkbox" id="tema-fx" checked onchange="previaFxAdm()"> Partículas animadas (confete, pétalas, neve…)</label>
-            <button type="button" class="adm-btn" style="width:auto;padding:12px 28px;" onclick="salvarTemaSite()">💾 Salvar tema</button>
+            <button type="button" class="adm-btn adm-btn-inline" onclick="salvarTemaSite()">💾 Salvar tema</button>
           </div>
         </section>
 
         <!-- ── RANKING ADM ─────────────────────────────────────── -->
         <section class="adm-section" id="sec-ranking-adm">
           <div class="adm-section-title">Ranking da Filial</div>
-          <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">
+          <div class="adm-ranking-note">
             Ordenação: 1º critério — quantidade de vendas principais; 2º critério — maior valor total vendido no período.
           </div>
           <div class="adm-ranking-list" id="adm-ranking-list">
             <!-- populado pela função renderAdmRanking() após integração com Supabase -->
-            <div class="adm-form-card" style="opacity:0.65;text-align:center;padding:40px;">
-              <div style="font-size:1.4rem;margin-bottom:8px;">🔌</div>
-              <div style="font-size:0.88rem;font-weight:700;color:var(--heading-color);">Aguardando dados do Supabase</div>
-              <div style="font-size:0.76rem;color:var(--text-muted);margin-top:6px;">A função <code>loadVendas()</code> irá popular este ranking automaticamente.</div>
+            <div class="adm-form-card adm-ranking-empty">
+              <div class="adm-ranking-empty-icon">🔌</div>
+              <div class="adm-ranking-empty-title">Aguardando dados do Supabase</div>
+              <div class="adm-ranking-empty-copy">A função <code>loadVendas()</code> irá popular este ranking automaticamente.</div>
             </div>
           </div>
         </section>
@@ -926,44 +926,44 @@
           <div class="adm-section-title">Vendas de Outras Filiais</div>
 
           <!-- card explicativo -->
-          <div style="background:rgba(var(--accent2-rgb),0.08);border:1px solid rgba(var(--accent2-rgb),0.25);border-radius:14px;padding:16px 20px;font-size:0.82rem;color:var(--text-muted);line-height:1.6;">
-            <strong style="color:var(--heading-color);">Histórico preservado:</strong>
+          <div class="adm-callout">
+            <strong>Histórico preservado:</strong>
             Cadastre cada venda recebida de outra filial com seu contrato. O número do contrato é único e bloqueia lançamentos duplicados, mesmo que outro supervisor tente registrar a mesma venda.
           </div>
 
           <!-- card totalizador: nossa equipe + outras filiais = total global -->
           <div class="adm-form-card" id="card-totalizador" style="display:none;">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;margin-bottom:16px;">📊 Composição da Meta Global</div>
-            <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:12px;text-align:center;">
-              <div style="background:rgba(var(--accent-rgb),0.07);border:1px solid rgba(var(--accent-rgb),0.2);border-radius:14px;padding:18px 12px;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;">Vendas da nossa filial</div>
-                <div style="font-size:2rem;font-weight:900;color:var(--accent);" id="tot-equipe">—</div>
-                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">origem e destino nesta filial</div>
+            <div class="adm-section-title adm-subsection-title has-bottom-space">📊 Composição da Meta Global</div>
+            <div class="adm-totalizer-grid">
+              <div class="adm-totalizer-card is-local">
+                <div class="adm-totalizer-label">Vendas da nossa filial</div>
+                <div class="adm-totalizer-value" id="tot-equipe">—</div>
+                <div class="adm-totalizer-note">origem e destino nesta filial</div>
               </div>
-              <div style="font-size:1.6rem;color:var(--text-muted);font-weight:300;">+</div>
-              <div style="background:rgba(var(--accent2-rgb),0.07);border:1px solid rgba(var(--accent2-rgb),0.2);border-radius:14px;padding:18px 12px;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;">Outras filiais</div>
-                <div style="font-size:2rem;font-weight:900;color:var(--accent2);" id="tot-filiais">—</div>
-                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">recebidas de outras filiais</div>
+              <div class="adm-totalizer-operator" aria-hidden="true">+</div>
+              <div class="adm-totalizer-card is-branches">
+                <div class="adm-totalizer-label">Outras filiais</div>
+                <div class="adm-totalizer-value" id="tot-filiais">—</div>
+                <div class="adm-totalizer-note">recebidas de outras filiais</div>
               </div>
-              <div style="font-size:1.6rem;color:var(--text-muted);font-weight:300;">=</div>
-              <div style="background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.2);border-radius:14px;padding:18px 12px;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;">Total global</div>
-                <div style="font-size:2rem;font-weight:900;color:#34d399;" id="tot-global">—</div>
-                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;" id="tot-meta-label">/ — vendas (M1)</div>
+              <div class="adm-totalizer-operator" aria-hidden="true">=</div>
+              <div class="adm-totalizer-card is-total">
+                <div class="adm-totalizer-label">Total global</div>
+                <div class="adm-totalizer-value" id="tot-global">—</div>
+                <div class="adm-totalizer-note" id="tot-meta-label">/ — vendas (M1)</div>
               </div>
             </div>
-            <div style="margin-top:14px;">
-              <div style="height:10px;background:var(--surface-hover);border-radius:20px;overflow:hidden;border:1px solid var(--border);">
-                <div id="tot-barra" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#34d399);border-radius:20px;transition:width 0.8s ease;"></div>
+            <div class="adm-totalizer-progress-wrap">
+              <div class="adm-totalizer-progress">
+                <div id="tot-barra"></div>
               </div>
-              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;" id="tot-barra-label">0% da meta global</div>
+              <div class="adm-totalizer-progress-label" id="tot-barra-label">0% da meta global</div>
             </div>
           </div>
 
           <!-- Novas vendas de outras filiais usam a tabela unificada e o contrato único. -->
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Registrar venda recebida de outra filial</div>
+            <div class="adm-section-title adm-subsection-title">Registrar venda recebida de outra filial</div>
             <form id="adm-filial-form" onsubmit="handleVendaOutraFilial(event)">
               <div class="adm-form-grid">
 
@@ -989,7 +989,7 @@
                     </button>
                     <div class="custom-select-panel" id="filial-plano-panel"></div>
                   </div>
-                  <select id="filial-plano" onchange="calcularTotalFilial()" style="display:none;">
+                  <select class="adm-select-source" id="filial-plano" onchange="calcularTotalFilial()">
                     <option value="">Selecione o plano</option>
                     <optgroup label="Uni Fibra">
                       <option value="uni-fibra-500|99.90">Uni Fibra 500mb — R$ 99,90</option>
@@ -1033,7 +1033,7 @@
                 </div>
 
                 <div class="adm-form-full">
-                  <label style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);display:block;margin-bottom:10px;">
+                  <label class="adm-field-label-block">
                     Adicionais (opcional)
                   </label>
                   <div class="adm-adicionais-check" id="adicionais-check-filial">
@@ -1045,19 +1045,19 @@
 
                 <div class="adm-field adm-form-full">
                   <label>Observação (opcional)</label>
-                  <textarea id="filial-obs" rows="2" placeholder="Ex: venda realizada pela equipe da filial Cacoal no bairro X…" style="resize:vertical;"></textarea>
+                  <textarea id="filial-obs" rows="2" placeholder="Ex: venda realizada pela equipe da filial Cacoal no bairro X…"></textarea>
                 </div>
 
                 <div class="adm-form-full">
-                  <div class="adm-total-box" style="border-color:rgba(var(--accent2-rgb),0.3);background:rgba(var(--accent2-rgb),0.07);">
+                  <div class="adm-total-box is-accent2">
                     <div class="label">Valor total estimado</div>
-                    <div class="value" id="filial-total" style="color:var(--accent2);">R$ 0,00</div>
+                    <div class="value" id="filial-total">R$ 0,00</div>
                   </div>
                 </div>
 
-                <div class="adm-form-full" style="display:flex;gap:12px;justify-content:flex-end;">
-                  <button type="button" class="adm-btn adm-btn-secondary" style="width:auto;padding:12px 24px;" onclick="resetFilialForm()">Limpar</button>
-                  <button type="submit" class="adm-btn adm-btn-primary" style="width:auto;padding:12px 28px;background:var(--accent2);">Registrar venda recebida</button>
+                <div class="adm-form-full adm-form-actions">
+                  <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="resetFilialForm()">Limpar</button>
+                  <button type="submit" class="adm-btn adm-btn-primary adm-btn-inline is-accent2">Registrar venda recebida</button>
                 </div>
 
               </div>
@@ -1065,26 +1065,26 @@
           </div>
 
           <div class="adm-form-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-              <div class="adm-section-title" style="font-size:0.95rem;padding:0;border:none;">Vendas recebidas com contrato</div>
-              <span style="font-size:0.72rem;color:var(--text-muted);">Até os 100 lançamentos mais recentes.</span>
+            <div class="adm-section-heading-row">
+              <div class="adm-section-title adm-subsection-title is-plain">Vendas recebidas com contrato</div>
+              <span class="adm-inline-status is-compact">Até os 100 lançamentos mais recentes.</span>
             </div>
             <div class="adm-table-wrap">
               <table class="adm-table">
                 <thead><tr><th>Origem</th><th>Contrato</th><th>Cliente</th><th>Vendedor</th><th>Plano</th><th>Total</th><th>Data</th></tr></thead>
-                <tbody id="filial-contratos-body"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Carregando vendas recebidas…</td></tr></tbody>
+                <tbody id="filial-contratos-body"><tr><td colspan="7" class="adm-inline-status">Carregando vendas recebidas…</td></tr></tbody>
               </table>
             </div>
           </div>
 
           <!-- histórico agregado antigo de vendas de outras filiais -->
           <div class="adm-form-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-              <div class="adm-section-title" style="font-size:0.95rem;padding:0;border:none;">Histórico agregado anterior</div>
-              <span style="font-size:0.72rem;color:var(--text-muted);">Dados persistidos no Supabase.</span>
+            <div class="adm-section-heading-row">
+              <div class="adm-section-title adm-subsection-title is-plain">Histórico agregado anterior</div>
+              <span class="adm-inline-status is-compact">Dados persistidos no Supabase.</span>
             </div>
             <div id="filial-lista-wrap">
-              <div id="filial-lista-vazia" style="text-align:center;padding:30px;color:var(--text-muted);font-size:0.82rem;">
+              <div id="filial-lista-vazia" class="adm-empty-panel">
                 Nenhum lançamento agregado antigo encontrado. Os contratos recentes aparecem na tabela acima.
               </div>
               <div class="adm-table-wrap" id="filial-tabela-wrap" style="display:none;">
@@ -1113,7 +1113,7 @@
           <div class="adm-section-title">⚙️ Configuração de Metas</div>
 
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Meta da Filial — <span id="cfg-fil-periodo">mês/ano atual</span></div>
+            <div class="adm-section-title adm-subsection-title">Meta da Filial — <span id="cfg-fil-periodo">mês/ano atual</span></div>
             <div class="adm-form-grid">
               <div class="adm-field"><label>Meta Semanal — M3</label><input type="number" id="cfg-fil-sem-m3" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label>Meta Semanal — M2</label><input type="number" id="cfg-fil-sem-m2" min="0" step="1" placeholder="Não configurado"></div>
@@ -1125,7 +1125,7 @@
           </div>
 
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Metas Individuais — <span id="cfg-ind-periodo">mês/ano atual</span></div>
+            <div class="adm-section-title adm-subsection-title">Metas Individuais — <span id="cfg-ind-periodo">mês/ano atual</span></div>
             <div class="adm-table-wrap">
               <table class="adm-table">
                 <thead>
@@ -1141,7 +1141,7 @@
           </div>
 
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">🔄 Renovações — <span id="cfg-renov-periodo">mês/ano atual</span></div>
+            <div class="adm-section-title adm-subsection-title">🔄 Renovações — <span id="cfg-renov-periodo">mês/ano atual</span></div>
             <div class="adm-form-grid">
               <div class="adm-field"><label>Meta M3</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
@@ -1151,8 +1151,8 @@
           </div>
 
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">⚠️ Cancelamentos — <span id="cfg-cancel-periodo">mês/ano atual</span></div>
-            <p style="font-size:0.8rem;color:var(--text-muted);margin:-4px 0 14px;">Aqui é o contrário das outras metas: são tetos que não podem ser ultrapassados. Por isso a ordem é M1 (mais rígido) → M3 (mais tolerante).</p>
+            <div class="adm-section-title adm-subsection-title">⚠️ Cancelamentos — <span id="cfg-cancel-periodo">mês/ano atual</span></div>
+            <p class="adm-muted-copy">Aqui é o contrário das outras metas: são tetos que não podem ser ultrapassados. Por isso a ordem é M1 (mais rígido) → M3 (mais tolerante).</p>
             <div class="adm-form-grid">
               <div class="adm-field"><label>Meta M1</label><input type="number" id="cfg-cancel-m1" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-cancel-m2" min="0" step="1" placeholder="Não configurado"></div>
@@ -1161,15 +1161,15 @@
             </div>
           </div>
 
-          <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
-            <button type="button" class="adm-btn adm-btn-primary" style="width:auto;padding:12px 28px;" onclick="handleSalvarMetas()">💾 Salvar Metas</button>
+          <div class="adm-form-full adm-form-actions">
+            <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" onclick="handleSalvarMetas()">💾 Salvar Metas</button>
           </div>
         </section>
 
-        <section class="adm-section" id="sec-admins" style="display:none;">
+        <section class="adm-section" id="sec-admins">
           <div class="adm-section-title">Contas Administrativas Regionais</div>
           <div class="adm-form-card">
-            <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Criar acesso regional</div>
+            <div class="adm-section-title adm-subsection-title">Criar acesso regional</div>
             <p class="adm-vendedor-cadastro-hint">Crie uma conta com acesso somente à regional selecionada. A senha inicial é definida aqui e não é exibida novamente.</p>
             <form id="adm-admin-form" onsubmit="criarAdminRegional(event)">
               <div class="adm-form-grid">
@@ -1189,13 +1189,13 @@
                   <label for="adm-admin-senha-confirmacao">Confirmar senha inicial</label>
                   <input id="adm-admin-senha-confirmacao" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
                 </div>
-                <div class="adm-form-full" style="display:flex;justify-content:flex-end;">
-                  <button type="submit" class="adm-btn adm-btn-primary" id="adm-admin-submit" style="width:auto;padding:12px 28px;">Criar conta regional</button>
+                <div class="adm-form-full adm-form-actions">
+                  <button type="submit" class="adm-btn adm-btn-primary adm-btn-inline" id="adm-admin-submit">Criar conta regional</button>
                 </div>
               </div>
             </form>
           </div>
-          <div class="adm-section-title" style="font-size:0.95rem;">Contas regionais cadastradas</div>
+          <div class="adm-section-title adm-subsection-title is-plain">Contas regionais cadastradas</div>
           <div class="adm-table-wrap">
             <table class="adm-table">
               <thead><tr><th>E-mail</th><th>Regional</th><th>Status</th><th>Ações</th></tr></thead>
@@ -1205,10 +1205,10 @@
         </section>
 
         <!-- ── CADASTRO DE FILIAIS ─────────────────────────────── -->
-        <section class="adm-section" id="sec-filiais-admin" style="display:none;">
+        <section class="adm-section" id="sec-filiais-admin">
           <div class="adm-section-title">Filiais e Regionais</div>
           <div class="adm-form-card">
-            <div class="adm-section-title" id="adm-filial-form-title" style="font-size:0.95rem;padding-bottom:12px;margin-bottom:12px;">Cadastrar nova filial</div>
+            <div class="adm-section-title adm-subsection-title has-bottom-space" id="adm-filial-form-title">Cadastrar nova filial</div>
             <p class="adm-vendedor-cadastro-hint">Cadastre uma base e controle se ela está ativa e se o ranking público pode ser acessado. Desativar preserva o histórico e os vínculos existentes.</p>
             <form id="adm-filial-gerenciar-form" onsubmit="salvarFilialGerenciada(event)">
               <div class="adm-form-grid">
@@ -1220,18 +1220,18 @@
                   <label for="adm-filial-slug">Endereço curto (slug)</label>
                   <input id="adm-filial-slug" type="text" maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" required placeholder="ji-parana" title="Use letras minúsculas, números e hífens." oninput="this.dataset.manual='true'">
                 </div>
-                <div class="adm-form-full" style="display:flex;flex-wrap:wrap;gap:18px;">
+                <div class="adm-form-full adm-form-checks-row">
                   <label class="tema-check"><input id="adm-filial-ativa" type="checkbox" checked> Filial ativa</label>
                   <label class="tema-check"><input id="adm-filial-site-habilitado" type="checkbox"> Habilitar ranking público</label>
                 </div>
-                <div class="adm-form-full" style="display:flex;justify-content:flex-end;gap:10px;">
+                <div class="adm-form-full adm-form-actions">
                   <button type="button" class="adm-btn adm-btn-secondary" id="adm-filial-cancelar" onclick="cancelarEdicaoFilial()" hidden>Cancelar edição</button>
-                  <button type="submit" class="adm-btn adm-btn-primary" id="adm-filial-submit" style="width:auto;padding:12px 28px;">Cadastrar filial</button>
+                  <button type="submit" class="adm-btn adm-btn-primary adm-btn-inline" id="adm-filial-submit">Cadastrar filial</button>
                 </div>
               </div>
             </form>
           </div>
-          <div class="adm-section-title" style="font-size:0.95rem;">Bases cadastradas</div>
+          <div class="adm-section-title adm-subsection-title is-plain">Bases cadastradas</div>
           <div class="adm-table-wrap">
             <table class="adm-table">
               <thead><tr><th>Filial</th><th>Endereço</th><th>Status</th><th>Ranking público</th><th>Ações</th></tr></thead>
