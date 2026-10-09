@@ -484,7 +484,7 @@ function popularAdmRenovacoes() {
       <td>${NOMES_MESES[Number(r.mes) - 1]}/${r.ano}</td>
       <td><strong>${v ? v.nome : r.vendedor}</strong></td>
       <td>${r.quantidade}</td>
-      <td><button type="button" class="adm-btn-excluir" onclick="excluirDestaqueRenovacao('${r.id}')" title="Excluir">🗑️</button></td>
+      <td><button type="button" class="adm-btn-excluir" onclick="excluirDestaqueRenovacao('${r.id}')" title="Excluir" aria-label="Excluir destaque"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg></button></td>
     </tr>`;
   }).join('');
 }

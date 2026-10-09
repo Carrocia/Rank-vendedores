@@ -321,7 +321,7 @@ async function carregarVendedoresGerenciamento() {
     const reativar = document.createElement('button');
     reativar.type = 'button';
     reativar.className = 'adm-btn adm-btn-small';
-    reativar.textContent = 'Reativar';
+    reativar.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"></use></svg><span>Reativar</span>';
     reativar.addEventListener('click', () => alterarStatusVendedor(v.id, true));
     acao.appendChild(reativar);
     tr.append(nome, tipo, acao);
@@ -1181,15 +1181,17 @@ function renderRelatorioTabela() {
       const valorFmt = 'R$ ' + l.valorTotal.toFixed(2).replace('.', ',');
       let origemTxt, vendedorTxt, tipoTxt;
       if (l.tipoLinha === 'outra_filial') {
-        origemTxt = `🏢 ${l.filialOrigem}`;
+        origemTxt = `<span class="adm-inline-icon"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-building"></use></svg>${l.filialOrigem}</span>`;
         vendedorTxt = 'Outra filial';
         tipoTxt = '—';
       } else {
-        origemTxt = l.foraFilial ? '📍 Fora da filial' : '🏠 Nossa filial';
+        origemTxt = l.foraFilial
+          ? '<span class="adm-inline-icon"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-map-pin"></use></svg>Fora da filial</span>'
+          : '<span class="adm-inline-icon"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-building"></use></svg>Nossa filial</span>';
         vendedorTxt = l.vendedorNome;
         tipoTxt = l.vendedorTipo === 'interno' ? 'Interno' : (l.vendedorTipo === 'externo' ? 'Externo' : '—');
       }
-      const acoesTxt = `<button type="button" class="adm-btn-excluir" onclick="handleExcluirVenda('${l.id}', '${l.tipoLinha}')" title="Excluir esta venda">🗑️</button>`;
+      const acoesTxt = `<button type="button" class="adm-btn-excluir" onclick="handleExcluirVenda('${l.id}', '${l.tipoLinha}')" title="Excluir esta venda" aria-label="Excluir esta venda"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg></button>`;
       return `<tr>
         <td>${dataFmt}</td><td>${l.hora || '—'}</td><td>${vendedorTxt}</td><td>${tipoTxt}</td>
         <td>${l.cliente || '—'}</td><td>${l.planoNome}</td><td>${veloc}</td>
@@ -2481,7 +2483,7 @@ async function carregarFiliaisGerenciadas() {
     const editar = document.createElement('button');
     editar.type = 'button';
     editar.className = 'adm-btn adm-btn-small';
-    editar.textContent = 'Editar';
+    editar.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-edit"></use></svg><span>Editar</span>';
     editar.addEventListener('click', () => editarFilialGerenciada(filial));
     acoes.appendChild(editar);
     tr.append(nome, slug, status, site, acoes);
@@ -2599,7 +2601,7 @@ async function carregarAdminsGerenciados() {
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
     deleteButton.className = 'adm-btn adm-btn-small adm-btn-danger';
-    deleteButton.textContent = 'Excluir';
+    deleteButton.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg><span>Excluir</span>';
     deleteButton.setAttribute('aria-label', `Excluir acesso de ${admin.email || 'conta regional'}`);
     deleteButton.addEventListener('click', () => excluirAdminRegional(admin.user_id, admin.email, deleteButton));
     actions.appendChild(deleteButton);
@@ -2635,7 +2637,7 @@ async function excluirAdminRegional(userId, email, botao) {
     console.error('[excluirAdminRegional]', error);
     showToast(error.message || 'Não foi possível excluir a conta regional.', 'error');
     botao.disabled = false;
-    botao.textContent = 'Excluir';
+    botao.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg><span>Excluir</span>';
   }
 }
 
@@ -3124,7 +3126,7 @@ function renderAdmVendedoresTable(d) {
     const statusBtn = document.createElement('button');
     statusBtn.type = 'button';
     statusBtn.className = 'adm-btn-status';
-    statusBtn.textContent = '⚡ Gerar Status';
+    statusBtn.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-sparkles"></use></svg><span>Gerar Status</span>';
     statusBtn.addEventListener('click', event => gerarStatusVendedor(v.slug, event));
     statusTd.appendChild(statusBtn);
 
@@ -3133,12 +3135,12 @@ function renderAdmVendedoresTable(d) {
     const editarBtn = document.createElement('button');
     editarBtn.type = 'button';
     editarBtn.className = 'adm-btn adm-btn-small';
-    editarBtn.textContent = 'Editar';
+    editarBtn.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-edit"></use></svg><span>Editar</span>';
     editarBtn.addEventListener('click', () => iniciarEdicaoVendedor(v.id));
     const desativarBtn = document.createElement('button');
     desativarBtn.type = 'button';
     desativarBtn.className = 'adm-btn adm-btn-small adm-btn-danger';
-    desativarBtn.textContent = 'Desativar';
+    desativarBtn.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-ban"></use></svg><span>Desativar</span>';
     desativarBtn.addEventListener('click', () => alterarStatusVendedor(v.id, false));
     acoesTd.append(editarBtn, desativarBtn);
 
@@ -3937,12 +3939,12 @@ document.getElementById('adm-login-btn').addEventListener('click', async () => {
     await carregarDados();
     adm_hideLogin();
     await adm_showPanel();
-    document.getElementById('adm-user-info').textContent = '👤 ' + email;
+    document.getElementById('adm-user-info').innerHTML = `<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-user"></use></svg><span>${email}</span>`;
   } catch (err) {
     errEl.textContent = err.message.includes('permissão')
       ? err.message
       : err.message.includes('não inicializado')
-        ? '⚠️ Preencha SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar o login.'
+        ? 'Preencha SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar o login.'
         : 'E-mail ou senha incorretos.';
     errEl.classList.add('visible');
   } finally {
