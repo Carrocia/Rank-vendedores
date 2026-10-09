@@ -1588,6 +1588,11 @@ const RELATORIO_PDF_BG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlQAAANK
 // ser desenhado na página (senão o fundo cobre o conteúdo).
 function desenharFundoRelatorioPDF(doc) {
   doc.addImage(RELATORIO_PDF_BG, 'PNG', 0, 0, 210, 297);
+  // A arte original tem uma marca d'água grande no miolo da página. Ela
+  // fica atrás das tabelas e reduz o contraste na impressão; preservamos
+  // o cabeçalho e o rodapé coloridos, deixando a área de leitura limpa.
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 72, 210, 205, 'F');
 }
 
 function exportarRelatorioPDF() {
@@ -1730,7 +1735,7 @@ function exportarRelatorioPDF() {
       const linha = [
         l.data ? l.data.split('-').reverse().join('/') : '—',
         l.hora || '—',
-        l.tipoLinha === 'outra_filial' ? ('🏢 ' + l.filialOrigem) : l.vendedorNome,
+        l.tipoLinha === 'outra_filial' ? ('Filial: ' + l.filialOrigem) : l.vendedorNome,
         l.cliente || '—',
         l.planoNome + (l.velocidade ? ' - ' + l.velocidade + ' Mbps' : ''),
         l.adicionaisNomes.join(', ') || '—',
