@@ -3337,7 +3337,10 @@ async function gerarStatusVendedor(slug, evt) {
   const ehExterno = tipo === 'externo';
   if (statsGrid) statsGrid.classList.toggle('is-external', ehExterno);
   if (statVendasLabel) statVendasLabel.textContent = ehExterno ? 'Vendas para a Meta' : 'Vendas no Mês';
-  if (statForaTile) statForaTile.hidden = !ehExterno;
+  if (statForaTile) {
+    statForaTile.hidden = false;
+    statForaTile.style.display = ehExterno ? 'block' : 'none';
+  }
   if (ehExterno && statFora) {
     const vendasForaNaFilialDestino = (_cache.vendasMes || []).filter(v =>
       String(v.vendedor_id) === String(vendedorCadastro?.id) &&
