@@ -155,15 +155,13 @@ function renderListaClassificacao(containerId, entries, mode) {
     const nome = document.createElement('span');
     nome.className = 'ranking-full-name';
     nome.textContent = vendedor.nome || 'Vendedor';
-    const numeros = document.createElement('span');
-    numeros.className = 'ranking-full-numbers';
-    if (mode === 'mensal') {
-      const percentual = vendedor.meta ? Math.round((Number(vendedor.vendas || 0) / Number(vendedor.meta)) * 100) : null;
-      numeros.textContent = `${formatVendas(Number(vendedor.vendas || 0))}${percentual == null ? '' : ` · ${percentual}% da meta`}`;
-    } else {
-      numeros.textContent = formatVendas(Number(vendedor.vendas || 0));
+    item.append(posicao, nome);
+    if (mode === 'semanal') {
+      const vendas = document.createElement('span');
+      vendas.className = 'ranking-full-numbers';
+      vendas.textContent = formatVendas(Number(vendedor.vendas || 0));
+      item.appendChild(vendas);
     }
-    item.append(posicao, nome, numeros);
     lista.appendChild(item);
   });
 }
