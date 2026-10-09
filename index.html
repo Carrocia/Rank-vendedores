@@ -333,6 +333,7 @@
         <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon">🏢</span>Outras Filiais</button>
         <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon">⚙️</span>Configuração de Metas</button>
         <button class="adm-nav-item" data-section="admins" id="adm-nav-admins" style="display:none;"><span class="nav-icon">🔐</span>Contas Regionais</button>
+        <button class="adm-nav-item" data-section="filiais-admin" id="adm-nav-filiais" style="display:none;"><span class="nav-icon">🏬</span>Filiais e Regionais</button>
         <button class="adm-nav-item danger" id="adm-logout-btn"><span class="nav-icon">🚪</span>Sair</button>
       </nav>
 
@@ -1078,7 +1079,7 @@
           </div>
         </section>
 
-        <section class="adm-section" id="sec-admins">
+        <section class="adm-section" id="sec-admins" style="display:none;">
           <div class="adm-section-title">Contas Administrativas Regionais</div>
           <div class="adm-form-card">
             <div class="adm-section-title" style="font-size:0.95rem;padding-bottom:12px;">Criar acesso regional</div>
@@ -1112,6 +1113,42 @@
             <table class="adm-table">
               <thead><tr><th>E-mail</th><th>Regional</th><th>Status</th><th>Ações</th></tr></thead>
               <tbody id="adm-admins-tbody"><tr><td colspan="4" class="adm-empty-state">Carregando contas…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ── CADASTRO DE FILIAIS ─────────────────────────────── -->
+        <section class="adm-section" id="sec-filiais-admin" style="display:none;">
+          <div class="adm-section-title">Filiais e Regionais</div>
+          <div class="adm-form-card">
+            <div class="adm-section-title" id="adm-filial-form-title" style="font-size:0.95rem;padding-bottom:12px;margin-bottom:12px;">Cadastrar nova filial</div>
+            <p class="adm-vendedor-cadastro-hint">Cadastre uma base e controle se ela está ativa e se o ranking público pode ser acessado. Desativar preserva o histórico e os vínculos existentes.</p>
+            <form id="adm-filial-gerenciar-form" onsubmit="salvarFilialGerenciada(event)">
+              <div class="adm-form-grid">
+                <div class="adm-field">
+                  <label for="adm-filial-nome">Nome da filial</label>
+                  <input id="adm-filial-nome" type="text" maxlength="120" required placeholder="Ex.: Ji-Paraná" oninput="atualizarSlugFilialAutomaticamente()">
+                </div>
+                <div class="adm-field">
+                  <label for="adm-filial-slug">Endereço curto (slug)</label>
+                  <input id="adm-filial-slug" type="text" maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" required placeholder="ji-parana" title="Use letras minúsculas, números e hífens." oninput="this.dataset.manual='true'">
+                </div>
+                <div class="adm-form-full" style="display:flex;flex-wrap:wrap;gap:18px;">
+                  <label class="tema-check"><input id="adm-filial-ativa" type="checkbox" checked> Filial ativa</label>
+                  <label class="tema-check"><input id="adm-filial-site-habilitado" type="checkbox"> Habilitar ranking público</label>
+                </div>
+                <div class="adm-form-full" style="display:flex;justify-content:flex-end;gap:10px;">
+                  <button type="button" class="adm-btn adm-btn-secondary" id="adm-filial-cancelar" onclick="cancelarEdicaoFilial()" hidden>Cancelar edição</button>
+                  <button type="submit" class="adm-btn adm-btn-primary" id="adm-filial-submit" style="width:auto;padding:12px 28px;">Cadastrar filial</button>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="adm-section-title" style="font-size:0.95rem;">Bases cadastradas</div>
+          <div class="adm-table-wrap">
+            <table class="adm-table">
+              <thead><tr><th>Filial</th><th>Endereço</th><th>Status</th><th>Ranking público</th><th>Ações</th></tr></thead>
+              <tbody id="adm-filiais-tbody"><tr><td colspan="5" class="adm-empty-state">Carregando filiais…</td></tr></tbody>
             </table>
           </div>
         </section>

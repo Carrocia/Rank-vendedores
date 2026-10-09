@@ -15,6 +15,7 @@ window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
 let _vendedorFotoPreviewUrl = null;
 let _vendedoresGerenciamento = [];
+let _filialGerenciadaEmEdicaoId = null;
 const EDGE_FN_GERENCIAR_ADMINS = 'rapid-task';
 const BUCKET_FOTOS_VENDEDORES = 'vendedor-fotos';
 
@@ -2099,6 +2100,7 @@ async function adm_showPanel() {
   prepararCadastroVendedor();
   carregarVendedoresGerenciamento();
   configurarAbaAdmins();
+  configurarAbaFiliais();
 
   try {
     const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
@@ -2122,6 +2124,156 @@ function configurarAbaAdmins() {
     (_cache.filiais || []).filter(f => f.ativo !== false).forEach(f => {
       select.add(new Option(f.nome, String(f.id)));
     });
+  }
+}
+
+function ehSuperAdminAtual() {
+  return window.ADMIN_AUTENTICADO === true && window.ADMIN_FILIAL_ID == null;
+}
+
+function configurarAbaFiliais() {
+  const nav = document.getElementById('adm-nav-filiais');
+  const section = document.getElementById('sec-filiais-admin');
+  const autorizado = ehSuperAdminAtual();
+  if (nav) nav.style.display = autorizado ? '' : 'none';
+  if (section) section.style.display = autorizado ? '' : 'none';
+  if (autorizado) carregarFiliaisGerenciadas();
+}
+
+function slugFilial(texto) {
+  return String(texto || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function atualizarSlugFilialAutomaticamente() {
+  const slug = document.getElementById('adm-filial-slug');
+  const nome = document.getElementById('adm-filial-nome');
+  if (!slug || !nome || slug.dataset.manual === 'true') return;
+  slug.value = slugFilial(nome.value);
+}
+
+async function carregarFiliaisGerenciadas() {
+  const tbody = document.getElementById('adm-filiais-tbody');
+  if (!tbody || !window._supabase || !ehSuperAdminAtual()) return;
+  tbody.innerHTML = '<tr><td colspan="5" class="adm-empty-state">Carregando filiais…</td></tr>';
+  const { data, error } = await window._supabase
+    .from('filiais')
+    .select('id, nome, slug, ativo, site_habilitado')
+    .order('nome');
+  if (error) {
+    console.error('[carregarFiliaisGerenciadas]', error);
+    tbody.innerHTML = `<tr><td colspan="5" class="adm-empty-state">${escapeHtmlText(error.message || 'Não foi possível carregar as filiais.')}</td></tr>`;
+    return;
+  }
+  tbody.replaceChildren();
+  if (!data?.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.className = 'adm-empty-state';
+    td.textContent = 'Nenhuma filial cadastrada.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+  data.forEach(filial => {
+    const tr = document.createElement('tr');
+    const nome = document.createElement('td');
+    nome.textContent = filial.nome;
+    const slug = document.createElement('td');
+    slug.textContent = filial.slug;
+    const status = document.createElement('td');
+    status.textContent = filial.ativo ? 'Ativa' : 'Desativada';
+    const site = document.createElement('td');
+    site.textContent = filial.ativo && filial.site_habilitado ? 'Habilitado' : 'Desabilitado';
+    const acoes = document.createElement('td');
+    const editar = document.createElement('button');
+    editar.type = 'button';
+    editar.className = 'adm-btn adm-btn-small';
+    editar.textContent = 'Editar';
+    editar.addEventListener('click', () => editarFilialGerenciada(filial));
+    acoes.appendChild(editar);
+    tr.append(nome, slug, status, site, acoes);
+    tbody.appendChild(tr);
+  });
+}
+
+function editarFilialGerenciada(filial) {
+  if (!ehSuperAdminAtual()) {
+    showToast('Somente o superadministrador pode editar filiais.', 'error');
+    return;
+  }
+  _filialGerenciadaEmEdicaoId = Number(filial.id);
+  document.getElementById('adm-filial-nome').value = filial.nome || '';
+  const slug = document.getElementById('adm-filial-slug');
+  slug.value = filial.slug || '';
+  slug.dataset.manual = 'true';
+  document.getElementById('adm-filial-ativa').checked = filial.ativo === true;
+  document.getElementById('adm-filial-site-habilitado').checked = filial.site_habilitado === true;
+  document.getElementById('adm-filial-form-title').textContent = `Editar filial: ${filial.nome}`;
+  document.getElementById('adm-filial-submit').textContent = 'Salvar alterações';
+  document.getElementById('adm-filial-cancelar').hidden = false;
+  document.getElementById('adm-filial-nome').focus();
+}
+
+function cancelarEdicaoFilial() {
+  _filialGerenciadaEmEdicaoId = null;
+  document.getElementById('adm-filial-gerenciar-form')?.reset();
+  const slug = document.getElementById('adm-filial-slug');
+  if (slug) delete slug.dataset.manual;
+  const title = document.getElementById('adm-filial-form-title');
+  const button = document.getElementById('adm-filial-submit');
+  const cancel = document.getElementById('adm-filial-cancelar');
+  if (title) title.textContent = 'Cadastrar nova filial';
+  if (button) button.textContent = 'Cadastrar filial';
+  if (cancel) cancel.hidden = true;
+}
+
+async function salvarFilialGerenciada(event) {
+  event.preventDefault();
+  if (!ehSuperAdminAtual() || !window._supabase) {
+    showToast('Somente o superadministrador pode cadastrar ou editar filiais.', 'error');
+    return;
+  }
+  const nome = document.getElementById('adm-filial-nome').value.trim();
+  const slug = slugFilial(document.getElementById('adm-filial-slug').value);
+  const ativo = document.getElementById('adm-filial-ativa').checked;
+  const siteHabilitado = ativo && document.getElementById('adm-filial-site-habilitado').checked;
+  if (!nome || !slug) {
+    showToast('Informe o nome e o endereço curto da filial.', 'warning');
+    return;
+  }
+  const botao = document.getElementById('adm-filial-submit');
+  botao.disabled = true;
+  botao.textContent = _filialGerenciadaEmEdicaoId ? 'Salvando…' : 'Cadastrando…';
+  try {
+    const dados = { nome, slug, ativo, site_habilitado: siteHabilitado };
+    const resposta = _filialGerenciadaEmEdicaoId
+      ? await window._supabase.from('filiais').update(dados).eq('id', _filialGerenciadaEmEdicaoId).select('id, nome, slug').single()
+      : await window._supabase.from('filiais').insert(dados).select('id, nome, slug').single();
+    if (resposta.error) {
+      if (resposta.error.code === '23505') throw new Error('Já existe uma filial com esse nome ou endereço curto.');
+      throw new Error(resposta.error.message || 'Não foi possível salvar a filial.');
+    }
+    const editada = Boolean(_filialGerenciadaEmEdicaoId);
+    const filialSalva = resposta.data;
+    cancelarEdicaoFilial();
+    showToast(editada ? 'Filial atualizada. Recarregando os dados…' : 'Filial cadastrada. Recarregando os dados…', 'success');
+    await carregarFiliaisGerenciadas();
+    const url = new URL(window.location.href);
+    if (Number(window.FILIAL_ATUAL_ID) === Number(filialSalva?.id) && ativo) {
+      url.searchParams.set('filial', filialSalva.slug);
+    }
+    window.setTimeout(() => window.location.assign(url.toString()), 700);
+  } catch (error) {
+    console.error('[salvarFilialGerenciada]', error);
+    showToast(error.message || 'Não foi possível salvar a filial.', 'error');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = _filialGerenciadaEmEdicaoId ? 'Salvar alterações' : 'Cadastrar filial';
   }
 }
 
@@ -2251,7 +2403,7 @@ function adm_hidePanel() {
 }
 
 function adm_navigateTo(sectionId) {
-  if (sectionId === 'admins' && (!window.ADMIN_AUTENTICADO || window.ADMIN_FILIAL_ID != null)) {
+  if (['admins', 'filiais-admin'].includes(sectionId) && !ehSuperAdminAtual()) {
     showToast('Somente o superadministrador pode abrir esta área.', 'error');
     return;
   }
@@ -2264,6 +2416,7 @@ function adm_navigateTo(sectionId) {
     carregarVendedoresGerenciamento();
   }
   if (sectionId === 'admins') carregarAdminsGerenciados();
+  if (sectionId === 'filiais-admin') carregarFiliaisGerenciadas();
   // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
   // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
