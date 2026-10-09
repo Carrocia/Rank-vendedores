@@ -3240,7 +3240,11 @@ async function gerarStatusVendedor(slug, evt) {
 
   // sequência: precisa das vendas do próprio vendedor no mês (já em cache)
   const vendasDoVendedor = vendedorCadastro
-    ? (_cache.vendasMes || []).filter(v => v.vendedor_id === vendedorCadastro.id)
+    ? (_cache.vendasMes || []).filter(v => {
+      if (String(v.vendedor_id) !== String(vendedorCadastro.id)) return false;
+      if (tipo === 'externo' && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v))) return false;
+      return true;
+    })
     : [];
   if (vendedorCadastro && tipo === 'interno') {
     (_cache.vendasOrigemMes || []).filter(v => v.tipo === 'interno' && v.vendedor_id === vendedorCadastro.id)
@@ -3268,9 +3272,26 @@ async function gerarStatusVendedor(slug, evt) {
   const frase = poolFrases[vendedorMes.vendas % poolFrases.length];
 
   // ── Preenche o template oculto ──────────────────────────────────
-  const foto = vendedorCadastro?.foto_url || PHOTOS[slug];
+  const foto = vendedorCadastro?.foto_url || vendedorSemana.foto_url || PHOTOS[slug] || '';
   const avatarEl = document.getElementById('sc-avatar');
-  avatarEl.innerHTML = foto ? `<img src="${foto}" alt="">` : vendedorSemana.nome.charAt(0).toUpperCase();
+  const inicialVendedor = String(vendedorSemana.nome || '?').trim().charAt(0).toUpperCase();
+  avatarEl.replaceChildren();
+  if (foto) {
+    const fotoEl = document.createElement('img');
+    fotoEl.alt = '';
+    fotoEl.decoding = 'async';
+    fotoEl.crossOrigin = 'anonymous';
+    fotoEl.onerror = () => avatarEl.replaceChildren(document.createTextNode(inicialVendedor));
+    fotoEl.src = foto;
+    avatarEl.appendChild(fotoEl);
+    try {
+      if (fotoEl.decode) await fotoEl.decode();
+    } catch (_) {
+      avatarEl.replaceChildren(document.createTextNode(inicialVendedor));
+    }
+  } else {
+    avatarEl.textContent = inicialVendedor;
+  }
 
   document.getElementById('sc-name').textContent = vendedorSemana.nome;
   document.getElementById('sc-role').textContent = (tipo === 'interno' ? 'VENDEDOR(A) · INTERNO' : 'VENDEDOR(A) · EXTERNO');
@@ -3309,6 +3330,24 @@ async function gerarStatusVendedor(slug, evt) {
     badgesSection.style.display = 'none';
   }
 
+  const statsGrid = document.querySelector('#sc-card .sc-stats-grid');
+  const statVendasLabel = document.getElementById('sc-stat-vendas-label');
+  const statForaTile = document.getElementById('sc-stat-fora-tile');
+  const statFora = document.getElementById('sc-stat-fora');
+  const ehExterno = tipo === 'externo';
+  if (statsGrid) statsGrid.classList.toggle('is-external', ehExterno);
+  if (statVendasLabel) statVendasLabel.textContent = ehExterno ? 'Vendas para a Meta' : 'Vendas no Mês';
+  if (statForaTile) statForaTile.hidden = !ehExterno;
+  if (ehExterno && statFora) {
+    const vendasForaNaFilialDestino = (_cache.vendasMes || []).filter(v =>
+      String(v.vendedor_id) === String(vendedorCadastro?.id) &&
+      (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v))
+    ).length;
+    const vendasOriginadasNaRegional = (_cache.vendasOrigemMes || [])
+      .filter(v => v.tipo === 'externo' && Number(v.vendedor_id) === Number(vendedorCadastro?.id))
+      .reduce((total, v) => total + Number(v.vendas || 0), 0);
+    statFora.textContent = vendasForaNaFilialDestino + vendasOriginadasNaRegional;
+  }
   document.getElementById('sc-stat-vendas').textContent = vendedorMes.vendas;
   document.getElementById('sc-stat-ticket').textContent = ticketMedio ? ('R$' + ticketMedio.toFixed(0)) : '—';
   document.getElementById('sc-stat-dias').innerHTML = `${sequencia}<span class="sc-unit"> ${sequencia === 1 ? 'dia' : 'dias'}</span>`;
@@ -3322,7 +3361,14 @@ async function gerarStatusVendedor(slug, evt) {
   if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
   try {
     if (typeof html2canvas === 'undefined') { carregarLibsAdmin(); showToast('Biblioteca de imagem ainda carregando — aguarde alguns segundos e tente de novo.', 'error'); return; }
-    const canvas = await html2canvas(document.getElementById('sc-card'), { backgroundColor: null, scale: 2 });
+    if (document.fonts?.ready) await document.fonts.ready;
+    const canvas = await html2canvas(document.getElementById('sc-card'), {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      imageTimeout: 10000,
+    });
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

@@ -74,6 +74,7 @@
 .sc-badge-check { display: block; font-size: 14px; margin-bottom: 2px; }
 
 .sc-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+.sc-stats-grid.is-external { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sc-stat-tile { border-radius: 14px; padding: 14px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); text-align: center; }
 .sc-stat-label { font-size: 9.5px; font-weight: 700; letter-spacing: 1px; color: #8296a8; text-transform: uppercase; }
 .sc-stat-value { font-size: 21px; font-weight: 800; color: #f5fbff; margin-top: 6px; }
