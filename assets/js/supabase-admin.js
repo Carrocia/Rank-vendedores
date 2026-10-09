@@ -3648,26 +3648,44 @@ async function gerarDestaqueDoMes(slug, evt) {
 
   // ── Preenche o template oculto ──────────────────────────────────
   document.getElementById('dm-mes-pill').textContent = mesNome;
-  document.getElementById('dm-local').textContent = window.FILIAL_ATUAL?.nome || CONFIG.filialLocalizacao;
+  document.getElementById('dm-local').textContent = (window.FILIAL_ATUAL?.nome || CONFIG.filialLocalizacao || '').toLocaleUpperCase('pt-BR');
   const fotoDestaque = vendedorMes.foto_url || PHOTOS[slug] || '';
   const fotoDestaqueEl = document.getElementById('dm-photo');
   const fotoDestaqueFallback = document.getElementById('dm-photo-fallback');
+  const inicialDestaque = String(vendedorMes.nome || '?').trim().charAt(0).toUpperCase();
   if (fotoDestaque) {
-    fotoDestaqueEl.src = fotoDestaque;
+    fotoDestaqueEl.crossOrigin = 'anonymous';
+    fotoDestaqueEl.onerror = () => {
+      fotoDestaqueEl.style.display = 'none';
+      if (fotoDestaqueFallback) {
+        fotoDestaqueFallback.textContent = inicialDestaque;
+        fotoDestaqueFallback.hidden = false;
+      }
+    };
     fotoDestaqueEl.style.display = '';
     if (fotoDestaqueFallback) fotoDestaqueFallback.hidden = true;
+    fotoDestaqueEl.src = fotoDestaque;
+    try {
+      if (fotoDestaqueEl.decode) await fotoDestaqueEl.decode();
+    } catch (_) {
+      fotoDestaqueEl.style.display = 'none';
+      if (fotoDestaqueFallback) {
+        fotoDestaqueFallback.textContent = inicialDestaque;
+        fotoDestaqueFallback.hidden = false;
+      }
+    }
   } else {
     fotoDestaqueEl.removeAttribute('src');
     fotoDestaqueEl.style.display = 'none';
     if (fotoDestaqueFallback) {
-      fotoDestaqueFallback.textContent = vendedorMes.nome.trim().charAt(0).toUpperCase();
+      fotoDestaqueFallback.textContent = inicialDestaque;
       fotoDestaqueFallback.hidden = false;
     }
   }
-  document.getElementById('dm-medalha-img').src = DM_MEDALHAS[Math.min(posicao, 5)] || DM_MEDALHAS[5];
+  document.getElementById('dm-medal-number').textContent = String(posicao);
   document.getElementById('dm-name').textContent = nomeCompleto;
   document.getElementById('dm-role2').textContent = cargo;
-  document.getElementById('dm-quote').textContent = DM_FRASES[vendedorMes.vendas % DM_FRASES.length];
+  document.getElementById('dm-quote').textContent = 'Seu comprometimento e dedicação são verdadeiramente inspiradores. Continue sendo essa referência para todos nós!';
 
   const btn = evt ? evt.target.closest('button') : null;
   const textoOriginalBtn = btn ? btn.textContent : null;
@@ -3679,8 +3697,17 @@ async function gerarDestaqueDoMes(slug, evt) {
       return;
     }
 
+    if (document.fonts?.ready) await document.fonts.ready;
     const cardEl = document.getElementById('dm-card');
-    const canvas = await html2canvas(cardEl, { backgroundColor: '#000fe3', scale: 3 });
+    const logo = cardEl.querySelector('.dm-logo-row img');
+    if (logo?.decode) await logo.decode().catch(() => {});
+    const canvas = await html2canvas(cardEl, {
+      backgroundColor: '#101be5',
+      scale: 3,
+      useCORS: true,
+      allowTaint: false,
+      imageTimeout: 10000,
+    });
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

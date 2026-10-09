@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <!-- Uma única requisição de fontes (antes eram 4 famílias em 4 pedidos). Manrope e Dancing Script, usadas só nos cards de imagem do ADM, carregam quando o painel abre. -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Poppins:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF, imagem, GIF): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
@@ -877,8 +877,8 @@
           <div class="adm-card adm-compact-card">
             <p class="adm-description">
               Escolha quem é o destaque do mês — o sistema gera uma <strong>arte (imagem)</strong> pronta
-              pra postar, no estilo certificado (selo de posição, "Parabéns" e mensagem), com a posição
-              real no ranking mensal e o mês certo. Peça exclusiva pro destaque — diferente do card de
+              pra postar, no estilo da arte de destaque: mês, regional, foto, posição e mensagem
+              preenchidos automaticamente. Escolha o vendedor e gere a imagem — diferente do card de
               meta individual.
             </p>
             <div class="adm-field">
@@ -1391,21 +1391,8 @@
   </div>
 </div>
 
-<!-- Template oculto da arte "DESTAQUE DO MÊS" — igual aos outros,
-     só é preenchido e fotografado quando o admin clica em "Gerar
-     Arte" na aba Celebrações. -->
-<!-- Template oculto da arte "DESTAQUE DO MÊS" — preenchido e
-     fotografado quando o admin clica em "Gerar GIF" na aba
-     Celebrações. Visual baseado no modelo de referência trazido
-     pelo time (anel na foto, cantos de moldura, nome com leve
-     gradiente, 3 estatísticas, citação, rodapé com traços). -->
-<!-- Template oculto da arte "DESTAQUE DO MÊS" — adaptado quase 1:1
-     do HTML que você mandou. Preenchido com dados reais e fotografado
-     repetidas vezes (a animação de verdade rodando) quando o admin
-     clica em "Gerar GIF" na aba Celebrações. -->
-<!-- Template oculto da arte "DESTAQUE DO MÊS" v3 (modelo certificado
-     azul) — preenchido e fotografado (imagem estática, sem animação)
-     quando o admin clica em "Gerar Imagem" na aba Celebrações. -->
+<!-- Arte "Destaque do mês" baseada na referência do Canva. O painel
+     preenche mês, filial, posição, nome, cargo e foto do vendedor. -->
 <div id="dm-offscreen">
   <div class="dm-card" id="dm-card">
     <div class="dm-logo-row">
@@ -1422,14 +1409,18 @@
         <div id="dm-photo-fallback" class="dm-photo-fallback" hidden></div>
         <div class="dm-foto-diagonal"></div>
       </div>
-      <img class="dm-medalha" id="dm-medalha-img" src="" alt="Posição">
+      <div class="dm-medalha" aria-label="Posição no ranking">
+        <span class="dm-medalha-fita dm-medalha-fita-esq" aria-hidden="true"></span>
+        <span class="dm-medalha-fita dm-medalha-fita-dir" aria-hidden="true"></span>
+        <span class="dm-medalha-selo"><span id="dm-medal-number">1</span></span>
+      </div>
     </div>
 
     <div class="dm-parabens-bloco">
       <div class="dm-parabens-linha">
-        <svg class="dm-parabens-sparkle" viewBox="0 0 24 24"><path d="M12 0 L14.5 9.5 L24 12 L14.5 14.5 L12 24 L9.5 14.5 L0 12 L9.5 9.5 Z" fill="#5eced6"/></svg>
+        <svg class="dm-parabens-sparkle" viewBox="0 0 36 18" aria-hidden="true"><path d="M1 9 15 16M7 2l10 5M24 7l10-5M21 16l14-7"/></svg>
         <span class="dm-parabens-texto">Parabéns</span>
-        <svg class="dm-parabens-sparkle" viewBox="0 0 24 24"><path d="M12 0 L14.5 9.5 L24 12 L14.5 14.5 L12 24 L9.5 14.5 L0 12 L9.5 9.5 Z" fill="#5eced6"/></svg>
+        <svg class="dm-parabens-sparkle" viewBox="0 0 36 18" aria-hidden="true"><path d="M1 9 15 16M7 2l10 5M24 7l10-5M21 16l14-7"/></svg>
       </div>
       <div class="dm-nome" id="dm-name">—</div>
       <div class="dm-cargo" id="dm-role2">—</div>
