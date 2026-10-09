@@ -1692,9 +1692,47 @@ function renderAdmDashboard(d) {
   // loadMetasFilial()). Se não estiver configurada, mostra "—".
   const metaM1 = d.metasFilial && d.metasFilial.mensal_m1;
   setText('dash-meta-pct', metaM1 ? (d.pctMensal + '%') : '—');
-  const cardMeta = document.getElementById('dash-meta-pct');
-  const subMeta = cardMeta ? cardMeta.parentElement.querySelector('.sub') : null;
-  if (subMeta) subMeta.textContent = metaM1 ? ('M1 = ' + metaM1 + ' vendas') : 'Meta não configurada';
+  const progresso = metaM1 ? Math.max(0, Math.min(100, Number(d.pctMensal) || 0)) : 0;
+  const barraMeta = document.getElementById('dash-meta-progress');
+  const progressoWrap = barraMeta?.parentElement;
+  if (barraMeta) barraMeta.style.width = `${progresso}%`;
+  if (progressoWrap) progressoWrap.setAttribute('aria-valuenow', String(Math.round(progresso)));
+  setText('dash-meta-summary', metaM1
+    ? `${Number(d.totalMes || 0).toLocaleString('pt-BR')} de ${Number(metaM1).toLocaleString('pt-BR')} vendas`
+    : 'Meta M1 ainda não configurada');
+
+  setText('dash-week-range', d.semana?.label ? `De ${d.semana.label}` : 'Semana atual');
+  const barrasSemana = document.getElementById('dash-week-bars');
+  if (barrasSemana) {
+    const dias = d.evolucaoSemana || [];
+    const maiorDia = Math.max(1, ...dias.map(item => Number(item.vendas) || 0));
+    const fragmento = document.createDocumentFragment();
+    dias.forEach(item => {
+      const quantidade = Math.max(0, Number(item.vendas) || 0);
+      const coluna = document.createElement('div');
+      coluna.className = 'adm-dashboard-day';
+      coluna.setAttribute('role', 'group');
+      coluna.setAttribute('aria-label', `${item.dia}: ${quantidade} ${quantidade === 1 ? 'venda' : 'vendas'}`);
+
+      const valor = document.createElement('span');
+      valor.className = 'adm-dashboard-day-value';
+      valor.textContent = String(quantidade);
+
+      const trilho = document.createElement('div');
+      trilho.className = 'adm-dashboard-day-track';
+      trilho.setAttribute('aria-hidden', 'true');
+      const preenchimento = document.createElement('span');
+      preenchimento.style.height = `${quantidade ? Math.max(8, (quantidade / maiorDia) * 100) : 3}%`;
+      trilho.appendChild(preenchimento);
+
+      const nomeDia = document.createElement('span');
+      nomeDia.className = 'adm-dashboard-day-label';
+      nomeDia.textContent = item.dia;
+      coluna.append(valor, trilho, nomeDia);
+      fragmento.appendChild(coluna);
+    });
+    barrasSemana.replaceChildren(fragmento);
+  }
 
   // Líder do mês real (nome, já resolvido pelo mesmo critério de
   // desempate do ranking: vendas e, em empate, valor vendido).
