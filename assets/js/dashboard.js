@@ -1177,8 +1177,16 @@ function popularSelectPlanos(planos) {
     if (!grupos[grupo]) grupos[grupo] = [];
     grupos[grupo].push(p);
   });
+  // Ordena as velocidades como números (500, 650, 750, 1000), e não
+  // como texto, que colocaria 1000 antes de 500. Mantém cada categoria junta.
+  Object.values(grupos).forEach(lista => lista.sort((a, b) => {
+    const velocidadeA = Number(a.velocidade_mb) || Number(String(a.nome).match(/(\d+)\s*mb/i)?.[1]) || Infinity;
+    const velocidadeB = Number(b.velocidade_mb) || Number(String(b.nome).match(/(\d+)\s*mb/i)?.[1]) || Infinity;
+    return velocidadeA - velocidadeB || String(a.nome).localeCompare(String(b.nome), 'pt-BR');
+  }));
+  const gruposOrdenados = Object.fromEntries(Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b, 'pt-BR')));
   const html = '<option value="">Selecione o plano</option>' +
-    Object.entries(grupos).map(([g, ps]) =>
+    Object.entries(gruposOrdenados).map(([g, ps]) =>
       `<optgroup label="${g}">${ps.map(p =>
         `<option value="${p.id}|${p.valor}">${p.nome} ${p.velocidade_mb} Mbps — R$ ${Number(p.valor).toFixed(2).replace('.',',')}</option>`
       ).join('')}</optgroup>`
@@ -1188,7 +1196,7 @@ function popularSelectPlanos(planos) {
     if (el) el.innerHTML = html;
     // espelha exatamente os mesmos planos/preços no dropdown visual
     // customizado (mesmo "grupos" usado acima, nenhum dado novo)
-    buildCustomSelectPanel(id, grupos);
+    buildCustomSelectPanel(id, gruposOrdenados);
   });
 }
 
@@ -1358,6 +1366,14 @@ document.addEventListener('click', (e) => {
     const isOpen = wrap.classList.contains('open');
     document.querySelectorAll('.custom-select.open').forEach(w => w.classList.remove('open'));
     if (!isOpen) wrap.classList.add('open');
+    if (!isOpen) {
+      const rect = trigger.getBoundingClientRect();
+      const espacoAbaixo = window.innerHeight - rect.bottom - 20;
+      const espacoAcima = rect.top - 20;
+      const abrirAcima = espacoAbaixo < 260 && espacoAcima > espacoAbaixo;
+      wrap.classList.toggle('opens-up', abrirAcima);
+      wrap.style.setProperty('--custom-select-max-height', `${Math.max(120, Math.min(300, abrirAcima ? espacoAcima : espacoAbaixo) - 12)}px`);
+    }
     return;
   }
   document.querySelectorAll('.custom-select.open').forEach(wrap => {

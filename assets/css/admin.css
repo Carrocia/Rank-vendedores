@@ -184,6 +184,7 @@ body.adm-modal-open { overflow: hidden; }
    valor de verdade e alimentar o resto do sistema sem alteração
    nenhuma de lógica — o que aparece visualmente é este componente. */
 .custom-select { position: relative; }
+.custom-select.open { z-index: 70; }
 .custom-select-trigger {
   width: 100%; display: flex; align-items: center; gap: 10px;
   background-color: rgba(var(--accent2-rgb),0.05); border: 1px solid rgba(var(--accent2-rgb),0.28);
@@ -200,11 +201,12 @@ body.adm-modal-open { overflow: hidden; }
 .custom-select.open .custom-select-arrow { transform: rotate(180deg); }
 
 .custom-select-panel {
-  display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 60;
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 71;
   background: #14151f; border: 1px solid rgba(var(--accent2-rgb),0.32); border-radius: 12px;
-  max-height: 300px; overflow-y: auto; box-shadow: 0 18px 44px rgba(0,0,0,0.55);
+  max-height: var(--custom-select-max-height, min(300px, calc(100vh - 32px))); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 18px 44px rgba(0,0,0,0.55);
   padding: 6px;
 }
+.custom-select.opens-up .custom-select-panel { top: auto; bottom: calc(100% + 6px); }
 .custom-select.open .custom-select-panel { display: block; }
 .custom-select-group-label {
   font-size:0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
