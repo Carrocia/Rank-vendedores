@@ -100,19 +100,19 @@
 .gf-next-text { margin-top: 6px; font-size: 15px; font-weight: 700; color: #d6f5ef; }
 
 /* ── Destaque do mês — reprodução da arte de referência do Canva. ── */
-#dm-offscreen { position: absolute; left: -10000px; top: 0; width: 572px; height: 1026px; overflow: hidden; }
+#dm-offscreen { position: absolute; left: -10000px; top: 0; width: 572px; height: 1017px; overflow: hidden; }
 .dm-card {
   --dm-azul: #101be5;
   --dm-azul-escuro: #091487;
   --dm-ciano: #5eced6;
   --dm-ouro: #ffc72c;
   position: relative; isolation: isolate; overflow: hidden;
-  width: 572px; height: 1026px; padding: 38px 42px 30px;
+  width: 572px; height: 1017px; padding: 38px 42px 30px;
   background: var(--dm-azul); color: #fff; font-family: 'Poppins', sans-serif;
 }
 .dm-card::before {
-  content: ''; position: absolute; z-index: -1; left: 72px; right: 72px;
-  top: 515px; bottom: 0; background: var(--dm-azul-escuro);
+  content: ''; position: absolute; z-index: -1; left: 76px; right: 76px;
+  top: 596px; bottom: 0; background: var(--dm-azul-escuro);
 }
 .dm-card * { box-sizing: border-box; }
 .dm-logo-row { display: flex; justify-content: center; margin-bottom: 48px; }
@@ -124,19 +124,19 @@
 }
 .dm-titulo { text-align: center; color: #fff; font-weight: 800; font-size: 43px; line-height: 1.2; margin: 0 0 31px; letter-spacing: -1px; }
 .dm-role { text-align: center; color: #fff; font-weight: 600; font-size: 14px; letter-spacing: .7px; text-transform: uppercase; margin: 0 0 8px; }
-.dm-foto-bloco { position: relative; width: 330px; height: 410px; margin: 0 0 0 115px; z-index: 1; }
-.dm-foto-card { position: relative; width: 100%; height: 100%; background: #f1efe9; border-radius: 38px 38px 38px 0; }
-.dm-foto-card img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 38px; }
-.dm-photo-fallback { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; border-radius: 38px; background: linear-gradient(135deg, #10234c, #1b4d7a); color: #fff; font-size: 8rem; font-weight: 800; }
+.dm-foto-bloco { position: relative; width: 325px; height: 404px; margin: 0 0 0 115px; z-index: 1; }
+.dm-foto-card { position: relative; width: 100%; height: 100%; background: #f1efe9; border-radius: 34px 34px 54px 0; overflow: hidden; }
+.dm-foto-card img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+.dm-photo-fallback { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; border-radius: inherit; background: linear-gradient(135deg, #10234c, #1b4d7a); color: #fff; font-size: 8rem; font-weight: 800; }
 .dm-photo-fallback[hidden] { display: none; }
-.dm-foto-diagonal { position: absolute; z-index: 1; left: -24px; top: 286px; width: 440px; height: 300px; background: var(--dm-azul-escuro); transform: rotate(20deg); transform-origin: left top; }
-.dm-medalha { position: absolute; z-index: 3; left: -92px; top: 225px; width: 154px; height: 174px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.18)); }
-.dm-medalha-fita { position: absolute; z-index: 0; top: 102px; width: 49px; height: 70px; background: linear-gradient(180deg, #ffd849, #f9a91f); }
+.dm-foto-diagonal { position: absolute; z-index: 1; left: -24px; top: 306px; width: 440px; height: 300px; background: var(--dm-azul-escuro); transform: rotate(20deg); transform-origin: left top; }
+.dm-medalha { position: absolute; z-index: 3; left: -90px; top: 197px; width: 140px; height: 178px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.18)); }
+.dm-medalha-fita { position: absolute; z-index: 0; top: 116px; width: 44px; height: 64px; background: linear-gradient(180deg, #ffd849, #f9a91f); }
 .dm-medalha-fita-esq { left: 27px; transform: rotate(13deg); clip-path: polygon(0 0,100% 0,82% 100%,48% 78%,8% 100%); }
 .dm-medalha-fita-dir { right: 27px; transform: rotate(-13deg); clip-path: polygon(0 0,100% 0,92% 100%,52% 78%,18% 100%); }
-.dm-medalha-selo { position: absolute; z-index: 1; inset: 0 5px auto; height: 144px; display: grid; place-items: center; clip-path: polygon(50% 0%,59% 10%,70% 3%,75% 15%,88% 12%,89% 25%,100% 34%,92% 46%,100% 57%,90% 67%,94% 80%,79% 83%,73% 97%,60% 90%,50% 100%,40% 90%,27% 97%,21% 83%,6% 80%,10% 67%,0% 57%,8% 46%,0% 34%,11% 25%,12% 12%,25% 15%,30% 3%,41% 10%); background: linear-gradient(145deg, #ffd84b, #ffbc20 72%, #f7a817); }
+.dm-medalha-selo { position: absolute; z-index: 1; inset: 0 auto auto 0; width: 140px; height: 138px; display: grid; place-items: center; clip-path: polygon(50% 0%,59% 10%,70% 3%,75% 15%,88% 12%,89% 25%,100% 34%,92% 46%,100% 57%,90% 67%,94% 80%,79% 83%,73% 97%,60% 90%,50% 100%,40% 90%,27% 97%,21% 83%,6% 80%,10% 67%,0% 57%,8% 46%,0% 34%,11% 25%,12% 12%,25% 15%,30% 3%,41% 10%); background: linear-gradient(145deg, #ffd84b, #ffbc20 72%, #f7a817); }
 .dm-medalha-selo::after { content: ''; position: absolute; inset: 12px; border: 2px dotted rgba(255,255,255,.76); border-radius: 50%; }
-.dm-medalha-selo span { position: relative; z-index: 1; color: #fff; font-size: 78px; line-height: 1; font-weight: 800; }
+.dm-medalha-selo span { position: relative; z-index: 1; color: #fff; font-size: 58px; line-height: 1; font-weight: 800; }
 .dm-parabens-bloco { position: relative; z-index: 2; margin-top: 2px; padding: 0 0 4px; text-align: center; }
 .dm-parabens-linha { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 2px; }
 .dm-parabens-sparkle { width: 36px; height: 18px; flex-shrink: 0; fill: none; stroke: var(--dm-ciano); stroke-width: 2.5; stroke-linecap: round; }

@@ -3648,7 +3648,14 @@ async function gerarDestaqueDoMes(slug, evt) {
 
   // ── Preenche o template oculto ──────────────────────────────────
   document.getElementById('dm-mes-pill').textContent = mesNome;
-  document.getElementById('dm-local').textContent = (window.FILIAL_ATUAL?.nome || CONFIG.filialLocalizacao || '').toLocaleUpperCase('pt-BR');
+  const filial = window.FILIAL_ATUAL || {};
+  const localConfigurado = CONFIG.filialLocalizacao || '';
+  const ufConfigurada = (localConfigurado.match(/(?:-|–|—)\s*([A-Z]{2})\s*$/i) || [])[1] || '';
+  const localComUf = filial.localizacao || filial.cidade_uf || filial.nome || localConfigurado;
+  const partesLocal = String(localComUf).trim().match(/^(.*?)(?:\s*[-–—]\s*([A-Z]{2}))?$/i) || [];
+  const nomeRegional = (partesLocal[1] || localComUf).trim();
+  const ufRegional = filial.uf || filial.sigla_uf || filial.estado_sigla || partesLocal[2] || ufConfigurada;
+  document.getElementById('dm-local').textContent = `${nomeRegional}${ufRegional ? `- ${String(ufRegional).toLocaleUpperCase('pt-BR')}` : ''}`.toLocaleUpperCase('pt-BR');
   const fotoDestaque = vendedorMes.foto_url || PHOTOS[slug] || '';
   const fotoDestaqueEl = document.getElementById('dm-photo');
   const fotoDestaqueFallback = document.getElementById('dm-photo-fallback');
@@ -3701,9 +3708,11 @@ async function gerarDestaqueDoMes(slug, evt) {
     const cardEl = document.getElementById('dm-card');
     const logo = cardEl.querySelector('.dm-logo-row img');
     if (logo?.decode) await logo.decode().catch(() => {});
+    // A referência exportada do Canva usa 1080 × 1920 (Story). Renderiza
+    // nessa resolução para manter a proporção e evitar uma imagem enorme.
     const canvas = await html2canvas(cardEl, {
       backgroundColor: '#101be5',
-      scale: 3,
+      scale: 1080 / cardEl.offsetWidth,
       useCORS: true,
       allowTaint: false,
       imageTimeout: 10000,
