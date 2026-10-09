@@ -415,6 +415,27 @@
 
   .podium-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
 
+  .ranking-full-controls { display: flex; justify-content: center; margin: -14px 0 34px; }
+  .ranking-full-toggle {
+    border: 1px solid var(--border); border-radius: 999px; padding: 11px 20px;
+    background: var(--surface-solid); color: var(--heading-color); font: inherit;
+    font-size: 0.86rem; font-weight: 800; cursor: pointer; transition: 0.2s ease;
+  }
+  .ranking-full-toggle:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .ranking-full-toggle[hidden] { display: none; }
+  .ranking-full { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 0 0 48px; }
+  .ranking-full[hidden] { display: none; }
+  .ranking-full-group { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+  .ranking-full-group h2 { margin: 0 0 12px; color: var(--heading-color); font-size: 0.95rem; font-weight: 800; }
+  .ranking-full-list { list-style: none; margin: 0; padding: 0; }
+  .ranking-full-row {
+    display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    min-height: 48px; padding: 8px 10px; border-top: 1px solid var(--border); color: var(--text);
+  }
+  .ranking-full-position { color: var(--accent); font-weight: 900; }
+  .ranking-full-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .ranking-full-numbers { color: var(--text-muted); font-size: 0.82rem; font-weight: 700; text-align: right; }
+
   .podium { display: flex; align-items: flex-end; justify-content: center; gap: 18px; padding: 0 8px; }
   .podium-stand { display: flex; flex-direction: column; align-items: center; width: 150px; transition: transform 0.3s ease; padding-bottom: 4px; }
   .podium-stand { position: relative; }
@@ -999,7 +1020,7 @@
   .conquista-quando { font-size:0.72rem; color: var(--text-muted); font-weight: 600; }
 
   @media (max-width: 900px) {
-    .podium-cols { grid-template-columns: 1fr; }
+    .podium-cols, .ranking-full { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 640px) {

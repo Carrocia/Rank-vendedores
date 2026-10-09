@@ -63,7 +63,7 @@ function renderPodium(containerId, entries, options = {}) {
   const vendasMesPorId = options.vendasMesPorId || {};
   // Critério de desempate: quando duas pessoas têm o MESMO número de
   // vendas, quem tem maior valor total de vendas fica na frente.
-  const sorted = [...entries].sort((a, b) => (b.vendas - a.vendas) || ((b.valor || 0) - (a.valor || 0)));
+  const sorted = [...entries].sort((a, b) => (b.vendas - a.vendas) || ((b.valor || 0) - (a.valor || 0))).slice(0, 3);
   const container = document.getElementById(containerId);
   container.innerHTML = sorted.map((e, idx) => {
     const rank = idx + 1;
@@ -137,6 +137,53 @@ function renderPodium(containerId, entries, options = {}) {
       if (barFillEl) barFillEl.style.width = barFillEl.dataset.width + '%';
     }, reduceMotion ? 0 : delayByRank[rank] || 0);
   });
+}
+
+function renderListaClassificacao(containerId, entries, mode) {
+  const lista = document.getElementById(containerId);
+  if (!lista) return;
+  const ordenados = [...(entries || [])].sort((a, b) =>
+    (Number(b.vendas || 0) - Number(a.vendas || 0)) || (Number(b.valor || 0) - Number(a.valor || 0))
+  );
+  lista.replaceChildren();
+  ordenados.forEach((vendedor, index) => {
+    const item = document.createElement('li');
+    item.className = 'ranking-full-row';
+    const posicao = document.createElement('span');
+    posicao.className = 'ranking-full-position';
+    posicao.textContent = `${index + 1}º`;
+    const nome = document.createElement('span');
+    nome.className = 'ranking-full-name';
+    nome.textContent = vendedor.nome || 'Vendedor';
+    const numeros = document.createElement('span');
+    numeros.className = 'ranking-full-numbers';
+    if (mode === 'mensal') {
+      const percentual = vendedor.meta ? Math.round((Number(vendedor.vendas || 0) / Number(vendedor.meta)) * 100) : null;
+      numeros.textContent = `${formatVendas(Number(vendedor.vendas || 0))}${percentual == null ? '' : ` · ${percentual}% da meta`}`;
+    } else {
+      numeros.textContent = formatVendas(Number(vendedor.vendas || 0));
+    }
+    item.append(posicao, nome, numeros);
+    lista.appendChild(item);
+  });
+}
+
+function atualizarListaClassificacaoCompleta(periodo, grupos, modo) {
+  const painel = document.getElementById(`ranking-lista-${periodo}`);
+  const botao = document.querySelector(`[data-ranking-toggle="${periodo}"]`);
+  if (!painel || !botao) return;
+  const total = grupos.reduce((soma, grupo) => soma + (grupo || []).length, 0);
+  botao.hidden = total <= 3;
+  if (total <= 3) {
+    painel.hidden = true;
+    botao.setAttribute('aria-expanded', 'false');
+    botao.textContent = '👥 Ver classificação completa';
+  }
+  grupos.forEach((grupo, index) => renderListaClassificacao(
+    `ranking-lista-${periodo}-${index === 0 ? 'externos' : 'internos'}`,
+    grupo,
+    modo
+  ));
 }
 
 function renderGoal(containerId, goal) {
@@ -1708,6 +1755,9 @@ function renderAll(cache) {
   renderPodium('podium-mensal-externo',  d.extMes,  { mode: 'mensal', ...opcoesTier });
   renderPodium('podium-mensal-interno',  d.intMes,  { mode: 'mensal', ...opcoesTier });
 
+  atualizarListaClassificacaoCompleta('semanal', [d.extSem, d.intSem], 'semanal');
+  atualizarListaClassificacaoCompleta('mensal', [d.extMes, d.intMes], 'mensal');
+
   // Totalizador global — sempre dados reais
   atualizarTotalizadorComDados(d.totalGlobal);
 
@@ -1781,6 +1831,17 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
 // ============================================================
 // ============================================================
+document.querySelectorAll('.ranking-full-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const painel = document.getElementById(btn.getAttribute('aria-controls'));
+    if (!painel) return;
+    const abrir = painel.hidden;
+    painel.hidden = !abrir;
+    btn.setAttribute('aria-expanded', String(abrir));
+    btn.textContent = abrir ? '👥 Ocultar classificação completa' : '👥 Ver classificação completa';
+  });
+});
+
 // TELA DE CELEBRAÇÃO — clique no botão "🎉 Anunciar Destaque"
 // para mostrar o vendedor externo e interno em 1º lugar
 // no ranking mensal real (calculado a partir do Supabase)
