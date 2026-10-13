@@ -870,7 +870,64 @@ let _relatorioState = {
   linhas: [],
   paginaAtual: 1,
   porPagina: 20,
+  selecionadas: new Set(),
+  excluindoSelecionadas: false,
 };
+
+function chaveVendaRelatorio(linha) {
+  return `${linha.tipoLinha}:${linha.id}`;
+}
+
+function atualizarAcoesSelecaoRelatorio() {
+  const botao = document.getElementById('rel-excluir-selecionadas');
+  if (!botao) return;
+  const quantidade = _relatorioState.selecionadas.size;
+  botao.textContent = `Excluir selecionadas (${quantidade})`;
+  botao.disabled = quantidade === 0 || _relatorioState.excluindoSelecionadas;
+}
+
+function selecionarTodasVendasRelatorio() {
+  _relatorioState.linhas.forEach(linha => _relatorioState.selecionadas.add(chaveVendaRelatorio(linha)));
+  renderRelatorioTabela();
+}
+
+function limparSelecaoVendasRelatorio() {
+  _relatorioState.selecionadas.clear();
+  renderRelatorioTabela();
+}
+
+async function excluirVendasSelecionadasRelatorio() {
+  if (_relatorioState.excluindoSelecionadas) return;
+  const selecionadas = _relatorioState.linhas.filter(linha => _relatorioState.selecionadas.has(chaveVendaRelatorio(linha)));
+  if (!selecionadas.length) { atualizarAcoesSelecaoRelatorio(); return; }
+  const confirmado = window.confirm(`Confirma a exclusão permanente de ${selecionadas.length} venda(s) selecionada(s)? Os adicionais vinculados também serão removidos. Essa ação não pode ser desfeita.`);
+  if (!confirmado) return;
+
+  _relatorioState.excluindoSelecionadas = true;
+  atualizarAcoesSelecaoRelatorio();
+  let excluidas = 0;
+  const falhas = [];
+  for (const linha of selecionadas) {
+    try {
+      if (linha.tipoLinha === 'outra_filial') await deleteVendaOutraFilial(linha.id);
+      else await deleteVenda(linha.id);
+      _relatorioState.selecionadas.delete(chaveVendaRelatorio(linha));
+      excluidas++;
+    } catch (error) {
+      falhas.push(linha.cliente || linha.id);
+      console.error('[excluirVendasSelecionadasRelatorio]', linha.id, error);
+    }
+  }
+  _relatorioState.excluindoSelecionadas = false;
+  if (excluidas) {
+    showToast(`${excluidas} venda(s) excluída(s).${falhas.length ? ` ${falhas.length} falha(s); confira o relatório.` : ''}`, falhas.length ? 'warning' : 'success');
+    await carregarDados();
+    await aplicarFiltrosRelatorio();
+  } else {
+    atualizarAcoesSelecaoRelatorio();
+    showToast('Não foi possível excluir as vendas selecionadas.', 'error');
+  }
+}
 
 let _mesExclusaoConferido = null;
 
@@ -1057,6 +1114,8 @@ async function aplicarFiltrosRelatorio() {
   const tipoVenda = document.getElementById('rel-tipo-venda').value;
 
   if (!dataIni || !dataFim) { showToast('Selecione o período (data inicial e final).', 'warning'); return; }
+  _relatorioState.selecionadas.clear();
+  atualizarAcoesSelecaoRelatorio();
 
   // O cache público não contém cliente nem observação. O relatório
   // administrativo consulta sua view própria, protegida por RLS.
@@ -1196,14 +1255,25 @@ function renderRelatorioTabela() {
         tipoTxt = l.vendedorTipo === 'interno' ? 'Interno' : (l.vendedorTipo === 'externo' ? 'Externo' : '—');
       }
       const acoesTxt = `<button type="button" class="adm-btn-excluir" onclick="handleExcluirVenda('${l.id}', '${l.tipoLinha}')" title="Excluir esta venda" aria-label="Excluir esta venda"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg></button>`;
+      const selecionada = _relatorioState.selecionadas.has(chaveVendaRelatorio(l));
       return `<tr>
+        <td><input type="checkbox" class="rel-venda-selecao" data-venda-id="${escapeHtmlText(String(l.id))}" data-venda-tipo="${escapeHtmlText(l.tipoLinha)}" aria-label="Selecionar venda de ${escapeHtmlText(l.cliente || l.vendedorNome || 'cliente')}" ${selecionada ? 'checked' : ''}></td>
         <td>${dataFmt}</td><td>${l.hora || '—'}</td><td>${vendedorTxt}</td><td>${tipoTxt}</td>
         <td>${l.cliente || '—'}</td><td>${l.planoNome}</td><td>${veloc}</td>
         <td>${adicionaisTxt}</td><td><strong>${valorFmt}</strong></td><td>${origemTxt}</td>
         <td>${acoesTxt}</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);">Nenhuma venda encontrada para os filtros selecionados.</td></tr>';
+    }).join('') : '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);">Nenhuma venda encontrada para os filtros selecionados.</td></tr>';
+    tbody.querySelectorAll('.rel-venda-selecao').forEach(input => input.addEventListener('change', () => {
+      const linha = _relatorioState.linhas.find(item => item.id === input.dataset.vendaId && item.tipoLinha === input.dataset.vendaTipo);
+      if (!linha) return;
+      const chave = chaveVendaRelatorio(linha);
+      if (input.checked) _relatorioState.selecionadas.add(chave);
+      else _relatorioState.selecionadas.delete(chave);
+      atualizarAcoesSelecaoRelatorio();
+    }));
   }
+  atualizarAcoesSelecaoRelatorio();
 
   const contagem = document.getElementById('rel-contagem');
   if (contagem) contagem.textContent = `${linhas.length} venda${linhas.length === 1 ? '' : 's'} encontrada${linhas.length === 1 ? '' : 's'}`;

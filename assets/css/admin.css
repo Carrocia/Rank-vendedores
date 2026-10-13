@@ -497,6 +497,7 @@ body.adm-modal-open { overflow: hidden; }
 .adm-inline-status.is-left { text-align: left; }
 .adm-inline-checkbox { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.82rem; cursor: pointer; user-select: none; }
 .adm-inline-checkbox input { width: auto; }
+.rel-venda-selecao { width: auto; min-width: 16px; accent-color: var(--accent, #2d5fff); }
 .adm-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
 .adm-status-copy { color: var(--text-muted); font-size: 0.84rem; }
 .adm-section-title-spaced { margin-top: 36px; }

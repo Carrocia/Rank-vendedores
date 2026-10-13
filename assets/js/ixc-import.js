@@ -86,7 +86,8 @@ function identificarFamiliaPlanoIxc(valor) {
 }
 
 function velocidadePlanoIxc(valor) {
-  const m = String(valor || '').match(/\b(\d{2,4})\s*(?:mega|mbps|mb)\b/i);
+  // Alguns planos Via Rádio do IXC usam velocidades de um dígito, como "8 MEGA".
+  const m = String(valor || '').match(/\b(\d{1,4})\s*(?:mega|mbps|mb)\b/i);
   return m ? Number(m[1]) : null;
 }
 
@@ -109,7 +110,11 @@ function obterValorExplicitoRelatorioIxc(descricao) {
 
 function resolverPlanoIxc(descricao, planos) {
   const desc = normalizarTextoIxc(descricao);
-  const exato = planos.filter(plano => normalizarTextoIxc(`${plano.nome || ''} ${plano.velocidade_mb || ''}mb`) === desc);
+  const exato = planos.filter(plano => {
+    const nome = normalizarTextoIxc(plano.nome || '');
+    const nomeComVelocidade = normalizarTextoIxc(`${plano.nome || ''} ${plano.velocidade_mb || ''}mb`);
+    return nome === desc || nomeComVelocidade === desc;
+  });
   if (exato.length === 1) return exato[0];
 
   const familia = identificarFamiliaPlanoIxc(descricao);

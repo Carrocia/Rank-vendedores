@@ -826,6 +826,9 @@
             <div class="adm-section-heading-row">
               <span id="rel-contagem" class="adm-inline-status is-left">—</span>
               <div class="adm-form-actions">
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="selecionarTodasVendasRelatorio()">Selecionar todas do relatório</button>
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="limparSelecaoVendasRelatorio()">Limpar seleção</button>
+                <button type="button" class="adm-btn adm-btn-inline adm-btn-danger-solid" id="rel-excluir-selecionadas" onclick="excluirVendasSelecionadasRelatorio()" disabled>Excluir selecionadas (0)</button>
                 <label class="adm-inline-checkbox">
                   <input type="checkbox" id="rel-ocultar-financeiro">
                   🙈 Ocultar valores financeiros
@@ -838,12 +841,13 @@
               <table class="adm-table">
                 <thead>
                   <tr>
+                    <th>Selecionar</th>
                     <th>Data</th><th>Hora</th><th>Vendedor</th><th>Tipo</th><th>Cliente</th>
                     <th>Plano</th><th>Velocidade</th><th>Adicionais</th><th>Valor Total</th><th>Origem</th><th>Ações</th>
                   </tr>
                 </thead>
                 <tbody id="rel-tabela-body">
-                  <tr><td colspan="11" class="adm-inline-status">Clique em "Aplicar filtros" para carregar o relatório.</td></tr>
+                  <tr><td colspan="12" class="adm-inline-status">Clique em "Aplicar filtros" para carregar o relatório.</td></tr>
                 </tbody>
 
               </table>
