@@ -877,9 +877,9 @@
           <div class="adm-card adm-compact-card">
             <p class="adm-description">
               Escolha quem é o destaque do mês — o sistema gera uma <strong>arte (imagem)</strong> pronta
-              pra postar, no estilo da arte de destaque: mês, regional, foto, posição e mensagem
-              preenchidos automaticamente. Escolha o vendedor e gere a imagem — diferente do card de
-              meta individual.
+              pra postar, no estilo da arte do Canva: mês, regional, foto e dados do vendedor
+              preenchidos automaticamente, com a medalha fixa de 1º lugar. Escolha o vendedor e gere
+              a imagem — diferente do card de meta individual.
             </p>
             <div class="adm-field">
               <label>Vendedor destaque</label>
@@ -1391,40 +1391,35 @@
   </div>
 </div>
 
-<!-- Arte "Destaque do mês" baseada na referência do Canva. O painel
-     preenche mês, filial, posição, nome, cargo e foto do vendedor. -->
+<!-- Arte "Destaque do mês" montada com os elementos enviados do Canva.
+     Nome, mês, filial, cargo e foto são preenchidos pelo painel. -->
 <div id="dm-offscreen">
   <div class="dm-card" id="dm-card">
+    <img class="dm-card-fundo" src="assets/images/destaque-mes/cartao-fundo.png" alt="">
     <div class="dm-logo-row">
       <img data-logo="dark" alt="UNI Internet">
     </div>
 
-    <div class="dm-mes-pill" id="dm-mes-pill">—</div>
-    <div class="dm-titulo">Destaque do mês</div>
+    <div class="dm-mes-pill">
+      <img src="assets/images/destaque-mes/mes-capsula.png" alt="">
+      <span id="dm-mes-pill">—</span>
+    </div>
+    <img class="dm-titulo" src="assets/images/destaque-mes/titulo.png" alt="Destaque do mês">
     <div class="dm-role" id="dm-local">—</div>
 
     <div class="dm-foto-bloco">
       <div class="dm-foto-card">
         <img id="dm-photo" src="" alt="">
         <div id="dm-photo-fallback" class="dm-photo-fallback" hidden></div>
-        <div class="dm-foto-diagonal"></div>
       </div>
-      <div class="dm-medalha" aria-label="Posição no ranking">
-        <span class="dm-medalha-fita dm-medalha-fita-esq" aria-hidden="true"></span>
-        <span class="dm-medalha-fita dm-medalha-fita-dir" aria-hidden="true"></span>
-        <span class="dm-medalha-selo"><span id="dm-medal-number">1</span></span>
-      </div>
+      <img class="dm-medalha" src="assets/images/destaque-mes/medalha-primeiro-lugar.png" alt="1º lugar">
     </div>
 
     <div class="dm-parabens-bloco">
-      <div class="dm-parabens-linha">
-        <svg class="dm-parabens-sparkle" viewBox="0 0 36 18" aria-hidden="true"><path d="M1 9 15 16M7 2l10 5M24 7l10-5M21 16l14-7"/></svg>
-        <span class="dm-parabens-texto">Parabéns</span>
-        <svg class="dm-parabens-sparkle" viewBox="0 0 36 18" aria-hidden="true"><path d="M1 9 15 16M7 2l10 5M24 7l10-5M21 16l14-7"/></svg>
-      </div>
+      <img class="dm-parabens-texto" src="assets/images/destaque-mes/parabens.png" alt="Parabéns">
       <div class="dm-nome" id="dm-name">—</div>
       <div class="dm-cargo" id="dm-role2">—</div>
-      <div class="dm-mensagem" id="dm-quote">—</div>
+      <img class="dm-mensagem" src="assets/images/destaque-mes/mensagem.png" alt="Seu comprometimento e dedicação são verdadeiramente inspiradores. Continue sendo essa referência para todos nós!">
     </div>
   </div>
 </div>

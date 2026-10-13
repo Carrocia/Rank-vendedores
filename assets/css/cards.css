@@ -99,48 +99,30 @@
 .gf-next-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #8296a8; text-transform: uppercase; }
 .gf-next-text { margin-top: 6px; font-size: 15px; font-weight: 700; color: #d6f5ef; }
 
-/* ── Destaque do mês — reprodução da arte de referência do Canva. ── */
+/* ── Destaque do mês — composição com os elementos enviados do Canva. ── */
 #dm-offscreen { position: absolute; left: -10000px; top: 0; width: 572px; height: 1017px; overflow: hidden; }
 .dm-card {
-  --dm-azul: #101be5;
-  --dm-azul-escuro: #091487;
-  --dm-ciano: #5eced6;
-  --dm-ouro: #ffc72c;
   position: relative; isolation: isolate; overflow: hidden;
-  width: 572px; height: 1017px; padding: 38px 42px 30px;
-  background: var(--dm-azul); color: #fff; font-family: 'Poppins', sans-serif;
-}
-.dm-card::before {
-  content: ''; position: absolute; z-index: -1; left: 76px; right: 76px;
-  top: 596px; bottom: 0; background: var(--dm-azul-escuro);
+  width: 572px; height: 1017px; background: #000fe3; color: #fff;
+  font-family: 'Poppins', sans-serif;
 }
 .dm-card * { box-sizing: border-box; }
-.dm-logo-row { display: flex; justify-content: center; margin-bottom: 48px; }
+.dm-card-fundo { position: absolute; z-index: 0; left: 78px; top: 526px; width: 414px; height: 476px; }
+.dm-logo-row { position: absolute; z-index: 2; top: 52px; left: 0; width: 100%; display: flex; justify-content: center; }
 .dm-logo-row img { height: 64px; max-width: 132px; object-fit: contain; }
-.dm-mes-pill {
-  display: block; margin: 0 auto 3px; min-width: 232px; width: fit-content;
-  background: var(--dm-ciano); color: #fff; text-align: center;
-  font-weight: 700; font-size: 34px; line-height: 1.2; padding: 3px 24px 5px; border-radius: 32px;
-}
-.dm-titulo { text-align: center; color: #fff; font-weight: 800; font-size: 43px; line-height: 1.2; margin: 0 0 31px; letter-spacing: -1px; }
-.dm-role { text-align: center; color: #fff; font-weight: 600; font-size: 14px; letter-spacing: .7px; text-transform: uppercase; margin: 0 0 8px; }
-.dm-foto-bloco { position: relative; width: 325px; height: 404px; margin: 0 0 0 115px; z-index: 1; }
-.dm-foto-card { position: relative; width: 100%; height: 100%; background: #f1efe9; border-radius: 34px 34px 54px 0; overflow: hidden; }
-.dm-foto-card img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
-.dm-photo-fallback { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; border-radius: inherit; background: linear-gradient(135deg, #10234c, #1b4d7a); color: #fff; font-size: 8rem; font-weight: 800; }
+.dm-mes-pill { position: absolute; z-index: 2; top: 154px; left: 50%; width: 224px; height: 47px; transform: translateX(-50%); display: grid; place-items: center; }
+.dm-mes-pill img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dm-mes-pill span { position: relative; color: #fff; font-weight: 700; font-size: 32px; line-height: 1; }
+.dm-titulo { position: absolute; z-index: 2; top: 181px; left: 50%; width: 450px; height: auto; transform: translateX(-50%); }
+.dm-role { position: absolute; z-index: 2; top: 287px; left: 0; width: 100%; margin: 0; color: #fff; text-align: center; font-size: 13px; line-height: 16px; font-weight: 700; letter-spacing: .25px; text-transform: uppercase; }
+.dm-foto-bloco { position: absolute; z-index: 2; left: 160px; top: 312px; width: 315px; height: 397px; }
+.dm-foto-card { position: relative; width: 100%; height: 100%; overflow: hidden; background: #dceefa; clip-path: polygon(12% 0,88% 0,92% .5%,96% 2%,98.5% 5%,100% 10%,100% 85%,99.5% 89%,98% 92%,96% 95%,93% 98%,89% 100%,85% 100%,81% 99%,76% 97%,0 85%,0 10%,1% 6%,3% 3%,6% 1%,9% 0); }
+.dm-foto-card img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.dm-photo-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10234c, #1b4d7a); color: #fff; font-size: 8rem; font-weight: 800; }
 .dm-photo-fallback[hidden] { display: none; }
-.dm-foto-diagonal { position: absolute; z-index: 1; left: -24px; top: 306px; width: 440px; height: 300px; background: var(--dm-azul-escuro); transform: rotate(20deg); transform-origin: left top; }
-.dm-medalha { position: absolute; z-index: 3; left: -90px; top: 197px; width: 140px; height: 178px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.18)); }
-.dm-medalha-fita { position: absolute; z-index: 0; top: 116px; width: 44px; height: 64px; background: linear-gradient(180deg, #ffd849, #f9a91f); }
-.dm-medalha-fita-esq { left: 27px; transform: rotate(13deg); clip-path: polygon(0 0,100% 0,82% 100%,48% 78%,8% 100%); }
-.dm-medalha-fita-dir { right: 27px; transform: rotate(-13deg); clip-path: polygon(0 0,100% 0,92% 100%,52% 78%,18% 100%); }
-.dm-medalha-selo { position: absolute; z-index: 1; inset: 0 auto auto 0; width: 140px; height: 138px; display: grid; place-items: center; clip-path: polygon(50% 0%,59% 10%,70% 3%,75% 15%,88% 12%,89% 25%,100% 34%,92% 46%,100% 57%,90% 67%,94% 80%,79% 83%,73% 97%,60% 90%,50% 100%,40% 90%,27% 97%,21% 83%,6% 80%,10% 67%,0% 57%,8% 46%,0% 34%,11% 25%,12% 12%,25% 15%,30% 3%,41% 10%); background: linear-gradient(145deg, #ffd84b, #ffbc20 72%, #f7a817); }
-.dm-medalha-selo::after { content: ''; position: absolute; inset: 12px; border: 2px dotted rgba(255,255,255,.76); border-radius: 50%; }
-.dm-medalha-selo span { position: relative; z-index: 1; color: #fff; font-size: 58px; line-height: 1; font-weight: 800; }
-.dm-parabens-bloco { position: relative; z-index: 2; margin-top: 2px; padding: 0 0 4px; text-align: center; }
-.dm-parabens-linha { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 2px; }
-.dm-parabens-sparkle { width: 36px; height: 18px; flex-shrink: 0; fill: none; stroke: var(--dm-ciano); stroke-width: 2.5; stroke-linecap: round; }
-.dm-parabens-texto { font-family: 'Dancing Script', cursive; font-weight: 700; font-size: 62px; color: var(--dm-ciano); line-height: 1; }
-.dm-nome { color: #fff; font-weight: 800; font-size: 34px; line-height: 1.2; margin: 2px 0 8px; }
-.dm-cargo { color: #fff; font-style: italic; font-weight: 500; font-size: 18px; margin: 0 0 21px; }
-.dm-mensagem { max-width: 390px; margin: 0 auto; color: #eef1ff; font-size: 17px; line-height: 1.35; padding: 0 8px; }
+.dm-medalha { position: absolute; z-index: 3; left: -88px; top: 176px; width: 280px; height: auto; pointer-events: none; }
+.dm-parabens-bloco { position: absolute; z-index: 2; inset: 0; text-align: center; pointer-events: none; }
+.dm-parabens-texto { position: absolute; top: 680px; left: 50%; width: 380px; height: auto; transform: translateX(-50%); }
+.dm-nome { position: absolute; top: 772px; left: 55px; width: 462px; margin: 0; color: #fff; text-align: center; font-weight: 800; font-size: 34px; line-height: 1.2; white-space: nowrap; }
+.dm-cargo { position: absolute; top: 825px; left: 40px; width: 492px; margin: 0; color: #fff; text-align: center; font-style: italic; font-weight: 600; font-size: 16px; line-height: 20px; }
+.dm-mensagem { position: absolute; top: 864px; left: 50%; width: 296px; height: auto; transform: translateX(-50%); }
