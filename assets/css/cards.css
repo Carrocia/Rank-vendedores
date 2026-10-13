@@ -114,13 +114,13 @@
 .dm-mes-pill img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .dm-mes-pill span { position: relative; color: #fff; font-weight: 700; font-size: 32px; line-height: 1; }
 .dm-titulo { position: absolute; z-index: 2; top: 184px; left: 50%; width: 450px; height: auto; transform: translateX(-50%); }
-.dm-role { position: absolute; z-index: 2; top: 293px; left: 0; width: 100%; margin: 0; color: #fff; text-align: center; font-size: 13px; line-height: 16px; font-weight: 700; letter-spacing: .25px; text-transform: uppercase; }
-.dm-foto-bloco { position: absolute; z-index: 2; left: 160px; top: 317px; width: 315px; height: 397px; }
+.dm-role { position: absolute; z-index: 2; top: 293px; left: 20px; width: 532px; margin: 0; color: #fff; text-align: center; font-size: 16px; line-height: 20px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; }
+.dm-foto-bloco { position: absolute; z-index: 2; left: 148px; top: 317px; width: 315px; height: 397px; }
 .dm-foto-card { position: relative; width: 100%; height: 100%; overflow: hidden; background: transparent; clip-path: polygon(14% 0,86% 0,91% .5%,95% 2%,98% 5%,100% 11%,100% 85%,99.5% 89%,98% 92%,96% 95%,93% 98%,89% 100%,85% 100%,81% 99%,76% 97%,2.5% 70%,0 67%,0 11%,1% 6%,3% 3%,6% 1%,9% 0); }
 .dm-foto-card img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
 .dm-photo-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10234c, #1b4d7a); color: #fff; font-size: 8rem; font-weight: 800; }
 .dm-photo-fallback[hidden] { display: none; }
-.dm-medalha { position: absolute; z-index: 3; left: -88px; top: 176px; width: 280px; height: auto; pointer-events: none; }
+.dm-medalha { position: absolute; z-index: 3; left: -76px; top: 176px; width: 280px; height: auto; pointer-events: none; }
 .dm-parabens-bloco { position: absolute; z-index: 2; inset: 0; text-align: center; pointer-events: none; }
 .dm-parabens-texto { position: absolute; top: 689px; left: 50%; width: 380px; height: auto; transform: translateX(-50%); }
 .dm-nome { position: absolute; top: 778px; left: 55px; width: 462px; margin: 0; color: #fff; text-align: center; font-weight: 800; font-size: 34px; line-height: 1.2; white-space: nowrap; }

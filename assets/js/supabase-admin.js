@@ -3679,7 +3679,20 @@ async function gerarDestaqueDoMes(slug, evt) {
   const localDestaque = [nomeCidade, ufFilial ? String(ufFilial).toLocaleUpperCase('pt-BR') : '']
     .filter(Boolean)
     .join(' - ');
-  document.getElementById('dm-local').textContent = localDestaque.toLocaleUpperCase('pt-BR');
+  const localDestaqueEl = document.getElementById('dm-local');
+  localDestaqueEl.textContent = localDestaque.toLocaleUpperCase('pt-BR');
+  const contextoTexto = document.createElement('canvas').getContext('2d');
+  if (contextoTexto) {
+    let tamanhoFonte = 16;
+    while (tamanhoFonte > 12) {
+      contextoTexto.font = `700 ${tamanhoFonte}px Poppins`;
+      const larguraTexto = contextoTexto.measureText(localDestaqueEl.textContent).width
+        + localDestaqueEl.textContent.length * 0.6;
+      if (larguraTexto <= 532) break;
+      tamanhoFonte -= 1;
+    }
+    localDestaqueEl.style.fontSize = `${tamanhoFonte}px`;
+  }
   const fotoDestaque = vendedorMes.foto_url || PHOTOS[slug] || '';
   const fotoDestaqueEl = document.getElementById('dm-photo');
   const fotoDestaqueFallback = document.getElementById('dm-photo-fallback');
