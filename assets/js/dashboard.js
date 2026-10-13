@@ -1391,10 +1391,27 @@ function isVendaRecebidaDeOutraFilial(venda) {
 
 function popularSelectFiliais(filiais) {
   const el = document.getElementById('filial-origem');
-  if (!el) return;
-  el.innerHTML = '<option value="">Selecione a filial</option>' +
-    filiais.filter(f => Number(f.id) !== Number(window.FILIAL_ATUAL_ID) && f.ativo !== false)
-      .map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+  if (el) {
+    el.innerHTML = '<option value="">Selecione a filial</option>' +
+      filiais.filter(f => Number(f.id) !== Number(window.FILIAL_ATUAL_ID) && f.ativo !== false)
+        .map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+  }
+
+  const destinoEl = document.getElementById('venda-destino');
+  const destinoCampo = document.getElementById('venda-destino-field');
+  if (destinoEl && destinoCampo) {
+    const isSuperAdmin = window.ADMIN_AUTENTICADO === true && window.ADMIN_FILIAL_ID == null;
+    destinoCampo.hidden = !isSuperAdmin;
+    destinoEl.replaceChildren(new Option('Selecione a filial de destino', ''));
+    (filiais || []).filter(f => f.ativo !== false).forEach(f => {
+      destinoEl.add(new Option(f.nome, String(f.id)));
+    });
+    // Para administradores regionais, mantém o destino fixo na filial aberta.
+    // O superadministrador pode escolher qualquer filial ativa.
+    destinoEl.value = String(window.FILIAL_ATUAL_ID || '');
+    destinoEl.required = isSuperAdmin;
+  }
+
   const data = document.getElementById('filial-data');
   if (data && !data.value) {
     const hoje = new Date();

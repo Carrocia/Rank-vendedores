@@ -2818,6 +2818,8 @@ function resetCustomSelect(selectId) {
 function resetVendaForm() {
   document.getElementById('adm-venda-form').reset();
   document.getElementById('venda-total').textContent = 'R$ 0,00';
+  const destino = document.getElementById('venda-destino');
+  if (destino) destino.value = String(window.FILIAL_ATUAL_ID || '');
   resetCustomSelect('venda-plano');
 }
 
@@ -2833,7 +2835,15 @@ async function handleNovaVenda(e) {
   const numero_venda = document.getElementById('venda-numero-contrato').value.trim();
   const obs = document.getElementById('venda-obs').value.trim();
   const foraFilial = document.getElementById('venda-fora-filial').checked;
+  const isSuperAdmin = window.ADMIN_AUTENTICADO === true && window.ADMIN_FILIAL_ID == null;
+  const destinoSelecionado = Number(document.getElementById('venda-destino')?.value || window.FILIAL_ATUAL_ID);
+  const filial_destino_id = isSuperAdmin ? destinoSelecionado : Number(window.FILIAL_ATUAL_ID);
   if (!vendedor_id || !plano_id) { showToast('Selecione o vendedor e o plano.', 'warning'); return; }
+  if (!Number.isInteger(filial_destino_id) || filial_destino_id <= 0) { showToast('Selecione uma filial de destino válida.', 'warning'); return; }
+  if (!isSuperAdmin && filial_destino_id !== Number(window.FILIAL_ATUAL_ID)) {
+    showToast('Somente o superadministrador pode escolher outra filial de destino.', 'error');
+    return;
+  }
   if (!data_venda || !hora_venda) { showToast('Informe a data e a hora da venda.', 'warning'); return; }
   if (!numero_venda) { showToast('Informe o número do contrato.', 'warning'); return; }
   // Monta o instante exato a partir dos componentes LOCAIS de data e
@@ -2861,11 +2871,14 @@ async function handleNovaVenda(e) {
   if (obs) partesObs.push(obs);
   const observacaoFinal = partesObs.length ? partesObs.join(' — ') : null;
   try {
-    const venda = await saveVenda({ vendedor_id, filial_origem_id: window.FILIAL_ATUAL_ID, filial_destino_id: window.FILIAL_ATUAL_ID, plano_id, data_venda: data_venda_timestamp, valor: parseFloat(planoValorStr), cliente: cliente, numero_venda, observacao: observacaoFinal, fora_filial: foraFilial });
+    const venda = await saveVenda({ vendedor_id, filial_origem_id: window.FILIAL_ATUAL_ID, filial_destino_id, plano_id, data_venda: data_venda_timestamp, valor: parseFloat(planoValorStr), cliente: cliente, numero_venda, observacao: observacaoFinal, fora_filial: foraFilial });
     if (adicionaisParaSalvar.length > 0) await saveVendaAdicionais(venda.id, adicionaisParaSalvar);
     await carregarDados();
     resetVendaForm();
-    showToast('Venda registrada com sucesso!', 'success');
+    const destinoNome = (_cache.filiais || []).find(f => Number(f.id) === filial_destino_id)?.nome;
+    showToast(destinoNome && filial_destino_id !== Number(window.FILIAL_ATUAL_ID)
+      ? `Venda registrada para ${destinoNome}.`
+      : 'Venda registrada com sucesso!', 'success');
   } catch (err) {
     console.error('[handleNovaVenda]', err);
     showToast(err.message || 'Não foi possível registrar a venda.', 'error');
