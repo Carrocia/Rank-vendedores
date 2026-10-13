@@ -3628,16 +3628,16 @@ function aplicarMolduraDestaqueMes(imagem) {
   const contexto = canvas.getContext('2d');
   contexto.scale(escala, escala);
   contexto.beginPath();
-  contexto.moveTo(34, 0);
-  contexto.lineTo(largura - 34, 0);
-  contexto.quadraticCurveTo(largura, 0, largura, 34);
+  contexto.moveTo(42, 0);
+  contexto.lineTo(largura - 42, 0);
+  contexto.quadraticCurveTo(largura, 0, largura, 42);
   contexto.lineTo(largura, 337);
   contexto.quadraticCurveTo(largura, 369, 283, 385);
   contexto.quadraticCurveTo(263, 397, 240, 392);
   contexto.lineTo(8, 277);
   contexto.quadraticCurveTo(0, 275, 0, 265);
-  contexto.lineTo(0, 34);
-  contexto.quadraticCurveTo(0, 0, 34, 0);
+  contexto.lineTo(0, 42);
+  contexto.quadraticCurveTo(0, 0, 42, 0);
   contexto.closePath();
   contexto.clip();
 
