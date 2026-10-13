@@ -3668,13 +3668,18 @@ async function gerarDestaqueDoMes(slug, evt) {
   // ── Preenche o template oculto ──────────────────────────────────
   document.getElementById('dm-mes-pill').textContent = mesNome;
   const filial = window.FILIAL_ATUAL || {};
-  const localConfigurado = CONFIG.filialLocalizacao || '';
-  const ufConfigurada = (localConfigurado.match(/(?:-|–|—)\s*([A-Z]{2})\s*$/i) || [])[1] || '';
-  const localComUf = filial.localizacao || filial.cidade_uf || filial.nome || localConfigurado;
-  const partesLocal = String(localComUf).trim().match(/^(.*?)(?:\s*[-–—]\s*([A-Z]{2}))?$/i) || [];
-  const nomeRegional = (partesLocal[1] || localComUf).trim();
-  const ufRegional = filial.uf || filial.sigla_uf || filial.estado_sigla || partesLocal[2] || ufConfigurada;
-  document.getElementById('dm-local').textContent = `${nomeRegional}${ufRegional ? `- ${String(ufRegional).toLocaleUpperCase('pt-BR')}` : ''}`.toLocaleUpperCase('pt-BR');
+  const localFilial = String(
+    filial.cidade_uf || filial.localizacao || filial.cidade || filial.nome || ''
+  ).trim();
+  const partesLocal = localFilial.match(/^(.*?)(?:\s*[-–—]\s*([A-Z]{2}))?$/i) || [];
+  const nomeCidade = (partesLocal[1] || localFilial)
+    .replace(/^(?:regional|filial)(?:\s+(?:de|da|do))?\s+/i, '')
+    .trim();
+  const ufFilial = filial.uf || filial.sigla_uf || filial.estado_sigla || partesLocal[2] || '';
+  const localDestaque = [nomeCidade, ufFilial ? String(ufFilial).toLocaleUpperCase('pt-BR') : '']
+    .filter(Boolean)
+    .join(' - ');
+  document.getElementById('dm-local').textContent = localDestaque.toLocaleUpperCase('pt-BR');
   const fotoDestaque = vendedorMes.foto_url || PHOTOS[slug] || '';
   const fotoDestaqueEl = document.getElementById('dm-photo');
   const fotoDestaqueFallback = document.getElementById('dm-photo-fallback');
