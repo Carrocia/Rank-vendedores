@@ -309,6 +309,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js"></script>
   <script src="assets/js/supabase-admin.js"></script>
+  <script src="assets/js/ixc-import.js"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -599,6 +600,26 @@
               </div>
             </form>
           </div>
+          <div class="adm-form-card" id="ixc-import-card">
+            <div class="adm-section-title adm-subsection-title">Importar vendas do IXC</div>
+            <p class="adm-vendedor-cadastro-hint">Envie o CSV da regional aberta. A origem e o vendedor serão identificados pelo ID do IXC no cadastro; vendas de vendedores internos de outra filial seguem o vínculo interregional atual e contam para a meta individual dele. Como o CSV não informa se a venda foi fora da filial, desmarque essas linhas na prévia e lance-as pelo fluxo manual. Contratos já registrados não serão duplicados.</p>
+            <div class="adm-form-grid">
+              <div class="adm-field adm-form-full">
+                <label for="ixc-csv-file">Relatório CSV</label>
+                <input type="file" id="ixc-csv-file" accept=".csv,text/csv" onchange="analisarImportacaoIxc(event)">
+              </div>
+              <div class="adm-form-full" id="ixc-import-summary" aria-live="polite"></div>
+              <div class="adm-form-full adm-table-wrap" id="ixc-import-preview-wrap" hidden>
+                <table class="adm-table">
+                  <thead><tr><th>Contrato</th><th>Cliente</th><th>Plano reconhecido</th><th>Valor</th><th>Vendedor</th><th>Origem</th><th>Data/hora</th><th>Situação</th></tr></thead>
+                  <tbody id="ixc-import-preview"></tbody>
+                </table>
+              </div>
+              <div class="adm-form-full adm-form-actions">
+                <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="ixc-import-submit" onclick="confirmarImportacaoIxc()" disabled>Importar vendas novas</button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- ── ADICIONAIS ──────────────────────────────────────── -->
@@ -669,6 +690,10 @@
                 <div class="adm-field" id="adm-vendedor-filial-field">
                   <label for="adm-vendedor-filial">Regional</label>
                   <select id="adm-vendedor-filial" name="filial_id" required></select>
+                </div>
+                <div class="adm-field">
+                  <label for="adm-vendedor-ixc-id">ID do vendedor no IXC</label>
+                  <input id="adm-vendedor-ixc-id" name="ixc_vendedor_id" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="20" autocomplete="off" placeholder="Ex.: 77">
                 </div>
                 <div class="adm-field adm-form-full">
                   <label for="adm-vendedor-foto">Foto do vendedor (opcional; JPG, PNG ou WebP; até 2 MB)</label>

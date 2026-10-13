@@ -465,6 +465,9 @@ body.adm-modal-open { overflow: hidden; }
   transition: border-color 0.2s ease;
 }
 .adm-form-card:focus-within { border-color: rgba(var(--accent-rgb),0.25); }
+.adm-section #ixc-import-card { margin-top: 24px; }
+#ixc-import-preview-wrap { max-height: 460px; overflow: auto; }
+#ixc-import-preview input[type="checkbox"] { accent-color: var(--accent); vertical-align: middle; }
 .adm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 640px) { .adm-form-grid { grid-template-columns: 1fr; } }
 .adm-form-full { grid-column: 1 / -1; }

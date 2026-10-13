@@ -266,6 +266,7 @@ function iniciarEdicaoVendedor(id) {
   document.getElementById('adm-vendedor-edit-id').value = String(vendedor.id);
   document.getElementById('adm-vendedor-nome').value = vendedor.nome || '';
   document.getElementById('adm-vendedor-tipo').value = vendedor.tipo || '';
+  document.getElementById('adm-vendedor-ixc-id').value = vendedor.ixc_vendedor_id || '';
   const filialSelect = document.getElementById('adm-vendedor-filial');
   if (filialSelect) {
     filialSelect.value = String(vendedor.filial_id);
@@ -290,7 +291,7 @@ async function carregarVendedoresGerenciamento() {
   if (!tbody || !window._supabase || !window.FILIAL_ATUAL_ID) return;
   const { data, error } = await window._supabase
     .from('vendedores')
-    .select('id, nome, tipo, slug, filial_id, ativo, foto_url')
+    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id')
     .eq('filial_id', window.FILIAL_ATUAL_ID)
     .order('nome');
   if (error) {
@@ -418,6 +419,8 @@ async function cadastrarVendedor(event) {
 
   const nome = document.getElementById('adm-vendedor-nome').value.trim();
   const tipo = document.getElementById('adm-vendedor-tipo').value;
+  const ixcIdRaw = document.getElementById('adm-vendedor-ixc-id').value.trim();
+  const ixcVendedorId = ixcIdRaw || null;
   const arquivoFoto = document.getElementById('adm-vendedor-foto')?.files?.[0] || null;
   const isSuperAdmin = window.ADMIN_FILIAL_ID == null;
   const vendedorExistente = editId ? _vendedoresGerenciamento.find(v => Number(v.id) === editId) : null;
@@ -427,7 +430,7 @@ async function cadastrarVendedor(event) {
     ? Number(document.getElementById('adm-vendedor-filial').value)
     : Number(window.ADMIN_FILIAL_ID);
   const filial = (_cache.filiais || []).find(f => Number(f.id) === filialId);
-  if (!nome || !['interno', 'externo'].includes(tipo) || !filial) {
+  if (!nome || !['interno', 'externo'].includes(tipo) || !filial || (ixcVendedorId && !/^\d+$/.test(ixcVendedorId))) {
     showToast('Informe um nome, tipo e regional válidos.', 'warning');
     return;
   }
@@ -454,6 +457,7 @@ async function cadastrarVendedor(event) {
         tipo,
         ativo: true,
         filial_id: filialId,
+        ixc_vendedor_id: ixcVendedorId,
         slug: slugVendedor(nome, filial),
       }]).select('id').single();
       if (error) {
@@ -485,7 +489,7 @@ async function cadastrarVendedor(event) {
 
     if (editId) {
       if (erroFoto) throw new Error(`Não foi possível enviar a nova foto: ${erroFoto.message}`);
-      const alteracoes = { nome, tipo };
+      const alteracoes = { nome, tipo, ixc_vendedor_id: ixcVendedorId };
       if (urlFotoSalva) alteracoes.foto_url = urlFotoSalva;
       const { data, error } = await window._supabase.from('vendedores')
         .update(alteracoes)
