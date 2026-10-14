@@ -2,6 +2,24 @@
   const publicNav = document.getElementById('mobilePublicNav');
   const moreMenu = document.getElementById('mobilePublicMore');
   const moreButton = publicNav?.querySelector('[data-mobile-public="mais"]');
+  const tvEntry = document.querySelector('.tabs-row .tv-enter-btn');
+  const tvEntryParent = tvEntry?.parentNode;
+  const tvEntryNextSibling = tvEntry?.nextSibling;
+  const mobileViewport = window.matchMedia('(max-width: 640px)');
+
+  const syncTvEntryLocation = () => {
+    if (!tvEntry || !moreMenu || !tvEntryParent) return;
+    if (mobileViewport.matches) {
+      tvEntry.classList.add('mobile-public-tv-entry');
+      moreMenu.appendChild(tvEntry);
+    } else if (tvEntry.parentNode !== tvEntryParent) {
+      tvEntryParent.insertBefore(tvEntry, tvEntryNextSibling?.parentNode === tvEntryParent ? tvEntryNextSibling : null);
+      tvEntry.classList.remove('mobile-public-tv-entry');
+    }
+  };
+
+  syncTvEntryLocation();
+  mobileViewport.addEventListener('change', syncTvEntryLocation);
 
   const closePublicMore = () => {
     if (moreMenu) moreMenu.hidden = true;

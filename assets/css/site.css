@@ -1278,6 +1278,11 @@
   .mobile-public-more button:hover, .mobile-public-more button:focus-visible { background: var(--surface-hover); }
   .mobile-public-more-head button { min-width: 42px; min-height: 42px; padding: 0; text-align: center; font-size: 1.35rem; }
   .mobile-public-more .mobile-admin-login { margin-top: 7px; border-top: 1px solid var(--border); color: var(--accent); }
+  .mobile-public-more .mobile-public-tv-entry {
+    display: flex; align-items: center; min-height: 46px; padding: 11px 12px; margin-top: 4px;
+    border-top: 1px solid var(--border); border-radius: 10px; color: var(--accent);
+    font: 500 .82rem 'Poppins', sans-serif; text-decoration: none;
+  }
   #adm-trigger { display: none; }
   html[data-tv] .mobile-public-nav, html[data-tv] .mobile-public-more { display: none !important; }
 }
@@ -1319,6 +1324,7 @@
   .header-kpi-label { min-height: 2.2em; font-size: .56rem; line-height: 1.2; letter-spacing: .04em; }
   .header-kpi-value { margin-top: 3px; font-size: .84rem; line-height: 1.2; overflow-wrap: anywhere; }
   .header-kpi-divider { display: none; }
+  .tabs-row .tv-enter-btn { display: none; }
 
   .filial-site-bar {
     display: grid; grid-template-columns: auto minmax(0, 1fr) 40px; align-items: center;
