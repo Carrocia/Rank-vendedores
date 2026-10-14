@@ -660,43 +660,52 @@ function renderMetasFilial(periodo = 'semanal', d) {
     return;
   }
   const mf = d.metasFilial;
-  const atual = periodo === 'semanal' ? d.totalSemana : d.totalMes;
+  const atual = Number(periodo === 'semanal' ? d.totalSemana : d.totalMes) || 0;
   const prefixo = periodo === 'semanal' ? 'semanal' : 'mensal';
   const metas = [
-    { key: 'm1', label: 'M1', dados: { atual, meta: mf[prefixo + '_m1'] || 0 } },
-    { key: 'm2', label: 'M2', dados: { atual, meta: mf[prefixo + '_m2'] || 0 } },
-    { key: 'm3', label: 'M3', dados: { atual, meta: mf[prefixo + '_m3'] || 0 } },
-  ];
+    { label: 'M1', meta: Number(mf[prefixo + '_m1']) || 0 },
+    { label: 'M2', meta: Number(mf[prefixo + '_m2']) || 0 },
+    { label: 'M3', meta: Number(mf[prefixo + '_m3']) || 0 },
+  ].filter(m => m.meta > 0).sort((a, b) => a.meta - b.meta);
   const titulo = periodo === 'semanal'
     ? '🎯 Metas da Filial — Semana'
     : '🎯 Metas da Filial — ' + (d.mes && d.mes.mesNome ? d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1) : CONFIG.mesReferencia);
   document.getElementById('metasFilialTitle').textContent = titulo;
 
-  document.getElementById('metasFilialGrid').innerHTML = metas.map(m => {
-    const pct = m.dados.meta ? Math.min(100, Math.round((m.dados.atual / m.dados.meta) * 100)) : 0;
-    return `
-    <div class="meta-filial-card">
-      <span class="meta-filial-label">${m.label}</span>
-      <div class="meta-filial-numbers">
-        <span class="meta-filial-atual" data-target="${m.dados.atual}">0</span>
-        <span class="meta-filial-sep">/ ${m.dados.meta} vendas</span>
-      </div>
-      <div class="meta-filial-bar-track"><div class="meta-filial-bar-fill" data-width="${pct}" id="metaFilialBar-${m.key}"></div></div>
-      <span class="meta-filial-pct" id="metaFilialPct-${m.key}">0% concluído</span>
-    </div>`;
+  const proxima = metas.find(m => atual < m.meta);
+  const finalizada = metas.length > 0 && !proxima;
+  const alvo = proxima || metas[metas.length - 1];
+  const pct = alvo ? Math.min(100, Math.round((atual / alvo.meta) * 100)) : 0;
+  const pctGeral = metas.length ? Math.min(100, Math.round((atual / metas[metas.length - 1].meta) * 100)) : 0;
+  const nomeEtapa = proxima?.label || metas[metas.length - 1]?.label;
+  const textoStatus = !metas.length
+    ? 'Cadastre as metas M1, M2 ou M3 para acompanhar o progresso.'
+    : finalizada
+      ? `Todas as metas concluídas · ${pctGeral}% da meta máxima.`
+      : `${proxima.label} em andamento · faltam ${(alvo.meta - atual).toLocaleString('pt-BR')} vendas para concluir esta etapa.`;
+  const etapas = metas.map((m, indice) => {
+    const batida = atual >= m.meta;
+    const emAndamento = !batida && m === proxima;
+    const nivel = m.label === 'M3' ? 'Base' : (m.label === 'M2' ? 'Intermediária' : 'Avançada');
+    return `<span class="milestone-chip${batida ? ' is-done' : (emAndamento ? ' is-current' : '')}">${batida ? '✓' : (emAndamento ? '●' : '○')} <b>${m.label}</b><small>${nivel}</small></span>`;
   }).join('');
-
-  metas.forEach(m => {
-    const pct = m.dados.meta ? Math.min(100, Math.round((m.dados.atual / m.dados.meta) * 100)) : 0;
-    const atualEl = document.querySelector(`#metasFilialGrid .meta-filial-card:nth-child(${metas.indexOf(m) + 1}) .meta-filial-atual`);
-    if (atualEl) animateNumber(atualEl, m.dados.atual, { duration: 1100 });
-    const barEl = document.getElementById('metaFilialBar-' + m.key);
-    const pctEl = document.getElementById('metaFilialPct-' + m.key);
-    setTimeout(() => {
-      if (barEl) barEl.style.width = pct + '%';
-      if (pctEl) pctEl.textContent = pct + '% concluído';
-    }, 50);
-  });
+  const grid = document.getElementById('metasFilialGrid');
+  grid.innerHTML = `
+    <article class="meta-filial-card milestone-card${finalizada ? ' is-complete' : ''}">
+      <div class="milestone-main">
+        <div class="milestone-current"><span class="milestone-eyebrow">${periodo === 'semanal' ? 'VENDAS NESTA SEMANA' : 'VENDAS NESTE MÊS'}</span><strong class="meta-filial-atual" id="metaFilialAtual" data-target="${atual}">0</strong><span class="milestone-unit">vendas realizadas</span></div>
+        <div class="milestone-next"><span class="milestone-eyebrow">${finalizada ? 'META MÁXIMA' : 'PRÓXIMA META'}</span><strong>${nomeEtapa || 'Sem metas'}</strong><span>${alvo ? `${alvo.meta.toLocaleString('pt-BR')} vendas` : 'Configure uma meta'}</span></div>
+      </div>
+      <div class="milestone-track-wrap"><div class="meta-filial-bar-track milestone-track"><div class="meta-filial-bar-fill" id="metaFilialBar" style="width:0%"></div></div><span class="milestone-progress-label">${pct}%</span></div>
+      <div class="milestone-message${finalizada ? ' is-complete' : ''}" id="metaFilialPct">${textoStatus}</div>
+      <div class="milestone-steps" aria-label="Etapas da meta">${etapas || '<span class="milestone-empty">Nenhuma meta configurada</span>'}</div>
+    </article>`;
+  const atualEl = document.getElementById('metaFilialAtual');
+  if (atualEl) animateNumber(atualEl, atual, { duration: 1100 });
+  setTimeout(() => {
+    const barEl = document.getElementById('metaFilialBar');
+    if (barEl) barEl.style.width = pct + '%';
+  }, 50);
 }
 
 // ---------- Renovações e Risco de Churn do Mês (sempre mensal) ----------
@@ -708,14 +717,12 @@ function renderRenovacaoCancelamento(d) {
   const gridRenov = document.getElementById('renovacoesGrid');
   const gridCancel = document.getElementById('cancelamentosGrid');
   if (!gridRenov || !gridCancel) return;
-  const resumoRenov = document.getElementById('renovacoesResumo');
-  const resumoCancel = document.getElementById('cancelamentosResumo');
   const rc = d && d.metasRenovCancel;
   if (!rc) {
+    gridRenov.className = 'churn-grid';
+    gridCancel.className = 'churn-grid is-churn';
     gridRenov.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
     gridCancel.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
-    if (resumoRenov) { resumoRenov.className = 'churn-summary'; resumoRenov.innerHTML = '<span>Configure as metas mensais para acompanhar o progresso.</span>'; }
-    if (resumoCancel) { resumoCancel.className = 'churn-summary'; resumoCancel.innerHTML = '<span>Configure os limites mensais para acompanhar o risco.</span>'; }
     return;
   }
 
@@ -729,34 +736,27 @@ function renderRenovacaoCancelamento(d) {
     { label: 'M3', meta: rc.renovacoes_m3 },
   ];
   const fmt = valor => Number(valor || 0).toLocaleString('pt-BR');
-  const metaRenovMaisProxima = [...renovMetas]
-    .filter(m => Number(m.meta) > renovAtual)
-    .sort((a, b) => Number(a.meta) - Number(b.meta))[0];
+  const renovMetasOrdenadas = renovMetas.filter(m => Number(m.meta) > 0).sort((a, b) => Number(a.meta) - Number(b.meta));
+  const metaRenovMaisProxima = renovMetasOrdenadas.find(m => renovAtual < Number(m.meta));
   const temMetaRenovacao = renovMetas.some(m => Number(m.meta) > 0);
-  if (resumoRenov) {
-    resumoRenov.innerHTML = `<span class="churn-summary-kicker">REALIZADO NO MÊS</span><strong>${fmt(renovAtual)} <small>renovações</small></strong><span class="churn-summary-detail">${!temMetaRenovacao
-      ? 'Cadastre as metas dos níveis para acompanhar o progresso.'
-      : metaRenovMaisProxima
-      ? `Faltam <b>${fmt(Number(metaRenovMaisProxima.meta) - renovAtual)}</b> para alcançar ${metaRenovMaisProxima.label}`
-      : 'Todos os níveis de renovação foram alcançados.'}</span>`;
-  }
-  gridRenov.innerHTML = renovMetas.map(m => {
-    const metaConfigurada = Number(m.meta) > 0;
-    const pct = metaConfigurada ? Math.min(100, Math.round((renovAtual / Number(m.meta)) * 100)) : 0;
-    const faltam = metaConfigurada ? Math.max(0, Number(m.meta) - renovAtual) : null;
-    const nivel = m.label === 'M1' ? 'Avançada' : (m.label === 'M2' ? 'Intermediária' : 'Base');
-    return `
-    <div class="churn-card churn-card-renov">
-      <div class="churn-card-heading"><span class="churn-card-label">${m.label}</span><span class="churn-tier-name">${nivel}</span></div>
-      <div class="churn-card-numbers">
-        <span class="churn-card-atual">${renovAtual}</span>
-        <span class="churn-card-sep">${metaConfigurada ? `/ ${fmt(m.meta)} renovações` : 'meta não definida'}</span>
-      </div>
-      <div class="churn-bar-track"><div class="churn-bar-fill" style="width:${pct}%"></div></div>
-      <span class="churn-card-pct">${metaConfigurada ? `${pct}% concluído · ${faltam ? `faltam ${fmt(faltam)}` : 'meta alcançada'}` : 'Cadastre a meta deste nível'}</span>
-    </div>`;
+  const renovFinalizada = temMetaRenovacao && !metaRenovMaisProxima;
+  const alvoRenovacao = metaRenovMaisProxima || renovMetasOrdenadas[renovMetasOrdenadas.length - 1];
+  const renovPct = alvoRenovacao ? Math.min(100, Math.round((renovAtual / Number(alvoRenovacao.meta)) * 100)) : 0;
+  const renovEtapas = renovMetasOrdenadas.map(m => {
+    const batida = renovAtual >= Number(m.meta);
+    const nivel = m.label === 'M3' ? 'Base' : (m.label === 'M2' ? 'Intermediária' : 'Avançada');
+    return `<span class="milestone-chip${batida ? ' is-done' : (m === metaRenovMaisProxima ? ' is-current' : '')}">${batida ? '✓' : (m === metaRenovMaisProxima ? '●' : '○')} <b>${m.label}</b><small>${nivel}</small></span>`;
   }).join('');
-
+  gridRenov.innerHTML = `<article class="churn-card churn-card-renov milestone-card${renovFinalizada ? ' is-complete' : ''}">
+    <div class="milestone-main">
+      <div class="milestone-current"><span class="milestone-eyebrow">RENOVAÇÕES NO MÊS</span><strong class="churn-card-atual">${fmt(renovAtual)}</strong><span class="milestone-unit">realizadas</span></div>
+      <div class="milestone-next"><span class="milestone-eyebrow">${renovFinalizada ? 'META MÁXIMA' : 'PRÓXIMA META'}</span><strong>${alvoRenovacao?.label || 'Sem metas'}</strong><span>${alvoRenovacao ? `${fmt(alvoRenovacao.meta)} renovações` : 'Configure uma meta'}</span></div>
+    </div>
+    <div class="milestone-track-wrap"><div class="churn-bar-track milestone-track"><div class="churn-bar-fill" style="width:0%" data-width="${renovPct}"></div></div><span class="milestone-progress-label">${renovPct}%</span></div>
+    <div class="milestone-message${renovFinalizada ? ' is-complete' : ''}">${!temMetaRenovacao ? 'Cadastre as metas M1, M2 ou M3 para acompanhar o progresso.' : renovFinalizada ? 'Todas as metas de renovação foram concluídas.' : `Faltam ${fmt(Number(alvoRenovacao.meta) - renovAtual)} renovações para concluir ${alvoRenovacao.label}.`}</div>
+    <div class="milestone-steps" aria-label="Etapas das metas de renovação">${renovEtapas || '<span class="milestone-empty">Nenhuma meta configurada</span>'}</div>
+  </article>`;
+  setTimeout(() => { const fill = gridRenov.querySelector('.churn-bar-fill'); if (fill) fill.style.width = `${fill.dataset.width}%`; }, 50);
   // Risco de Churn (cancelamentos): é o contrário das outras metas —
   // são TETOS que não podem ser ultrapassados, por isso a ordem visual
   // é M1, M2, M3 (M1 é o teto mais apertado/rígido; M3 o mais
@@ -769,41 +769,40 @@ function renderRenovacaoCancelamento(d) {
     { label: 'M2', meta: rc.cancelamentos_m2 },
     { label: 'M3', meta: rc.cancelamentos_m3 },
   ];
-  const metaLimiteResumo = cancelMetas.find(m => Number(m.meta) > 0);
-  if (resumoCancel) {
-    const pctLimite = metaLimiteResumo ? Math.round((cancelAtual / Number(metaLimiteResumo.meta)) * 100) : 0;
-    const estadoResumo = !metaLimiteResumo ? '' : (pctLimite >= 90 ? ' is-critico' : (pctLimite >= 75 ? ' is-alerta' : ''));
-    resumoCancel.className = `churn-summary${estadoResumo}`;
-    resumoCancel.innerHTML = `<span class="churn-summary-kicker">CANCELAMENTOS NO MÊS</span><strong>${fmt(cancelAtual)} <small>registrados</small></strong><span class="churn-summary-detail">${metaLimiteResumo
-      ? `${pctLimite}% do limite mais rigoroso (${fmt(metaLimiteResumo.meta)} · ${metaLimiteResumo.label})`
-      : 'Cadastre os limites para acompanhar o risco.'}</span>`;
-  }
-  gridCancel.className = 'churn-grid is-churn';
-  gridCancel.innerHTML = cancelMetas.map(m => {
-    const metaConfigurada = Number(m.meta) > 0;
-    const pctReal = metaConfigurada ? Math.round((cancelAtual / Number(m.meta)) * 100) : 0;
-    const pct = metaConfigurada ? Math.min(100, pctReal) : 0;
-    const estourou = metaConfigurada && cancelAtual > Number(m.meta);
-    const critico = estourou || pct >= 90;
-    const alerta = !critico && pct >= 75;
-    const estadoClasse = critico ? ' is-critico' : (alerta ? ' is-alerta' : '');
-    const badge = critico
-      ? '<span class="churn-badge badge-critico">Ação Imediata Necessária</span>'
-      : (alerta ? '<span class="churn-badge badge-alerta">Ação Pendente</span>' : '');
-    const nivel = m.label === 'M1' ? 'Mais rigoroso' : (m.label === 'M2' ? 'Intermediário' : 'Mais flexível');
-    const restante = metaConfigurada ? Math.max(0, Number(m.meta) - cancelAtual) : null;
-    return `
-    <div class="churn-card churn-card-cancel${estadoClasse}">
-      ${badge}
-      <div class="churn-card-heading"><span class="churn-card-label">${m.label}</span><span class="churn-tier-name">${nivel}</span></div>
-      <div class="churn-card-numbers">
-        <span class="churn-card-atual">${cancelAtual}</span>
-        <span class="churn-card-sep">${metaConfigurada ? `/ ${fmt(m.meta)} permitidos` : 'limite não definido'}</span>
-      </div>
-      <div class="churn-bar-track"><div class="churn-bar-fill" style="width:${pct}%"></div></div>
-      <span class="churn-card-pct">${!metaConfigurada ? 'Cadastre o limite deste nível' : (estourou ? `${pctReal}% do limite · ultrapassou em ${fmt(cancelAtual - Number(m.meta))}` : `${pctReal}% do limite · ${fmt(restante)} até o teto`)}</span>
-    </div>`;
+  const cancelMetasOrdenadas = cancelMetas.filter(m => Number(m.meta) > 0).sort((a, b) => Number(a.meta) - Number(b.meta));
+  const limitesUltrapassados = cancelMetasOrdenadas.filter(m => cancelAtual > Number(m.meta));
+  const limiteAtual = cancelMetasOrdenadas.find(m => cancelAtual <= Number(m.meta));
+  const limiteMaximo = cancelMetasOrdenadas[cancelMetasOrdenadas.length - 1];
+  const cancelPct = limiteAtual ? Math.min(100, Math.round((cancelAtual / Number(limiteAtual.meta)) * 100)) : (limiteMaximo ? 100 : 0);
+  const cancelCritico = !!limiteAtual && cancelPct >= 90;
+  const cancelAlerta = !!limiteAtual && !cancelCritico && cancelPct >= 75;
+  const todosLimitesUltrapassados = !!limiteMaximo && !limiteAtual;
+  const cancelStatus = cancelCritico ? ' is-critico' : (cancelAlerta ? ' is-alerta' : (todosLimitesUltrapassados ? ' is-ultrapassado' : ''));
+  const limiteTexto = limiteAtual
+    ? `${limiteAtual.label} em andamento · ${cancelPct}% do limite usado`
+    : (limiteMaximo ? `Todos os limites ultrapassados · ${fmt(cancelAtual - Number(limiteMaximo.meta))} acima de ${limiteMaximo.label}` : 'Cadastre os limites M1, M2 ou M3.');
+  const cancelEtapas = cancelMetasOrdenadas.map(m => {
+    const passou = cancelAtual > Number(m.meta);
+    const emAndamento = m === limiteAtual;
+    const estado = passou ? 'is-exceeded' : (emAndamento ? (cancelCritico ? 'is-current is-critico' : (cancelAlerta ? 'is-current is-alerta' : 'is-current')) : '');
+    const texto = passou ? 'ultrapassado' : (emAndamento ? 'em andamento' : 'próximo');
+    return `<span class="milestone-chip ${estado}">${passou ? '!' : (emAndamento ? '●' : '○')} <b>${m.label}</b><small>${texto}</small></span>`;
   }).join('');
+  const textoAcima = limiteAtual
+    ? `${limitesUltrapassados.length ? `${limitesUltrapassados.map(m => `${m.label} ultrapassado`).join(' · ')} · ` : ''}Restam ${fmt(Number(limiteAtual.meta) - cancelAtual)} cancelamentos até o limite ${limiteAtual.label}.`
+    : (limiteMaximo ? `O limite máximo ${limiteMaximo.label} foi ultrapassado em ${fmt(cancelAtual - Number(limiteMaximo.meta))} cancelamentos.` : 'Cadastre os limites para acompanhar o risco.');
+  gridCancel.className = `churn-grid is-churn${cancelStatus}`;
+  gridCancel.innerHTML = `<article class="churn-card churn-card-cancel milestone-card${cancelStatus}">
+    <div class="milestone-main">
+      <div class="milestone-current"><span class="milestone-eyebrow">CANCELAMENTOS NO MÊS</span><strong class="churn-card-atual">${fmt(cancelAtual)}</strong><span class="milestone-unit">registrados</span></div>
+      <div class="milestone-next"><span class="milestone-eyebrow">LIMITE ACOMPANHADO</span><strong>${limiteAtual?.label || limiteMaximo?.label || 'Sem metas'}</strong><span>${limiteAtual ? `${fmt(limiteAtual.meta)} cancelamentos` : limiteMaximo ? `${fmt(limiteMaximo.meta)} de limite máximo` : 'Configure um limite'}</span></div>
+    </div>
+    <div class="milestone-track-wrap"><div class="churn-bar-track milestone-track"><div class="churn-bar-fill" style="width:0%" data-width="${cancelPct}"></div></div><span class="milestone-progress-label">${cancelPct}%</span></div>
+    <div class="milestone-message${todosLimitesUltrapassados ? ' is-exceeded' : ''}">${limiteTexto}</div>
+    <div class="milestone-submessage">${textoAcima}</div>
+    <div class="milestone-steps" aria-label="Etapas dos limites de cancelamento">${cancelEtapas || '<span class="milestone-empty">Nenhum limite configurado</span>'}</div>
+  </article>`;
+  setTimeout(() => { const fill = gridCancel.querySelector('.churn-bar-fill'); if (fill) fill.style.width = `${fill.dataset.width}%`; }, 50);
 }
 
 // ---------- Evolução da Semana (barras) ----------

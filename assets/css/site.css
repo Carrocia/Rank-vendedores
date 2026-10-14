@@ -844,7 +844,7 @@
   .ritmo-vermelho { background: rgba(255,95,110,0.15); color: var(--danger); }
 
   /* ---------- Metas da Filial ---------- */
-  .metas-filial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+  .metas-filial-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .meta-filial-card {
     background: linear-gradient(135deg, var(--surface), var(--surface-hover));
     backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: 18px; padding: 26px 28px;
@@ -876,7 +876,7 @@
      afetar o card de "Metas da Filial" (vendas) que usa esse estilo.
      ================================================================ */
   .churn-dash {
-    display: grid; grid-template-columns: 1fr; gap: 26px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px;
     font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif;
     margin-bottom: 50px;
   }
@@ -888,21 +888,7 @@
     letter-spacing: .2px; color: var(--heading-color); margin: 0 0 5px;
   }
   .churn-panel-desc { margin: 0; font-size: .76rem; line-height: 1.5; color: var(--text-muted); }
-  .churn-summary {
-    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-    min-height: 60px; box-sizing: border-box; margin-bottom: 12px; padding: 12px 16px;
-    border: 1px solid rgba(94,234,212,.17); border-radius: 14px;
-    background: linear-gradient(100deg, rgba(94,234,212,.07), rgba(255,255,255,.015));
-    color: var(--text-muted); font-size: .78rem;
-  }
-  .churn-summary-kicker { color: var(--churn-accent, #5eead4); font-size: .65rem; font-weight: 800; letter-spacing: 1px; }
-  .churn-summary > strong { color: var(--heading-color); font-size: 1.05rem; white-space: nowrap; }
-  .churn-summary > strong small { color: var(--text-muted); font-size: .72rem; font-weight: 600; }
-  .churn-summary-detail { margin-left: auto; }
-  .churn-summary-detail b { color: var(--heading-color); }
-  .churn-summary.is-alerta { --churn-accent: #f7b955; border-color: rgba(247,185,85,.38); background: linear-gradient(100deg, rgba(247,185,85,.09), rgba(255,255,255,.015)); }
-  .churn-summary.is-critico { --churn-accent: var(--danger); border-color: rgba(255,95,110,.42); background: linear-gradient(100deg, rgba(255,95,110,.1), rgba(255,255,255,.015)); }
-  .churn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .churn-grid { display: block; }
 
   .churn-card {
     position: relative;
@@ -956,6 +942,8 @@
     box-shadow: 0 8px 30px rgba(255,95,110,0.14), 0 0 0 1px rgba(255,95,110,0.2), 0 0 28px rgba(255,95,110,0.22);
   }
   .churn-card.is-critico .churn-card-atual { color: var(--danger); }
+  .churn-card.is-ultrapassado { --churn-accent: var(--danger); border-color: rgba(255,95,110,.5); }
+  .churn-card.is-ultrapassado .churn-card-atual { color: var(--danger); }
 
   .churn-badge {
     display: inline-block; font-size:0.72rem; font-weight: 700;
@@ -965,14 +953,52 @@
   .churn-badge.badge-alerta { background: rgba(247,185,85,0.15); color: #f7b955; }
   .churn-badge.badge-critico { background: rgba(255,95,110,0.16); color: var(--danger); }
 
+  /* Um único painel mostra o avanço e as metas como etapas. */
+  .milestone-card { width: 100%; box-sizing: border-box; }
+  .churn-card.milestone-card { padding: 22px 24px; }
+  .milestone-main { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .milestone-current, .milestone-next { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .milestone-current { min-width: 180px; }
+  .milestone-eyebrow { color: var(--text-muted); font-size: .64rem; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase; }
+  .milestone-current .meta-filial-atual, .milestone-current .churn-card-atual { font-size: 2.2rem; line-height: 1.05; }
+  .milestone-unit { color: var(--text-muted); font-size: .75rem; }
+  .milestone-next { margin-left: auto; min-width: 150px; }
+  .milestone-next strong { color: var(--churn-accent, var(--accent)); font-size: 1.25rem; }
+  .milestone-next > span:last-child { color: var(--text-muted); font-size: .78rem; }
+  .milestone-track-wrap { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+  .milestone-track { flex: 1; }
+  .milestone-progress-label { min-width: 42px; color: var(--churn-accent, var(--accent)); font-size: .8rem; font-weight: 800; text-align: right; }
+  .milestone-message { margin-top: 10px; color: var(--heading-color); font-size: .83rem; font-weight: 700; }
+  .milestone-message.is-complete { color: #34d399; }
+  .milestone-message.is-exceeded { color: var(--danger); }
+  .milestone-submessage { margin-top: 5px; color: var(--text-muted); font-size: .75rem; }
+  .milestone-steps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+  .milestone-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.025); color: var(--text-muted); font-size: .72rem; }
+  .milestone-chip b { color: var(--heading-color); font-size: .7rem; }
+  .milestone-chip small { font-size: .66rem; }
+  .milestone-chip.is-done { border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.08); color: #34d399; }
+  .milestone-chip.is-done b { color: #34d399; }
+  .milestone-chip.is-current { border-color: rgba(94,234,212,.4); background: rgba(94,234,212,.08); color: #5eead4; }
+  .milestone-chip.is-current b { color: #5eead4; }
+  .milestone-chip.is-current.is-alerta { border-color: rgba(247,185,85,.45); background: rgba(247,185,85,.1); color: #f7b955; }
+  .milestone-chip.is-current.is-alerta b { color: #f7b955; }
+  .milestone-chip.is-current.is-critico, .milestone-chip.is-exceeded { border-color: rgba(255,95,110,.45); background: rgba(255,95,110,.1); color: var(--danger); }
+  .milestone-chip.is-current.is-critico b, .milestone-chip.is-exceeded b { color: var(--danger); }
+  .milestone-empty { color: var(--text-muted); font-size: .76rem; }
+  .meta-filial-card.milestone-card { padding: 24px 28px; }
+  .meta-filial-card.milestone-card .milestone-next strong { color: var(--accent); }
+  .meta-filial-card.milestone-card.is-complete .milestone-next strong { color: #34d399; }
+
   @media (max-width: 860px) {
-    .churn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .churn-dash { grid-template-columns: 1fr; }
+    .milestone-main { gap: 16px; }
   }
   @media (max-width: 560px) {
-    .churn-grid { grid-template-columns: 1fr; }
-    .churn-card { padding: 21px 18px 18px; }
-    .churn-summary { align-items: flex-start; gap: 8px 12px; }
-    .churn-summary-detail { width: 100%; margin-left: 0; }
+    .milestone-main { align-items: flex-start; flex-direction: column; gap: 16px; }
+    .milestone-next { margin-left: 0; }
+    .milestone-current { min-width: 0; }
+    .churn-card.milestone-card, .meta-filial-card.milestone-card { padding: 20px 17px; }
+    .milestone-chip { padding: 7px 8px; }
     .churn-panel-desc { max-width: 44ch; }
   }
 
