@@ -843,92 +843,90 @@ function renderDonutChart(vendasPorPlano) {
   }).join('') || '<div style="font-size:0.78rem;color:var(--text-muted);">Sem dados.</div>';
 }
 
-// ---------- Conquistas Recentes ----------
-// ── Data relativa pra "Conquistas Recentes" ──────────────────────
-// Calculada de novo a cada renderização (não é texto fixo salvo) —
-// por isso "Hoje" vira "Ontem" sozinho no dia seguinte, sem que a
-// conquista suma da lista.
-function formatarDataRelativa(dataISO) {
-  const hoje = new Date();
-  const data = new Date(dataISO + 'T12:00:00');
-  const diffDias = Math.round((new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()) - new Date(data.getFullYear(), data.getMonth(), data.getDate())) / 86400000);
-  if (diffDias <= 0) return 'Hoje';
-  if (diffDias === 1) return 'Ontem';
-  if (diffDias <= 6) return 'Há ' + diffDias + ' dias';
-  if (diffDias <= 13) return 'Semana passada';
-  if (diffDias <= 30) return 'Há ' + Math.floor(diffDias / 7) + ' semanas';
-  return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+// ---------- Conquistas do mês de todas as filiais ----------
+let _conquistasTimer = null;
+let _conquistasIndice = 0;
+let _conquistasPausado = false;
+let _conquistasEventosBound = false;
+
+async function carregarConquistasGlobais() {
+  if (!window._supabase) return { lista: [], erro: true };
+  const { data, error } = await window._supabase.rpc('conquistas_mensais_globais');
+  if (error) {
+    console.warn('[carregarConquistasGlobais] aplique supabase/conquistas-mensais-globais.sql:', error.message);
+    return { lista: [], erro: true };
+  }
+  return { lista: data || [], erro: false };
 }
 
-// Guarda o histórico real de conquistas (persistido no navegador, só
-// pra lembrar "isso já aconteceu e quando" — os dados de origem
-// continuam vindo 100% do Supabase a cada carregamento).
-function lerHistoricoConquistas() {
-  try { return JSON.parse(localStorage.getItem('uni_conquistas_historico') || '[]'); }
-  catch (e) { return []; }
-}
-function salvarHistoricoConquistas(lista) {
-  try { localStorage.setItem('uni_conquistas_historico', JSON.stringify(lista.slice(0, 30))); }
-  catch (e) { /* localStorage indisponível — conquistas desta sessão não persistem, mas nada quebra */ }
-}
-function registrarConquista(historico, chaveUnica, texto) {
-  if (historico.some(c => c.chave === chaveUnica)) return false;
-  const hoje = new Date();
-  const dataISO = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
-  historico.unshift({ chave: chaveUnica, texto, data: dataISO });
-  return true;
-}
-
-// Detecta, a cada carregamento de dados, se algum vendedor bateu uma
-// meta individual (M3/M2/M1 pra interno, meta de vendas pra externo)
-// pela primeira vez neste mês — e registra como conquista real.
-function detectarConquistasIndividuais(d, cache) {
-  if (!d || !cache) return;
-  const historico = lerHistoricoConquistas();
-  const mesAno = cache.mes ? `${cache.mes.ano}-${cache.mes.mesNum}` : '';
-  let mudou = false;
-
-  const todos = [...(d.extMes || []), ...(d.intMes || [])];
-  todos.forEach(v => {
-    if (v.tipo === 'interno') {
-      const linhaMeta = (cache.metas || []).find(m => m.vendedor_id === v.id);
-      if (!linhaMeta) return;
-      const tiers = [
-        { campo: 'meta_m3', label: 'M3', medalha: '🥉' },
-        { campo: 'meta_m2', label: 'M2', medalha: '🥈' },
-        { campo: 'meta_m1', label: 'M1', medalha: '🥇' },
-      ];
-      tiers.forEach(t => {
-        const meta = linhaMeta[t.campo];
-        if (!meta) return;
-        if (v.vendas >= meta) {
-          const chave = `${v.id}_${t.campo}_${mesAno}`;
-          const texto = `${t.medalha} ${v.nome} bateu a ${t.label} do mês!`;
-          if (registrarConquista(historico, chave, texto)) mudou = true;
-        }
-      });
-    } else if (v.tipo === 'externo' && v.meta) {
-      if (v.vendas >= v.meta) {
-        const chave = `${v.id}_meta_vendas_${mesAno}`;
-        const texto = `🏆 ${v.nome} bateu a meta de vendas do mês!`;
-        if (registrarConquista(historico, chave, texto)) mudou = true;
-      }
-    }
+function atualizarCarrosselConquistas(direcao) {
+  const trilho = document.querySelector('#conquistasGrid .conquistas-track');
+  const pontos = [...document.querySelectorAll('#conquistasGrid [data-conquista-ponto]')];
+  if (!trilho || !pontos.length) return;
+  _conquistasIndice = (_conquistasIndice + direcao + pontos.length) % pontos.length;
+  trilho.style.transform = `translateX(-${_conquistasIndice * 100}%)`;
+  pontos.forEach((ponto, indice) => {
+    ponto.classList.toggle('ativo', indice === _conquistasIndice);
+    ponto.setAttribute('aria-current', indice === _conquistasIndice ? 'true' : 'false');
   });
-
-  if (mudou) salvarHistoricoConquistas(historico);
 }
 
-// ---------- Conquistas Recentes ----------
 function renderConquistas() {
-  const historico = lerHistoricoConquistas();
-  const lista = historico.slice(0, 8).map(c => ({ texto: c.texto, quando: formatarDataRelativa(c.data) }));
-  document.getElementById('conquistasGrid').innerHTML = lista.map(c => `
-    <div class="conquista-card">
-      <span class="conquista-texto">${c.texto}</span>
-      ${c.quando ? `<span class="conquista-quando">${c.quando}</span>` : ''}
+  const container = document.getElementById('conquistasGrid');
+  if (!container) return;
+  if (_conquistasTimer) { clearInterval(_conquistasTimer); _conquistasTimer = null; }
+  _conquistasIndice = 0;
+  const mesEl = document.getElementById('conquistasMes');
+  if (mesEl) mesEl.textContent = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+
+  const { lista = [], erro = false } = _cache.conquistasGlobais || {};
+  if (!lista.length) {
+    container.innerHTML = `<div class="conquistas-vazio">${erro
+      ? 'Conquistas de todas as filiais indisponíveis. Aplique a atualização do Supabase para carregar este painel.'
+      : 'Nenhuma meta individual foi atingida neste mês.'}</div>`;
+    return;
+  }
+
+  const esc = escapeHtmlText;
+  const medalha = conquista => conquista === 'M1' ? '🥇' : conquista === 'M2' ? '🥈' : conquista === 'M3' ? '🥉' : '🏆';
+  container.innerHTML = `
+    <div class="conquistas-carousel" role="region" aria-label="Conquistas deste mês de todas as filiais">
+      <button type="button" class="conquista-nav" data-conquista-anterior aria-label="Conquista anterior">‹</button>
+      <div class="conquistas-viewport" aria-live="polite">
+        <div class="conquistas-track">${lista.map(c => `
+          <article class="conquista-card">
+            <div class="conquista-card-top"><span class="conquista-medalha">${medalha(c.conquista)}</span><span class="conquista-filial">${esc(c.filial_nome || 'Filial')}</span></div>
+            <strong class="conquista-vendedor">${esc(c.vendedor_nome || 'Vendedor')}</strong>
+            <span class="conquista-texto">atingiu a meta <b>${esc(c.conquista || 'do mês')}</b></span>
+            <span class="conquista-quando">${esc(c.vendas)} de ${esc(c.meta)} vendas · neste mês</span>
+          </article>`).join('')}
+        </div>
+      </div>
+      <button type="button" class="conquista-nav" data-conquista-proxima aria-label="Próxima conquista">›</button>
     </div>
-  `).join('') || '<div style="color:var(--text-muted);font-size:0.82rem;padding:16px;">Nenhuma conquista registrada ainda.</div>';
+    <div class="conquistas-pontos" role="tablist" aria-label="Selecionar conquista">${lista.map((_, i) => `<button type="button" data-conquista-ponto="${i}" class="${i === 0 ? 'ativo' : ''}" aria-label="Conquista ${i + 1} de ${lista.length}" aria-current="${i === 0}"></button>`).join('')}</div>`;
+
+  container.querySelector('[data-conquista-anterior]')?.addEventListener('click', () => atualizarCarrosselConquistas(-1));
+  container.querySelector('[data-conquista-proxima]')?.addEventListener('click', () => atualizarCarrosselConquistas(1));
+  container.querySelectorAll('[data-conquista-ponto]').forEach(ponto => ponto.addEventListener('click', () => {
+    const destino = Number(ponto.dataset.conquistaPonto);
+    atualizarCarrosselConquistas((destino - _conquistasIndice + lista.length) % lista.length);
+  }));
+
+  if (lista.length > 1 && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    if (!_conquistasEventosBound) {
+      container.addEventListener('mouseenter', () => { _conquistasPausado = true; });
+      container.addEventListener('mouseleave', () => { _conquistasPausado = false; });
+      container.addEventListener('focusin', () => { _conquistasPausado = true; });
+      container.addEventListener('focusout', event => {
+        if (!container.contains(event.relatedTarget)) _conquistasPausado = false;
+      });
+      _conquistasEventosBound = true;
+    }
+    _conquistasTimer = setInterval(() => {
+      if (!_conquistasPausado && !document.hidden) atualizarCarrosselConquistas(1);
+    }, 6500);
+  }
 }
 
 // ================================================================
@@ -967,6 +965,7 @@ let _cache = {
   vendasOrigemSemana: [], vendasOrigemSemanaAnterior: [], vendasOrigemMes: [],
   vendaMaisRecente: null,
   semana: null, mes: null,
+  conquistasGlobais: { lista: [], erro: false },
 };
 // Último resultado de processarDadosParaRender(), guardado por renderAll()
 // para o card "Status do Caçador" reaproveitar (sem recalcular tudo de
@@ -1082,7 +1081,8 @@ async function carregarDados() {
     // Carregar os dados da filial selecionada em paralelo.
     const [planos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
-           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, destaquesRenovacao, configSite] = await Promise.all([
+           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, destaquesRenovacao, configSite,
+           conquistasGlobais] = await Promise.all([
       loadPlanos(),
       loadAdicionais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
@@ -1098,6 +1098,10 @@ async function carregarDados() {
       loadVendasOrigem(_cache.mes.de, _cache.mes.ate),
       loadDestaquesRenovacao(),
       loadConfigSite(),
+      carregarConquistasGlobais().catch(err => {
+        console.warn('[carregarConquistasGlobais]', err);
+        return { lista: [], erro: true };
+      }),
     ]);
 
     _cache.vendedores = vendedores;
@@ -1114,6 +1118,7 @@ async function carregarDados() {
     _cache.vendasOrigemSemana = vendasOrigemSemana;
     _cache.vendasOrigemSemanaAnterior = vendasOrigemSemanaAnterior;
     _cache.vendasOrigemMes = vendasOrigemMes;
+    _cache.conquistasGlobais = conquistasGlobais;
     const [vendasFechados, vendasFechadosOrigem] = await Promise.all([pFechados, pFechadosOrigem]);
     _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(
       m, vendasFechados[i], vendedores,
@@ -1809,7 +1814,6 @@ function renderAll(cache) {
   renderRenovacaoCancelamento(d);
   renderEvolucaoChart(d.evolucaoSemana);
   renderDonutChart(d.vendasPorPlano);
-  detectarConquistasIndividuais(d, cache);
   renderConquistas();
 
   // Pódios: sempre dados reais do Supabase

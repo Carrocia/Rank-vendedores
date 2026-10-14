@@ -999,25 +999,31 @@
   .donut-legend-nome { color: var(--heading-color); font-weight: 700; flex: 1; }
   .donut-legend-valor { color: var(--text-muted); font-size: 0.78rem; }
 
-  /* ---------- Conquistas Recentes ---------- */
-  .conquistas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+  /* ---------- Conquistas mensais em carrossel ---------- */
+  .conquistas-grid { min-width: 0; }
+  .conquistas-carousel { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; align-items: center; gap: 10px; }
+  .conquistas-viewport { min-width: 0; overflow: hidden; border-radius: 16px; }
+  .conquistas-track { display: flex; transition: transform 0.55s cubic-bezier(.22,.7,.2,1); will-change: transform; }
   .conquista-card {
+    flex: 0 0 100%; box-sizing: border-box; min-height: 126px;
     background: linear-gradient(135deg, var(--surface), var(--surface-hover));
-    border: 1px solid var(--border); border-left: 3px solid var(--accent);
-    border-radius: 14px; padding: 16px 18px;
+    border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 14px; padding: 18px 22px;
     display: flex; flex-direction: column; gap: 8px;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-    opacity: 0; transform: translateY(16px);
-    animation: conquistaEnter 0.5s ease forwards;
+    justify-content: center;
   }
-  @keyframes conquistaEnter { to { opacity: 1; transform: translateY(0); } }
-  .conquista-card:nth-child(1) { animation-delay: 0.05s; }
-  .conquista-card:nth-child(2) { animation-delay: 0.15s; }
-  .conquista-card:nth-child(3) { animation-delay: 0.25s; }
-  .conquista-card:nth-child(4) { animation-delay: 0.35s; }
-  .conquista-card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px var(--shadow-hover); }
+  .conquista-card-top { display: flex; align-items: center; gap: 10px; }
+  .conquista-medalha { font-size: 1.15rem; }
+  .conquista-filial { color: var(--accent); font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+  .conquista-vendedor { color: var(--heading-color); font-size: 1.08rem; }
   .conquista-texto { font-size: 0.84rem; color: var(--text); line-height: 1.4; }
-  .conquista-quando { font-size:0.72rem; color: var(--text-muted); font-weight: 600; }
+  .conquista-quando { font-size: .75rem; color: var(--text-muted); font-weight: 600; }
+  .conquista-nav { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--heading-color); font-size: 1.5rem; cursor: pointer; transition: background .2s, transform .2s; }
+  .conquista-nav:hover { background: var(--surface-hover); transform: scale(1.06); }
+  .conquistas-pontos { display: flex; justify-content: center; gap: 7px; margin-top: 12px; }
+  .conquistas-pontos button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 99px; background: var(--text-muted); opacity: .4; cursor: pointer; transition: width .25s, opacity .25s, background .25s; }
+  .conquistas-pontos button.ativo { width: 22px; opacity: 1; background: var(--accent); }
+  .conquistas-vazio { padding: 22px; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+  @media (prefers-reduced-motion: reduce) { .conquistas-track, .conquista-nav, .conquistas-pontos button { transition: none; } }
 
   @media (max-width: 900px) {
     .podium-cols, .ranking-full { grid-template-columns: 1fr; }
@@ -1026,6 +1032,9 @@
   @media (max-width: 640px) {
     .hero-panel { padding: 24px; gap: 22px; }
     .header-logo { width: 68px; }
+    .conquistas-carousel { grid-template-columns: 30px minmax(0, 1fr) 30px; gap: 6px; }
+    .conquista-nav { width: 30px; height: 30px; font-size: 1.2rem; }
+    .conquista-card { min-height: 136px; padding: 16px; }
     .goal-card { padding: 22px; gap: 20px; }
     .goal-ring-wrap { width: 108px; height: 108px; }
     .podium-stand { width: 100px; }
