@@ -1251,7 +1251,7 @@ function renderTabelaPlanos(planos) {
 
   const lista = Array.isArray(planos) ? planos : [];
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhum plano encontrado no Supabase.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Nenhum plano encontrado no Supabase.</td></tr>';
     return;
   }
 
@@ -1261,6 +1261,7 @@ function renderTabelaPlanos(planos) {
     const nome = String(plano.nome || '');
     if (/\b(empresas?|corporativo|empresarial)\b/i.test(nome)) return 'Empresarial';
     if (/\bplay\b/i.test(nome)) return 'Residencial + Streaming';
+    if (/\b(r[aá]dio|wireless)\b/i.test(nome)) return 'Via Rádio';
     return 'Residencial';
   };
   const moeda = valor => {
@@ -1273,6 +1274,7 @@ function renderTabelaPlanos(planos) {
   tbody.replaceChildren();
   lista.forEach(plano => {
     const tr = document.createElement('tr');
+    const ativo = plano.ativo !== false;
     const valores = [
       plano.nome || '—',
       plano.velocidade_mb != null ? `${plano.velocidade_mb} Mbps` : '—',
@@ -1284,8 +1286,166 @@ function renderTabelaPlanos(planos) {
       td.textContent = String(valor);
       tr.appendChild(td);
     });
+
+    const statusCell = document.createElement('td');
+    const statusBadge = document.createElement('span');
+    statusBadge.className = `adm-plano-status ${ativo ? 'is-ativo' : 'is-inativo'}`;
+    statusBadge.textContent = ativo ? 'Ativo' : 'Inativo';
+    statusCell.appendChild(statusBadge);
+    tr.appendChild(statusCell);
+
+    const actionsCell = document.createElement('td');
+    const actions = document.createElement('div');
+    actions.className = 'adm-plano-actions';
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'adm-btn adm-btn-secondary adm-btn-inline adm-btn-small';
+    editButton.textContent = 'Editar';
+    editButton.addEventListener('click', () => editarPlanoCatalogo(plano.id));
+    const statusButton = document.createElement('button');
+    statusButton.type = 'button';
+    statusButton.className = ativo
+      ? 'adm-btn adm-btn-danger adm-btn-inline adm-btn-small'
+      : 'adm-btn adm-btn-secondary adm-btn-inline adm-btn-small';
+    statusButton.textContent = ativo ? 'Inativar' : 'Reativar';
+    statusButton.addEventListener('click', () => alternarAtivoPlano(plano.id));
+    actions.append(editButton, statusButton);
+    actionsCell.appendChild(actions);
+    tr.appendChild(actionsCell);
     tbody.appendChild(tr);
   });
+}
+
+function normalizarNomePlano(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('pt-BR');
+}
+
+function cancelarEdicaoPlano() {
+  const form = document.getElementById('adm-plano-form');
+  if (!form) return;
+  form.reset();
+  document.getElementById('adm-plano-id').value = '';
+  document.getElementById('adm-plano-ativo').checked = true;
+  document.getElementById('adm-plano-form-title').textContent = 'Cadastrar plano';
+  document.getElementById('adm-plano-submit').textContent = 'Cadastrar plano';
+  document.getElementById('adm-plano-cancelar').hidden = true;
+}
+
+function editarPlanoCatalogo(id) {
+  if (!ehSuperAdminAtual()) {
+    showToast('Somente o superadministrador pode editar planos.', 'error');
+    return;
+  }
+  const plano = (_cache.planos || []).find(item => String(item.id) === String(id));
+  if (!plano) {
+    showToast('Não encontrei esse plano no catálogo atualizado.', 'warning');
+    return;
+  }
+
+  document.getElementById('adm-plano-id').value = String(plano.id);
+  document.getElementById('adm-plano-nome').value = plano.nome || '';
+  document.getElementById('adm-plano-velocidade').value = plano.velocidade_mb ?? '';
+  document.getElementById('adm-plano-valor').value = plano.valor ?? '';
+  document.getElementById('adm-plano-ativo').checked = plano.ativo !== false;
+  document.getElementById('adm-plano-form-title').textContent = 'Editar plano';
+  document.getElementById('adm-plano-submit').textContent = 'Salvar alterações';
+  document.getElementById('adm-plano-cancelar').hidden = false;
+  document.getElementById('adm-plano-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function salvarPlanoCatalogo(event) {
+  event?.preventDefault();
+  if (!ehSuperAdminAtual() || !window._supabase) {
+    showToast('Somente o superadministrador pode cadastrar ou editar planos.', 'error');
+    return;
+  }
+
+  const id = document.getElementById('adm-plano-id').value.trim();
+  const nome = document.getElementById('adm-plano-nome').value.trim();
+  const velocidade = Number(document.getElementById('adm-plano-velocidade').value);
+  const valor = Number(document.getElementById('adm-plano-valor').value);
+  const ativo = document.getElementById('adm-plano-ativo').checked;
+  const submit = document.getElementById('adm-plano-submit');
+
+  if (!nome || !Number.isInteger(velocidade) || velocidade < 1 || !Number.isFinite(valor) || valor <= 0) {
+    showToast('Informe o nome, uma velocidade inteira válida e um valor mensal maior que zero.', 'warning');
+    return;
+  }
+
+  const nomeNormalizado = normalizarNomePlano(nome);
+  const duplicado = (_cache.planos || []).find(plano =>
+    String(plano.id) !== id &&
+    normalizarNomePlano(plano.nome) === nomeNormalizado &&
+    Number(plano.velocidade_mb) === velocidade
+  );
+  if (duplicado) {
+    showToast(
+      duplicado.ativo === false
+        ? 'Já existe um plano inativo com esse nome e velocidade. Edite-o e reative-o para evitar duplicidade.'
+        : 'Já existe um plano com esse nome e velocidade no catálogo.',
+      'warning'
+    );
+    return;
+  }
+
+  const payload = { nome, velocidade_mb: velocidade, valor, ativo };
+  const textoOriginal = submit.textContent;
+  submit.disabled = true;
+  submit.textContent = id ? 'Salvando…' : 'Cadastrando…';
+  try {
+    const requisicao = id
+      ? window._supabase.from('planos').update(payload).eq('id', id)
+      : window._supabase.from('planos').insert([payload]);
+    const { error } = await requisicao;
+    if (error) throw error;
+
+    cancelarEdicaoPlano();
+    await carregarDados();
+    showToast(id ? 'Plano atualizado no catálogo.' : 'Plano cadastrado no catálogo.', 'success');
+  } catch (error) {
+    console.error('[salvarPlanoCatalogo]', error);
+    showToast(error.message || 'Não foi possível salvar o plano.', 'error');
+  } finally {
+    submit.disabled = false;
+    if (document.getElementById('adm-plano-id').value) {
+      submit.textContent = 'Salvar alterações';
+    } else {
+      submit.textContent = textoOriginal === 'Salvar alterações' ? 'Cadastrar plano' : textoOriginal;
+    }
+  }
+}
+
+async function alternarAtivoPlano(id) {
+  if (!ehSuperAdminAtual() || !window._supabase) {
+    showToast('Somente o superadministrador pode alterar a situação dos planos.', 'error');
+    return;
+  }
+  const plano = (_cache.planos || []).find(item => String(item.id) === String(id));
+  if (!plano) {
+    showToast('Não encontrei esse plano no catálogo atualizado.', 'warning');
+    return;
+  }
+  const novoAtivo = plano.ativo === false;
+  const acao = novoAtivo ? 'reativar' : 'inativar';
+  if (!window.confirm(`Deseja ${acao} “${plano.nome} ${plano.velocidade_mb} Mbps”? ${novoAtivo ? 'Ele voltará a aparecer nas novas vendas.' : 'Ele deixará de aparecer nas novas vendas, e as vendas antigas serão preservadas.'}`)) return;
+
+  try {
+    const { error } = await window._supabase
+      .from('planos')
+      .update({ ativo: novoAtivo })
+      .eq('id', id);
+    if (error) throw error;
+    await carregarDados();
+    showToast(novoAtivo ? 'Plano reativado para novas vendas.' : 'Plano inativado; vendas antigas preservadas.', 'success');
+  } catch (error) {
+    console.error('[alternarAtivoPlano]', error);
+    showToast(error.message || 'Não foi possível alterar a situação do plano.', 'error');
+  }
 }
 
 function popularAdicionaisFormulario(adicionais) {

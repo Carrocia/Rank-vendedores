@@ -435,6 +435,15 @@ body.adm-modal-open { overflow: hidden; }
 }
 .adm-badge.interno { background: rgba(var(--accent-rgb),0.12); color: var(--accent); }
 .adm-badge.externo { background: rgba(252,201,77,0.12); color: #fcc94d; }
+.adm-plano-status { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+.adm-plano-status.is-ativo { color: #34d399; background: rgba(52,211,153,0.1); }
+.adm-plano-status.is-inativo { color: var(--text-muted); background: rgba(148,163,184,0.1); }
+.adm-plano-actions { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.adm-plano-actions .adm-btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+#sec-planos .adm-section-heading-row > div { min-width: min(100%, 540px); }
+#sec-planos .adm-section-heading-row .adm-muted-copy { margin: 5px 0 0; }
+#sec-planos .adm-form-grid > .adm-inline-checkbox { margin: -4px 0 0; }
+#sec-planos .adm-form-grid > .adm-inline-checkbox input { accent-color: var(--accent); }
 
 .adm-btn-status {
   font-size: 0.72rem; font-weight: 700; white-space: nowrap;
