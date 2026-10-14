@@ -880,15 +880,14 @@
     font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif;
     margin-bottom: 50px;
   }
-  .churn-panel { min-width: 0; }
+  .churn-panel { min-width: 0; display: flex; flex-direction: column; }
   .churn-panel-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
   .churn-panel-title {
     font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif;
     font-size: 0.94rem; font-weight: 800;
     letter-spacing: .2px; color: var(--heading-color); margin: 0 0 5px;
   }
-  .churn-panel-desc { margin: 0; font-size: .76rem; line-height: 1.5; color: var(--text-muted); }
-  .churn-grid { display: block; }
+  .churn-grid { display: flex; flex: 1; }
 
   .churn-card {
     position: relative;
@@ -950,6 +949,7 @@
   /* Um único painel mostra o avanço e as metas como etapas. */
   .milestone-card { width: 100%; box-sizing: border-box; }
   .churn-card.milestone-card {
+    display: flex; flex: 1; flex-direction: column; min-height: 258px;
     padding: 22px 24px;
     border-top: 3px solid var(--churn-accent, var(--accent));
     background: linear-gradient(135deg, rgba(var(--accent-rgb),.055), rgba(var(--accent2-rgb),.035) 62%, rgba(255,255,255,.015));
@@ -970,7 +970,7 @@
   .milestone-message.is-complete { color: #34d399; }
   .milestone-message.is-exceeded { color: var(--danger); }
   .milestone-submessage { margin-top: 5px; color: var(--text-muted); font-size: .75rem; }
-  .milestone-steps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+  .milestone-steps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 17px; }
   .milestone-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.025); color: var(--text-muted); font-size: .72rem; }
   .milestone-chip b { color: var(--heading-color); font-size: .7rem; }
   .milestone-chip small { font-size: .66rem; }
@@ -997,7 +997,7 @@
     .milestone-current { min-width: 0; }
     .churn-card.milestone-card, .meta-filial-card.milestone-card { padding: 20px 17px; }
     .milestone-chip { padding: 7px 8px; }
-    .churn-panel-desc { max-width: 44ch; }
+    .churn-card.milestone-card { min-height: 0; }
   }
 
   /* ---------- Evolução da Semana ---------- */
