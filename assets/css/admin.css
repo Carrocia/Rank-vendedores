@@ -684,15 +684,21 @@ body.adm-modal-open { overflow: hidden; }
 /* Navegação administrativa em formato de app nas telas pequenas. */
 .adm-mobile-dock, .adm-mobile-scrim { display: none; }
 @media (max-width: 640px) {
-  #adm-panel-overlay { align-items: stretch; padding: 0 0 calc(76px + env(safe-area-inset-bottom)); }
-  #adm-panel { max-width: none; min-height: 100dvh; }
+  #adm-panel-overlay {
+    align-items: stretch; padding: 0; overflow: hidden;
+  }
+  #adm-panel { max-width: none; width: 100%; height: 100dvh; min-height: 0; overflow: hidden; }
   .adm-panel-header {
-    position: sticky; top: 0; z-index: 950; align-items: center; flex-direction: row;
-    gap: 8px; padding: 12px 14px; margin: 0; background: #12141d;
+    position: relative; z-index: 2; flex: 0 0 auto; align-items: center; flex-direction: row;
+    gap: 8px; min-height: 76px; padding: 12px 14px; margin: 0;
+    background: #12141d; border-bottom: 1px solid rgba(255,255,255,.08);
   }
   .adm-panel-title { font-size: .9rem; }
   .adm-panel-user { max-width: 42%; overflow: hidden; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
-  .adm-panel-inner { display: block; min-height: 0; padding-bottom: 86px; }
+  .adm-panel-inner {
+    position: relative; display: block; flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
+    overscroll-behavior: contain; padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  }
   .adm-sidebar {
     position: fixed; z-index: 1060; right: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); left: 12px;
     display: none; width: auto; max-height: min(68dvh, 560px); overflow-y: auto;
