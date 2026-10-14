@@ -116,7 +116,6 @@
       var decor = document.createElement('div');
       decor.className = 'natal-decor';
       decor.setAttribute('aria-hidden', 'true');
-      decor.appendChild(imagemNatal('neve-rodape.png', 'natal-neve'));
       decor.appendChild(imagemNatal('arvore.png', 'natal-arvore'));
       decor.appendChild(imagemNatal('presente.png', 'natal-presente'));
       decor.appendChild(imagemNatal('enfeites.png', 'natal-enfeites'));
