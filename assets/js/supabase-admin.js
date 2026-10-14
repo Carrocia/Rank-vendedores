@@ -2786,10 +2786,13 @@ function adm_navigateTo(sectionId) {
     showToast('Somente o superadministrador pode abrir esta área.', 'error');
     return;
   }
+  document.getElementById('adm-panel')?.classList.remove('adm-mobile-menu-open');
+  document.querySelector('.adm-mobile-dock [data-adm-mobile-menu]')?.setAttribute('aria-expanded', 'false');
   document.querySelectorAll('.adm-nav-item').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
   document.querySelector(`.adm-nav-item[data-section="${sectionId}"]`)?.classList.add('active');
   document.getElementById('sec-' + sectionId)?.classList.add('active');
+  document.dispatchEvent(new CustomEvent('adm:sectionchange', { detail: { sectionId } }));
   if (sectionId === 'vendedores') {
     prepararCadastroVendedor();
     carregarVendedoresGerenciamento();

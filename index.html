@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ranking de Vendas | UNI Internet</title>
 <meta name="description" content="Ranking de vendas, metas e destaques da equipe comercial UNI Internet.">
 <meta name="theme-color" content="#060810" media="(prefers-color-scheme: dark)">
@@ -136,7 +136,7 @@
   </div>
 
   <!-- ===== ABAS NO TOPO ===== -->
-  <div class="tabs-row">
+  <div class="tabs-row" id="publicRankingStart">
     <div class="tab-bar anim-in" role="tablist">
       <button type="button" class="tab-button active" data-tab="semanal" role="tab" aria-selected="true">📅 Ranking Semanal</button>
       <button type="button" class="tab-button" data-tab="mensal" role="tab" aria-selected="false">📆 Ranking Mensal</button>
@@ -183,7 +183,7 @@
   </section>
 
   <!-- ===== SEÇÃO: DESTAQUES DA SEMANA ===== -->
-  <section class="podium-section">
+  <section class="podium-section" id="publicHighlights">
     <h2>🏆 Destaques da Semana</h2>
     <div class="destaques-grid" id="destaquesGrid"></div>
   </section>
@@ -237,7 +237,7 @@
   </section>
 
   <!-- ===== RENOVAÇÕES E RISCO DE CHURN DO MÊS (sempre mensal) ===== -->
-  <div class="churn-dash">
+  <div class="churn-dash" id="publicRenovacoes">
     <section class="churn-panel churn-panel-renov">
       <div class="churn-panel-head">
         <div><h2 class="churn-panel-title" id="renovacoesTitle">Renovações deste mês</h2></div>
@@ -267,7 +267,7 @@
   </div>
 
   <!-- ===== EVOLUÇÃO DA SEMANA ===== -->
-  <section class="podium-section">
+  <section class="podium-section" id="publicEvolution">
     <h2>📈 Evolução da Semana</h2>
     <div class="evo-chart-card">
       <div class="evo-chart" id="evolucaoChart"></div>
@@ -275,7 +275,7 @@
   </section>
 
   <!-- ===== VENDAS POR TIPO DE PLANO ===== -->
-  <section class="podium-section">
+  <section class="podium-section" id="publicPlanSales">
     <h2>📊 Vendas por Tipo de Plano</h2>
     <div class="donut-card">
       <div class="donut-wrap">
@@ -291,12 +291,29 @@
   </section>
 
   <!-- ===== CONQUISTAS RECENTES ===== -->
-  <section class="podium-section">
+  <section class="podium-section" id="publicConquistas">
     <h2>🏆 Conquistas de <span id="conquistasMes">este mês</span> · todas as filiais</h2>
     <div class="conquistas-grid" id="conquistasGrid"></div>
   </section>
 
   <footer class="dashboard-footer">Ranking atualizado manualmente pela equipe comercial regional</footer>
+
+  <nav class="mobile-public-nav" id="mobilePublicNav" aria-label="Navegação pública">
+    <button type="button" data-mobile-public="inicio" aria-current="page"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-dashboard"/></svg><span>Início</span></button>
+    <button type="button" data-mobile-public="ranking"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg><span>Ranking</span></button>
+    <button type="button" data-mobile-public="destaques"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg><span>Destaques</span></button>
+    <button type="button" data-mobile-public="mais" aria-expanded="false" aria-controls="mobilePublicMore"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg><span>Mais</span></button>
+  </nav>
+  <div class="mobile-public-more" id="mobilePublicMore" hidden>
+    <div class="mobile-public-more-head"><strong>Mais informações</strong><button type="button" data-mobile-close aria-label="Fechar menu">×</button></div>
+    <button type="button" data-mobile-scroll="metasFilialSection">Metas da filial</button>
+    <button type="button" data-mobile-scroll="publicRenovacoes">Renovações e cancelamentos</button>
+    <button type="button" data-mobile-scroll="muralSection">Mural de destaques</button>
+    <button type="button" data-mobile-scroll="publicEvolution">Evolução da semana</button>
+    <button type="button" data-mobile-scroll="publicPlanSales">Vendas por plano</button>
+    <button type="button" data-mobile-scroll="publicConquistas">Conquistas</button>
+    <button type="button" class="mobile-admin-login" id="mobileAdminLogin">Acesso administrativo</button>
+  </div>
 </div>
 
 <div class="celebration-overlay" id="celebrationOverlay">
@@ -1359,6 +1376,14 @@
 
       </main>
     </div><!-- fim adm-panel-inner -->
+    <button type="button" class="adm-mobile-scrim" data-adm-mobile-close aria-label="Fechar menu administrativo"></button>
+    <nav class="adm-mobile-dock" aria-label="Navegação administrativa">
+      <button type="button" data-adm-mobile-section="dashboard"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-dashboard"/></svg><span>Início</span></button>
+      <button type="button" data-adm-mobile-section="ranking-adm"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg><span>Ranking</span></button>
+      <button type="button" class="adm-mobile-sell" data-adm-mobile-section="nova-venda"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plus"/></svg><span>Nova venda</span></button>
+      <button type="button" data-adm-mobile-section="adicionais"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plug"/></svg><span>Vendas</span></button>
+      <button type="button" data-adm-mobile-menu aria-expanded="false"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg><span>Mais</span></button>
+    </nav>
   </div><!-- fim adm-panel -->
 </div><!-- fim adm-panel-overlay -->
 
@@ -1514,5 +1539,6 @@
   </div>
 </div>
 
+<script src="assets/js/mobile-app.js"></script>
 </body>
 </html>

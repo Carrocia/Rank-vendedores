@@ -1238,3 +1238,46 @@
     background: rgba(255,255,255,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px;
   }
   .tv-ctrls button:hover { border-color: var(--accent); }
+}
+
+/* Navegação mobile pública: atalhos somente para conteúdo público. */
+.mobile-public-nav, .mobile-public-more { display: none; }
+@media (max-width: 640px) {
+  .page-shell { padding: 76px 14px calc(104px + env(safe-area-inset-bottom)); }
+  .mobile-public-nav {
+    position: fixed; z-index: 700; right: 0; bottom: 0; left: 0;
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--surface-solid); backdrop-filter: blur(18px);
+  }
+  .mobile-public-nav button {
+    display: flex; min-width: 0; min-height: 52px; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+    border: 0; border-radius: 12px; background: transparent;
+    color: var(--text-muted); font: 600 0.66rem 'Poppins', sans-serif;
+  }
+  .mobile-public-nav button[aria-current="page"] {
+    background: rgba(var(--accent-rgb), 0.1); color: var(--accent);
+  }
+  .mobile-public-nav .adm-icon { width: 19px; height: 19px; }
+  .mobile-public-more {
+    position: fixed; z-index: 710; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom));
+    display: flex; max-height: min(70vh, 520px); flex-direction: column; gap: 3px;
+    width: min(340px, calc(100vw - 24px)); overflow-y: auto;
+    padding: 12px; border: 1px solid var(--border); border-radius: 18px;
+    background: var(--surface-solid); box-shadow: 0 18px 54px rgba(0,0,0,.42);
+  }
+  .mobile-public-more[hidden] { display: none; }
+  .mobile-public-more-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 7px 9px; color: var(--heading-color); }
+  .mobile-public-more-head strong { font-size: .9rem; font-weight: 700; }
+  .mobile-public-more button {
+    min-height: 46px; padding: 11px 12px; border: 0; border-radius: 10px;
+    background: transparent; color: var(--text); font: 500 .82rem 'Poppins', sans-serif; text-align: left;
+  }
+  .mobile-public-more button:hover, .mobile-public-more button:focus-visible { background: var(--surface-hover); }
+  .mobile-public-more-head button { min-width: 42px; min-height: 42px; padding: 0; text-align: center; font-size: 1.35rem; }
+  .mobile-public-more .mobile-admin-login { margin-top: 7px; border-top: 1px solid var(--border); color: var(--accent); }
+  #adm-trigger { display: none; }
+  html[data-tv] .mobile-public-nav, html[data-tv] .mobile-public-more { display: none !important; }
+}

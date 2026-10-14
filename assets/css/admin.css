@@ -680,3 +680,58 @@ body.adm-modal-open { overflow: hidden; }
 .tema-opt strong { display: block; font-size: 0.84rem; }
 .tema-opt small { color: var(--text-muted); font-size: 0.72rem; }
 .tema-check { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; margin: 6px 0 18px; cursor: pointer; }
+
+/* Navegação administrativa em formato de app nas telas pequenas. */
+.adm-mobile-dock, .adm-mobile-scrim { display: none; }
+@media (max-width: 640px) {
+  #adm-panel-overlay { align-items: stretch; padding: 0 0 calc(76px + env(safe-area-inset-bottom)); }
+  #adm-panel { max-width: none; min-height: 100dvh; }
+  .adm-panel-header {
+    position: sticky; top: 0; z-index: 950; align-items: center; flex-direction: row;
+    gap: 8px; padding: 12px 14px; margin: 0; background: #12141d;
+  }
+  .adm-panel-title { font-size: .9rem; }
+  .adm-panel-user { max-width: 42%; overflow: hidden; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+  .adm-panel-inner { display: block; min-height: 0; padding-bottom: 86px; }
+  .adm-sidebar {
+    position: fixed; z-index: 1060; right: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); left: 12px;
+    display: none; width: auto; max-height: min(68dvh, 560px); overflow-y: auto;
+    flex-direction: column; flex-wrap: nowrap; gap: 3px; padding: 12px;
+    border-radius: 18px; background: #12141d; box-shadow: 0 20px 55px rgba(0,0,0,.5);
+  }
+  #adm-panel.adm-mobile-menu-open .adm-sidebar { display: flex; }
+  .adm-sidebar-logo { display: none; }
+  .adm-sidebar-group-label { padding: 13px 8px 5px; }
+  .adm-nav-item, .adm-nav-item.active {
+    display: flex; min-width: 0; min-height: 46px; flex: 0 0 auto; flex-direction: row;
+    align-items: center; gap: 11px; padding: 9px 10px; border: 0 !important;
+    border-radius: 10px; font-size: .78rem; text-align: left;
+  }
+  .adm-nav-item.active { background: rgba(var(--accent-rgb),.12); }
+  .adm-nav-item.danger { margin-top: 5px; border-top: 1px solid rgba(255,255,255,.08) !important; }
+  .adm-content { gap: 18px; padding: 14px; }
+  .adm-section.active { gap: 16px; }
+  .adm-mobile-scrim { position: fixed; z-index: 1050; inset: 0; border: 0; background: rgba(3,5,10,.62); }
+  #adm-panel.adm-mobile-menu-open .adm-mobile-scrim { display: block; }
+  .adm-mobile-dock {
+    position: fixed; z-index: 1080; right: 0; bottom: 0; left: 0;
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 7px 5px calc(7px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255,255,255,.1); background: #12141d;
+    box-shadow: 0 -10px 30px rgba(0,0,0,.24);
+  }
+  .adm-mobile-dock button {
+    display: flex; min-width: 0; min-height: 50px; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+    border: 0; border-radius: 11px; background: transparent;
+    color: var(--text-muted); font: 600 .62rem 'Poppins', sans-serif;
+  }
+  .adm-mobile-dock button[aria-current="page"] { color: var(--accent); background: rgba(var(--accent-rgb),.1); }
+  .adm-mobile-dock .adm-icon { width: 19px; height: 19px; }
+  .adm-mobile-dock button.adm-mobile-sell {
+    min-height: 56px; margin-top: -14px; border: 1px solid rgba(var(--accent-rgb),.4);
+    background: linear-gradient(135deg, var(--accent), #17b8d8); color: #061018;
+  }
+  .adm-mobile-dock button.adm-mobile-sell[aria-current="page"] { background: linear-gradient(135deg, var(--accent), #17b8d8); color: #061018; }
+  #adm-login-overlay { align-items: center; padding: 18px; }
+}
