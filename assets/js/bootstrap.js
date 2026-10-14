@@ -152,9 +152,10 @@
     decorar();
   };
 
-  // 1) data  2) (depois do carregamento) escolha salva no ADM  3) ?tema= na URL
+  // Mantém o tema base até carregar a configuração do ADM no Supabase.
+  // Isso evita um flash do tema sazonal do calendário antes do tema salvo.
   var q = null, fxUrl = true;
   try { var sp = new URLSearchParams(location.search); q = sp.get('tema'); fxUrl = sp.get('fx') !== '0'; } catch (e) {}
   if (q && (TEMAS[q] || q === 'padrao')) { window.__uniTemaFixo = true; window.uniAplicarTema(q, fxUrl); }
-  else { window.uniAplicarTema(window.uniTemaAutomatico(new Date()), fxUrl); }
+  else { window.uniAplicarTema('padrao', fxUrl); }
 })();
