@@ -108,8 +108,16 @@ function identificarFamiliaPlanoIxc(valor) {
 
 function velocidadePlanoIxc(valor) {
   // Alguns planos Via Rádio do IXC usam velocidades de um dígito, como "8 MEGA".
-  const m = String(valor || '').match(/\b(\d{1,4})\s*(?:mega|mbps|mb)\b/i);
-  return m ? Number(m[1]) : null;
+  const texto = String(valor || '').trim();
+  const explicita = texto.match(/\b(\d{1,4})\s*(?:mega|mbps|mb)\b/i);
+  if (explicita) return Number(explicita[1]);
+
+  // Alguns relatórios omitem a unidade: "PLANO 650 UNI FIBRA" ou "Uni Fibra 650".
+  const depoisDoTipo = texto.match(/\b(?:plano|uni|fibra|empresas?|empresarial|enterprise|entreprise|play|radio|wireless|combo|start|vip|eventos?)\s+(\d{1,4})\b/i);
+  if (depoisDoTipo) return Number(depoisDoTipo[1]);
+
+  const antesDoTipo = texto.match(/^\s*(\d{1,4})\b(?=.*\b(?:uni|fibra|empresas?|empresarial|enterprise|entreprise|play|radio|wireless|combo|start|vip|eventos?)\b)/i);
+  return antesDoTipo ? Number(antesDoTipo[1]) : null;
 }
 
 function obterValorPlanoIxc(plano) {
