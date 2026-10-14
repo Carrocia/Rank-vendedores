@@ -1261,6 +1261,7 @@ function renderTabelaPlanos(planos) {
     const nome = String(plano.nome || '');
     if (/\b(empresas?|corporativo|empresarial)\b/i.test(nome)) return 'Empresarial';
     if (/\bplay\b/i.test(nome)) return 'Residencial + Streaming';
+    if (/\b(radio|wireless)\b/i.test(nome)) return 'Via Rádio';
     return 'Residencial';
   };
   const moeda = valor => {
@@ -1286,6 +1287,54 @@ function renderTabelaPlanos(planos) {
     });
     tbody.appendChild(tr);
   });
+}
+
+async function salvarPlanoCatalogo(event) {
+  event?.preventDefault();
+  if (!ehSuperAdminAtual() || !window._supabase) {
+    showToast('Somente o superadministrador pode cadastrar planos.', 'error');
+    return;
+  }
+
+  const nomeEl = document.getElementById('adm-plano-nome');
+  const velocidadeEl = document.getElementById('adm-plano-velocidade');
+  const valorEl = document.getElementById('adm-plano-valor');
+  const botao = document.getElementById('adm-plano-submit');
+  const nome = String(nomeEl?.value || '').trim();
+  const velocidade = Number(velocidadeEl?.value);
+  const valor = Number(valorEl?.value);
+  if (!nome || !Number.isInteger(velocidade) || velocidade < 1 || !Number.isFinite(valor) || valor < 0) {
+    showToast('Confira o nome, a velocidade e o valor mensal do plano.', 'warning');
+    return;
+  }
+
+  const normalizar = texto => String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
+  const duplicado = (_cache.planos || []).some(plano =>
+    normalizar(plano.nome) === normalizar(nome) && Number(plano.velocidade_mb) === velocidade
+  );
+  if (duplicado) {
+    showToast('Esse plano com essa velocidade já está cadastrado.', 'warning');
+    return;
+  }
+
+  if (botao) { botao.disabled = true; botao.textContent = 'Salvando…'; }
+  try {
+    const { error } = await window._supabase.from('planos').insert([{
+      nome,
+      velocidade_mb: velocidade,
+      valor,
+    }]);
+    if (error) throw error;
+
+    document.getElementById('adm-plano-form')?.reset();
+    await carregarDados();
+    showToast('Plano cadastrado e catálogo atualizado.', 'success');
+  } catch (error) {
+    console.error('[salvarPlanoCatalogo]', error);
+    showToast(error.message || 'Não foi possível cadastrar o plano.', 'error');
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = 'Cadastrar plano'; }
+  }
 }
 
 function popularAdicionaisFormulario(adicionais) {
