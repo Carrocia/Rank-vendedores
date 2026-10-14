@@ -78,6 +78,29 @@
   };
 
   var estado = { id: 'padrao', fx: true };
+  var natalTimer = null;
+  function limparNatal() {
+    if (natalTimer) { window.clearTimeout(natalTimer); natalTimer = null; }
+    document.querySelectorAll('.natal-decor, .natal-treno, .natal-gorro').forEach(function (el) { el.remove(); });
+  }
+  function imagemNatal(src, classe, alt) {
+    var img = document.createElement('img');
+    img.src = 'assets/images/natal/' + src;
+    img.className = classe;
+    img.alt = alt || '';
+    img.setAttribute('aria-hidden', 'true');
+    img.draggable = false;
+    return img;
+  }
+  function agendarTreno() {
+    if (estado.id !== 'natal' || !estado.fx || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    natalTimer = window.setTimeout(function () {
+      if (estado.id !== 'natal' || !estado.fx) return;
+      var treno = imagemNatal('treno.gif', 'natal-treno');
+      document.body.appendChild(treno);
+      treno.addEventListener('animationend', function () { treno.remove(); agendarTreno(); }, { once: true });
+    }, 42000 + Math.random() * 26000);
+  }
   function decorar() {
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', decorar, { once: true }); return; }
     var t = TEMAS[estado.id];
@@ -85,14 +108,28 @@
     if (badge) { if (t) { badge.textContent = t.icone + ' ' + t.nome; badge.hidden = false; } else { badge.hidden = true; } }
     var host = document.querySelector('.bg-fx');
     if (!host) return;
+    limparNatal();
     var velho = host.querySelector('.season-fx'); if (velho) velho.remove();
     var reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!t || !estado.fx || reduz) return;
+    if (estado.id === 'natal') {
+      var decor = document.createElement('div');
+      decor.className = 'natal-decor';
+      decor.setAttribute('aria-hidden', 'true');
+      decor.appendChild(imagemNatal('neve-rodape.png', 'natal-neve'));
+      decor.appendChild(imagemNatal('arvore.png', 'natal-arvore'));
+      decor.appendChild(imagemNatal('presente.png', 'natal-presente'));
+      decor.appendChild(imagemNatal('enfeites.png', 'natal-enfeites'));
+      host.appendChild(decor);
+      var logo = document.querySelector('.header-logo');
+      if (logo) logo.appendChild(imagemNatal('gorro.png', 'natal-gorro'));
+      agendarTreno();
+    }
     var box = document.createElement('div'); box.className = 'season-fx'; box.setAttribute('aria-hidden', 'true');
-    var qtd = window.innerWidth < 640 ? 9 : 16;
+    var qtd = estado.id === 'natal' ? (window.innerWidth < 640 ? 13 : 28) : (window.innerWidth < 640 ? 9 : 16);
     for (var i = 0; i < qtd; i++) {
       var sp = document.createElement('span');
-      sp.textContent = t.fx;
+      sp.textContent = estado.id === 'natal' ? (i % 4 === 0 ? '✦' : '❄') : t.fx;
       sp.style.left = (Math.random() * 96).toFixed(1) + '%';
       sp.style.fontSize = (14 + Math.random() * 14).toFixed(0) + 'px';
       sp.style.animationDuration = (16 + Math.random() * 16).toFixed(1) + 's';

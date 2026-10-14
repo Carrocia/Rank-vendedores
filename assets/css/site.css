@@ -1051,6 +1051,42 @@
   .season-fx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
   .season-fx span { position: absolute; top: -12vh; line-height: 1; opacity: 0.45; animation: seasonFall linear infinite; will-change: transform; }
   [data-theme="light"] .season-fx span { opacity: 0.55; }
+  html[data-season="natal"] .season-fx span {
+    color: #f7fcff; opacity: 0.66; font-family: Arial, sans-serif;
+    text-shadow: 0 0 8px rgba(190, 235, 255, 0.7);
+  }
+  html[data-season="natal"] .season-fx span:nth-child(3n) { opacity: 0.36; }
+  html[data-season="natal"] .season-fx span:nth-child(4n) { color: #d9f5ff; }
+  .natal-decor { position: fixed; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
+  .natal-decor img { position: absolute; display: block; height: auto; pointer-events: none; user-select: none; }
+  .natal-neve {
+    left: 0; right: 0; bottom: 0; width: 100%; height: clamp(85px, 14vh, 170px);
+    object-fit: cover; object-position: center 61%; opacity: 0.58;
+    filter: drop-shadow(0 -5px 12px rgba(194, 230, 255, 0.12));
+  }
+  .natal-arvore { left: clamp(8px, 2vw, 30px); bottom: 22px; width: clamp(76px, 10vw, 138px); opacity: 0.88; }
+  .natal-presente { right: clamp(8px, 2vw, 30px); bottom: 16px; width: clamp(84px, 11vw, 148px); opacity: 0.86; }
+  .natal-enfeites { right: clamp(12px, 4vw, 60px); top: -26px; width: clamp(60px, 7vw, 94px); opacity: 0.72; transform-origin: 50% 0; animation: natalBalanco 7s ease-in-out infinite; }
+  html[data-season="natal"] .header-logo { position: relative; }
+  html[data-season="natal"] .natal-gorro { position: absolute; z-index: 2; width: 59%; top: -31%; right: -20%; transform: rotate(14deg); filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); pointer-events: none; }
+  html[data-season="natal"] .header-copy h1 { position: relative; text-shadow: 0 -1px 1px rgba(255,255,255,.2); }
+  html[data-season="natal"] .header-copy h1::after {
+    content: ""; position: absolute; pointer-events: none; left: 1%; top: -4px;
+    width: min(68%, 320px); height: 9px; opacity: .88;
+    background: radial-gradient(ellipse at 9% 90%, #fff 0 33%, transparent 36%),
+      radial-gradient(ellipse at 24% 70%, #f8fdff 0 39%, transparent 42%),
+      radial-gradient(ellipse at 43% 90%, #fff 0 35%, transparent 38%),
+      radial-gradient(ellipse at 64% 75%, #f8fdff 0 38%, transparent 41%),
+      radial-gradient(ellipse at 84% 90%, #fff 0 35%, transparent 38%);
+    filter: drop-shadow(0 2px 1px rgba(140, 208, 235, .4));
+  }
+  .natal-treno {
+    position: fixed; z-index: 30; top: clamp(72px, 12vh, 128px); left: 0;
+    width: min(350px, 48vw); height: auto; pointer-events: none;
+    animation: natalTreno 12s linear both; filter: drop-shadow(0 4px 8px rgba(0,0,0,.22));
+  }
+  @keyframes natalTreno { from { transform: translateX(-105%); } to { transform: translateX(105vw); } }
+  @keyframes natalBalanco { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   html[data-season="outubro-rosa"] .bg-fx::after {
     content: ""; position: absolute; z-index: 0; width: clamp(190px, 27vw, 360px); aspect-ratio: 4 / 5;
     top: 17%; right: max(-84px, calc((100vw - 1480px) / 2)); opacity: 0.14;
@@ -1069,8 +1105,18 @@
   }
   @media (max-width: 640px) {
     html[data-season="outubro-rosa"] .bg-fx::after { width: 220px; top: 22%; right: -98px; opacity: 0.1; }
+    .natal-neve { height: 94px; object-position: center 60%; opacity: .48; }
+    .natal-arvore { left: 3px; bottom: 10px; width: 76px; opacity: .72; }
+    .natal-presente { right: 3px; bottom: 8px; width: 82px; opacity: .7; }
+    .natal-enfeites { right: 4px; width: 50px; opacity: .5; }
+    html[data-season="natal"] .natal-gorro { width: 58%; top: -27%; right: -17%; }
+    .natal-treno { top: 76px; width: min(250px, 58vw); }
   }
-  @media (prefers-reduced-motion: reduce) { .season-fx { display: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .season-fx { display: none; }
+    .natal-enfeites { animation: none; }
+    .natal-treno { animation-duration: .01ms; }
+  }
 
   /* Murais lado a lado (destaques do mês + renovações) */
   .murais-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
