@@ -708,10 +708,14 @@ function renderRenovacaoCancelamento(d) {
   const gridRenov = document.getElementById('renovacoesGrid');
   const gridCancel = document.getElementById('cancelamentosGrid');
   if (!gridRenov || !gridCancel) return;
+  const resumoRenov = document.getElementById('renovacoesResumo');
+  const resumoCancel = document.getElementById('cancelamentosResumo');
   const rc = d && d.metasRenovCancel;
   if (!rc) {
     gridRenov.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
     gridCancel.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
+    if (resumoRenov) { resumoRenov.className = 'churn-summary'; resumoRenov.innerHTML = '<span>Configure as metas mensais para acompanhar o progresso.</span>'; }
+    if (resumoCancel) { resumoCancel.className = 'churn-summary'; resumoCancel.innerHTML = '<span>Configure os limites mensais para acompanhar o risco.</span>'; }
     return;
   }
 
@@ -724,17 +728,32 @@ function renderRenovacaoCancelamento(d) {
     { label: 'M2', meta: rc.renovacoes_m2 },
     { label: 'M3', meta: rc.renovacoes_m3 },
   ];
+  const fmt = valor => Number(valor || 0).toLocaleString('pt-BR');
+  const metaRenovMaisProxima = [...renovMetas]
+    .filter(m => Number(m.meta) > renovAtual)
+    .sort((a, b) => Number(a.meta) - Number(b.meta))[0];
+  const temMetaRenovacao = renovMetas.some(m => Number(m.meta) > 0);
+  if (resumoRenov) {
+    resumoRenov.innerHTML = `<span class="churn-summary-kicker">REALIZADO NO MÊS</span><strong>${fmt(renovAtual)} <small>renovações</small></strong><span class="churn-summary-detail">${!temMetaRenovacao
+      ? 'Cadastre as metas dos níveis para acompanhar o progresso.'
+      : metaRenovMaisProxima
+      ? `Faltam <b>${fmt(Number(metaRenovMaisProxima.meta) - renovAtual)}</b> para alcançar ${metaRenovMaisProxima.label}`
+      : 'Todos os níveis de renovação foram alcançados.'}</span>`;
+  }
   gridRenov.innerHTML = renovMetas.map(m => {
-    const pct = m.meta ? Math.min(100, Math.round((renovAtual / m.meta) * 100)) : 0;
+    const metaConfigurada = Number(m.meta) > 0;
+    const pct = metaConfigurada ? Math.min(100, Math.round((renovAtual / Number(m.meta)) * 100)) : 0;
+    const faltam = metaConfigurada ? Math.max(0, Number(m.meta) - renovAtual) : null;
+    const nivel = m.label === 'M1' ? 'Avançada' : (m.label === 'M2' ? 'Intermediária' : 'Base');
     return `
-    <div class="churn-card">
-      <span class="churn-card-label">${m.label}</span>
+    <div class="churn-card churn-card-renov">
+      <div class="churn-card-heading"><span class="churn-card-label">${m.label}</span><span class="churn-tier-name">${nivel}</span></div>
       <div class="churn-card-numbers">
         <span class="churn-card-atual">${renovAtual}</span>
-        <span class="churn-card-sep">/ ${m.meta ?? '—'} renovações</span>
+        <span class="churn-card-sep">${metaConfigurada ? `/ ${fmt(m.meta)} renovações` : 'meta não definida'}</span>
       </div>
       <div class="churn-bar-track"><div class="churn-bar-fill" style="width:${pct}%"></div></div>
-      <span class="churn-card-pct">${pct}% concluído</span>
+      <span class="churn-card-pct">${metaConfigurada ? `${pct}% concluído · ${faltam ? `faltam ${fmt(faltam)}` : 'meta alcançada'}` : 'Cadastre a meta deste nível'}</span>
     </div>`;
   }).join('');
 
@@ -750,26 +769,39 @@ function renderRenovacaoCancelamento(d) {
     { label: 'M2', meta: rc.cancelamentos_m2 },
     { label: 'M3', meta: rc.cancelamentos_m3 },
   ];
+  const metaLimiteResumo = cancelMetas.find(m => Number(m.meta) > 0);
+  if (resumoCancel) {
+    const pctLimite = metaLimiteResumo ? Math.round((cancelAtual / Number(metaLimiteResumo.meta)) * 100) : 0;
+    const estadoResumo = !metaLimiteResumo ? '' : (pctLimite >= 90 ? ' is-critico' : (pctLimite >= 75 ? ' is-alerta' : ''));
+    resumoCancel.className = `churn-summary${estadoResumo}`;
+    resumoCancel.innerHTML = `<span class="churn-summary-kicker">CANCELAMENTOS NO MÊS</span><strong>${fmt(cancelAtual)} <small>registrados</small></strong><span class="churn-summary-detail">${metaLimiteResumo
+      ? `${pctLimite}% do limite mais rigoroso (${fmt(metaLimiteResumo.meta)} · ${metaLimiteResumo.label})`
+      : 'Cadastre os limites para acompanhar o risco.'}</span>`;
+  }
   gridCancel.className = 'churn-grid is-churn';
   gridCancel.innerHTML = cancelMetas.map(m => {
-    const pct = m.meta ? Math.min(100, Math.round((cancelAtual / m.meta) * 100)) : 0;
-    const estourou = m.meta != null && cancelAtual > m.meta;
+    const metaConfigurada = Number(m.meta) > 0;
+    const pctReal = metaConfigurada ? Math.round((cancelAtual / Number(m.meta)) * 100) : 0;
+    const pct = metaConfigurada ? Math.min(100, pctReal) : 0;
+    const estourou = metaConfigurada && cancelAtual > Number(m.meta);
     const critico = estourou || pct >= 90;
     const alerta = !critico && pct >= 75;
     const estadoClasse = critico ? ' is-critico' : (alerta ? ' is-alerta' : '');
     const badge = critico
       ? '<span class="churn-badge badge-critico">Ação Imediata Necessária</span>'
       : (alerta ? '<span class="churn-badge badge-alerta">Ação Pendente</span>' : '');
+    const nivel = m.label === 'M1' ? 'Mais rigoroso' : (m.label === 'M2' ? 'Intermediário' : 'Mais flexível');
+    const restante = metaConfigurada ? Math.max(0, Number(m.meta) - cancelAtual) : null;
     return `
-    <div class="churn-card${estadoClasse}">
+    <div class="churn-card churn-card-cancel${estadoClasse}">
       ${badge}
-      <span class="churn-card-label">${m.label}</span>
+      <div class="churn-card-heading"><span class="churn-card-label">${m.label}</span><span class="churn-tier-name">${nivel}</span></div>
       <div class="churn-card-numbers">
         <span class="churn-card-atual">${cancelAtual}</span>
-        <span class="churn-card-sep">/ ${m.meta ?? '—'} cancelamentos</span>
+        <span class="churn-card-sep">${metaConfigurada ? `/ ${fmt(m.meta)} permitidos` : 'limite não definido'}</span>
       </div>
       <div class="churn-bar-track"><div class="churn-bar-fill" style="width:${pct}%"></div></div>
-      <span class="churn-card-pct">${estourou ? 'Limite ultrapassado' : pct + '% do limite usado'}</span>
+      <span class="churn-card-pct">${!metaConfigurada ? 'Cadastre o limite deste nível' : (estourou ? `${pctReal}% do limite · ultrapassou em ${fmt(cancelAtual - Number(m.meta))}` : `${pctReal}% do limite · ${fmt(restante)} até o teto`)}</span>
     </div>`;
   }).join('');
 }
