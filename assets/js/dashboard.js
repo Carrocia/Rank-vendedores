@@ -990,7 +990,7 @@ function showToast(message, type = 'success', duration = 4500) {
 // DADOS EM MEMÓRIA (cache da sessão, populados por carregarDados)
 // ================================================================
 let _cache = {
-  vendedores: [], planos: [], adicionais: [], filiais: [],
+  vendedores: [], planos: [], categoriasPlanos: [], adicionais: [], filiais: [],
   metasFilial: null, metas: [], metasRenovCancel: null,
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
   vendasOrigemSemana: [], vendasOrigemSemanaAnterior: [], vendasOrigemMes: [],
@@ -1119,11 +1119,12 @@ async function carregarDados() {
     const pFechadosOrigem = Promise.all(mesesFechados.map(m => loadVendasOrigem(m.de, m.ate).catch(() => [])));
 
     // Carregar os dados da filial selecionada em paralelo.
-    const [planos, adicionais, metasFilial, metas, metasRenovCancel,
+    const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, destaquesRenovacao, configSite,
            conquistasGlobais] = await Promise.all([
       loadPlanos(),
+      loadCategoriasPlanos(),
       loadAdicionais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
       loadMetas(_cache.mes.mesNum, _cache.mes.ano, vendedorIds),
@@ -1146,6 +1147,7 @@ async function carregarDados() {
 
     _cache.vendedores = vendedores;
     _cache.planos = planos;
+    _cache.categoriasPlanos = categoriasPlanos;
     _cache.adicionais = adicionais;
     _cache.metasFilial = metasFilial;
     _cache.metas = metas;
@@ -1171,8 +1173,9 @@ async function carregarDados() {
 
     // Atualizar formulários ADM com dados reais
     popularSelectVendedores(vendedores);
-    popularSelectPlanos(planos);
-    renderTabelaPlanos(planos);
+    popularSelectPlanos(planos, categoriasPlanos);
+    renderTabelaPlanos(planos, categoriasPlanos);
+    renderTabelaCategoriasPlanos(categoriasPlanos, planos);
     popularAdicionaisFormulario(adicionais);
     popularSelectFiliais(filiais);
 
@@ -1215,10 +1218,11 @@ function popularSelectVendedores(vendedores) {
   });
 }
 
-function popularSelectPlanos(planos) {
+function popularSelectPlanos(planos, categorias = _cache.categoriasPlanos || []) {
   const grupos = {};
+  const categoriasPorId = new Map((categorias || []).map(c => [String(c.id), c.nome]));
   (planos || []).filter(p => p.ativo !== false).forEach(p => {
-    const grupo = p.nome.replace(/\s\d+mb.*/i, '').trim();
+    const grupo = categoriasPorId.get(String(p.categoria_id)) || 'Sem categoria';
     if (!grupos[grupo]) grupos[grupo] = [];
     grupos[grupo].push(p);
   });
@@ -1232,8 +1236,8 @@ function popularSelectPlanos(planos) {
   const gruposOrdenados = Object.fromEntries(Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b, 'pt-BR')));
   const html = '<option value="">Selecione o plano</option>' +
     Object.entries(gruposOrdenados).map(([g, ps]) =>
-      `<optgroup label="${g}">${ps.map(p =>
-        `<option value="${p.id}|${p.valor}">${p.nome} ${p.velocidade_mb} Mbps — R$ ${Number(p.valor).toFixed(2).replace('.',',')}</option>`
+      `<optgroup label="${escapeHtmlText(g)}">${ps.map(p =>
+        `<option value="${escapeHtmlText(p.id)}|${escapeHtmlText(p.valor)}">${escapeHtmlText(p.nome)} ${escapeHtmlText(p.velocidade_mb)} Mbps — R$ ${Number(p.valor).toFixed(2).replace('.',',')}</option>`
       ).join('')}</optgroup>`
     ).join('');
   ['venda-plano','filial-plano'].forEach(id => {
@@ -1245,7 +1249,7 @@ function popularSelectPlanos(planos) {
   });
 }
 
-function renderTabelaPlanos(planos) {
+function renderTabelaPlanos(planos, categorias = _cache.categoriasPlanos || []) {
   const tbody = document.getElementById('planos-tbody');
   if (!tbody) return;
 
@@ -1255,15 +1259,7 @@ function renderTabelaPlanos(planos) {
     return;
   }
 
-  const categoriaDoPlano = plano => {
-    const informada = String(plano.categoria || plano.tipo || '').trim();
-    if (informada) return informada;
-    const nome = String(plano.nome || '');
-    if (/\b(empresas?|corporativo|empresarial)\b/i.test(nome)) return 'Empresarial';
-    if (/\bplay\b/i.test(nome)) return 'Residencial + Streaming';
-    if (/\b(r[aá]dio|wireless)\b/i.test(nome)) return 'Via Rádio';
-    return 'Residencial';
-  };
+  const categoriasPorId = new Map((categorias || []).map(c => [String(c.id), c.nome]));
   const moeda = valor => {
     const numero = Number(valor);
     return Number.isFinite(numero)
@@ -1279,7 +1275,7 @@ function renderTabelaPlanos(planos) {
       plano.nome || '—',
       plano.velocidade_mb != null ? `${plano.velocidade_mb} Mbps` : '—',
       moeda(plano.valor),
-      categoriaDoPlano(plano),
+      categoriasPorId.get(String(plano.categoria_id)) || 'Sem categoria',
     ];
     valores.forEach(valor => {
       const td = document.createElement('td');
@@ -1316,6 +1312,143 @@ function renderTabelaPlanos(planos) {
   });
 }
 
+function popularSelectCategoriasPlanos(categorias = _cache.categoriasPlanos || [], categoriaSelecionada = '') {
+  const select = document.getElementById('adm-plano-categoria');
+  if (!select) return;
+  select.replaceChildren(new Option('Selecione a categoria', ''));
+  (categorias || []).filter(c => c.ativo !== false || String(c.id) === String(categoriaSelecionada)).forEach(c => {
+    const option = new Option(`${c.nome}${c.ativo === false ? ' (inativa)' : ''}`, String(c.id));
+    select.appendChild(option);
+  });
+  if (categoriaSelecionada) select.value = String(categoriaSelecionada);
+}
+
+function renderTabelaCategoriasPlanos(categorias = [], planos = _cache.planos || []) {
+  const tbody = document.getElementById('categorias-planos-tbody');
+  if (!tbody) return;
+  if (!categorias.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhuma categoria cadastrada.</td></tr>';
+    popularSelectCategoriasPlanos(categorias);
+    return;
+  }
+
+  tbody.replaceChildren();
+  categorias.forEach(categoria => {
+    const vinculados = (planos || []).filter(p => String(p.categoria_id) === String(categoria.id));
+    const tr = document.createElement('tr');
+    [categoria.nome, String(vinculados.length)].forEach(valor => {
+      const td = document.createElement('td');
+      td.textContent = valor;
+      tr.appendChild(td);
+    });
+    const statusCell = document.createElement('td');
+    const badge = document.createElement('span');
+    badge.className = `adm-plano-status ${categoria.ativo === false ? 'is-inativo' : 'is-ativo'}`;
+    badge.textContent = categoria.ativo === false ? 'Inativa' : 'Ativa';
+    statusCell.appendChild(badge);
+    tr.appendChild(statusCell);
+
+    const actionsCell = document.createElement('td');
+    const actions = document.createElement('div');
+    actions.className = 'adm-plano-actions';
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'adm-btn adm-btn-secondary adm-btn-inline adm-btn-small';
+    editButton.textContent = 'Renomear';
+    editButton.addEventListener('click', () => editarCategoriaPlano(categoria.id));
+    const statusButton = document.createElement('button');
+    statusButton.type = 'button';
+    statusButton.className = categoria.ativo === false
+      ? 'adm-btn adm-btn-secondary adm-btn-inline adm-btn-small'
+      : 'adm-btn adm-btn-danger adm-btn-inline adm-btn-small';
+    statusButton.textContent = categoria.ativo === false ? 'Reativar' : 'Desativar';
+    statusButton.addEventListener('click', () => alternarAtivoCategoriaPlano(categoria.id));
+    actions.append(editButton, statusButton);
+    actionsCell.appendChild(actions);
+    tr.appendChild(actionsCell);
+    tbody.appendChild(tr);
+  });
+  popularSelectCategoriasPlanos(categorias, document.getElementById('adm-plano-categoria')?.value);
+}
+
+function cancelarEdicaoCategoria() {
+  const form = document.getElementById('adm-categoria-form');
+  if (!form) return;
+  form.reset();
+  document.getElementById('adm-categoria-id').value = '';
+  document.getElementById('adm-categoria-ativo').checked = true;
+  document.getElementById('adm-categoria-submit').textContent = 'Criar categoria';
+  document.getElementById('adm-categoria-cancelar').hidden = true;
+}
+
+function editarCategoriaPlano(id) {
+  if (!ehSuperAdminAtual()) return showToast('Somente o superadministrador pode gerenciar categorias.', 'error');
+  const categoria = (_cache.categoriasPlanos || []).find(c => String(c.id) === String(id));
+  if (!categoria) return showToast('Não encontrei essa categoria no catálogo.', 'warning');
+  document.getElementById('adm-categoria-id').value = String(categoria.id);
+  document.getElementById('adm-categoria-nome').value = categoria.nome;
+  document.getElementById('adm-categoria-ativo').checked = categoria.ativo !== false;
+  document.getElementById('adm-categoria-submit').textContent = 'Salvar categoria';
+  document.getElementById('adm-categoria-cancelar').hidden = false;
+  document.getElementById('adm-categoria-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function salvarCategoriaPlano(event) {
+  event?.preventDefault();
+  if (!ehSuperAdminAtual() || !window._supabase) return showToast('Somente o superadministrador pode gerenciar categorias.', 'error');
+  const id = document.getElementById('adm-categoria-id').value.trim();
+  const nome = document.getElementById('adm-categoria-nome').value.trim().replace(/\s+/g, ' ');
+  const ativo = document.getElementById('adm-categoria-ativo').checked;
+  const duplicada = (_cache.categoriasPlanos || []).find(c => String(c.id) !== id && normalizarNomePlano(c.nome) === normalizarNomePlano(nome));
+  if (!nome) return showToast('Informe o nome da categoria.', 'warning');
+  if (duplicada) return showToast('Já existe uma categoria com esse nome.', 'warning');
+  if (id && !ativo && (_cache.planos || []).some(p => String(p.categoria_id) === id && p.ativo !== false)) {
+    return showToast('Antes de desativar esta categoria, mova ou inative todos os planos ativos vinculados a ela.', 'warning');
+  }
+  const submit = document.getElementById('adm-categoria-submit');
+  const textoOriginal = submit.textContent;
+  submit.disabled = true;
+  submit.textContent = 'Salvando…';
+  try {
+    const requisicao = id
+      ? window._supabase.from('categorias_planos').update({ nome, ativo }).eq('id', id)
+      : window._supabase.from('categorias_planos').insert([{ nome, ativo }]);
+    const { error } = await requisicao;
+    if (error) throw error;
+    cancelarEdicaoCategoria();
+    await carregarDados();
+    showToast(id ? 'Categoria atualizada.' : 'Categoria criada.', 'success');
+  } catch (error) {
+    console.error('[salvarCategoriaPlano]', error);
+    showToast(error.message || 'Não foi possível salvar a categoria.', 'error');
+  } finally {
+    submit.disabled = false;
+    if (!document.getElementById('adm-categoria-id').value) submit.textContent = textoOriginal === 'Salvar categoria' ? 'Criar categoria' : textoOriginal;
+  }
+}
+
+async function alternarAtivoCategoriaPlano(id) {
+  if (!ehSuperAdminAtual() || !window._supabase) return showToast('Somente o superadministrador pode gerenciar categorias.', 'error');
+  const categoria = (_cache.categoriasPlanos || []).find(c => String(c.id) === String(id));
+  if (!categoria) return showToast('Não encontrei essa categoria no catálogo.', 'warning');
+  const novoAtivo = categoria.ativo === false;
+  const planosAtivosVinculados = (_cache.planos || []).filter(p => String(p.categoria_id) === String(id) && p.ativo !== false);
+  if (!novoAtivo && planosAtivosVinculados.length) {
+    return showToast(`Esta categoria ainda possui ${planosAtivosVinculados.length} plano(s) ativo(s). Realoque ou inative esses planos antes de desativá-la.`, 'warning');
+  }
+  const acao = novoAtivo ? 'reativar' : 'desativar';
+  if (!window.confirm(`Deseja ${acao} a categoria “${categoria.nome}”?`)) return;
+  try {
+    const { error } = await window._supabase.from('categorias_planos').update({ ativo: novoAtivo }).eq('id', id);
+    if (error) throw error;
+    await carregarDados();
+    showToast(novoAtivo ? 'Categoria reativada.' : 'Categoria desativada.', 'success');
+  } catch (error) {
+    console.error('[alternarAtivoCategoriaPlano]', error);
+    showToast(error.message || 'Não foi possível alterar a situação da categoria.', 'error');
+  }
+}
+
 function normalizarNomePlano(texto) {
   return String(texto || '')
     .normalize('NFD')
@@ -1331,6 +1464,7 @@ function cancelarEdicaoPlano() {
   form.reset();
   document.getElementById('adm-plano-id').value = '';
   document.getElementById('adm-plano-ativo').checked = true;
+  popularSelectCategoriasPlanos(_cache.categoriasPlanos || []);
   document.getElementById('adm-plano-form-title').textContent = 'Cadastrar plano';
   document.getElementById('adm-plano-submit').textContent = 'Cadastrar plano';
   document.getElementById('adm-plano-cancelar').hidden = true;
@@ -1352,6 +1486,7 @@ function editarPlanoCatalogo(id) {
   document.getElementById('adm-plano-velocidade').value = plano.velocidade_mb ?? '';
   document.getElementById('adm-plano-valor').value = plano.valor ?? '';
   document.getElementById('adm-plano-ativo').checked = plano.ativo !== false;
+  popularSelectCategoriasPlanos(_cache.categoriasPlanos || [], plano.categoria_id);
   document.getElementById('adm-plano-form-title').textContent = 'Editar plano';
   document.getElementById('adm-plano-submit').textContent = 'Salvar alterações';
   document.getElementById('adm-plano-cancelar').hidden = false;
@@ -1369,11 +1504,17 @@ async function salvarPlanoCatalogo(event) {
   const nome = document.getElementById('adm-plano-nome').value.trim();
   const velocidade = Number(document.getElementById('adm-plano-velocidade').value);
   const valor = Number(document.getElementById('adm-plano-valor').value);
+  const categoriaId = document.getElementById('adm-plano-categoria').value;
   const ativo = document.getElementById('adm-plano-ativo').checked;
   const submit = document.getElementById('adm-plano-submit');
 
-  if (!nome || !Number.isInteger(velocidade) || velocidade < 1 || !Number.isFinite(valor) || valor <= 0) {
-    showToast('Informe o nome, uma velocidade inteira válida e um valor mensal maior que zero.', 'warning');
+  const categoria = (_cache.categoriasPlanos || []).find(c => String(c.id) === String(categoriaId));
+  if (!nome || !Number.isInteger(velocidade) || velocidade < 1 || !Number.isFinite(valor) || valor <= 0 || !categoria) {
+    showToast('Informe nome, velocidade, valor mensal e uma categoria válida.', 'warning');
+    return;
+  }
+  if (categoria.ativo === false && String((_cache.planos || []).find(p => String(p.id) === id)?.categoria_id) !== String(categoria.id)) {
+    showToast('Selecione uma categoria ativa para cadastrar ou mover este plano.', 'warning');
     return;
   }
 
@@ -1393,7 +1534,7 @@ async function salvarPlanoCatalogo(event) {
     return;
   }
 
-  const payload = { nome, velocidade_mb: velocidade, valor, ativo };
+  const payload = { nome, velocidade_mb: velocidade, valor, ativo, categoria_id: Number(categoriaId) };
   const textoOriginal = submit.textContent;
   submit.disabled = true;
   submit.textContent = id ? 'Salvando…' : 'Cadastrando…';

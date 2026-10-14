@@ -605,6 +605,15 @@ async function loadPlanos() {
   return data;
 }
 
+async function loadCategoriasPlanos() {
+  const { data, error } = await window._supabase
+    .from('categorias_planos')
+    .select('id, nome, ativo')
+    .order('nome');
+  if (error) { console.error('[loadCategoriasPlanos]', error); return []; }
+  return data || [];
+}
+
 async function loadAdicionais() {
   const { data, error } = await window._supabase
     .from('produtos_adicionais')
