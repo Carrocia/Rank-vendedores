@@ -1316,6 +1316,10 @@ function popularSelectCategoriasPlanos(categorias = _cache.categoriasPlanos || [
   const select = document.getElementById('adm-plano-categoria');
   if (!select) return;
   select.replaceChildren(new Option('Selecione a categoria', ''));
+  if (window._erroLoadCategoriasPlanos && !categorias.length) {
+    select.replaceChildren(new Option('Erro ao carregar categorias — verifique o Supabase', ''));
+    return;
+  }
   (categorias || []).filter(c => c.ativo !== false || String(c.id) === String(categoriaSelecionada)).forEach(c => {
     const option = new Option(`${c.nome}${c.ativo === false ? ' (inativa)' : ''}`, String(c.id));
     select.appendChild(option);
@@ -1327,7 +1331,11 @@ function renderTabelaCategoriasPlanos(categorias = [], planos = _cache.planos ||
   const tbody = document.getElementById('categorias-planos-tbody');
   if (!tbody) return;
   if (!categorias.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhuma categoria cadastrada.</td></tr>';
+    const erro = String(window._erroLoadCategoriasPlanos || '').trim();
+    const mensagem = erro
+      ? `Falha ao carregar categorias do Supabase: ${escapeHtmlText(erro)}`
+      : 'Nenhuma categoria cadastrada.';
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:${erro ? '#f87171' : 'var(--text-muted)'};">${mensagem}</td></tr>`;
     popularSelectCategoriasPlanos(categorias);
     return;
   }
@@ -1509,8 +1517,8 @@ async function salvarPlanoCatalogo(event) {
   const submit = document.getElementById('adm-plano-submit');
 
   const categoria = (_cache.categoriasPlanos || []).find(c => String(c.id) === String(categoriaId));
-  if (!nome || !Number.isInteger(velocidade) || velocidade < 1 || !Number.isFinite(valor) || valor <= 0 || !categoria) {
-    showToast('Informe nome, velocidade, valor mensal e uma categoria válida.', 'warning');
+  if (!nome || !Number.isInteger(velocidade) || velocidade < 1 || !Number.isFinite(valor) || valor < 0 || !categoria) {
+    showToast('Informe nome, velocidade, um valor mensal igual ou maior que zero e uma categoria válida.', 'warning');
     return;
   }
   if (categoria.ativo === false && String((_cache.planos || []).find(p => String(p.id) === id)?.categoria_id) !== String(categoria.id)) {

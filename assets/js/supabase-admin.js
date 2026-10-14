@@ -610,6 +610,7 @@ async function loadCategoriasPlanos() {
     .from('categorias_planos')
     .select('id, nome, ativo')
     .order('nome');
+  window._erroLoadCategoriasPlanos = error?.message || '';
   if (error) { console.error('[loadCategoriasPlanos]', error); return []; }
   return data || [];
 }
