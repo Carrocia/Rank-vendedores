@@ -1085,7 +1085,7 @@
     width: min(350px, 48vw); height: auto; pointer-events: none;
     animation: natalTreno 12s linear both; filter: drop-shadow(0 4px 8px rgba(0,0,0,.22));
   }
-  @keyframes natalTreno { from { transform: translateX(-105%); } to { transform: translateX(105vw); } }
+  @keyframes natalTreno { from { transform: translateX(105vw); } to { transform: translateX(-105%); } }
   @keyframes natalBalanco { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   html[data-season="outubro-rosa"] .season-fx span {
     color: #ffb7d5; opacity: 0.18; text-shadow: 0 0 12px rgba(255,105,166,0.25);
