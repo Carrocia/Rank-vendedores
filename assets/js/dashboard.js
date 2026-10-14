@@ -902,29 +902,26 @@ async function carregarDestaquesExternosGlobais() {
 function renderDestaquesExternosGlobais() {
   const container = document.getElementById('destaquesGrid');
   if (!container) return;
+  container.querySelector('.destaque-card-rede')?.remove();
   const estado = _cache.destaquesExternosGlobais || { lista: [], erro: false };
   const destaques = estado.lista || [];
-  const semana = destaques.find(item => item.periodo === 'semana');
-  const mes = destaques.find(item => item.periodo === 'mes');
-  const linhaPeriodo = (rotulo, item, mostrarQuantidade = false) => {
-    if (estado.erro) {
-      return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio" title="Confira a função destaques_externos_globais no Supabase">Falha ao carregar</span></div>`;
-    }
-    if (!item) {
-      return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio">Ainda sem vendas</span></div>`;
-    }
-    return `<div class="destaque-rede-periodo">
-      <span class="destaque-rede-rotulo">${rotulo}</span>
-      <span class="destaque-rede-pessoa"><strong>${escapeHtmlText(item.vendedor_nome || 'Vendedor')}</strong><small>${escapeHtmlText(item.filial_nome || 'Filial')}</small></span>
-      ${mostrarQuantidade ? `<span class="destaque-rede-total">${escapeHtmlText(formatVendas(item.vendas))}</span>` : ''}
-    </div>`;
-  };
+  const periodo = document.documentElement.getAttribute('data-active-tab') === 'mensal' ? 'mes' : 'semana';
+  const item = destaques.find(destaque => destaque.periodo === periodo);
+  const rotulo = periodo === 'mes' ? 'Mês' : 'Semana';
+  let conteudo;
+  if (estado.erro) {
+    conteudo = '<span class="destaque-rede-vazio" title="Confira a função destaques_externos_globais no Supabase">Falha ao carregar</span>';
+  } else if (!item) {
+    conteudo = '<span class="destaque-rede-vazio">Ainda sem vendas</span>';
+  } else {
+    conteudo = `<span class="destaque-rede-pessoa"><strong>${escapeHtmlText(item.vendedor_nome || 'Vendedor')}</strong><small>${escapeHtmlText(item.filial_nome || 'Filial')}</small></span>${periodo === 'semana' ? `<span class="destaque-rede-total">${escapeHtmlText(formatVendas(item.vendas))}</span>` : ''}`;
+  }
   container.insertAdjacentHTML('beforeend', `<article class="destaque-card destaque-card-rede">
     <div class="destaque-icon-badge purple" aria-hidden="true">🌐</div>
     <span class="destaque-label">Líder externo UNI</span>
-    <div class="destaque-rede-periodos">
-      ${linhaPeriodo('Semana', semana, true)}
-      ${linhaPeriodo('Mês', mes)}
+    <div class="destaque-rede-periodo">
+      <span class="destaque-rede-rotulo">${rotulo}</span>
+      ${conteudo}
     </div>
   </article>`);
 }
@@ -2428,6 +2425,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
     // troca o card de meta e as metas da filial conforme a aba ativa
     document.documentElement.setAttribute('data-active-tab', tab);
+    renderDestaquesExternosGlobais();
     const isMensal = tab === 'mensal';
     if (_dadosCarregados) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
