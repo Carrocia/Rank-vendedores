@@ -193,6 +193,23 @@ function resolverPlanoIxc(descricao, planos) {
   return melhor.score >= 0.5 && melhor.score - segundo.score >= 0.2 ? melhor.plano : null;
 }
 
+function diagnosticarPlanoIxc(descricao, planos) {
+  const familia = identificarFamiliaPlanoIxc(descricao);
+  const velocidade = velocidadePlanoIxc(descricao);
+  const candidatos = (planos || []).filter(plano => {
+    const nomeCompleto = `${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`;
+    const velocidadeCatalogo = Number(plano.velocidade_mb) || velocidadePlanoIxc(nomeCompleto);
+    const familiaCatalogo = identificarFamiliaPlanoIxc(nomeCompleto);
+    return velocidade != null && velocidadeCatalogo === velocidade && (!familia || familiaCatalogo === familia);
+  });
+  const nomes = candidatos.slice(0, 3).map(plano => plano.nome).filter(Boolean);
+  const perfil = [familia || 'tipo não identificado', velocidade == null ? 'velocidade não identificada' : `${velocidade} Mbps`].join(', ');
+  const resumo = candidatos.length
+    ? `${candidatos.length} candidato(s)${nomes.length ? `: ${nomes.join(', ')}` : ''}`
+    : 'nenhum candidato compatível no catálogo';
+  return `Plano sem correspondência única (${perfil}; ${resumo}).`;
+}
+
 function renderizarPreviaIxc() {
   const corpo = document.getElementById('ixc-import-preview');
   const resumo = document.getElementById('ixc-import-summary');
@@ -289,7 +306,7 @@ async function analisarImportacaoIxc(event) {
       resultado.horaAtualizacao = horaAtualizacao;
       resultado.dataVenda = instante;
       resultado.plano = resolverPlanoIxc(linha.descricaoPlano, planos);
-      if (!resultado.plano) { resultado.erro = 'Plano sem correspondência única no catálogo'; return resultado; }
+      if (!resultado.plano) { resultado.erro = diagnosticarPlanoIxc(linha.descricaoPlano, planos); return resultado; }
       resultado.valor = obterValorExplicitoRelatorioIxc(linha.descricaoPlano) ?? obterValorPlanoIxc(resultado.plano);
       if (resultado.valor == null) { resultado.erro = 'Plano sem valor cadastrado'; return resultado; }
       resultado.podeImportar = true;
