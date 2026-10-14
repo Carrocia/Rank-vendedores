@@ -901,6 +901,8 @@
     transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
   }
   .churn-card:hover { transform: translateY(-2px); }
+  .churn-card-renov { --churn-accent: var(--accent); --churn-accent-rgb: var(--accent-rgb); }
+  .churn-card-cancel { --churn-accent: var(--accent2); --churn-accent-rgb: var(--accent2-rgb); }
 
   .churn-card-label {
     font-size:0.72rem; font-weight: 700; text-transform: uppercase;
@@ -919,14 +921,6 @@
     transition: width 1.1s cubic-bezier(0.4,0,0.2,1);
   }
   .churn-card-pct { display: block; font-size: 0.78rem; font-weight: 600; margin-top: 12px; color: var(--text-muted); }
-
-  /* tons neon sutis por card — renovação (padrão neutro ciano/violeta) */
-  .churn-grid:not(.is-churn) .churn-card:nth-child(1) { --churn-accent: #5eead4; }
-  .churn-grid:not(.is-churn) .churn-card:nth-child(2) { --churn-accent: #7c9bff; }
-  .churn-grid:not(.is-churn) .churn-card:nth-child(3) { --churn-accent: #a78bfa; }
-
-  /* Risco de Churn — estado padrão (dentro do limite): mesmo tom neutro */
-  .churn-grid.is-churn .churn-card { --churn-accent: #5eead4; }
 
   /* Estado de ALERTA (75–89%): âmbar */
   .churn-card.is-alerta {
@@ -955,7 +949,11 @@
 
   /* Um único painel mostra o avanço e as metas como etapas. */
   .milestone-card { width: 100%; box-sizing: border-box; }
-  .churn-card.milestone-card { padding: 22px 24px; }
+  .churn-card.milestone-card {
+    padding: 22px 24px;
+    border-top: 3px solid var(--churn-accent, var(--accent));
+    background: linear-gradient(135deg, rgba(var(--accent-rgb),.055), rgba(var(--accent2-rgb),.035) 62%, rgba(255,255,255,.015));
+  }
   .milestone-main { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
   .milestone-current, .milestone-next { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
   .milestone-current { min-width: 180px; }
@@ -978,8 +976,8 @@
   .milestone-chip small { font-size: .66rem; }
   .milestone-chip.is-done { border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.08); color: #34d399; }
   .milestone-chip.is-done b { color: #34d399; }
-  .milestone-chip.is-current { border-color: rgba(94,234,212,.4); background: rgba(94,234,212,.08); color: #5eead4; }
-  .milestone-chip.is-current b { color: #5eead4; }
+  .milestone-chip.is-current { border-color: var(--churn-accent, var(--accent)); background: rgba(var(--churn-accent-rgb, var(--accent-rgb)),.08); color: var(--churn-accent, var(--accent)); }
+  .milestone-chip.is-current b { color: var(--churn-accent, var(--accent)); }
   .milestone-chip.is-current.is-alerta { border-color: rgba(247,185,85,.45); background: rgba(247,185,85,.1); color: #f7b955; }
   .milestone-chip.is-current.is-alerta b { color: #f7b955; }
   .milestone-chip.is-current.is-critico, .milestone-chip.is-exceeded { border-color: rgba(255,95,110,.45); background: rgba(255,95,110,.1); color: var(--danger); }
