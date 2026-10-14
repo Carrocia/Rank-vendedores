@@ -29,7 +29,7 @@
     'outubro-rosa': { nome: 'Outubro Rosa', icone: '🎗️', periodo: 'Outubro', fx: '✿', d: ['#ff69a6', '#4d7cff'], l: ['#b42367', '#1d4ed8'] },
     'novembro-azul': { nome: 'Novembro Azul', icone: '💙', periodo: 'Novembro', fx: '💙', d: ['#4cc9f0', '#6f86ff'], l: ['#0369a1', '#3a47c9'] },
     'black-friday': { nome: 'Black Friday', icone: '🏷️', periodo: 'Semana da Black Friday', fx: '🏷️', d: ['#ffb703', '#ff5a1f'], l: ['#975c07', '#bd3f0c'] },
-    'natal': { nome: 'Natal', icone: '🎄', periodo: '01 a 25/12', fx: '❄️', d: ['#ff7478', '#2fd18b'], l: ['#c2261b', '#0f7a4a'] },
+    'natal': { nome: 'Natal', icone: '🎄', periodo: '01 a 25/12', fx: '❄️', d: ['#df454d', '#e8b944'], l: ['#ad2730', '#8a6415'] },
     'ano-novo': { nome: 'Feliz Ano Novo', icone: '🎆', periodo: '26/12 a 10/01', fx: '✨', d: ['#ffd166', '#ff9f1c'], l: ['#905f18', '#bc3f0d'] },
     'carnaval': { nome: 'Carnaval', icone: '🎭', periodo: 'Fevereiro', fx: '🎊', d: ['#ff68c8', '#ffd23f'], l: ['#c2187f', '#975c07'] },
     'mulher': { nome: 'Dia da Mulher', icone: '💜', periodo: 'Março', fx: '🌸', d: ['#c982ff', '#ff6fb5'], l: ['#7b2cbf', '#c2185b'] },
@@ -81,7 +81,7 @@
   var natalTimer = null;
   function limparNatal() {
     if (natalTimer) { window.clearTimeout(natalTimer); natalTimer = null; }
-    document.querySelectorAll('.natal-decor, .natal-treno, .natal-gorro').forEach(function (el) { el.remove(); });
+    document.querySelectorAll('.natal-decor, .natal-treno, .natal-gorro, .natal-enfeites').forEach(function (el) { el.remove(); });
   }
   function imagemNatal(src, classe, alt) {
     var img = document.createElement('img');
@@ -118,10 +118,11 @@
       decor.setAttribute('aria-hidden', 'true');
       decor.appendChild(imagemNatal('arvore.png', 'natal-arvore'));
       decor.appendChild(imagemNatal('presente.png', 'natal-presente'));
-      decor.appendChild(imagemNatal('enfeites.png', 'natal-enfeites'));
       host.appendChild(decor);
       var logo = document.querySelector('.header-logo');
       if (logo) logo.appendChild(imagemNatal('gorro.png', 'natal-gorro'));
+      var painel = document.querySelector('.hero-panel');
+      if (painel) painel.appendChild(imagemNatal('enfeites.png', 'natal-enfeites'));
       agendarTreno();
     }
     var box = document.createElement('div'); box.className = 'season-fx'; box.setAttribute('aria-hidden', 'true');

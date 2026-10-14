@@ -1067,7 +1067,12 @@
   }
   .natal-arvore { left: clamp(8px, 2vw, 30px); bottom: 22px; width: clamp(76px, 10vw, 138px); opacity: 0.88; }
   .natal-presente { right: clamp(8px, 2vw, 30px); bottom: 16px; width: clamp(84px, 11vw, 148px); opacity: 0.86; }
-  .natal-enfeites { right: clamp(12px, 4vw, 60px); top: -26px; width: clamp(60px, 7vw, 94px); opacity: 0.72; transform-origin: 50% 0; animation: natalBalanco 7s ease-in-out infinite; }
+  .hero-panel .natal-enfeites {
+    position: absolute; z-index: 5; display: block; top: 0; right: 14px;
+    width: clamp(42px, 4vw, 56px); height: auto; opacity: .82;
+    transform-origin: 50% 0; animation: natalBalanco 7s ease-in-out infinite;
+    pointer-events: none; user-select: none;
+  }
   html[data-season="natal"] .header-logo { position: relative; }
   html[data-season="natal"] .natal-gorro { position: absolute; z-index: 2; width: 59%; top: -25%; left: -17%; transform: rotate(-22deg); filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); pointer-events: none; }
   html[data-season="natal"] .header-copy h1 { position: relative; text-shadow: 0 -1px 1px rgba(255,255,255,.2); }
@@ -1102,13 +1107,13 @@
     html[data-season="natal"] body::after { height: 94px; opacity: .38; background-position: center 57%; }
     .natal-arvore { left: 3px; bottom: 10px; width: 76px; opacity: .72; }
     .natal-presente { right: 3px; bottom: 8px; width: 82px; opacity: .7; }
-    .natal-enfeites { right: 4px; width: 50px; opacity: .5; }
+    .hero-panel .natal-enfeites { right: 5px; width: 40px; opacity: .62; }
     html[data-season="natal"] .natal-gorro { width: 58%; top: -23%; left: -15%; }
     .natal-treno { top: 76px; width: min(250px, 58vw); }
   }
   @media (prefers-reduced-motion: reduce) {
     .season-fx { display: none; }
-    .natal-enfeites { animation: none; }
+    .hero-panel .natal-enfeites { animation: none; }
     .natal-treno { animation-duration: .01ms; }
   }
 
