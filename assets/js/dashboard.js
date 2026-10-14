@@ -1004,6 +1004,10 @@ let _cache = {
 let _ultimoProcessado = null;
 // true somente após um carregamento bem-sucedido de dados reais do Supabase
 let _dadosCarregados = false;
+let _dashSemanaOffset = 0;
+let _dashSemanaSelecionada = null;
+let _dashSemanaRequestId = 0;
+let _dashSemanaFilialId = null;
 
 // ================================================================
 // FUNÇÃO CENTRAL: carregarDados()
@@ -1100,6 +1104,11 @@ async function carregarDados() {
     // Primeiro resolve a filial do link; as demais consultas dependem dela.
     const filiais = await loadFiliais();
     configurarFilialAtual(filiais);
+    if (_dashSemanaFilialId !== window.FILIAL_ATUAL_ID) {
+      _dashSemanaOffset = 0;
+      _dashSemanaSelecionada = null;
+      _dashSemanaFilialId = window.FILIAL_ATUAL_ID;
+    }
     _cache.filiais = filiais;
     // Restaura a sessão só depois de resolver a filial da URL para validar
     // o escopo do administrador antes de consultar os dados regionais.
@@ -1455,6 +1464,130 @@ function popularSelectFiliais(filiais) {
   }
 }
 
+function calcularEvolucaoSemana(vendasSemana, vendasOrigemSemana, vendasFiliais, semana) {
+  const diasLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const diasContagem = new Array(7).fill(0);
+  const indiceDoDia = data => {
+    const dataStr = String(data || '').slice(0, 10);
+    const date = new Date(dataStr + 'T12:00:00');
+    if (Number.isNaN(date.getTime())) return -1;
+    return date.getDay() === 0 ? 6 : date.getDay() - 1;
+  };
+
+  (vendasSemana || []).forEach(v => {
+    if (isVendaRecebidaDeOutraFilial(v) && v.vendedor_id != null) return;
+    const idx = indiceDoDia(v.data_venda);
+    if (idx >= 0) diasContagem[idx]++;
+  });
+  (vendasOrigemSemana || []).forEach(v => {
+    const idx = indiceDoDia(v.dia);
+    if (idx >= 0) diasContagem[idx] += Number(v.vendas || 0);
+  });
+  (vendasFiliais || []).forEach(v => {
+    const dataStr = dataLocalStr(v.data_venda);
+    if (!dataNoPeriodo(v.data_venda, semana.de, semana.ate)) return;
+    const idx = indiceDoDia(dataStr);
+    if (idx >= 0) diasContagem[idx] += Number(v.quantidade || 1);
+  });
+  return diasLabels.map((dia, i) => ({ dia, vendas: diasContagem[i] }));
+}
+
+function calcularSemanaDashboard(offset) {
+  const semanaAtual = _cache.semana || calcularPeriodoSemana();
+  const inicio = new Date(semanaAtual.inicio);
+  inicio.setDate(inicio.getDate() + (Number(offset) || 0) * 7);
+  inicio.setHours(0, 0, 0, 0);
+  const fim = new Date(inicio);
+  fim.setDate(fim.getDate() + 6);
+  fim.setHours(23, 59, 59, 999);
+  const fmt = d => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  const labelDia = d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  return {
+    de: fmt(inicio), ate: fmt(fim), inicio, fim,
+    label: `${labelDia(inicio)} a ${labelDia(fim)}`,
+    diasLabels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+  };
+}
+
+function renderAdmSemana(dias, semana) {
+  const range = document.getElementById('dash-week-range');
+  if (range) range.textContent = semana?.label ? `De ${semana.label}` : 'Semana atual';
+  const next = document.getElementById('dash-week-next');
+  if (next) next.disabled = _dashSemanaOffset >= 0;
+
+  const barrasSemana = document.getElementById('dash-week-bars');
+  if (!barrasSemana) return;
+  barrasSemana.setAttribute('aria-label', semana?.label ? `Vendas por dia na semana de ${semana.label}` : 'Vendas por dia nesta semana');
+  const dados = dias || [];
+  const maiorDia = Math.max(1, ...dados.map(item => Number(item.vendas) || 0));
+  const fragmento = document.createDocumentFragment();
+  dados.forEach(item => {
+    const quantidade = Math.max(0, Number(item.vendas) || 0);
+    const coluna = document.createElement('div');
+    coluna.className = 'adm-dashboard-day';
+    coluna.setAttribute('role', 'group');
+    coluna.setAttribute('aria-label', `${item.dia}: ${quantidade} ${quantidade === 1 ? 'venda' : 'vendas'}`);
+
+    const valor = document.createElement('span');
+    valor.className = 'adm-dashboard-day-value';
+    valor.textContent = String(quantidade);
+    const trilho = document.createElement('div');
+    trilho.className = 'adm-dashboard-day-track';
+    trilho.setAttribute('aria-hidden', 'true');
+    const preenchimento = document.createElement('span');
+    preenchimento.style.height = `${quantidade ? Math.max(8, (quantidade / maiorDia) * 100) : 3}%`;
+    trilho.appendChild(preenchimento);
+    const nomeDia = document.createElement('span');
+    nomeDia.className = 'adm-dashboard-day-label';
+    nomeDia.textContent = item.dia;
+    coluna.append(valor, trilho, nomeDia);
+    fragmento.appendChild(coluna);
+  });
+  barrasSemana.replaceChildren(fragmento);
+}
+
+async function navegarSemanaAdm(direcao) {
+  const offset = Math.min(0, _dashSemanaOffset + (Number(direcao) || 0));
+  if (offset === _dashSemanaOffset || !_ultimoProcessado) return;
+  _dashSemanaOffset = offset;
+  const requestId = ++_dashSemanaRequestId;
+  const anterior = document.querySelector('.adm-dashboard-week-arrow[aria-label="Semana anterior"]');
+  const proxima = document.getElementById('dash-week-next');
+  const barras = document.getElementById('dash-week-bars');
+  if (anterior) anterior.disabled = true;
+  if (proxima) proxima.disabled = true;
+  if (barras) barras.setAttribute('aria-busy', 'true');
+
+  try {
+    if (offset === 0) {
+      _dashSemanaSelecionada = { periodo: _ultimoProcessado.semana, dias: _ultimoProcessado.evolucaoSemana || [] };
+    } else {
+      const periodo = calcularSemanaDashboard(offset);
+      const [vendas, origem, outrasFiliais] = await Promise.all([
+        loadVendas(periodo.de, periodo.ate),
+        loadVendasOrigem(periodo.de, periodo.ate),
+        loadVendasOutrasFiliais(periodo.de, periodo.ate),
+      ]);
+      if (requestId !== _dashSemanaRequestId) return;
+      _dashSemanaSelecionada = {
+        periodo,
+        dias: calcularEvolucaoSemana(vendas, origem, outrasFiliais, periodo),
+      };
+    }
+    if (requestId === _dashSemanaRequestId) renderAdmSemana(_dashSemanaSelecionada.dias, _dashSemanaSelecionada.periodo);
+  } catch (error) {
+    console.error('[navegarSemanaAdm]', error);
+    _dashSemanaOffset = Math.min(0, _dashSemanaOffset - (Number(direcao) || 0));
+    if (requestId === _dashSemanaRequestId) showToast('Não foi possível carregar as vendas dessa semana.', 'error');
+  } finally {
+    if (requestId === _dashSemanaRequestId) {
+      if (anterior) anterior.disabled = false;
+      if (proxima) proxima.disabled = _dashSemanaOffset >= 0;
+      if (barras) barras.removeAttribute('aria-busy');
+    }
+  }
+}
+
 // ── Processar dados para renderização ────────────────────────────
 function processarDadosParaRender(cache) {
   if (!cache) return null;
@@ -1572,49 +1705,7 @@ function processarDadosParaRender(cache) {
 
   // Evolução semanal (vendas por dia da semana) — usa exclusivamente
   // as vendas reais da semana atual (vendasSemana), sem depender de metas.
-  const diasLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
-  const diasContagem = new Array(7).fill(0);
-  vendasSemana.forEach(v => {
-    // Venda recebida de outra regional compõe o mês do destino, mas a semana
-    // é atribuída à filial de origem do vendedor.
-    if (isVendaInterregionalComVendedor(v)) return;
-    // "Evolução da Semana" é um indicador global da filial — vendas
-    // fora da filial CONTAM aqui (só ficam de fora da meta GLOBAL
-    // mensal, não da semana nem das metas semanais da filial).
-    // data_venda pode vir como data pura ("2026-09-07") ou como
-    // timestamp completo ("2026-09-07T14:32:00+00:00"). Extrair só
-    // os 10 primeiros caracteres ("YYYY-MM-DD") evita concatenar
-    // duas horas na mesma string (o que gerava Invalid Date e
-    // fazia toda a contagem cair fora dos dias reais).
-    const dataStr = String(v.data_venda).slice(0, 10);
-    const d = new Date(dataStr + 'T12:00:00');
-    const diaSemana = d.getDay(); // 0=Dom
-    if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
-    const idx = diaSemana === 0 ? 6 : diaSemana - 1;
-    diasContagem[idx]++;
-  });
-  (vendasOrigemSemana || []).forEach(v => {
-    const dataStr = String(v.dia || '').slice(0, 10);
-    const d = new Date(dataStr + 'T12:00:00');
-    const diaSemana = d.getDay();
-    if (isNaN(diaSemana)) return;
-    const idx = diaSemana === 0 ? 6 : diaSemana - 1;
-    diasContagem[idx] += Number(v.vendas || 0);
-  });
-  // Vendas de outras filiais PARA a nossa também representam vendas
-  // reais da filial no dia — somam na evolução (pela quantidade de
-  // cada registro), mas nunca entram em ranking, meta individual ou
-  // evolução individual de vendedor (elas não pertencem a ninguém).
-  (vendasFiliais || []).forEach(v => {
-    const dataStr = dataLocalStr(v.data_venda);
-    if (!dataNoPeriodo(v.data_venda, semana.de, semana.ate)) return; // fora da semana atual
-    const d = new Date(dataStr + 'T12:00:00');
-    const diaSemana = d.getDay(); // 0=Dom
-    if (isNaN(diaSemana)) return; // data inválida — não conta, não quebra
-    const idx = diaSemana === 0 ? 6 : diaSemana - 1;
-    diasContagem[idx] += Number(v.quantidade || 1);
-  });
-  const evolucaoSemana = diasLabels.map((dia, i) => ({ dia, vendas: diasContagem[i] }));
+  const evolucaoSemana = calcularEvolucaoSemana(vendasSemana, vendasOrigemSemana, vendasFiliais, semana);
 
   // Vendas por plano (donut) — identifica cada plano por plano_id +
   // velocidade_mb (não só pelo nome, que se repete entre velocidades
@@ -1754,38 +1845,9 @@ function renderAdmDashboard(d) {
     ? `${Number(d.totalMes || 0).toLocaleString('pt-BR')} de ${Number(metaM1).toLocaleString('pt-BR')} vendas`
     : 'Meta M1 ainda não configurada');
 
-  setText('dash-week-range', d.semana?.label ? `De ${d.semana.label}` : 'Semana atual');
-  const barrasSemana = document.getElementById('dash-week-bars');
-  if (barrasSemana) {
-    const dias = d.evolucaoSemana || [];
-    const maiorDia = Math.max(1, ...dias.map(item => Number(item.vendas) || 0));
-    const fragmento = document.createDocumentFragment();
-    dias.forEach(item => {
-      const quantidade = Math.max(0, Number(item.vendas) || 0);
-      const coluna = document.createElement('div');
-      coluna.className = 'adm-dashboard-day';
-      coluna.setAttribute('role', 'group');
-      coluna.setAttribute('aria-label', `${item.dia}: ${quantidade} ${quantidade === 1 ? 'venda' : 'vendas'}`);
-
-      const valor = document.createElement('span');
-      valor.className = 'adm-dashboard-day-value';
-      valor.textContent = String(quantidade);
-
-      const trilho = document.createElement('div');
-      trilho.className = 'adm-dashboard-day-track';
-      trilho.setAttribute('aria-hidden', 'true');
-      const preenchimento = document.createElement('span');
-      preenchimento.style.height = `${quantidade ? Math.max(8, (quantidade / maiorDia) * 100) : 3}%`;
-      trilho.appendChild(preenchimento);
-
-      const nomeDia = document.createElement('span');
-      nomeDia.className = 'adm-dashboard-day-label';
-      nomeDia.textContent = item.dia;
-      coluna.append(valor, trilho, nomeDia);
-      fragmento.appendChild(coluna);
-    });
-    barrasSemana.replaceChildren(fragmento);
-  }
+  if (_dashSemanaOffset === 0) _dashSemanaSelecionada = { periodo: d.semana, dias: d.evolucaoSemana || [] };
+  const semanaVisivel = _dashSemanaSelecionada || { periodo: d.semana, dias: d.evolucaoSemana || [] };
+  renderAdmSemana(semanaVisivel.dias, semanaVisivel.periodo);
 
   // Líder do mês real (nome, já resolvido pelo mesmo critério de
   // desempate do ranking: vendas e, em empate, valor vendido).

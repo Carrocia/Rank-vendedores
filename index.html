@@ -450,7 +450,11 @@
                   <span class="adm-dashboard-eyebrow">VENDAS POR DIA</span>
                   <h3>Ritmo da semana</h3>
                 </div>
-                <span class="adm-dashboard-date" id="dash-week-range">Semana atual</span>
+                <div class="adm-dashboard-week-nav" aria-label="Navegar pelas semanas">
+                  <button type="button" class="adm-dashboard-week-arrow" onclick="navegarSemanaAdm(-1)" aria-label="Semana anterior">‹</button>
+                  <span class="adm-dashboard-date" id="dash-week-range">Semana atual</span>
+                  <button type="button" class="adm-dashboard-week-arrow" id="dash-week-next" onclick="navegarSemanaAdm(1)" aria-label="Próxima semana" disabled>›</button>
+                </div>
               </div>
               <div class="adm-dashboard-week-bars" id="dash-week-bars" aria-label="Vendas por dia nesta semana"></div>
             </article>
