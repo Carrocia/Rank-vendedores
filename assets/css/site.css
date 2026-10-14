@@ -790,8 +790,7 @@
   .week-side-value-pct { font-size: 1.05rem; font-weight: 900; color: var(--green); }
 
   /* ---------- Destaques da Semana ---------- */
-  .destaques-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
-  .destaques-rede-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 340px)); gap: 16px; }
+  .destaques-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 16px; }
   .destaque-card {
     background: linear-gradient(135deg, var(--surface), var(--surface-hover));
     backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: 16px;

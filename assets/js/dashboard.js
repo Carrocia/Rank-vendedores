@@ -900,13 +900,12 @@ async function carregarDestaquesExternosGlobais() {
 }
 
 function renderDestaquesExternosGlobais() {
-  const container = document.getElementById('destaquesExternosGrid');
+  const container = document.getElementById('destaquesGrid');
   if (!container) return;
   const estado = _cache.destaquesExternosGlobais || { lista: [], erro: false };
-  if (estado.erro) {
-    container.innerHTML = '<div class="conquistas-vazio">Destaques da rede indisponíveis. Aplique a atualização do Supabase para carregar estes cards.</div>';
-    return;
-  }
+  // Se o RPC ainda não estiver aplicado no Supabase, mantém os destaques
+  // locais sem inserir um aviso com aparência de card na grade.
+  if (estado.erro) return;
 
   const destaques = estado.lista || [];
   const semana = destaques.find(item => item.periodo === 'semana');
@@ -915,7 +914,7 @@ function renderDestaquesExternosGlobais() {
     { periodo: 'semana', item: semana, titulo: 'Mais vendas externas na semana', complemento: 'nesta semana', icone: '⚡' },
     { periodo: 'mes', item: mes, titulo: 'Líder externo do mês', complemento: 'neste mês', icone: '🏆' },
   ];
-  container.innerHTML = cards.map(card => {
+  container.insertAdjacentHTML('beforeend', cards.map(card => {
     const item = card.item;
     const nome = item?.vendedor_nome || 'Nenhuma venda externa';
     const filial = item?.filial_nome || (item ? 'Filial não informada' : 'Ainda sem vendas neste período');
@@ -929,7 +928,7 @@ function renderDestaquesExternosGlobais() {
       </div>
       <span class="destaque-valor">${escapeHtmlText(total)}</span>
     </article>`;
-  }).join('');
+  }).join(''));
 }
 
 function atualizarCarrosselConquistas(direcao) {
