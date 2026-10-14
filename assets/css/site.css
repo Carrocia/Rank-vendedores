@@ -1281,3 +1281,72 @@
   #adm-trigger { display: none; }
   html[data-tv] .mobile-public-nav, html[data-tv] .mobile-public-more { display: none !important; }
 }
+
+/* Experiência mobile em formato de app: cabeçalho compacto, resumo em cartões e controles próprios. */
+@media (max-width: 640px) {
+  .page-shell { max-width: 100%; padding: 78px 14px calc(104px + env(safe-area-inset-bottom)); }
+  .theme-toggle { top: 10px; right: 12px; padding: 3px; }
+  .theme-toggle-option { min-width: 38px; min-height: 38px; padding: 8px 11px; }
+
+  header { margin-bottom: 14px; }
+  .hero-panel {
+    display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px;
+    padding: 16px; margin-bottom: 14px; border-radius: 20px;
+    background: linear-gradient(145deg, var(--surface-solid), var(--surface-hover));
+    box-shadow: 0 12px 32px rgba(0,0,0,.18);
+  }
+  .hero-left {
+    display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center;
+    gap: 12px; min-width: 0; width: 100%;
+  }
+  .header-logo { width: 52px; }
+  .header-copy { min-width: 0; }
+  .header-copy h1 {
+    display: flex; flex-direction: column; align-items: flex-start;
+    gap: 1px; margin: 0; font-size: 1.22rem; line-height: 1.2; letter-spacing: -.35px;
+  }
+  .header-title-main { display: block; }
+  .header-title-filial { display: block; max-width: 100%; overflow-wrap: anywhere; font-size: .78rem; line-height: 1.35; }
+  .header-copy p { display: none; }
+  .header-kpis {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px;
+    width: 100%; margin: 0; overflow: visible; background: transparent; border: 0;
+  }
+  .header-kpi {
+    min-width: 0; padding: 9px 6px; border: 1px solid var(--border); border-radius: 12px;
+    background: rgba(0,0,0,.12); text-align: left;
+  }
+  .header-kpi-label { min-height: 2.2em; font-size: .56rem; line-height: 1.2; letter-spacing: .04em; }
+  .header-kpi-value { margin-top: 3px; font-size: .84rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .header-kpi-divider { display: none; }
+
+  .filial-site-bar {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) 40px; align-items: center;
+    gap: 8px; padding: 8px 10px; margin-bottom: 12px; border-radius: 15px;
+    background: var(--surface); border: 1px solid var(--border);
+  }
+  .filial-site-bar label { font-size: .68rem; }
+  .filial-site-bar select { min-width: 0; width: 100%; padding: 8px 4px; font-size: .72rem; }
+  .filial-link-copy { min-width: 38px; min-height: 38px; }
+
+  .tabs-row { position: relative; margin: 0 0 16px; }
+  .tabs-row .tab-bar {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px;
+    width: 100%; padding: 4px; margin: 0; border: 1px solid var(--border);
+    border-radius: 17px; background: var(--surface);
+  }
+  .tabs-row .tab-button { min-width: 0; min-height: 46px; padding: 8px 6px; border-radius: 13px; font-size: .72rem; }
+
+  .ticker-wrap {
+    flex-wrap: nowrap; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain;
+    padding: 8px 0 12px; margin: 0 -14px 14px; border: 0; border-radius: 0;
+    background: transparent; scrollbar-width: none;
+  }
+  .ticker-wrap::-webkit-scrollbar { display: none; }
+  .ticker-item { flex: 0 0 auto; padding: 7px 11px 7px 8px; font-size: .68rem; }
+
+  .podium-section { margin-top: 18px; }
+  .podium-section > h2, .churn-panel-title { font-size: 1rem; }
+  .mobile-public-nav { box-shadow: 0 -8px 28px rgba(0,0,0,.25); }
+  .mobile-public-nav button { font-size: .62rem; }
+}
