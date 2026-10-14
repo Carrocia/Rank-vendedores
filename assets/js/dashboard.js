@@ -626,14 +626,13 @@ function renderDestaquesSemana(d) {
   const liderInterno = d.liderInternoSem || {};
   const maiorEvolucao = d.maiorEvolucao || {};
   const maiorPctMeta = d.maiorPct || {};
-  const evoValor = maiorEvolucao.evolucao || 0;
-  const evoTexto = (evoValor >= 0 ? '+' : '') + evoValor + ' vendas';
+  const vendasDestaqueSemana = Number(maiorEvolucao.vendas) || 0;
   const pctMeta = maiorPctMeta.meta ? Math.round((maiorPctMeta.vendas / maiorPctMeta.meta) * 100) : null;
 
   const cards = [
     { icon: '👑', cor: 'gold',   label: 'Líder Externo', nome: liderExterno.nome || nomeDe(liderExterno.id), foto: fotoDe(liderExterno.id), valor: formatVendas(liderExterno.vendas || 0) },
     { icon: '👑', cor: 'gold',   label: 'Líder Interno', nome: liderInterno.nome || nomeDe(liderInterno.id), foto: fotoDe(liderInterno.id), valor: formatVendas(liderInterno.vendas || 0) },
-    { icon: '⚡', cor: 'purple', label: 'Maior Evolução', nome: maiorEvolucao.nome || nomeDe(maiorEvolucao.id), foto: fotoDe(maiorEvolucao.id), valor: evoTexto },
+    { icon: '⚡', cor: 'purple', label: 'Mais Vendas na Semana', nome: maiorEvolucao.nome || nomeDe(maiorEvolucao.id), foto: fotoDe(maiorEvolucao.id), valor: formatVendas(vendasDestaqueSemana) },
     { icon: '🎯', cor: 'red',    label: 'Maior % da Meta', nome: maiorPctMeta.nome || nomeDe(maiorPctMeta.id), foto: fotoDe(maiorPctMeta.id), valor: pctMeta !== null ? (pctMeta + '% da meta') : 'Sem meta cadastrada' },
     { icon: '⏱️', cor: 'blue',   label: 'Venda Mais Recente', nome: '', foto: '', valor: d.vendaRecenteLabel || '—' },
   ];
@@ -890,6 +889,49 @@ async function carregarConquistasGlobais() {
   return { lista: data || [], erro: false };
 }
 
+async function carregarDestaquesExternosGlobais() {
+  if (!window._supabase) return { lista: [], erro: true };
+  const { data, error } = await window._supabase.rpc('destaques_externos_globais');
+  if (error) {
+    console.warn('[carregarDestaquesExternosGlobais] aplique supabase/destaques-externos-globais.sql:', error.message);
+    return { lista: [], erro: true };
+  }
+  return { lista: data || [], erro: false };
+}
+
+function renderDestaquesExternosGlobais() {
+  const container = document.getElementById('destaquesExternosGrid');
+  if (!container) return;
+  const estado = _cache.destaquesExternosGlobais || { lista: [], erro: false };
+  if (estado.erro) {
+    container.innerHTML = '<div class="conquistas-vazio">Destaques da rede indisponíveis. Aplique a atualização do Supabase para carregar estes cards.</div>';
+    return;
+  }
+
+  const destaques = estado.lista || [];
+  const semana = destaques.find(item => item.periodo === 'semana');
+  const mes = destaques.find(item => item.periodo === 'mes');
+  const cards = [
+    { periodo: 'semana', item: semana, titulo: 'Mais vendas externas na semana', complemento: 'nesta semana', icone: '⚡' },
+    { periodo: 'mes', item: mes, titulo: 'Líder externo do mês', complemento: 'neste mês', icone: '🏆' },
+  ];
+  container.innerHTML = cards.map(card => {
+    const item = card.item;
+    const nome = item?.vendedor_nome || 'Nenhuma venda externa';
+    const filial = item?.filial_nome || (item ? 'Filial não informada' : 'Ainda sem vendas neste período');
+    const total = item ? `${formatVendas(item.vendas)} ${card.complemento}` : '0 vendas';
+    return `<article class="destaque-card destaque-card-rede">
+      <div class="destaque-icon-badge ${card.periodo === 'semana' ? 'purple' : 'gold'}" aria-hidden="true">${card.icone}</div>
+      <span class="destaque-label">${escapeHtmlText(card.titulo)}</span>
+      <div class="destaque-pessoa">
+        <div class="destaque-nome">${escapeHtmlText(nome)}</div>
+        <span class="destaque-filial-rede">${escapeHtmlText(filial)}</span>
+      </div>
+      <span class="destaque-valor">${escapeHtmlText(total)}</span>
+    </article>`;
+  }).join('');
+}
+
 function atualizarCarrosselConquistas(direcao) {
   const trilho = document.querySelector('#conquistasGrid .conquistas-track');
   const pontos = [...document.querySelectorAll('#conquistasGrid [data-conquista-ponto]')];
@@ -998,6 +1040,7 @@ let _cache = {
   vendaMaisRecente: null,
   semana: null, mes: null,
   conquistasGlobais: { lista: [], erro: false },
+  destaquesExternosGlobais: { lista: [], erro: false },
 };
 // Último resultado de processarDadosParaRender(), guardado por renderAll()
 // para o card "Status do Caçador" reaproveitar (sem recalcular tudo de
@@ -1124,7 +1167,7 @@ async function carregarDados() {
     const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, destaquesRenovacao, configSite,
-           conquistasGlobais] = await Promise.all([
+           conquistasGlobais, destaquesExternosGlobais] = await Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
       loadAdicionais(),
@@ -1145,6 +1188,10 @@ async function carregarDados() {
         console.warn('[carregarConquistasGlobais]', err);
         return { lista: [], erro: true };
       }),
+      carregarDestaquesExternosGlobais().catch(err => {
+        console.warn('[carregarDestaquesExternosGlobais]', err);
+        return { lista: [], erro: true };
+      }),
     ]);
 
     _cache.vendedores = vendedores;
@@ -1163,6 +1210,7 @@ async function carregarDados() {
     _cache.vendasOrigemSemanaAnterior = vendasOrigemSemanaAnterior;
     _cache.vendasOrigemMes = vendasOrigemMes;
     _cache.conquistasGlobais = conquistasGlobais;
+    _cache.destaquesExternosGlobais = destaquesExternosGlobais;
     const [vendasFechados, vendasFechadosOrigem] = await Promise.all([pFechados, pFechadosOrigem]);
     _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(
       m, vendasFechados[i], vendedores,
@@ -2189,7 +2237,7 @@ function processarDadosParaRender(cache) {
   const todasSemana = [...extSem, ...intSem];
   const liderExternoSem = extSem.sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0];
   const liderInternoSem = intSem.sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0];
-  const maiorEvolucao = todasSemana.reduce((a,b) => (b.evolucao||0) > (a.evolucao||0) ? b : a, todasSemana[0] || {});
+  const maiorEvolucao = todasSemana.reduce((a, b) => (b.vendas || 0) > (a.vendas || 0) ? b : a, todasSemana[0] || {});
   const todasMensal = [...extMes, ...intMes];
   const maiorPct = todasMensal.reduce((a,b) => {
     const pA = a.meta ? a.vendas/a.meta : 0;
@@ -2306,6 +2354,7 @@ function renderAll(cache) {
 
   renderWeekProgress(d);
   renderDestaquesSemana(d);
+  renderDestaquesExternosGlobais();
   renderMetasFilial('semanal', d);
   renderRenovacaoCancelamento(d);
   renderEvolucaoChart(d.evolucaoSemana);

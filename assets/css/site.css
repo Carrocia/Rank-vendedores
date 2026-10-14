@@ -791,6 +791,7 @@
 
   /* ---------- Destaques da Semana ---------- */
   .destaques-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .destaques-rede-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 340px)); gap: 16px; }
   .destaque-card {
     background: linear-gradient(135deg, var(--surface), var(--surface-hover));
     backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: 16px;
@@ -810,6 +811,7 @@
   .destaque-foto { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin-bottom: 4px; }
   .destaque-nome { font-size: 0.9rem; font-weight: 800; color: var(--heading-color); }
   .destaque-valor { display: block; font-size: 0.76rem; font-weight: 700; color: var(--accent); }
+  .destaque-filial-rede { font-size: 0.75rem; color: var(--text-muted); }
 
   /* ---------- aviso do ranking mensal ---------- */
   .lock-notice {
