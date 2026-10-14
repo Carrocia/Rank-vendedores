@@ -989,6 +989,7 @@ function showToast(message, type = 'success', duration = 4500) {
 // ================================================================
 // DADOS EM MEMÓRIA (cache da sessão, populados por carregarDados)
 // ================================================================
+const _maisVendidosCache = new Map();
 let _cache = {
   vendedores: [], planos: [], categoriasPlanos: [], adicionais: [], filiais: [],
   metasFilial: null, metas: [], metasRenovCancel: null,
@@ -1095,6 +1096,7 @@ async function carregarDados() {
   }
 
   try {
+    _maisVendidosCache.clear();
     // Calcular períodos
     _cache.semana = calcularPeriodoSemana();
     _cache.mes = calcularPeriodoMes();
@@ -1173,11 +1175,11 @@ async function carregarDados() {
 
     // Atualizar formulários ADM com dados reais
     popularSelectVendedores(vendedores);
+    popularSelectFiliais(filiais);
     popularSelectPlanos(planos, categoriasPlanos);
     renderTabelaPlanos(planos, categoriasPlanos);
     renderTabelaCategoriasPlanos(categoriasPlanos, planos);
     popularAdicionaisFormulario(adicionais);
-    popularSelectFiliais(filiais);
 
     renderAll(_cache);
     _dadosCarregados = true;
@@ -1218,35 +1220,122 @@ function popularSelectVendedores(vendedores) {
   });
 }
 
-function popularSelectPlanos(planos, categorias = _cache.categoriasPlanos || []) {
-  const grupos = {};
-  const categoriasPorId = new Map((categorias || []).map(c => [String(c.id), c.nome]));
-  (planos || []).filter(p => p.ativo !== false).forEach(p => {
-    const grupo = categoriasPorId.get(String(p.categoria_id)) || 'Sem categoria';
-    if (!grupos[grupo]) grupos[grupo] = [];
-    grupos[grupo].push(p);
+function contarPlanosVendidos(vendas = []) {
+  const contagem = new Map();
+  (vendas || []).forEach(venda => {
+    const planoId = String(venda.plano_id ?? venda.planos?.id ?? '');
+    const quantidade = venda.quantidade == null ? 1 : Number(venda.quantidade);
+    if (planoId && Number.isFinite(quantidade) && quantidade > 0) {
+      contagem.set(planoId, (contagem.get(planoId) || 0) + quantidade);
+    }
   });
-  // Ordena as velocidades como números (500, 650, 750, 1000), e não
-  // como texto, que colocaria 1000 antes de 500. Mantém cada categoria junta.
-  Object.values(grupos).forEach(lista => lista.sort((a, b) => {
+  return contagem;
+}
+
+function montarGruposSelectPlanos(planos, categorias, contagem, filialNome = '') {
+  const categoriasPorId = new Map((categorias || []).map(c => [String(c.id), c.nome]));
+  const ativos = (planos || []).filter(p => p.ativo !== false);
+  const gruposNormais = {};
+  ativos.forEach(plano => {
+    const grupo = categoriasPorId.get(String(plano.categoria_id)) || 'Sem categoria';
+    if (!gruposNormais[grupo]) gruposNormais[grupo] = [];
+    gruposNormais[grupo].push(plano);
+  });
+
+  const ordenarVelocidade = lista => lista.sort((a, b) => {
     const velocidadeA = Number(a.velocidade_mb) || Number(String(a.nome).match(/(\d+)\s*mb/i)?.[1]) || Infinity;
     const velocidadeB = Number(b.velocidade_mb) || Number(String(b.nome).match(/(\d+)\s*mb/i)?.[1]) || Infinity;
     return velocidadeA - velocidadeB || String(a.nome).localeCompare(String(b.nome), 'pt-BR');
-  }));
-  const gruposOrdenados = Object.fromEntries(Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b, 'pt-BR')));
-  const html = '<option value="">Selecione o plano</option>' +
-    Object.entries(gruposOrdenados).map(([g, ps]) =>
-      `<optgroup label="${escapeHtmlText(g)}">${ps.map(p =>
-        `<option value="${escapeHtmlText(p.id)}|${escapeHtmlText(p.valor)}">${escapeHtmlText(p.nome)} ${escapeHtmlText(p.velocidade_mb)} Mbps — R$ ${Number(p.valor).toFixed(2).replace('.',',')}</option>`
+  });
+  Object.values(gruposNormais).forEach(ordenarVelocidade);
+
+  const maisVendidos = ativos
+    .filter(plano => (contagem.get(String(plano.id)) || 0) > 0)
+    .sort((a, b) => (contagem.get(String(b.id)) || 0) - (contagem.get(String(a.id)) || 0)
+      || String(a.nome).localeCompare(String(b.nome), 'pt-BR')
+      || Number(a.velocidade_mb) - Number(b.velocidade_mb))
+    .slice(0, 5)
+    .map(plano => ({ ...plano, vendasNoMes: contagem.get(String(plano.id)) || 0 }));
+
+  const grupos = {};
+  if (maisVendidos.length) {
+    const nomeFilial = String(filialNome || '').trim();
+    grupos[nomeFilial ? `Mais vendidos — ${nomeFilial}` : 'Mais vendidos'] = maisVendidos;
+  }
+  Object.entries(gruposNormais).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
+    .forEach(([nome, lista]) => { grupos[nome] = lista; });
+  return grupos;
+}
+
+function renderSelectPlanos(selectId, grupos) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  select.innerHTML = '<option value="">Selecione o plano</option>' +
+    Object.entries(grupos).map(([grupo, planos]) =>
+      `<optgroup label="${escapeHtmlText(grupo)}">${planos.map(plano =>
+        `<option value="${escapeHtmlText(plano.id)}|${escapeHtmlText(plano.valor)}">${escapeHtmlText(plano.nome)} ${escapeHtmlText(plano.velocidade_mb)} Mbps${plano.vendasNoMes ? ` — ${plano.vendasNoMes} venda${plano.vendasNoMes === 1 ? '' : 's'} no mês` : ''} — R$ ${Number(plano.valor).toFixed(2).replace('.', ',')}</option>`
       ).join('')}</optgroup>`
     ).join('');
-  ['venda-plano','filial-plano'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
-    // espelha exatamente os mesmos planos/preços no dropdown visual
-    // customizado (mesmo "grupos" usado acima, nenhum dado novo)
-    buildCustomSelectPanel(id, gruposOrdenados);
-  });
+  buildCustomSelectPanel(selectId, grupos);
+}
+
+function popularSelectPlanos(planos, categorias = _cache.categoriasPlanos || []) {
+  const filialIdAtual = Number(window.FILIAL_ATUAL_ID);
+  const vendasDaFilial = [...(_cache.vendasMes || []), ...(_cache.vendasFiliais || [])];
+  const contagemAtual = contarPlanosVendidos(vendasDaFilial);
+  const filialAtualNome = (_cache.filiais || []).find(f => Number(f.id) === filialIdAtual)?.nome || '';
+  const gruposAtuais = montarGruposSelectPlanos(planos, categorias, contagemAtual, filialAtualNome);
+
+  // Nova Venda segue a filial de destino escolhida (quando houver).
+  const destinoSelecionado = Number(document.getElementById('venda-destino')?.value || filialIdAtual);
+  const filialDestinoNome = (_cache.filiais || []).find(f => Number(f.id) === destinoSelecionado)?.nome || filialAtualNome;
+  const gruposNovaVenda = destinoSelecionado === filialIdAtual
+    ? gruposAtuais
+    : montarGruposSelectPlanos(planos, categorias, _maisVendidosCache.get(String(destinoSelecionado)) || new Map(), filialDestinoNome);
+
+  renderSelectPlanos('venda-plano', gruposNovaVenda);
+  // A venda recebida de outra filial sempre é contabilizada para a filial aberta.
+  renderSelectPlanos('filial-plano', gruposAtuais);
+}
+
+async function atualizarMaisVendidosDaFilial(filialId) {
+  const id = Number(filialId || window.FILIAL_ATUAL_ID);
+  const seletor = document.getElementById('venda-plano');
+  if (!seletor) return;
+  const filialAtualId = Number(window.FILIAL_ATUAL_ID);
+  const planos = _cache.planos || [];
+  const categorias = _cache.categoriasPlanos || [];
+  const nomeFilial = (_cache.filiais || []).find(f => Number(f.id) === id)?.nome || '';
+
+  if (id === filialAtualId) {
+    const contagem = contarPlanosVendidos([...(_cache.vendasMes || []), ...(_cache.vendasFiliais || [])]);
+    renderSelectPlanos('venda-plano', montarGruposSelectPlanos(planos, categorias, contagem, nomeFilial));
+    return;
+  }
+
+  let contagem = _maisVendidosCache.get(String(id));
+  if (!contagem) {
+    if (!window.ADMIN_AUTENTICADO || !window._supabase || !_cache.mes) return;
+    const de = _cache.mes.de;
+    const ateExclusivo = fimDoDiaExclusivo(_cache.mes.ate);
+    const [respostaVendas, respostaRecebidas] = await Promise.all([
+      window._supabase.from('vendas_admin').select('plano_id')
+        .eq('filial_destino_id', id).gte('data_venda', de).lt('data_venda', ateExclusivo),
+      window._supabase.from('vendas_outras_filiais_admin').select('plano_id, quantidade')
+        .eq('filial_destino_id', id).gte('data_venda', de).lt('data_venda', ateExclusivo),
+    ]);
+    if (respostaVendas.error || respostaRecebidas.error) {
+      console.warn('[atualizarMaisVendidosDaFilial] Não foi possível obter o ranking da filial escolhida.', respostaVendas.error || respostaRecebidas.error);
+      contagem = new Map();
+    } else {
+      contagem = contarPlanosVendidos([...(respostaVendas.data || []), ...(respostaRecebidas.data || [])]);
+    }
+    _maisVendidosCache.set(String(id), contagem);
+  }
+
+  // Evita uma consulta lenta trocar a lista depois que o usuário já escolheu outra filial.
+  if (Number(document.getElementById('venda-destino')?.value || filialAtualId) !== id) return;
+  renderSelectPlanos('venda-plano', montarGruposSelectPlanos(planos, categorias, contagem, nomeFilial));
 }
 
 function renderTabelaPlanos(planos, categorias = _cache.categoriasPlanos || []) {
@@ -1666,13 +1755,13 @@ function buildCustomSelectPanel(selectId, grupos) {
   const panel = document.getElementById(selectId + '-panel');
   if (!panel) return;
   panel.innerHTML = Object.entries(grupos).map(([g, ps]) => `
-    <div class="custom-select-group-label">${g}</div>
+    <div class="custom-select-group-label">${escapeHtmlText(g)}</div>
     ${ps.map(p => {
       const value = `${p.id}|${p.valor}`;
-      const label = `${p.nome} ${p.velocidade_mb} Mbps`;
+      const label = `${p.nome} ${p.velocidade_mb} Mbps${p.vendasNoMes ? ` — ${p.vendasNoMes} venda${p.vendasNoMes === 1 ? '' : 's'} no mês` : ''}`;
       const priceLabel = 'R$ ' + Number(p.valor).toFixed(2).replace('.', ',');
-      return `<div class="custom-select-option" data-value="${value}" data-label="${label} — ${priceLabel}">
-        <span>${label}</span><span class="csopt-price">${priceLabel}</span>
+      return `<div class="custom-select-option" data-value="${escapeHtmlText(value)}" data-label="${escapeHtmlText(`${label} — ${priceLabel}`)}">
+        <span>${escapeHtmlText(label)}</span><span class="csopt-price">${escapeHtmlText(priceLabel)}</span>
       </div>`;
     }).join('')}
   `).join('');
@@ -1764,6 +1853,7 @@ function popularSelectFiliais(filiais) {
     // a filial aberta permanece como padrão para não mudar o fluxo atual.
     destinoEl.value = String(window.FILIAL_ATUAL_ID || '');
     destinoEl.required = adminAutenticado;
+    destinoEl.onchange = () => atualizarMaisVendidosDaFilial(destinoEl.value);
   }
 
   const data = document.getElementById('filial-data');
