@@ -26,7 +26,7 @@
 // ================================================================
 (function () {
   var TEMAS = {
-    'outubro-rosa': { nome: 'Outubro Rosa', icone: '🎗️', periodo: 'Outubro', fx: '🎗️', d: ['#ff6fb1', '#c77dff'], l: ['#be185d', '#7b2cbf'] },
+    'outubro-rosa': { nome: 'Outubro Rosa', icone: '🎗️', periodo: 'Outubro', fx: '✿', d: ['#ff69a6', '#4d7cff'], l: ['#b42367', '#1d4ed8'] },
     'novembro-azul': { nome: 'Novembro Azul', icone: '💙', periodo: 'Novembro', fx: '💙', d: ['#4cc9f0', '#6f86ff'], l: ['#0369a1', '#3a47c9'] },
     'black-friday': { nome: 'Black Friday', icone: '🏷️', periodo: 'Semana da Black Friday', fx: '🏷️', d: ['#ffb703', '#ff5a1f'], l: ['#975c07', '#bd3f0c'] },
     'natal': { nome: 'Natal', icone: '🎄', periodo: '01 a 25/12', fx: '❄️', d: ['#ff7478', '#2fd18b'], l: ['#c2261b', '#0f7a4a'] },
