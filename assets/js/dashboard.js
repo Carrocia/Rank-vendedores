@@ -1770,10 +1770,14 @@ function processarDadosParaRender(cache) {
     + vendasOutrasFiliaisSemana + vendasOrigemSemanaTotal;
   const metaGlobal = (metasFilial && metasFilial.mensal_m1) || null; // sem fallback fictício
   const pctMensal = metaGlobal ? Math.min(100, Math.round((totalMes / metaGlobal) * 100)) : 0;
-  const rankingMes = calcularRanking(vendasMes);
-  const lider = rankingMes.length > 0
-    ? (vendedores.find(v => v.id === rankingMes[0].vendedor_id)?.nome || '—')
-    : '—';
+  // O ranking mensal também credita aos vendedores internos as vendas
+  // interregionais feitas por eles (somadas em intMes acima). Use os mesmos
+  // totais exibidos na classificação para que o ranking do ADM e o card
+  // "Líder do mês" não divergirem do ranking mensal principal.
+  const rankingMes = [...extMes, ...intMes]
+    .map(v => ({ vendedor_id: v.id, nome: v.nome, slug: v.slug, vendas: v.vendas, valor: v.valor }))
+    .sort((a, b) => b.vendas - a.vendas || b.valor - a.valor);
+  const lider = rankingMes[0]?.nome || '—';
 
   // Venda mais recente
   let vendaRecenteLabel = '—';
