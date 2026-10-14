@@ -610,7 +610,7 @@
           </div>
           <div class="adm-form-card" id="ixc-import-card">
             <div class="adm-section-title adm-subsection-title">Importar vendas do IXC</div>
-            <p class="adm-vendedor-cadastro-hint">Envie o CSV da regional aberta. A origem e o vendedor serão identificados pelo ID do IXC no cadastro; vendas de vendedores internos de outra filial seguem o vínculo interregional atual e contam para a meta individual dele. Como o CSV não informa se a venda foi fora da filial, desmarque essas linhas na prévia e lance-as pelo fluxo manual. Contratos já registrados não serão duplicados.</p>
+            <p class="adm-vendedor-cadastro-hint">Envie o CSV da regional aberta. A origem e o vendedor serão identificados pelo ID do IXC no cadastro; vendas de vendedores internos de outra filial seguem o vínculo interregional atual e contam para a meta individual dele. A data da venda usa a Data ativação e a hora usa somente a hora da Última atualização. Neste formato, sem Status contrato, as linhas do relatório são tratadas como ativas. Como o CSV não informa se a venda foi fora da filial, desmarque essas linhas na prévia e lance-as pelo fluxo manual. Contratos já registrados não serão alterados nem duplicados.</p>
             <div class="adm-form-grid">
               <div class="adm-field adm-form-full">
                 <label for="ixc-csv-file">Relatório CSV</label>
@@ -619,7 +619,7 @@
               <div class="adm-form-full" id="ixc-import-summary" aria-live="polite"></div>
               <div class="adm-form-full adm-table-wrap" id="ixc-import-preview-wrap" hidden>
                 <table class="adm-table">
-                  <thead><tr><th>Contrato</th><th>Cliente</th><th>Plano reconhecido</th><th>Valor</th><th>Vendedor</th><th>Origem</th><th>Data/hora</th><th>Situação</th></tr></thead>
+                  <thead><tr><th>Contrato</th><th>Cliente</th><th>Plano reconhecido</th><th>Valor</th><th>Vendedor</th><th>Origem</th><th>Ativação / hora IXC</th><th>Situação</th></tr></thead>
                   <tbody id="ixc-import-preview"></tbody>
                 </table>
               </div>

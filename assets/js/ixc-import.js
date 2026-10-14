@@ -50,17 +50,21 @@ function analisarCsvIxc(texto) {
     status: indice('Status contrato'),
     cliente: indice('Cliente'),
     plano: indice('Descrição'),
+    ativacao: indice('Data ativação'),
     vendedor: indice('Vendedor'),
     atualizacao: indice('Última atualização'),
   };
-  const faltantes = Object.entries(colunas).filter(([, posicao]) => posicao < 0).map(([nome]) => nome);
+  const obrigatorias = ['contrato', 'cliente', 'plano', 'vendedor', 'atualizacao'];
+  const faltantes = obrigatorias.filter(nome => colunas[nome] < 0);
+  if (colunas.status < 0 && colunas.ativacao < 0) faltantes.push('Status contrato ou Data ativação');
   if (faltantes.length) throw new Error(`Faltam colunas esperadas no CSV: ${faltantes.join(', ')}.`);
   return linhas.slice(1).map((linha, indiceLinha) => ({
     linha: indiceLinha + 2,
     contrato: String(linha[colunas.contrato] || '').replace(/\s+/g, ''),
-    status: String(linha[colunas.status] || '').trim(),
+    status: colunas.status >= 0 ? String(linha[colunas.status] || '').trim() : 'Ativo',
     cliente: String(linha[colunas.cliente] || '').trim(),
     descricaoPlano: String(linha[colunas.plano] || '').trim(),
+    dataAtivacao: colunas.ativacao >= 0 ? String(linha[colunas.ativacao] || '').trim() : '',
     ixcVendedorId: String(linha[colunas.vendedor] || '').replace(/\s+/g, ''),
     ultimaAtualizacao: String(linha[colunas.atualizacao] || '').trim(),
   })).filter(linha => linha.contrato || linha.ixcVendedorId || linha.cliente);
@@ -74,6 +78,21 @@ function converterDataIxcParaIso(valor) {
   const dataLocal = new Date(Number(ano), Number(mes) - 1, Number(dia), Number(hora), Number(minuto), Number(segundo));
   if (dataLocal.getFullYear() !== Number(ano) || dataLocal.getMonth() !== Number(mes) - 1 || dataLocal.getDate() !== Number(dia)) return null;
   return dataLocal.toISOString();
+}
+
+function extrairHoraAtualizacaoIxc(valor) {
+  const m = String(valor || '').trim().match(/(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  const hora = Number(m[1]), minuto = Number(m[2]), segundo = Number(m[3] || 0);
+  if (hora > 23 || minuto > 59 || segundo > 59) return null;
+  return `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}:${String(segundo).padStart(2, '0')}`;
+}
+
+function converterAtivacaoComHoraAtualizacaoIxcParaIso(dataAtivacao, ultimaAtualizacao) {
+  const data = String(dataAtivacao || '').trim();
+  const hora = extrairHoraAtualizacaoIxc(ultimaAtualizacao);
+  if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(data) || !hora) return null;
+  return converterDataIxcParaIso(`${data} ${hora}`);
 }
 
 function identificarFamiliaPlanoIxc(valor) {
@@ -149,7 +168,7 @@ function renderizarPreviaIxc() {
       <td>${escapar(linha.plano?.nome || linha.descricaoPlano)}</td><td>${linha.valor == null ? '—' : `R$ ${Number(linha.valor).toFixed(2).replace('.', ',')}`}</td>
       <td>${escapar(linha.vendedor?.nome || `IXC ${linha.ixcVendedorId}`)}</td>
       <td>${escapar(linha.filialOrigemNome || '—')}</td>
-      <td>${escapar(linha.ultimaAtualizacao)}</td>
+      <td>${escapar(linha.dataAtivacao || '—')} · ${escapar(linha.horaAtualizacao || '—')}</td>
       <td>${selecionavel ? `<label><input type="checkbox" data-ixc-linha="${indice}" ${linha.incluir ? 'checked' : ''}> ${escapar(situacao)}</label>` : escapar(situacao)}</td>
     </tr>`;
   }).join('');
@@ -217,8 +236,12 @@ async function analisarImportacaoIxc(event) {
       }
       resultado.vendedor = vendedoresDoCodigo[0];
       resultado.filialOrigemNome = filiais.find(f => String(f.id) === String(resultado.vendedor.filial_id))?.nome || '';
-      const instante = converterDataIxcParaIso(linha.ultimaAtualizacao);
-      if (!instante) { resultado.erro = 'Data/hora de atualização inválida'; return resultado; }
+      const dataAtivacao = linha.dataAtivacao || String(linha.ultimaAtualizacao).trim().match(/^\d{1,2}\/\d{1,2}\/\d{4}/)?.[0] || '';
+      const horaAtualizacao = extrairHoraAtualizacaoIxc(linha.ultimaAtualizacao);
+      const instante = converterAtivacaoComHoraAtualizacaoIxcParaIso(dataAtivacao, linha.ultimaAtualizacao);
+      if (!instante) { resultado.erro = 'Data de ativação ou hora da última atualização inválida'; return resultado; }
+      resultado.dataAtivacao = dataAtivacao;
+      resultado.horaAtualizacao = horaAtualizacao;
       resultado.dataVenda = instante;
       resultado.plano = resolverPlanoIxc(linha.descricaoPlano, planos);
       if (!resultado.plano) { resultado.erro = 'Plano sem correspondência única no catálogo'; return resultado; }
