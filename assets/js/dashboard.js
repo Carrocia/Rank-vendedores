@@ -906,7 +906,7 @@ function renderDestaquesExternosGlobais() {
   const destaques = estado.lista || [];
   const semana = destaques.find(item => item.periodo === 'semana');
   const mes = destaques.find(item => item.periodo === 'mes');
-  const linhaPeriodo = (rotulo, item) => {
+  const linhaPeriodo = (rotulo, item, mostrarQuantidade = false) => {
     if (estado.erro) {
       return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio" title="Confira a função destaques_externos_globais no Supabase">Falha ao carregar</span></div>`;
     }
@@ -916,14 +916,14 @@ function renderDestaquesExternosGlobais() {
     return `<div class="destaque-rede-periodo">
       <span class="destaque-rede-rotulo">${rotulo}</span>
       <span class="destaque-rede-pessoa"><strong>${escapeHtmlText(item.vendedor_nome || 'Vendedor')}</strong><small>${escapeHtmlText(item.filial_nome || 'Filial')}</small></span>
-      <span class="destaque-rede-total">${escapeHtmlText(formatVendas(item.vendas))}</span>
+      ${mostrarQuantidade ? `<span class="destaque-rede-total">${escapeHtmlText(formatVendas(item.vendas))}</span>` : ''}
     </div>`;
   };
   container.insertAdjacentHTML('beforeend', `<article class="destaque-card destaque-card-rede">
     <div class="destaque-icon-badge purple" aria-hidden="true">🌐</div>
-    <span class="destaque-label">Externo destaque UNI</span>
+    <span class="destaque-label">Líder externo UNI</span>
     <div class="destaque-rede-periodos">
-      ${linhaPeriodo('Semana', semana)}
+      ${linhaPeriodo('Semana', semana, true)}
       ${linhaPeriodo('Mês', mes)}
     </div>
   </article>`);

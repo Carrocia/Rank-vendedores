@@ -813,15 +813,15 @@
   .destaque-card-rede { display: flex; flex-direction: column; align-items: center; }
   .destaque-rede-periodos { display: grid; grid-template-columns: 1fr; width: 100%; gap: 9px; }
   .destaque-rede-periodo {
-    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px;
-    width: 100%; padding-top: 9px; border-top: 1px solid var(--border); text-align: left;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    width: 100%; min-width: 0; padding-top: 9px; border-top: 1px solid var(--border); text-align: center;
   }
   .destaque-rede-rotulo { color: var(--text-muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-  .destaque-rede-pessoa { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-  .destaque-rede-pessoa strong { overflow: hidden; color: var(--heading-color); font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
-  .destaque-rede-pessoa small { overflow: hidden; color: var(--text-muted); font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
+  .destaque-rede-pessoa { display: flex; min-width: 0; max-width: 100%; flex-direction: column; gap: 2px; }
+  .destaque-rede-pessoa strong { overflow: hidden; color: var(--heading-color); font-size: 0.86rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+  .destaque-rede-pessoa small { overflow: hidden; color: var(--text-muted); font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
   .destaque-rede-total { color: var(--accent); font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
-  .destaque-rede-vazio { grid-column: 2 / -1; color: var(--text-muted); font-size: 0.72rem; }
+  .destaque-rede-vazio { color: var(--text-muted); font-size: 0.72rem; }
 
   /* ---------- aviso do ranking mensal ---------- */
   .lock-notice {
