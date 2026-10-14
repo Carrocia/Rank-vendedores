@@ -13,6 +13,7 @@ window.FILIAL_ATUAL = null;
 window.ADMIN_FILIAL_ID = null;
 window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
+let _vendedoresVisaoGlobal = [];
 let _vendedorFotoPreviewUrl = null;
 let _vendedoresGerenciamento = [];
 let _filialGerenciadaEmEdicaoId = null;
@@ -330,6 +331,57 @@ async function carregarVendedoresGerenciamento() {
   });
 }
 
+function renderizarVendedoresVisaoGlobal() {
+  const tbody = document.getElementById('adm-vendedores-global-tbody');
+  const filtro = document.getElementById('adm-vendedores-global-filial');
+  if (!tbody || !filtro) return;
+  const filialPorId = new Map((_cache.filiais || []).map(f => [String(f.id), f.nome]));
+  const filialEscolhida = filtro.value || 'todas';
+  const vendedores = _vendedoresVisaoGlobal.filter(v => filialEscolhida === 'todas' || String(v.filial_id) === filialEscolhida);
+  tbody.replaceChildren();
+  if (!vendedores.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 4;
+    td.className = 'adm-empty-state';
+    td.textContent = 'Nenhum vendedor cadastrado para esta seleção.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+  vendedores.forEach(v => {
+    const tr = document.createElement('tr');
+    const nome = document.createElement('td');
+    nome.textContent = v.nome || '—';
+    const tipo = document.createElement('td');
+    tipo.textContent = v.tipo === 'interno' ? 'Interno' : 'Externo';
+    const filial = document.createElement('td');
+    filial.textContent = filialPorId.get(String(v.filial_id)) || 'Regional não identificada';
+    const status = document.createElement('td');
+    status.textContent = v.ativo ? 'Ativo' : 'Desativado';
+    tr.append(nome, tipo, filial, status);
+    tbody.appendChild(tr);
+  });
+}
+
+async function carregarVendedoresVisaoGlobal() {
+  const tbody = document.getElementById('adm-vendedores-global-tbody');
+  if (!ehSuperAdminAtual() || !window._supabase || !tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" class="adm-inline-status">Carregando vendedores de todas as regionais…</td></tr>';
+  const { data, error } = await window._supabase
+    .from('vendedores')
+    .select('id, nome, tipo, filial_id, ativo')
+    .order('filial_id')
+    .order('nome');
+  if (error) {
+    console.error('[carregarVendedoresVisaoGlobal]', error);
+    tbody.innerHTML = '<tr><td colspan="4" class="adm-empty-state">Não foi possível carregar os vendedores de todas as regionais.</td></tr>';
+    return;
+  }
+  _vendedoresVisaoGlobal = data || [];
+  renderizarVendedoresVisaoGlobal();
+}
+
 async function alterarStatusVendedor(id, ativo) {
   const vendedor = _vendedoresGerenciamento.find(v => Number(v.id) === Number(id));
   if (!vendedor) return;
@@ -351,6 +403,7 @@ async function alterarStatusVendedor(id, ativo) {
     showToast(ativo ? `${vendedor.nome} foi reativado.` : `${vendedor.nome} foi desativado.`, 'success');
     await carregarDados();
     await carregarVendedoresGerenciamento();
+    if (ehSuperAdminAtual()) await carregarVendedoresVisaoGlobal();
   } catch (error) {
     console.error('[alterarStatusVendedor]', error);
     showToast(error.message || 'Não foi possível alterar o status do vendedor.', 'error');
@@ -528,6 +581,7 @@ async function cadastrarVendedor(event) {
         await carregarDados();
         await carregarVendedoresGerenciamento();
       }
+      if (ehSuperAdminAtual()) await carregarVendedoresVisaoGlobal();
     } catch (reloadError) {
       console.error('[cadastrarVendedor] alteração salva, mas não foi possível atualizar as listas:', reloadError);
       showToast('Alteração salva. Atualize a página para atualizar as listas.', 'warning');
@@ -2207,6 +2261,20 @@ async function adm_showPanel() {
 
 function configurarNavegacaoAdmin() {
   const superAdmin = ehSuperAdminAtual();
+  const vendedoresGlobaisCard = document.getElementById('adm-vendedores-global-card');
+  const vendedoresGlobaisFiltro = document.getElementById('adm-vendedores-global-filial');
+  if (vendedoresGlobaisCard) vendedoresGlobaisCard.hidden = !superAdmin;
+  if (superAdmin && vendedoresGlobaisFiltro) {
+    if (!vendedoresGlobaisFiltro.dataset.filiaisCarregadas) {
+      (_cache.filiais || []).forEach(f => vendedoresGlobaisFiltro.add(new Option(f.nome, String(f.id))));
+      vendedoresGlobaisFiltro.dataset.filiaisCarregadas = 'true';
+    }
+    if (!vendedoresGlobaisFiltro.dataset.listenerRegistrado) {
+      vendedoresGlobaisFiltro.addEventListener('change', renderizarVendedoresVisaoGlobal);
+      vendedoresGlobaisFiltro.dataset.listenerRegistrado = 'true';
+    }
+    carregarVendedoresVisaoGlobal();
+  }
   const elementosSuperAdmin = ['adm-nav-rede', 'adm-nav-planos', 'adm-nav-tema', 'adm-nav-admins', 'adm-nav-filiais'];
   elementosSuperAdmin.forEach(id => {
     const el = document.getElementById(id);
