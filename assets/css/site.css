@@ -1073,7 +1073,7 @@
     pointer-events: none; user-select: none;
   }
   html[data-season="natal"] .header-logo { position: relative; }
-  html[data-season="natal"] .natal-gorro { position: absolute; z-index: 2; width: 38%; top: -42%; left: -14%; transform: rotate(-22deg); filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); pointer-events: none; }
+  html[data-season="natal"] .natal-gorro { position: absolute; z-index: 2; width: 38%; top: -8%; left: -3%; transform: rotate(-22deg); filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); pointer-events: none; }
   html[data-season="natal"] .header-copy h1 { position: relative; text-shadow: 0 -1px 1px rgba(255,255,255,.2); }
   html[data-season="natal"] .header-copy h1::after {
     content: ""; position: absolute; pointer-events: none; left: 1%; top: -2px;
@@ -1105,7 +1105,7 @@
     .natal-arvore { left: 3px; bottom: 10px; width: 76px; opacity: .72; }
     .natal-presente { right: 3px; bottom: 8px; width: 82px; opacity: .7; }
     .hero-panel .natal-enfeites { right: 4px; width: 32px; opacity: .42; }
-    html[data-season="natal"] .natal-gorro { width: 38%; top: -40%; left: -13%; }
+    html[data-season="natal"] .natal-gorro { width: 38%; top: -8%; left: -3%; }
     .natal-treno { top: 76px; width: min(250px, 58vw); }
   }
   @media (prefers-reduced-motion: reduce) {
