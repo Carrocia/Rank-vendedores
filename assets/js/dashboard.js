@@ -1400,16 +1400,16 @@ function popularSelectFiliais(filiais) {
   const destinoEl = document.getElementById('venda-destino');
   const destinoCampo = document.getElementById('venda-destino-field');
   if (destinoEl && destinoCampo) {
-    const isSuperAdmin = window.ADMIN_AUTENTICADO === true && window.ADMIN_FILIAL_ID == null;
-    destinoCampo.hidden = !isSuperAdmin;
+    const adminAutenticado = window.ADMIN_AUTENTICADO === true;
+    destinoCampo.hidden = !adminAutenticado;
     destinoEl.replaceChildren(new Option('Selecione a filial de destino', ''));
     (filiais || []).filter(f => f.ativo !== false).forEach(f => {
       destinoEl.add(new Option(f.nome, String(f.id)));
     });
-    // Para administradores regionais, mantém o destino fixo na filial aberta.
-    // O superadministrador pode escolher qualquer filial ativa.
+    // Todos os administradores autenticados podem escolher uma filial ativa;
+    // a filial aberta permanece como padrão para não mudar o fluxo atual.
     destinoEl.value = String(window.FILIAL_ATUAL_ID || '');
-    destinoEl.required = isSuperAdmin;
+    destinoEl.required = adminAutenticado;
   }
 
   const data = document.getElementById('filial-data');

@@ -2835,13 +2835,14 @@ async function handleNovaVenda(e) {
   const numero_venda = document.getElementById('venda-numero-contrato').value.trim();
   const obs = document.getElementById('venda-obs').value.trim();
   const foraFilial = document.getElementById('venda-fora-filial').checked;
-  const isSuperAdmin = window.ADMIN_AUTENTICADO === true && window.ADMIN_FILIAL_ID == null;
+  const adminAutenticado = window.ADMIN_AUTENTICADO === true;
   const destinoSelecionado = Number(document.getElementById('venda-destino')?.value || window.FILIAL_ATUAL_ID);
-  const filial_destino_id = isSuperAdmin ? destinoSelecionado : Number(window.FILIAL_ATUAL_ID);
+  const filial_destino_id = adminAutenticado ? destinoSelecionado : Number(window.FILIAL_ATUAL_ID);
   if (!vendedor_id || !plano_id) { showToast('Selecione o vendedor e o plano.', 'warning'); return; }
   if (!Number.isInteger(filial_destino_id) || filial_destino_id <= 0) { showToast('Selecione uma filial de destino válida.', 'warning'); return; }
-  if (!isSuperAdmin && filial_destino_id !== Number(window.FILIAL_ATUAL_ID)) {
-    showToast('Somente o superadministrador pode escolher outra filial de destino.', 'error');
+  const destinoAtivo = (_cache.filiais || []).some(f => Number(f.id) === filial_destino_id && f.ativo !== false);
+  if (!destinoAtivo) {
+    showToast('A filial de destino selecionada não está ativa.', 'warning');
     return;
   }
   if (!data_venda || !hora_venda) { showToast('Informe a data e a hora da venda.', 'warning'); return; }
