@@ -1087,24 +1087,17 @@
   }
   @keyframes natalTreno { from { transform: translateX(-105%); } to { transform: translateX(105vw); } }
   @keyframes natalBalanco { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
-  html[data-season="outubro-rosa"] .bg-fx::after {
-    content: ""; position: absolute; z-index: 0; width: clamp(190px, 27vw, 360px); aspect-ratio: 4 / 5;
-    top: 17%; right: max(-84px, calc((100vw - 1480px) / 2)); opacity: 0.14;
-    background: url("../images/outubro-rosa-laco.svg") center / contain no-repeat;
-  }
   html[data-season="outubro-rosa"] .season-fx span {
     color: #ffb7d5; opacity: 0.18; text-shadow: 0 0 12px rgba(255,105,166,0.25);
     font-family: Georgia, serif;
   }
   html[data-theme="light"][data-season="outubro-rosa"] .season-fx span { opacity: 0.24; }
-  html[data-theme="light"][data-season="outubro-rosa"] .bg-fx::after { opacity: 0.11; }
   @keyframes seasonFall {
     0%   { transform: translate3d(0, -12vh, 0) rotate(0deg); }
     50%  { transform: translate3d(var(--sway, 0px), 55vh, 0) rotate(180deg); }
     100% { transform: translate3d(0, 112vh, 0) rotate(360deg); }
   }
   @media (max-width: 640px) {
-    html[data-season="outubro-rosa"] .bg-fx::after { width: 220px; top: 22%; right: -98px; opacity: 0.1; }
     .natal-neve { height: 94px; object-position: center 60%; opacity: .48; }
     .natal-arvore { left: 3px; bottom: 10px; width: 76px; opacity: .72; }
     .natal-presente { right: 3px; bottom: 8px; width: 82px; opacity: .7; }
