@@ -65,4 +65,7 @@ as $function$
 $function$;
 
 revoke all on function public.destaques_externos_globais() from public;
+grant usage on schema public to anon, authenticated;
 grant execute on function public.destaques_externos_globais() to anon, authenticated;
+
+notify pgrst, 'reload schema';

@@ -893,7 +893,7 @@ async function carregarDestaquesExternosGlobais() {
   if (!window._supabase) return { lista: [], erro: true };
   const { data, error } = await window._supabase.rpc('destaques_externos_globais');
   if (error) {
-    console.warn('[carregarDestaquesExternosGlobais] aplique supabase/destaques-externos-globais.sql:', error.message);
+    console.error('[carregarDestaquesExternosGlobais] RPC destaques_externos_globais:', error);
     return { lista: [], erro: true };
   }
   return { lista: data || [], erro: false };
@@ -908,7 +908,7 @@ function renderDestaquesExternosGlobais() {
   const mes = destaques.find(item => item.periodo === 'mes');
   const linhaPeriodo = (rotulo, item) => {
     if (estado.erro) {
-      return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio">Dados indisponíveis</span></div>`;
+      return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio" title="Confira a função destaques_externos_globais no Supabase">Falha ao carregar</span></div>`;
     }
     if (!item) {
       return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio">Ainda sem vendas</span></div>`;
@@ -921,7 +921,7 @@ function renderDestaquesExternosGlobais() {
   };
   container.insertAdjacentHTML('beforeend', `<article class="destaque-card destaque-card-rede">
     <div class="destaque-icon-badge purple" aria-hidden="true">🌐</div>
-    <span class="destaque-label">Externo destaque da rede</span>
+    <span class="destaque-label">Externo destaque UNI</span>
     <div class="destaque-rede-periodos">
       ${linhaPeriodo('Semana', semana)}
       ${linhaPeriodo('Mês', mes)}
