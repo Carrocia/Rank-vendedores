@@ -101,6 +101,8 @@ function identificarFamiliaPlanoIxc(valor) {
   if (/\b(empresa|empresas|empresarial|enterprise|entreprise)\b/.test(texto)) return 'empresa';
   if (/\b(radio|wireless)\b/.test(texto)) return 'radio';
   if (/\bfibra\b/.test(texto)) return 'fibra';
+  if (/\b(combo|combinado)\b/.test(texto)) return 'combo';
+  if (/\b(evento|eventos)\b/.test(texto)) return 'evento';
   return null;
 }
 
@@ -138,14 +140,49 @@ function resolverPlanoIxc(descricao, planos) {
 
   const familia = identificarFamiliaPlanoIxc(descricao);
   const velocidade = velocidadePlanoIxc(descricao);
-  if (!familia || !velocidade) return null;
-  const candidatos = planos.filter(plano => {
-    const nome = `${plano.nome || ''} ${plano.tipo || ''}`;
-    const familiaPlano = identificarFamiliaPlanoIxc(nome);
-    const velocidadeCatalogo = Number(plano.velocidade_mb) || velocidadePlanoIxc(nome);
-    return familiaPlano === familia && velocidadeCatalogo === velocidade;
+  if (!velocidade) return null;
+
+  const tokens = valor => {
+    const texto = normalizarTextoIxc(valor)
+      .replace(/\b(enterprise|entreprise|empresarial|empresas?)\b/g, 'empresa')
+      .replace(/\b(eventos?)\b/g, 'evento')
+      .replace(/\b(combinado)\b/g, 'combo');
+    const ignorar = new Set(['uni', 'at', 'plano', 'internet', 'mega', 'mb', 'mbps', 'gb', 'giga', 'ded', 'atualizado']);
+    return new Set(texto.split(' ').filter(token => token && !/^\d+$/.test(token) && !ignorar.has(token)));
+  };
+  const igualdadeDeTokens = (a, b) => a.size === b.size && [...a].every(token => b.has(token));
+  const descricaoTokens = tokens(descricao);
+  const mesmaVelocidade = planos.filter(plano => {
+    const nomeCompleto = `${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`;
+    const velocidadeCatalogo = Number(plano.velocidade_mb) || velocidadePlanoIxc(nomeCompleto);
+    return velocidadeCatalogo === velocidade;
   });
-  return candidatos.length === 1 ? candidatos[0] : null;
+  if (!mesmaVelocidade.length) return null;
+
+  // Quando só muda a ordem das palavras, compara os termos normalizados como conjunto.
+  const equivalentes = mesmaVelocidade.filter(plano => {
+    const textoPlano = `${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`;
+    return igualdadeDeTokens(descricaoTokens, tokens(textoPlano));
+  });
+  if (equivalentes.length === 1) return equivalentes[0];
+  if (equivalentes.length > 1) return null;
+
+  const candidatos = familia
+    ? mesmaVelocidade.filter(plano => identificarFamiliaPlanoIxc(`${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`) === familia)
+    : mesmaVelocidade;
+  if (candidatos.length === 1) return candidatos[0];
+  if (candidatos.length < 2) return null;
+
+  // Se houver mais de um plano da mesma família e velocidade, aceita somente um nome claramente mais próximo.
+  const pontuados = candidatos.map(plano => {
+    const nomeTokens = tokens(`${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`);
+    const comuns = [...descricaoTokens].filter(token => nomeTokens.has(token)).length;
+    const score = comuns / Math.max(descricaoTokens.size, nomeTokens.size, 1);
+    return { plano, score };
+  }).sort((a, b) => b.score - a.score);
+  const melhor = pontuados[0];
+  const segundo = pontuados[1];
+  return melhor.score >= 0.5 && melhor.score - segundo.score >= 0.2 ? melhor.plano : null;
 }
 
 function renderizarPreviaIxc() {
