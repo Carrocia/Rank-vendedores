@@ -43,11 +43,15 @@
   window.UNI_TEMAS = TEMAS;
 
   function rgb(h) { h = h.replace('#', ''); return parseInt(h.substr(0, 2), 16) + ', ' + parseInt(h.substr(2, 2), 16) + ', ' + parseInt(h.substr(4, 2), 16); }
-  function vars(c) { return '--accent:' + c[0] + ';--accent2:' + c[1] + ';--accent-rgb:' + rgb(c[0]) + ';--accent2-rgb:' + rgb(c[1]) + ';'; }
+  function vars(c, glowAlpha) {
+    var accentRgb = rgb(c[0]);
+    var glow = glowAlpha == null ? '' : '--accent-glow:rgba(' + accentRgb + ',' + glowAlpha + ');';
+    return '--accent:' + c[0] + ';--accent2:' + c[1] + ';--accent-rgb:' + accentRgb + ';--accent2-rgb:' + rgb(c[1]) + ';' + glow;
+  }
   var css = '';
   Object.keys(TEMAS).forEach(function (id) {
-    css += 'html[data-season="' + id + '"]{' + vars(TEMAS[id].d) + '}';
-    css += 'html[data-theme="light"][data-season="' + id + '"]{' + vars(TEMAS[id].l) + '}';
+    css += 'html[data-season="' + id + '"]{' + vars(TEMAS[id].d, id === 'natal' ? 0.25 : null) + '}';
+    css += 'html[data-theme="light"][data-season="' + id + '"]{' + vars(TEMAS[id].l, id === 'natal' ? 0.15 : null) + '}';
   });
   var st = document.createElement('style'); st.id = 'season-css'; st.textContent = css; document.head.appendChild(st);
 
@@ -116,9 +120,10 @@
       var decor = document.createElement('div');
       decor.className = 'natal-decor';
       decor.setAttribute('aria-hidden', 'true');
+      decor.appendChild(imagemNatal('neve-rodape.png', 'natal-neve'));
       decor.appendChild(imagemNatal('arvore.png', 'natal-arvore'));
       decor.appendChild(imagemNatal('presente.png', 'natal-presente'));
-      host.appendChild(decor);
+      document.body.appendChild(decor);
       var logo = document.querySelector('.header-logo');
       if (logo) logo.appendChild(imagemNatal('gorro.png', 'natal-gorro'));
       var painel = document.querySelector('.hero-panel');

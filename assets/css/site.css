@@ -1057,19 +1057,18 @@
   }
   html[data-season="natal"] .season-fx span:nth-child(3n) { opacity: 0.36; }
   html[data-season="natal"] .season-fx span:nth-child(4n) { color: #d9f5ff; }
-  .natal-decor { position: fixed; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
+  .natal-decor { position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
   .natal-decor img { position: absolute; display: block; height: auto; pointer-events: none; user-select: none; }
-  html[data-season="natal"] body::after {
-    content: ""; position: absolute; z-index: 0; left: 0; right: 0; bottom: 0;
-    height: clamp(90px, 14vh, 170px); pointer-events: none; opacity: .44;
-    background: url("../images/natal/neve-rodape.png") center 57% / 100vw 100vw no-repeat;
+  .natal-decor img.natal-neve {
+    left: 0; right: 0; bottom: 0; width: 100%; height: clamp(90px, 14vh, 170px);
+    object-fit: cover; object-position: center 61%; opacity: .42;
     filter: drop-shadow(0 -5px 12px rgba(194, 230, 255, 0.12));
   }
   .natal-arvore { left: clamp(8px, 2vw, 30px); bottom: 22px; width: clamp(76px, 10vw, 138px); opacity: 0.88; }
   .natal-presente { right: clamp(8px, 2vw, 30px); bottom: 16px; width: clamp(84px, 11vw, 148px); opacity: 0.86; }
   .hero-panel .natal-enfeites {
-    position: absolute; z-index: 5; display: block; top: 0; right: 14px;
-    width: clamp(42px, 4vw, 56px); height: auto; opacity: .82;
+    position: absolute; z-index: 5; display: block; top: 0; right: 8px;
+    width: clamp(38px, 3vw, 48px); height: auto; opacity: .58;
     transform-origin: 50% 0; animation: natalBalanco 7s ease-in-out infinite;
     pointer-events: none; user-select: none;
   }
@@ -1077,14 +1076,12 @@
   html[data-season="natal"] .natal-gorro { position: absolute; z-index: 2; width: 59%; top: -25%; left: -17%; transform: rotate(-22deg); filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); pointer-events: none; }
   html[data-season="natal"] .header-copy h1 { position: relative; text-shadow: 0 -1px 1px rgba(255,255,255,.2); }
   html[data-season="natal"] .header-copy h1::after {
-    content: ""; position: absolute; pointer-events: none; left: 1%; top: -4px;
-    width: min(68%, 320px); height: 9px; opacity: .88;
-    background: radial-gradient(ellipse at 9% 90%, #fff 0 33%, transparent 36%),
-      radial-gradient(ellipse at 24% 70%, #f8fdff 0 39%, transparent 42%),
-      radial-gradient(ellipse at 43% 90%, #fff 0 35%, transparent 38%),
-      radial-gradient(ellipse at 64% 75%, #f8fdff 0 38%, transparent 41%),
-      radial-gradient(ellipse at 84% 90%, #fff 0 35%, transparent 38%);
-    filter: drop-shadow(0 2px 1px rgba(140, 208, 235, .4));
+    content: ""; position: absolute; pointer-events: none; left: 1%; top: -2px;
+    width: min(48%, 190px); height: 7px; opacity: .66;
+    background: radial-gradient(ellipse at 14% 100%, #fff 0 19%, transparent 23%),
+      radial-gradient(ellipse at 45% 80%, #f8fdff 0 17%, transparent 21%),
+      radial-gradient(ellipse at 78% 100%, #fff 0 20%, transparent 24%);
+    filter: drop-shadow(0 1px 1px rgba(140, 208, 235, .28));
   }
   .natal-treno {
     position: fixed; z-index: 30; top: clamp(72px, 12vh, 128px); left: 0;
@@ -1104,10 +1101,10 @@
     100% { transform: translate3d(0, 112vh, 0) rotate(360deg); }
   }
   @media (max-width: 640px) {
-    html[data-season="natal"] body::after { height: 94px; opacity: .38; background-position: center 57%; }
+    .natal-decor img.natal-neve { height: 94px; object-position: center 60%; opacity: .34; }
     .natal-arvore { left: 3px; bottom: 10px; width: 76px; opacity: .72; }
     .natal-presente { right: 3px; bottom: 8px; width: 82px; opacity: .7; }
-    .hero-panel .natal-enfeites { right: 5px; width: 40px; opacity: .62; }
+    .hero-panel .natal-enfeites { right: 4px; width: 32px; opacity: .42; }
     html[data-season="natal"] .natal-gorro { width: 58%; top: -23%; left: -15%; }
     .natal-treno { top: 76px; width: min(250px, 58vw); }
   }
