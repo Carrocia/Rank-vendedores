@@ -903,32 +903,30 @@ function renderDestaquesExternosGlobais() {
   const container = document.getElementById('destaquesGrid');
   if (!container) return;
   const estado = _cache.destaquesExternosGlobais || { lista: [], erro: false };
-  // Se o RPC ainda não estiver aplicado no Supabase, mantém os destaques
-  // locais sem inserir um aviso com aparência de card na grade.
-  if (estado.erro) return;
-
   const destaques = estado.lista || [];
   const semana = destaques.find(item => item.periodo === 'semana');
   const mes = destaques.find(item => item.periodo === 'mes');
-  const cards = [
-    { periodo: 'semana', item: semana, titulo: 'Mais vendas externas na semana', complemento: 'nesta semana', icone: '⚡' },
-    { periodo: 'mes', item: mes, titulo: 'Líder externo do mês', complemento: 'neste mês', icone: '🏆' },
-  ];
-  container.insertAdjacentHTML('beforeend', cards.map(card => {
-    const item = card.item;
-    const nome = item?.vendedor_nome || 'Nenhuma venda externa';
-    const filial = item?.filial_nome || (item ? 'Filial não informada' : 'Ainda sem vendas neste período');
-    const total = item ? `${formatVendas(item.vendas)} ${card.complemento}` : '0 vendas';
-    return `<article class="destaque-card destaque-card-rede">
-      <div class="destaque-icon-badge ${card.periodo === 'semana' ? 'purple' : 'gold'}" aria-hidden="true">${card.icone}</div>
-      <span class="destaque-label">${escapeHtmlText(card.titulo)}</span>
-      <div class="destaque-pessoa">
-        <div class="destaque-nome">${escapeHtmlText(nome)}</div>
-        <span class="destaque-filial-rede">${escapeHtmlText(filial)}</span>
-      </div>
-      <span class="destaque-valor">${escapeHtmlText(total)}</span>
-    </article>`;
-  }).join(''));
+  const linhaPeriodo = (rotulo, item) => {
+    if (estado.erro) {
+      return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio">Dados indisponíveis</span></div>`;
+    }
+    if (!item) {
+      return `<div class="destaque-rede-periodo"><span class="destaque-rede-rotulo">${rotulo}</span><span class="destaque-rede-vazio">Ainda sem vendas</span></div>`;
+    }
+    return `<div class="destaque-rede-periodo">
+      <span class="destaque-rede-rotulo">${rotulo}</span>
+      <span class="destaque-rede-pessoa"><strong>${escapeHtmlText(item.vendedor_nome || 'Vendedor')}</strong><small>${escapeHtmlText(item.filial_nome || 'Filial')}</small></span>
+      <span class="destaque-rede-total">${escapeHtmlText(formatVendas(item.vendas))}</span>
+    </div>`;
+  };
+  container.insertAdjacentHTML('beforeend', `<article class="destaque-card destaque-card-rede">
+    <div class="destaque-icon-badge purple" aria-hidden="true">🌐</div>
+    <span class="destaque-label">Externo destaque da rede</span>
+    <div class="destaque-rede-periodos">
+      ${linhaPeriodo('Semana', semana)}
+      ${linhaPeriodo('Mês', mes)}
+    </div>
+  </article>`);
 }
 
 function atualizarCarrosselConquistas(direcao) {
