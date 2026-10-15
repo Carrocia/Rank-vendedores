@@ -643,7 +643,8 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
     (Number(b.evolucao || 0) - Number(a.evolucao || 0)) || ordenarVendas(a, b)
   )[0] || {};
   const maiorPctMeta = d.maiorPct || {};
-  const pctMeta = maiorPctMeta.meta ? Math.round((maiorPctMeta.vendas / maiorPctMeta.meta) * 100) : null;
+  const pctMeta = Number.isFinite(maiorPctMeta.pctMetaAtual) ? Math.round(maiorPctMeta.pctMetaAtual) : null;
+  const rotuloMetaDestaque = maiorPctMeta.metaAlvoLabel || 'meta';
   const vendasRecentesPeriodo = mensal ? (_cache.vendasMes || []) : (_cache.vendasSemana || []);
   const vendaRecente = [...vendasRecentesPeriodo].sort((a, b) =>
     new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()
@@ -673,7 +674,7 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
     { icon: '👑', cor: 'gold', label: 'Líder Interno', nome: nomeDoVendedor(liderInterno), foto: fotoDoVendedor(liderInterno), valor: mensal ? '' : formatVendas(liderInterno.vendas || 0) },
     { icon: '⚡', cor: 'purple', label: mensal ? 'Mais Vendas no Mês' : 'Mais Vendas na Semana', nome: nomeDoVendedor(maisVendas), foto: fotoDoVendedor(maisVendas), valor: mensal ? '' : formatVendas(maisVendas.vendas || 0) },
     mensal
-      ? { icon: '🎯', cor: 'red', label: 'Maior % da Meta Mensal', nome: nomeDoVendedor(maiorPctMeta), foto: fotoDoVendedor(maiorPctMeta), valor: pctMeta !== null ? `${pctMeta}% da meta` : 'Sem meta cadastrada' }
+      ? { icon: '🎯', cor: 'red', label: 'Maior % da Meta Mensal', nome: nomeDoVendedor(maiorPctMeta), foto: fotoDoVendedor(maiorPctMeta), valor: pctMeta !== null ? `${pctMeta}% da ${rotuloMetaDestaque}` : 'Sem meta cadastrada' }
       : { icon: '📈', cor: 'red', label: 'Maior Evolução Semanal', nome: nomeDoVendedor(evolucao), foto: fotoDoVendedor(evolucao), valor: evolucao.id ? textoEvolucao : 'Sem comparação' },
     { icon: '⏱️', cor: 'blue', label: mensal ? 'Venda Mais Recente do Mês' : 'Venda Mais Recente da Semana', nome: '', foto: '', valor: vendaRecentePeriodoLabel },
   ];
@@ -2280,11 +2281,31 @@ function processarDadosParaRender(cache) {
   const liderInternoSem = intSem.sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0];
   const maiorEvolucao = todasSemana.reduce((a, b) => (b.vendas || 0) > (a.vendas || 0) ? b : a, todasSemana[0] || {});
   const todasMensal = [...extMes, ...intMes];
-  const maiorPct = todasMensal.reduce((a,b) => {
-    const pA = a.meta ? a.vendas/a.meta : 0;
-    const pB = b.meta ? b.vendas/b.meta : 0;
-    return pB > pA ? b : a;
-  }, todasMensal[0] || {});
+  const progressoMetaMensal = vendedor => {
+    if (vendedor.tipo === 'interno') {
+      const linha = (metas || []).find(m => String(m.vendedor_id) === String(vendedor.id));
+      const niveis = [
+        { label: 'M3', meta: Number(linha?.meta_m3) },
+        { label: 'M2', meta: Number(linha?.meta_m2) },
+        { label: 'M1', meta: Number(linha?.meta_m1) },
+      ].filter(n => Number.isFinite(n.meta) && n.meta > 0).sort((a, b) => a.meta - b.meta);
+      if (!niveis.length) return null;
+      const proxima = niveis.find(n => Number(vendedor.vendas || 0) < n.meta) || niveis[niveis.length - 1];
+      return { pctMetaAtual: (Number(vendedor.vendas || 0) / proxima.meta) * 100, metaAlvoLabel: proxima.label };
+    }
+    const meta = Number(vendedor.meta);
+    if (!Number.isFinite(meta) || meta <= 0) return null;
+    return { pctMetaAtual: (Number(vendedor.vendas || 0) / meta) * 100, metaAlvoLabel: 'meta' };
+  };
+  const mensalComProgressoMeta = todasMensal
+    .map(v => {
+      const progresso = progressoMetaMensal(v);
+      return progresso ? { ...v, ...progresso } : null;
+    })
+    .filter(v => v && Number.isFinite(v.pctMetaAtual));
+  const maiorPct = mensalComProgressoMeta.sort((a, b) =>
+    (b.pctMetaAtual - a.pctMetaAtual) || (Number(b.vendas || 0) - Number(a.vendas || 0)) || (Number(b.valor || 0) - Number(a.valor || 0))
+  )[0] || {};
 
   return {
     extSem, intSem, extMes, intMes,
