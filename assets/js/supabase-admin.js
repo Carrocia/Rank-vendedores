@@ -1179,6 +1179,7 @@ function limparFiltrosRelatorio() {
   document.getElementById('rel-tipo-vendedor').value = '';
   document.getElementById('rel-plano').value = '';
   document.getElementById('rel-tipo-venda').value = '';
+  document.getElementById('rel-vendas-equipe-outras-filiais').value = 'incluir';
   if (_cache.mes) {
     document.getElementById('rel-data-ini').value = _cache.mes.de;
     document.getElementById('rel-data-fim').value = _cache.mes.ate;
@@ -1204,6 +1205,7 @@ async function aplicarFiltrosRelatorio() {
   const tipoVendedor = document.getElementById('rel-tipo-vendedor').value;
   const planoId = document.getElementById('rel-plano').value;
   const tipoVenda = document.getElementById('rel-tipo-venda').value;
+  const incluirVendasEquipeOutrasFiliais = document.getElementById('rel-vendas-equipe-outras-filiais').value !== 'excluir';
 
   if (!dataIni || !dataFim) { showToast('Selecione o período (data inicial e final).', 'warning'); return; }
   _relatorioState.selecionadas.clear();
@@ -1308,6 +1310,7 @@ async function aplicarFiltrosRelatorio() {
     });
 
     linhas = linhas.filter(l => {
+      if (!incluirVendasEquipeOutrasFiliais && l.tipoLinha === 'origem_outra_filial') return false;
       if (vendedorId && String(l.vendedorId) !== vendedorId && l.vendedorSlug !== vendedorSlug) return false;
       if (tipoVendedor && l.vendedorTipo !== tipoVendedor) return false;
       if (planoId && String(l.planoId) !== planoId) return false;
@@ -1458,6 +1461,7 @@ function obterFiltrosAplicadosTexto() {
     document.getElementById('rel-tipo-vendedor').value ? 'Tipo: ' + document.getElementById('rel-tipo-vendedor').options[document.getElementById('rel-tipo-vendedor').selectedIndex].text : null,
     planoSel.value ? 'Plano: ' + planoSel.options[planoSel.selectedIndex].text : null,
     document.getElementById('rel-tipo-venda').value ? 'Tipo de venda: ' + document.getElementById('rel-tipo-venda').options[document.getElementById('rel-tipo-venda').selectedIndex].text : null,
+    'Vendas da equipe para outras filiais: ' + (document.getElementById('rel-vendas-equipe-outras-filiais').value === 'excluir' ? 'excluídas' : 'incluídas'),
   ].filter(Boolean).join(' · ') || 'Nenhum filtro adicional';
 }
 
