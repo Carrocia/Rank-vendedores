@@ -624,30 +624,63 @@ function renderMensalProgress(d) {
     document.getElementById('weekBarPct')
   );
 }
-// renderDestaquesSemana SEMPRE recebe d real (processado a partir do
-// Supabase). Líder Externo/Interno, Maior Evolução e Maior % da Meta
-// são derivados de d.*; Venda Mais Recente vem de d.vendaRecenteLabel,
-// que por sua vez vem de loadVendaMaisRecente() — nada é hard-coded.
-function renderDestaquesSemana(d) {
+// Destaques acompanham a aba ativa: a semanal usa só dados da semana;
+// a mensal usa só os acumulados do mês corrente.
+function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
+  if (!d) return;
+  const mensal = periodoAtivo === 'mensal';
   const nomeDe = id => (PESSOAS[id] || {}).nome || id || '—';
   const fotoDe = id => (PESSOAS[id] || {}).foto || '';
-
-  const liderExterno = d.liderExternoSem || {};
-  const liderInterno = d.liderInternoSem || {};
-  const maiorEvolucao = d.maiorEvolucao || {};
+  const vendasExternas = mensal ? d.extMes : d.extSem;
+  const vendasInternas = mensal ? d.intMes : d.intSem;
+  const ordenarVendas = (a, b) => (Number(b.vendas || 0) - Number(a.vendas || 0))
+    || (Number(b.valor || 0) - Number(a.valor || 0));
+  const liderExterno = [...(vendasExternas || [])].sort(ordenarVendas)[0] || {};
+  const liderInterno = [...(vendasInternas || [])].sort(ordenarVendas)[0] || {};
+  const todasVendasPeriodo = [...(vendasExternas || []), ...(vendasInternas || [])];
+  const maisVendas = [...todasVendasPeriodo].sort(ordenarVendas)[0] || {};
+  const evolucao = [...todasVendasPeriodo].sort((a, b) =>
+    (Number(b.evolucao || 0) - Number(a.evolucao || 0)) || ordenarVendas(a, b)
+  )[0] || {};
   const maiorPctMeta = d.maiorPct || {};
-  const vendasDestaqueSemana = Number(maiorEvolucao.vendas) || 0;
   const pctMeta = maiorPctMeta.meta ? Math.round((maiorPctMeta.vendas / maiorPctMeta.meta) * 100) : null;
+  const vendasRecentesPeriodo = mensal ? (_cache.vendasMes || []) : (_cache.vendasSemana || []);
+  const vendaRecente = [...vendasRecentesPeriodo].sort((a, b) =>
+    new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()
+  )[0];
+  const dataVendaRecente = vendaRecente ? new Date(vendaRecente.data_venda) : null;
+  const vendaRecentePeriodoLabel = dataVendaRecente && !Number.isNaN(dataVendaRecente.getTime())
+    ? `${vendaRecente.vendedores?.nome || '—'} — ${dataVendaRecente.toLocaleDateString('pt-BR')} ${dataVendaRecente.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : `Sem vendas ${mensal ? 'no mês' : 'nesta semana'}`;
+  const mesNome = d.mes?.mesNome
+    ? d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1)
+    : CONFIG.mesReferencia;
+  const tituloEl = document.getElementById('destaquesTitle');
+  if (tituloEl) tituloEl.textContent = mensal ? `🏆 Destaques de ${mesNome}` : '🏆 Destaques da Semana';
+
+  const nomeDoVendedor = vendedor => vendedor.nome || nomeDe(vendedor.id);
+  const fotoDoVendedor = vendedor => vendedor.foto_url
+    || (PESSOAS[vendedor.slug] || PESSOAS[vendedor.id] || {}).foto || fotoDe(vendedor.id);
+  const valorEvolucao = Number(evolucao.evolucao || 0);
+  const textoEvolucao = valorEvolucao > 0
+    ? `+${formatVendas(valorEvolucao)} vs. semana passada`
+    : valorEvolucao < 0
+      ? `${formatVendas(valorEvolucao)} vs. semana passada`
+      : 'Mesmo volume da semana passada';
 
   const cards = [
-    { icon: '👑', cor: 'gold',   label: 'Líder Externo', nome: liderExterno.nome || nomeDe(liderExterno.id), foto: fotoDe(liderExterno.id), valor: formatVendas(liderExterno.vendas || 0) },
-    { icon: '👑', cor: 'gold',   label: 'Líder Interno', nome: liderInterno.nome || nomeDe(liderInterno.id), foto: fotoDe(liderInterno.id), valor: formatVendas(liderInterno.vendas || 0) },
-    { icon: '⚡', cor: 'purple', label: 'Mais Vendas na Semana', nome: maiorEvolucao.nome || nomeDe(maiorEvolucao.id), foto: fotoDe(maiorEvolucao.id), valor: formatVendas(vendasDestaqueSemana) },
-    { icon: '🎯', cor: 'red',    label: 'Maior % da Meta', nome: maiorPctMeta.nome || nomeDe(maiorPctMeta.id), foto: fotoDe(maiorPctMeta.id), valor: pctMeta !== null ? (pctMeta + '% da meta') : 'Sem meta cadastrada' },
-    { icon: '⏱️', cor: 'blue',   label: 'Venda Mais Recente', nome: '', foto: '', valor: d.vendaRecenteLabel || '—' },
+    { icon: '👑', cor: 'gold', label: 'Líder Externo', nome: nomeDoVendedor(liderExterno), foto: fotoDoVendedor(liderExterno), valor: formatVendas(liderExterno.vendas || 0) },
+    { icon: '👑', cor: 'gold', label: 'Líder Interno', nome: nomeDoVendedor(liderInterno), foto: fotoDoVendedor(liderInterno), valor: formatVendas(liderInterno.vendas || 0) },
+    { icon: '⚡', cor: 'purple', label: mensal ? 'Mais Vendas no Mês' : 'Mais Vendas na Semana', nome: nomeDoVendedor(maisVendas), foto: fotoDoVendedor(maisVendas), valor: formatVendas(maisVendas.vendas || 0) },
+    mensal
+      ? { icon: '🎯', cor: 'red', label: 'Maior % da Meta Mensal', nome: nomeDoVendedor(maiorPctMeta), foto: fotoDoVendedor(maiorPctMeta), valor: pctMeta !== null ? `${pctMeta}% da meta` : 'Sem meta cadastrada' }
+      : { icon: '📈', cor: 'red', label: 'Maior Evolução Semanal', nome: nomeDoVendedor(evolucao), foto: fotoDoVendedor(evolucao), valor: evolucao.id ? textoEvolucao : 'Sem comparação' },
+    { icon: '⏱️', cor: 'blue', label: mensal ? 'Venda Mais Recente do Mês' : 'Venda Mais Recente da Semana', nome: '', foto: '', valor: vendaRecentePeriodoLabel },
   ];
 
-  document.getElementById('destaquesGrid').innerHTML = cards.map(c => `
+  const container = document.getElementById('destaquesGrid');
+  if (!container) return;
+  container.innerHTML = cards.map(c => `
     <div class="destaque-card">
       <div class="destaque-icon-badge ${c.cor}">${c.icon}</div>
       <span class="destaque-label">${c.label}</span>
@@ -909,20 +942,20 @@ async function carregarDestaquesExternosGlobais() {
   return { lista: data || [], erro: false };
 }
 
-function renderDestaquesExternosGlobais() {
+function renderDestaquesExternosGlobais(periodoAtivo = document.documentElement.getAttribute('data-active-tab') || 'semanal') {
   const container = document.getElementById('destaquesGrid');
   if (!container) return;
   container.querySelector('.destaque-card-rede')?.remove();
   const estado = _cache.destaquesExternosGlobais || { lista: [], erro: false };
   const destaques = estado.lista || [];
-  const periodo = document.documentElement.getAttribute('data-active-tab') === 'mensal' ? 'mes' : 'semana';
+  const periodo = periodoAtivo === 'mensal' ? 'mes' : 'semana';
   const item = destaques.find(destaque => destaque.periodo === periodo);
   const rotulo = periodo === 'mes' ? 'Mês' : 'Semana';
   let conteudo;
   if (estado.erro) {
     conteudo = '<span class="destaque-rede-vazio" title="Confira a função destaques_externos_globais no Supabase">Falha ao carregar</span>';
   } else if (!item) {
-    conteudo = '<span class="destaque-rede-vazio">Ainda sem vendas</span>';
+    conteudo = `<span class="destaque-rede-vazio">Ainda sem vendas no ${periodo === 'semana' ? 'período semanal' : 'mês'}</span>`;
   } else {
     conteudo = `<span class="destaque-rede-pessoa"><strong>${escapeHtmlText(item.vendedor_nome || 'Vendedor')}</strong><small>${escapeHtmlText(item.filial_nome || 'Filial')}</small></span>${periodo === 'semana' ? `<span class="destaque-rede-total">${escapeHtmlText(formatVendas(item.vendas))}</span>` : ''}`;
   }
@@ -2360,10 +2393,13 @@ function renderAll(cache) {
   if (kpiMensal) kpiMensal.textContent = d.pctMensal + '% atingido';
   if (kpiLider) kpiLider.textContent = d.lider;
 
-  renderWeekProgress(d);
-  renderDestaquesSemana(d);
-  renderDestaquesExternosGlobais();
-  renderMetasFilial('semanal', d);
+  const periodoDestaques = document.documentElement.getAttribute('data-active-tab') || 'semanal';
+  const isMensal = periodoDestaques === 'mensal';
+  if (isMensal) renderMensalProgress(d);
+  else renderWeekProgress(d);
+  renderDestaquesSemana(d, periodoDestaques);
+  renderDestaquesExternosGlobais(periodoDestaques);
+  renderMetasFilial(isMensal ? 'mensal' : 'semanal', d);
   renderRenovacaoCancelamento(d);
   renderEvolucaoChart(d.evolucaoSemana);
   renderDonutChart(d.vendasPorPlano);
@@ -2439,17 +2475,20 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
     // troca o card de meta e as metas da filial conforme a aba ativa
     document.documentElement.setAttribute('data-active-tab', tab);
-    renderDestaquesExternosGlobais();
     const isMensal = tab === 'mensal';
     if (_dadosCarregados) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
+      renderDestaquesSemana(d, tab);
+      renderDestaquesExternosGlobais(tab);
       if (isMensal) {
         renderMensalProgress(d);
       } else {
         renderWeekProgress(d);
       }
       renderMetasFilial(isMensal ? 'mensal' : 'semanal', d);
+    } else {
+      renderDestaquesExternosGlobais(tab);
     }
     // se não há dados carregados, o estado "sem dados" já está
     // visível (renderEstadoSemDados) e não precisa ser recalculado
