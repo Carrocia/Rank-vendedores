@@ -2,6 +2,7 @@
 // A coluna Filial define o destino quando presente; a origem vem do cadastro do vendedor.
 let _linhasImportacaoIxc = [];
 let _importacaoIxcEmAndamento = false;
+let _conferenciaIxcEmAndamento = false;
 
 // Códigos da coluna "Filial" exportada pelo IXC (não são IDs do Supabase).
 // Para cadastrar outro código de uma filial já listada, adicione uma chave
@@ -320,13 +321,170 @@ async function carregarContratosExistentesIxc(contratos) {
   return encontrados;
 }
 
+function atualizarBotaoConferenciaIxc() {
+  const controles = document.getElementById('ixc-reconciliation-controls');
+  const confirmacao = document.getElementById('ixc-reconciliation-complete');
+  const botao = document.getElementById('ixc-reconciliation-submit');
+  if (!controles || !confirmacao || !botao) return;
+  const temDadosComparaveis = _linhasImportacaoIxc.some(linha =>
+    normalizarTextoIxc(linha.status) === 'ativo' &&
+    linha.filialDestinoId && /^\d+$/.test(String(linha.contrato || '').trim())
+  );
+  controles.hidden = !temDadosComparaveis;
+  botao.disabled = _conferenciaIxcEmAndamento || !confirmacao.checked || !temDadosComparaveis;
+}
+
+async function reconciliarRelatorioIxc() {
+  const confirmacao = document.getElementById('ixc-reconciliation-complete');
+  const botao = document.getElementById('ixc-reconciliation-submit');
+  const status = document.getElementById('ixc-reconciliation-status');
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) {
+    showToast('Entre no painel administrativo antes de conferir o relatório.', 'error');
+    return;
+  }
+  if (!confirmacao?.checked) {
+    showToast('Confirme que o arquivo contém a lista completa de contratos ativos.', 'warning');
+    return;
+  }
+  const linhasAtivas = _linhasImportacaoIxc.filter(linha =>
+    normalizarTextoIxc(linha.status) === 'ativo' &&
+    linha.filialDestinoId && /^\d+$/.test(String(linha.contrato || '').trim())
+  );
+  const filiais = [...new Set(linhasAtivas.map(linha => Number(linha.filialDestinoId)))];
+  const contratos = [...new Set(linhasAtivas.map(linha => String(linha.contrato).trim()))];
+  if (!filiais.length || !contratos.length) {
+    showToast('Não encontrei filiais e contratos ativos válidos para conferir.', 'warning');
+    return;
+  }
+  _conferenciaIxcEmAndamento = true;
+  if (botao) botao.textContent = 'Conferindo…';
+  if (status) status.textContent = 'Comparando os contratos do arquivo com as vendas cadastradas…';
+  atualizarBotaoConferenciaIxc();
+  try {
+    const { data, error } = await window._supabase.rpc('conferir_vendas_ausentes_ixc', {
+      p_filial_ids: filiais,
+      p_contratos_ativos: contratos,
+    });
+    if (error) throw error;
+    const total = Number(data || 0);
+    if (status) status.textContent = `Conferência concluída. ${total} venda(s) pendente(s) nova(s) ou revisitada(s).`;
+    showToast(`Conferência concluída: ${total} venda(s) aguardando revisão.`, 'success');
+    await carregarPendenciasIxc();
+  } catch (error) {
+    console.error('[reconciliarRelatorioIxc]', error);
+    const mensagem = error.code === 'PGRST202'
+      ? 'A função de conferência ainda não existe. Execute supabase/conferencia-vendas-ixc.sql no SQL Editor do Supabase.'
+      : error.message || 'Não foi possível conferir as vendas.';
+    if (status) status.textContent = mensagem;
+    showToast(mensagem, 'error');
+  } finally {
+    _conferenciaIxcEmAndamento = false;
+    if (botao) botao.textContent = 'Conferir vendas já cadastradas';
+    atualizarBotaoConferenciaIxc();
+  }
+}
+
+async function carregarPendenciasIxc() {
+  const corpo = document.getElementById('ixc-pending-body');
+  if (!corpo || !window.ADMIN_AUTENTICADO || !window._supabase) return;
+  corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Carregando vendas pendentes…</td></tr>';
+  const { data: pendencias, error } = await window._supabase
+    .from('vendas_conferencia_ixc')
+    .select('id, venda_id, filial_id, numero_venda, situacao, relatorio_em')
+    .eq('situacao', 'pendente')
+    .order('relatorio_em', { ascending: false });
+  if (error) {
+    console.error('[carregarPendenciasIxc]', error);
+    const mensagem = ['42P01', 'PGRST205'].includes(error.code)
+      ? 'A tabela de conferência ainda não existe. Execute supabase/conferencia-vendas-ixc.sql no SQL Editor do Supabase.'
+      : error.message || 'Não foi possível carregar as pendências.';
+    corpo.innerHTML = `<tr><td colspan="7" class="adm-empty-state">${escapeHtmlText(mensagem)}</td></tr>`;
+    return;
+  }
+  if (!pendencias?.length) {
+    corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Nenhuma venda pendente de conferência.</td></tr>';
+    return;
+  }
+  const ids = pendencias.map(item => Number(item.venda_id)).filter(Number.isFinite);
+  const vendas = await carregarTodasPaginas(() => window._supabase
+    .from('vendas_admin')
+    .select('id, numero_venda, cliente, vendedor_nome, plano_nome, valor_total, data_venda, filial_destino_id')
+    .in('id', ids)
+    .order('id', { ascending: true }), 'vendas pendentes de conferência IXC');
+  const vendaPorId = new Map(vendas.map(venda => [String(venda.id), venda]));
+  const filiais = await loadFiliais();
+  const filialPorId = new Map(filiais.map(filial => [String(filial.id), filial.nome]));
+  const formatarData = valor => {
+    if (!valor) return '—';
+    const data = new Date(valor);
+    return Number.isNaN(data.getTime()) ? '—' : data.toLocaleDateString('pt-BR', { timeZone: 'America/Manaus' });
+  };
+  const escapar = valor => escapeHtmlText(String(valor ?? '—'));
+  corpo.innerHTML = pendencias.map(pendencia => {
+    const venda = vendaPorId.get(String(pendencia.venda_id));
+    const vendaId = Number(pendencia.venda_id);
+    const filialNome = filialPorId.get(String(pendencia.filial_id)) || '—';
+    const valor = venda?.valor_total == null ? '—' : `R$ ${Number(venda.valor_total).toFixed(2).replace('.', ',')}`;
+    return `<tr>
+      <td>${escapar(formatarData(venda?.data_venda))}</td>
+      <td>${escapar(venda?.numero_venda || pendencia.numero_venda)}</td>
+      <td>${escapar(venda?.cliente || 'Cliente sem nome')}</td>
+      <td>${escapar(venda?.vendedor_nome || '—')}</td>
+      <td>${escapar(filialNome)}</td>
+      <td>${escapar(valor)}</td>
+      <td><div class="ixc-pending-actions">
+        <button type="button" class="adm-btn adm-btn-secondary adm-btn-small" data-ixc-action="validar" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Manter válida</button>
+        <button type="button" class="adm-btn adm-btn-danger adm-btn-small" data-ixc-action="cancelar" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Confirmar cancelamento</button>
+        <button type="button" class="adm-btn adm-btn-small" data-ixc-action="vincular" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Vincular contrato</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  corpo.querySelectorAll('[data-ixc-action]').forEach(botao => botao.addEventListener('click', () => {
+    resolverConferenciaIxc(Number(botao.dataset.id), botao.dataset.ixcAction, botao.dataset.cliente || 'venda');
+  }));
+}
+
+async function resolverConferenciaIxc(id, decisao, cliente) {
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) return;
+  let numeroContrato = null;
+  if (decisao === 'cancelar' && !confirm(`Confirma que a venda de ${cliente} foi cancelada? Ela será arquivada e deixará de contar nos indicadores.`)) return;
+  if (decisao === 'vincular') {
+    numeroContrato = prompt(`Informe o número correto do contrato IXC para ${cliente}:`);
+    if (numeroContrato === null) return;
+    numeroContrato = numeroContrato.trim();
+    if (!/^\d+$/.test(numeroContrato)) {
+      showToast('Informe um número de contrato IXC válido.', 'warning');
+      return;
+    }
+  }
+  try {
+    const { error } = await window._supabase.rpc('resolver_conferencia_venda_ixc', {
+      p_pendencia_id: id,
+      p_decisao: decisao,
+      p_numero_contrato: numeroContrato,
+    });
+    if (error) throw error;
+    showToast(decisao === 'validar' ? 'Venda mantida como válida.' : decisao === 'cancelar' ? 'Cancelamento registrado e venda arquivada.' : 'Contrato vinculado à venda.', 'success');
+    if (decisao === 'cancelar') await carregarDados();
+    await carregarPendenciasIxc();
+  } catch (error) {
+    console.error('[resolverConferenciaIxc]', error);
+    showToast(error.message || 'Não foi possível atualizar esta pendência.', 'error');
+  }
+}
+
 async function analisarImportacaoIxc(event) {
   if (_importacaoIxcEmAndamento) return;
   const arquivo = event.currentTarget.files?.[0];
   const resumo = document.getElementById('ixc-import-summary');
   const wrapper = document.getElementById('ixc-import-preview-wrap');
   const botao = document.getElementById('ixc-import-submit');
+  const checkboxConferencia = document.getElementById('ixc-reconciliation-complete');
+  const statusConferencia = document.getElementById('ixc-reconciliation-status');
   _linhasImportacaoIxc = [];
+  if (checkboxConferencia) checkboxConferencia.checked = false;
+  if (statusConferencia) statusConferencia.textContent = '';
+  atualizarBotaoConferenciaIxc();
   if (resumo) resumo.textContent = '';
   if (wrapper) wrapper.hidden = true;
   if (botao) botao.disabled = true;
@@ -390,6 +548,8 @@ async function analisarImportacaoIxc(event) {
       return resultado;
     });
     renderizarPreviaIxc();
+    atualizarBotaoConferenciaIxc();
+    await carregarPendenciasIxc();
   } catch (error) {
     console.error('[analisarImportacaoIxc]', error);
     if (resumo) resumo.textContent = error.message || 'Não foi possível analisar o arquivo.';

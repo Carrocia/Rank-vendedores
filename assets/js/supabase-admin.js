@@ -3112,6 +3112,7 @@ function adm_navigateTo(sectionId) {
   if (sectionId === 'admins') carregarAdminsGerenciados();
   if (sectionId === 'filiais-admin') carregarFiliaisGerenciadas();
   if (sectionId === 'rede') carregarDashboardRede();
+  if (sectionId === 'nova-venda' && typeof carregarPendenciasIxc === 'function') carregarPendenciasIxc();
   // A área rolável é o conteúdo interno no mobile e o overlay no desktop.
   document.querySelector('#adm-panel .adm-panel-inner')?.scrollTo({ top: 0, behavior: 'auto' });
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
