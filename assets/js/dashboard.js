@@ -14,26 +14,29 @@ function computeRitmo(pct) {
   return { classe: 'vermelho', label: 'Abaixo do ritmo', icon: '🔴' };
 }
 
-// Calcula 2 coisas pra cada vendedor, sempre a partir das metas
+// Calcula o selo e o progresso individual a partir das metas
 // individuais reais (meta_m1/m2/m3 pra interno, meta_vendas pra
 // externo — os mesmos campos de detectarConquistasIndividuais/
 // renderConfigMetas):
 //  - ringTier: nível visual do ANEL — "liga" a partir de 60% do
 //    caminho até cada meta (dá o feedback antes de bater 100%).
-//  - badgeTier: a ÚNICA meta REALMENTE batida (100%, a mais alta) —
-//    nunca mostra mais de uma ao mesmo tempo, nunca inventa.
+//  - badgeTier: a maior meta já atingida.
+//  - progressPct: progresso em direção à próxima meta; após M1, continua
+//    calculado sobre M1 e pode passar de 100%.
 function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesPorId) {
-  const vazio = { ringTier: null, badgeTier: null };
+  const vazio = { ringTier: null, badgeTier: null, progressPct: null };
   const linha = (metasIndividuais || []).find(m => m.vendedor_id === vendedorId);
   if (!linha) return vazio;
-  const vendasMes = vendasMesPorId[vendedorId] || 0;
+  const vendasMes = Number(vendasMesPorId[vendedorId] || 0);
 
   if (tipo === 'interno') {
     const tiers = [
       { tier: 'm3', label: 'M3', meta: linha.meta_m3 },
       { tier: 'm2', label: 'M2', meta: linha.meta_m2 },
       { tier: 'm1', label: 'M1', meta: linha.meta_m1 },
-    ].filter(t => t.meta); // só considera níveis com meta cadastrada
+    ].map(t => ({ ...t, meta: Number(t.meta) }))
+      .filter(t => Number.isFinite(t.meta) && t.meta > 0)
+      .sort((a, b) => a.meta - b.meta); // metas válidas em ordem de alcance
     if (!tiers.length) return vazio;
 
     let badgeTier = null, ringTier = null;
@@ -42,7 +45,11 @@ function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesP
       if (vendasMes >= t.meta * 0.6) ringTier = t.tier;    // anel liga a partir de 60%
     });
 
-    return { ringTier, badgeTier };
+    // A porcentagem acompanha a próxima meta até M1. Depois de M1,
+    // continua usando M1 como referência e pode ultrapassar 100%.
+    const proximaMeta = tiers.find(t => vendasMes < t.meta) || tiers[tiers.length - 1];
+    const progressPct = Math.round((vendasMes / proximaMeta.meta) * 100);
+    return { ringTier, badgeTier, progressPct };
   }
 
   // Externo: só uma meta (sem níveis) — o anel liga a partir de 60%
@@ -75,12 +82,15 @@ function renderPodium(containerId, entries, options = {}) {
     const avatarHTML = photo
       ? `<img class="podium-photo" src="${photo}" alt="${nomeSeguro}">`
       : `<div class="podium-photo podium-photo-fallback" aria-label="${nomeSeguro}">${escapeHtmlText(String(nome || '?').trim().charAt(0).toUpperCase())}</div>`;
-    const pct = e.meta ? Math.min(100, Math.round((e.vendas / e.meta) * 100)) : 0;
+    const pctBase = e.meta ? Math.round((e.vendas / e.meta) * 100) : 0;
     const crownHTML = style.crown
       ? '<span class="crown" aria-hidden="true">👑</span><span class="sparkle s1" aria-hidden="true">✨</span><span class="sparkle s2" aria-hidden="true">✨</span>'
       : '';
 
-    const tiers = metasIndividuais ? calcularTiersIndividuais(e.id, e.tipo, metasIndividuais, vendasMesPorId) : { ringTier: null, badgeTier: null };
+    const tiers = metasIndividuais ? calcularTiersIndividuais(e.id, e.tipo, metasIndividuais, vendasMesPorId) : { ringTier: null, badgeTier: null, progressPct: null };
+    const pct = mode === 'mensal' && e.tipo === 'interno' && tiers.progressPct !== null
+      ? tiers.progressPct
+      : Math.min(100, pctBase);
     const tierAttr = tiers.ringTier || '';
     // Só UM selo — a maior meta já batida (M3 sozinha conta, assim como M2 e M1).
     const badgesHTML = tiers.badgeTier
@@ -104,7 +114,7 @@ function renderPodium(containerId, entries, options = {}) {
 
     const shimmerDelay = rank === 1 ? '0s' : rank === 2 ? '0.4s' : '0.8s';
     const tooltipVendas = mode === 'semanal' ? formatVendas(e.vendas) : '';
-    const tooltipMeta = e.meta ? `${Math.min(100,Math.round((e.vendas/e.meta)*100))}% da meta mensal` : '';
+    const tooltipMeta = e.meta ? `${pct}% da meta mensal` : '';
     const tooltipContent = mode === 'semanal'
       ? `<strong>${nomeSeguro}</strong>${tooltipVendas}`
       : `<strong>${nomeSeguro}</strong>${tooltipMeta}`;
