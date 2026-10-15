@@ -3634,19 +3634,25 @@ function ordinal(n) {
 // (baseada na sequência de dias + vendas do mês), não aleatória, pra
 // gerar o mesmo card duas vezes seguidas sem ficar trocando de frase.
 const SC_FRASES_ALTA = [
-  'Constância que vira resultado — siga nesse ritmo.',
-  'Sinal forte e estável. Assim se fecha o mês.',
-  'Todo dia gerando conexão nova. Excelente ritmo.',
+  'Você tá voando tão alto que o Wi-Fi pediu carona. 🚀',
+  'Constância ligada no máximo — e o resultado também.',
+  'Meta no retrovisor, próximo desafio no radar. Bora!',
+  'Seu sinal tá tão forte que chega antes da notícia da venda.',
+  'Conexão feita, cliente feliz, equipe orgulhosa. Repete!',
 ];
 const SC_FRASES_MEDIA = [
-  'Cada venda é mais uma conexão. Siga transmitindo.',
-  'Ritmo bom, constância crescendo. Bora manter.',
-  'A rede tá crescendo — continue nessa frequência.',
+  'Cada venda é uma conexão. E você tá conectando bonito!',
+  'Ritmo bom! O próximo cliente já pode estar dando tchau pro concorrente.',
+  'A rede tá crescendo — segue nessa frequência que tá funcionando.',
+  'Mais uma venda e o café fica até mais gostoso. ☕',
+  'Um passo de cada vez também chega no topo. Continua!',
 ];
 const SC_FRASES_BAIXA = [
-  'Toda grande rede começa com a primeira conexão.',
-  'Hora de retomar o sinal. Bora fechar mais vendas.',
-  'O próximo passo é reconectar o ritmo da semana.',
+  'Toda grande rede começa com uma conexão. Bora fazer a próxima?',
+  'O sinal pode oscilar; sua capacidade, não. Vamos nessa!',
+  'Até o melhor Wi-Fi precisa reconectar às vezes. Partiu!',
+  'A próxima venda pode mudar o ritmo do dia. Vai que é sua!',
+  'Respira, ajusta a rota e chama o próximo cliente. Você consegue!',
 ];
 
 async function gerarStatusVendedor(slug, evt) {
@@ -3680,13 +3686,28 @@ async function gerarStatusVendedor(slug, evt) {
 
   const ticketMedio = vendedorMes.vendas ? (vendedorMes.valor / vendedorMes.vendas) : 0;
 
-  // "Meta Atual" = meta individual do mês (a mais pessoal e acionável
-  // pra mostrar num card individual). Sem meta cadastrada = mostra
-  // aviso claro em vez de inventar um número.
+  // A meta do card acompanha a próxima conquista individual, igual ao
+  // ranking mensal: M3 -> M2 -> M1. Depois de M1, o percentual segue
+  // sobre M1 e pode passar de 100%.
   const mesNome = (d.mes && d.mes.mesNome) ? (d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1)) : CONFIG.mesReferencia;
-  const temMeta = !!vendedorMes.meta;
-  const pctMeta = temMeta ? Math.min(100, Math.round((vendedorMes.vendas / vendedorMes.meta) * 100)) : 0;
-  const faltam = temMeta ? Math.max(0, vendedorMes.meta - vendedorMes.vendas) : null;
+  const metaIndividual = (_cache.metas || []).find(m => String(m.vendedor_id) === String(vendedorCadastro?.id));
+  const metasPessoais = tipo === 'interno'
+    ? [
+        { tier: 'm3', label: 'M3', meta: Number(metaIndividual?.meta_m3) },
+        { tier: 'm2', label: 'M2', meta: Number(metaIndividual?.meta_m2) },
+        { tier: 'm1', label: 'M1', meta: Number(metaIndividual?.meta_m1) },
+      ].filter(m => Number.isFinite(m.meta) && m.meta > 0).sort((a, b) => a.meta - b.meta)
+    : [];
+  const vendasMesPessoa = Number(vendedorMes.vendas || 0);
+  const metaAtualObj = tipo === 'interno'
+    ? (metasPessoais.find(m => vendasMesPessoa < m.meta) || metasPessoais[metasPessoais.length - 1] || null)
+    : (Number(vendedorMes.meta) > 0 ? { label: 'Meta mensal', meta: Number(vendedorMes.meta) } : null);
+  const temMeta = !!metaAtualObj;
+  const pctMeta = temMeta ? Math.round((vendasMesPessoa / metaAtualObj.meta) * 100) : 0;
+  const pctBarra = Math.min(100, Math.max(0, pctMeta));
+  const faltam = temMeta ? Math.max(0, metaAtualObj.meta - vendasMesPessoa) : null;
+  const m1JaAtingida = tipo === 'interno' && metasPessoais.length > 0
+    && vendasMesPessoa >= metasPessoais[metasPessoais.length - 1].meta;
 
   // frase de constância: combina sequência + posição pra escolher a faixa
   const pontuacaoConstancia = sequencia + (posicao ? (6 - Math.min(5, posicao)) : 0);
@@ -3722,31 +3743,31 @@ async function gerarStatusVendedor(slug, evt) {
   barrasEls.forEach((el, i) => el.classList.toggle('on', i < barrasAcesas));
   document.getElementById('sc-signal-label').textContent = labelSinal;
 
-  document.getElementById('sc-hero-goal').textContent = `Meta Individual — ${mesNome}`;
-  document.getElementById('sc-hero-bar').style.width = pctMeta + '%';
+  document.getElementById('sc-hero-goal').textContent = tipo === 'interno' && metaAtualObj
+    ? `${metaAtualObj.label} — Meta Individual de ${mesNome}`
+    : `Meta Individual — ${mesNome}`;
+  document.getElementById('sc-hero-bar').style.width = pctBarra + '%';
   document.getElementById('sc-hero-pct').textContent = temMeta ? (pctMeta + '%') : '—';
   document.getElementById('sc-hero-sub').innerHTML = !temMeta
     ? 'Sem meta individual cadastrada este mês'
     : faltam > 0
-      ? `Faltam <b>${faltam} ${faltam === 1 ? 'venda' : 'vendas'}</b> para bater a meta do mês`
-      : 'Meta do mês batida! 🎉';
+      ? `Faltam <b>${faltam} ${faltam === 1 ? 'venda' : 'vendas'}</b> para alcançar ${metaAtualObj.label === 'Meta mensal' ? 'a meta do mês' : 'a ' + metaAtualObj.label}`
+      : m1JaAtingida
+        ? `${metasPessoais[metasPessoais.length - 1].label} alcançada! Continue superando sua marca. 🎉`
+        : `${metaAtualObj.label} alcançada! Próximo nível no seu radar. 🎉`;
 
-  // Selos: acendem só com dados reais — meta individual do mês
-  // (vendedorMes) e as 3 metas SEMANAIS da filial (mf.semanal_m1/2/3
-  // vs. d.totalSemana, os mesmos números do card "Metas da Filial —
-  // Semana" da página pública). Sem meta cadastrada = o selo nem
-  // aparece (não inventa threshold nenhum).
-  const mf2 = d.metasFilial;
+  // Mostrar somente o maior nível individual já atingido. O selo de
+  // liderança é separado e só aparece para quem está em 1º na semana.
   const badges = [];
-  if (temMeta) badges.push({ label: 'Destaque', on: vendedorMes.vendas >= vendedorMes.meta });
-  if (mf2 && mf2.semanal_m1) badges.push({ label: 'M1', on: d.totalSemana >= mf2.semanal_m1 });
-  if (mf2 && mf2.semanal_m2) badges.push({ label: 'M2', on: d.totalSemana >= mf2.semanal_m2 });
-  if (mf2 && mf2.semanal_m3) badges.push({ label: 'M3', on: d.totalSemana >= mf2.semanal_m3 });
+  const metasBatidas = metasPessoais.filter(m => vendasMesPessoa >= m.meta);
+  const maiorMetaBatida = metasBatidas[metasBatidas.length - 1];
+  if (maiorMetaBatida) badges.push({ label: `${maiorMetaBatida.label} Atingida` });
+  if (posicao === 1) badges.push({ label: 'Líder da Semana' });
   const badgesSection = document.getElementById('sc-badges-section');
   if (badges.length) {
     badgesSection.style.display = '';
     document.getElementById('sc-badges-row').innerHTML = badges.map(b =>
-      `<div class="sc-badge ${b.on ? 'on' : ''}"><span class="sc-badge-check">${b.on ? '✓' : '—'}</span>${b.label}</div>`
+      `<div class="sc-badge on"><span class="sc-badge-check">✓</span>${b.label}</div>`
     ).join('');
   } else {
     badgesSection.style.display = 'none';
@@ -3799,7 +3820,7 @@ async function gerarStatusVendedor(slug, evt) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Status_${vendedorSemana.nome}_${new Date().toISOString().split('T')[0]}.png`;
+    a.download = `Story_Desempenho_${vendedorSemana.nome}_${new Date().toISOString().split('T')[0]}.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();

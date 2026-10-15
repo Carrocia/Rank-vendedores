@@ -1,6 +1,6 @@
 
 
-#sc-offscreen { position: absolute; left: -9999px; top: 0; width: 600px; height: 780px; }
+#sc-offscreen { position: absolute; left: -9999px; top: 0; width: 540px; height: 960px; }
 
 .sc-card {
   width: 600px; height: 780px;
@@ -65,8 +65,7 @@
 .sc-hero-sub { margin-top: 10px; font-size: 12.5px; color: #9fb6c9; }
 .sc-hero-sub b { color: #6fe6d4; }
 
-/* selos de meta batida — acendem só com dados reais (M1/M2/M3 da
-   filial na semana + meta individual do mês), nunca decorativos */
+/* Selos das conquistas individuais e da liderança semanal. */
 .sc-badges-label { margin-top: 22px; font-size: 10.5px; font-weight: 700; letter-spacing: 2px; color: #6fe6d4; text-transform: uppercase; }
 .sc-badges-row { display: flex; gap: 8px; margin-top: 10px; }
 .sc-badge { flex: 1; text-align: center; padding: 10px 6px; border-radius: 12px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); color: #5b7184; }
@@ -84,8 +83,7 @@
 .sc-phrase { font-size: 14px; font-weight: 600; color: #d6f5ef; line-height: 1.5; padding: 0 12px; }
 .sc-brandline { margin-top: 16px; font-size: 9.5px; letter-spacing: 2px; color: rgba(148,178,201,0.4); font-weight: 700; }
 
-/* O status externo tem quatro indicadores em duas linhas; compacta seus
-   espaçamentos para manter frase e rodapé dentro da mesma arte 600×780. */
+/* Ajustes compactos mantidos como base para o template de celebração. */
 .sc-card.is-external .sc-inner { padding: 30px 40px 24px; }
 .sc-card.is-external .sc-divider { margin-top: 14px; }
 .sc-card.is-external .sc-identity { gap: 14px; margin-top: 18px; }
@@ -98,6 +96,58 @@
 .sc-card.is-external .sc-phrase-box { padding-top: 12px; }
 .sc-card.is-external .sc-phrase { padding: 0 8px; font-size: 12px; }
 .sc-card.is-external .sc-brandline { margin-top: 10px; }
+
+/* Status individual em proporção vertical de Story (1080 × 1920 exportado
+   com html2canvas em escala 2). As regras ficam restritas ao status para
+   preservar o template independente usado na arte de celebração. */
+#sc-card { width: 540px; height: 960px; }
+#sc-card .sc-inner {
+  margin: 28px;
+  height: calc(100% - 56px);
+  padding: 36px 34px 24px;
+}
+#sc-card .sc-brand-row { gap: 14px; }
+#sc-card .sc-brand-row img { height: 56px; }
+#sc-card .sc-kicker { font-size: 14px; letter-spacing: 4px; }
+#sc-card .sc-divider { margin-top: 34px; }
+#sc-card .sc-identity { gap: 12px; margin-top: 42px; }
+#sc-card .sc-avatar-ring { width: 96px; height: 96px; }
+#sc-card .sc-name { font-size: 27px; line-height: 1.25; }
+#sc-card .sc-role-tag { margin-top: 12px; font-size: 12px; padding: 7px 13px; }
+#sc-card .sc-signal-badge { gap: 10px; }
+#sc-card .sc-signal-bars { height: 25px; gap: 3px; }
+#sc-card .sc-signal-bars span { width: 5px; }
+#sc-card .sc-signal-label { font-size: 11px; }
+#sc-card .sc-hero { margin-top: 40px; padding: 28px 26px; border-radius: 22px; }
+#sc-card .sc-hero-label { font-size: 13px; }
+#sc-card .sc-hero-goal { font-size: 21px; margin-top: 10px; }
+#sc-card .sc-hero-bar-row { gap: 16px; margin-top: 22px; }
+#sc-card .sc-hero-bar-track { height: 15px; }
+#sc-card .sc-hero-pct { font-size: 30px; min-width: 74px; }
+#sc-card .sc-hero-sub { margin-top: 16px; font-size: 15px; }
+#sc-card .sc-badges-label { margin-top: 30px; font-size: 13px; }
+#sc-card .sc-badges-row { gap: 12px; margin-top: 14px; }
+#sc-card .sc-badge { padding: 16px 10px; border-radius: 16px; font-size: 14px; }
+#sc-card .sc-badge-check { font-size: 19px; margin-bottom: 5px; }
+#sc-card .sc-stats-grid { gap: 14px; margin-top: 22px; }
+#sc-card .sc-stat-tile { padding: 22px 14px; border-radius: 18px; }
+#sc-card .sc-stat-label { font-size: 11px; }
+#sc-card .sc-stat-value { font-size: 27px; margin-top: 10px; }
+#sc-card .sc-phrase-box { padding-top: 24px; }
+#sc-card .sc-phrase { font-size: 18px; padding: 0 20px; line-height: 1.55; }
+#sc-card .sc-brandline { margin-top: 22px; font-size: 11px; }
+#sc-card.is-external .sc-inner { padding: 36px 34px 24px; }
+#sc-card.is-external .sc-divider { margin-top: 34px; }
+#sc-card.is-external .sc-identity { gap: 12px; margin-top: 42px; }
+#sc-card.is-external .sc-avatar-ring { width: 96px; height: 96px; }
+#sc-card.is-external .sc-name { font-size: 27px; }
+#sc-card.is-external .sc-hero { margin-top: 40px; padding: 28px 26px; }
+#sc-card.is-external .sc-badges-label { margin-top: 30px; }
+#sc-card.is-external .sc-stats-grid { margin-top: 22px; }
+#sc-card.is-external .sc-stat-tile { padding: 22px 14px; }
+#sc-card.is-external .sc-phrase-box { padding-top: 24px; }
+#sc-card.is-external .sc-phrase { padding: 0 20px; font-size: 18px; }
+#sc-card.is-external .sc-brandline { margin-top: 22px; }
 
 /* ── Card de CELEBRAÇÃO (GIF de meta batida) — reaproveita as classes
    .sc-* acima (moldura, ondas, logo, avatar) e só acrescenta o selo
