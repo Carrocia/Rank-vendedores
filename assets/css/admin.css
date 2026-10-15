@@ -94,6 +94,10 @@
   background: rgba(6,8,16,0.96); backdrop-filter: blur(10px);
   display: none; align-items: center; justify-content: center;
   overflow-y: auto; overscroll-behavior: contain; padding: 32px 16px;
+  /* O painel administrativo mantém superfícies escuras nos dois temas do site. */
+  --text: #e4e6ed;
+  --text-muted: #a6adbd;
+  --heading-color: #fff;
 }
 .adm-overlay.active { display: flex; }
 body.adm-modal-open { overflow: hidden; }
