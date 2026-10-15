@@ -723,6 +723,13 @@ async function cadastrarVendedor(event) {
 // de qualquer regional. Esta lista só é carregada quando o ADM abre, depois do
 // login, e não altera a lista local usada em Nova Venda ou nos rankings.
 async function loadVendedoresTodasFiliais() {
+  // Contas regionais não carregam nem mantêm em memória cadastros de outras
+  // equipes. Vendas recebidas ainda podem ser registradas sem identificar um
+  // vendedor; o superadministrador continua podendo associar qualquer equipe.
+  if (!ehSuperAdminAtual()) {
+    _vendedoresTodasFiliais = [];
+    return _vendedoresTodasFiliais;
+  }
   const { data, error } = await window._supabase
     .from('vendedores')
     .select('id, nome, tipo, filial_id, slug')
@@ -2499,8 +2506,12 @@ function configurarNavegacaoAdmin() {
   const vendedoresGlobaisFiltro = document.getElementById('adm-vendedores-global-filial');
   const vendedoresGlobaisBusca = document.getElementById('adm-vendedores-global-busca');
   const formCadastroVendedor = document.querySelector('.adm-vendedor-cadastro-card');
+  const vendedorOutraFilialField = document.getElementById('filial-vendedor-field');
+  const vendedorOutraFilialHint = document.getElementById('filial-vendedor-escopo-hint');
   if (vendedoresGlobaisCard) vendedoresGlobaisCard.hidden = !superAdmin;
   if (formCadastroVendedor) formCadastroVendedor.hidden = !superAdmin;
+  if (vendedorOutraFilialField) vendedorOutraFilialField.hidden = !superAdmin;
+  if (vendedorOutraFilialHint) vendedorOutraFilialHint.hidden = superAdmin;
   if (superAdmin && vendedoresGlobaisFiltro) {
     if (!vendedoresGlobaisFiltro.dataset.filiaisCarregadas) {
       (_cache.filiais || []).forEach(f => vendedoresGlobaisFiltro.add(new Option(f.nome, String(f.id))));
@@ -3373,6 +3384,10 @@ async function handleVendaOutraFilial(e) {
     return;
   }
   if (vendedorRaw) {
+    if (!ehSuperAdminAtual()) {
+      showToast('Contas regionais registram vendas recebidas sem identificar vendedores de outras filiais.', 'warning');
+      return;
+    }
     const vendedorSelecionado = _vendedoresTodasFiliais.find(v => String(v.id) === String(vendedorRaw));
     if (!vendedorSelecionado || Number(vendedorSelecionado.filial_id) !== filialId) {
       showToast('O vendedor selecionado não pertence à filial de origem escolhida.', 'warning');

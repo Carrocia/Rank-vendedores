@@ -170,14 +170,12 @@ drop policy if exists regional_site_config_delete on public.site_config;
 create policy regional_site_config_delete on public.site_config
   as restrictive for delete to authenticated using (private.admin_e_superadmin());
 
--- Os administradores leem todas as equipes porque o formulário de venda
--- recebida precisa listar vendedores da filial de origem. A interface local
--- continua mostrando apenas os vendedores da filial selecionada. Gravações
--- de vendedores ficam restritas à filial vinculada à conta.
+-- Contas regionais consultam apenas sua própria equipe. O superadministrador
+-- continua com acesso global por meio de admin_tem_acesso_filial().
 alter table public.vendedores enable row level security;
 drop policy if exists regional_vendedores_select on public.vendedores;
 create policy regional_vendedores_select on public.vendedores
-  as restrictive for select to authenticated using (private.admin_tem_acesso());
+  as restrictive for select to authenticated using (private.admin_tem_acesso_filial(filial_id));
 drop policy if exists regional_vendedores_insert on public.vendedores;
 create policy regional_vendedores_insert on public.vendedores
   as restrictive for insert to authenticated with check (private.admin_tem_acesso_filial(filial_id));
@@ -234,6 +232,31 @@ create policy regional_vendas_scope on public.vendas
   as restrictive for all to authenticated
   using (private.admin_tem_acesso_filial(filial_destino_id))
   with check (private.admin_tem_acesso_filial(filial_destino_id));
+
+-- Uma conta regional só pode atribuir uma venda a vendedor da sua própria
+-- filial. Vendas recebidas sem vendedor continuam permitidas; o superadmin
+-- pode associar vendedores de qualquer filial.
+drop policy if exists regional_vendas_vendedor_origem_insert on public.vendas;
+create policy regional_vendas_vendedor_origem_insert on public.vendas
+  as restrictive for insert to authenticated
+  with check (
+    private.admin_e_superadmin()
+    or vendedor_id is null
+    or private.admin_tem_acesso_filial(filial_origem_id)
+  );
+drop policy if exists regional_vendas_vendedor_origem_update on public.vendas;
+create policy regional_vendas_vendedor_origem_update on public.vendas
+  as restrictive for update to authenticated
+  using (
+    private.admin_e_superadmin()
+    or vendedor_id is null
+    or private.admin_tem_acesso_filial(filial_origem_id)
+  )
+  with check (
+    private.admin_e_superadmin()
+    or vendedor_id is null
+    or private.admin_tem_acesso_filial(filial_origem_id)
+  );
 
 alter table public.venda_adicionais enable row level security;
 drop policy if exists regional_venda_adicionais_scope on public.venda_adicionais;

@@ -496,6 +496,7 @@ body.adm-modal-open { overflow: hidden; }
 .adm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 640px) { .adm-form-grid { grid-template-columns: 1fr; } }
 .adm-form-full { grid-column: 1 / -1; }
+#filial-vendedor-field[hidden], #filial-vendedor-escopo-hint[hidden] { display: none !important; }
 .adm-panel-header {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.07);
