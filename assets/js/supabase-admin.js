@@ -14,6 +14,8 @@ window.ADMIN_FILIAL_ID = null;
 window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
 let _vendedoresVisaoGlobal = [];
+let _vendedoresVisaoGlobalPagina = 1;
+const VENDEDORES_GLOBAIS_POR_PAGINA = 15;
 let _vendedorFotoPreviewUrl = null;
 let _vendedoresGerenciamento = [];
 let _filialGerenciadaEmEdicaoId = null;
@@ -224,11 +226,19 @@ function prepararCadastroVendedor() {
     if (filialField) filialField.hidden = false;
     if (hint) hint.textContent = 'Não foi possível confirmar a regional deste acesso.';
   }
-  const vendedorEmEdicao = _vendedoresGerenciamento.find(v => Number(v.id) === Number(document.getElementById('adm-vendedor-edit-id')?.value));
+  const vendedorEmEdicao = buscarVendedorGerenciado(document.getElementById('adm-vendedor-edit-id')?.value);
   if (vendedorEmEdicao) {
     filialSelect.value = String(vendedorEmEdicao.filial_id);
     filialSelect.disabled = true;
   }
+}
+
+function buscarVendedorGerenciado(id) {
+  const numeroId = Number(id);
+  if (!numeroId) return null;
+  return _vendedoresGerenciamento.find(v => Number(v.id) === numeroId)
+    || _vendedoresVisaoGlobal.find(v => Number(v.id) === numeroId)
+    || null;
 }
 
 function limparEstadoEdicaoVendedor() {
@@ -253,7 +263,11 @@ function cancelarEdicaoVendedor() {
 }
 
 function iniciarEdicaoVendedor(id) {
-  const vendedor = _vendedoresGerenciamento.find(v => Number(v.id) === Number(id));
+  if (!ehSuperAdminAtual()) {
+    showToast('Somente o superadministrador pode editar vendedores.', 'error');
+    return;
+  }
+  const vendedor = buscarVendedorGerenciado(id);
   if (!vendedor || !vendedor.ativo) {
     showToast('Este vendedor não está disponível para edição.', 'warning');
     return;
@@ -319,14 +333,18 @@ async function carregarVendedoresGerenciamento() {
     nome.textContent = v.nome;
     const tipo = document.createElement('td');
     tipo.textContent = v.tipo === 'interno' ? 'Interno' : 'Externo';
-    const acao = document.createElement('td');
-    const reativar = document.createElement('button');
-    reativar.type = 'button';
-    reativar.className = 'adm-btn adm-btn-small';
-    reativar.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"></use></svg><span>Reativar</span>';
-    reativar.addEventListener('click', () => alterarStatusVendedor(v.id, true));
-    acao.appendChild(reativar);
-    tr.append(nome, tipo, acao);
+    const situacao = document.createElement('td');
+    if (ehSuperAdminAtual()) {
+      const reativar = document.createElement('button');
+      reativar.type = 'button';
+      reativar.className = 'adm-btn adm-btn-small';
+      reativar.textContent = 'Reativar';
+      reativar.addEventListener('click', () => alterarStatusVendedor(v.id, true));
+      situacao.appendChild(reativar);
+    } else {
+      situacao.textContent = 'Desativado';
+    }
+    tr.append(nome, tipo, situacao);
     tbody.appendChild(tr);
   });
 }
@@ -334,22 +352,35 @@ async function carregarVendedoresGerenciamento() {
 function renderizarVendedoresVisaoGlobal() {
   const tbody = document.getElementById('adm-vendedores-global-tbody');
   const filtro = document.getElementById('adm-vendedores-global-filial');
+  const busca = document.getElementById('adm-vendedores-global-busca');
+  const paginacao = document.getElementById('adm-vendedores-global-paginacao');
   if (!tbody || !filtro) return;
   const filialPorId = new Map((_cache.filiais || []).map(f => [String(f.id), f.nome]));
   const filialEscolhida = filtro.value || 'todas';
-  const vendedores = _vendedoresVisaoGlobal.filter(v => filialEscolhida === 'todas' || String(v.filial_id) === filialEscolhida);
+  const termo = String(busca?.value || '').trim().toLocaleLowerCase('pt-BR');
+  const vendedores = _vendedoresVisaoGlobal.filter(v => {
+    if (filialEscolhida !== 'todas' && String(v.filial_id) !== filialEscolhida) return false;
+    const filialNome = filialPorId.get(String(v.filial_id)) || '';
+    const texto = `${v.nome || ''} ${filialNome} ${v.tipo || ''} ${v.ativo ? 'ativo' : 'desativado'}`.toLocaleLowerCase('pt-BR');
+    return !termo || texto.includes(termo);
+  });
+  const totalPaginas = Math.max(1, Math.ceil(vendedores.length / VENDEDORES_GLOBAIS_POR_PAGINA));
+  _vendedoresVisaoGlobalPagina = Math.min(Math.max(1, _vendedoresVisaoGlobalPagina), totalPaginas);
+  const inicio = (_vendedoresVisaoGlobalPagina - 1) * VENDEDORES_GLOBAIS_POR_PAGINA;
+  const vendedoresPagina = vendedores.slice(inicio, inicio + VENDEDORES_GLOBAIS_POR_PAGINA);
   tbody.replaceChildren();
   if (!vendedores.length) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 4;
+    td.colSpan = 5;
     td.className = 'adm-empty-state';
     td.textContent = 'Nenhum vendedor cadastrado para esta seleção.';
     tr.appendChild(td);
     tbody.appendChild(tr);
+    if (paginacao) paginacao.replaceChildren();
     return;
   }
-  vendedores.forEach(v => {
+  vendedoresPagina.forEach(v => {
     const tr = document.createElement('tr');
     const nome = document.createElement('td');
     nome.textContent = v.nome || '—';
@@ -359,36 +390,75 @@ function renderizarVendedoresVisaoGlobal() {
     filial.textContent = filialPorId.get(String(v.filial_id)) || 'Regional não identificada';
     const status = document.createElement('td');
     status.textContent = v.ativo ? 'Ativo' : 'Desativado';
-    tr.append(nome, tipo, filial, status);
+    const acoes = document.createElement('td');
+    acoes.className = 'adm-vendedor-actions';
+    const criarBotao = (texto, classe, acao) => {
+      const botao = document.createElement('button');
+      botao.type = 'button';
+      botao.className = `adm-btn adm-btn-small ${classe || ''}`.trim();
+      botao.textContent = texto;
+      botao.addEventListener('click', acao);
+      return botao;
+    };
+    if (v.ativo) acoes.appendChild(criarBotao('Editar', '', () => iniciarEdicaoVendedor(v.id)));
+    acoes.appendChild(criarBotao(v.ativo ? 'Desativar' : 'Reativar', v.ativo ? 'adm-btn-danger' : '', () => alterarStatusVendedor(v.id, !v.ativo)));
+    acoes.appendChild(criarBotao('Excluir', 'adm-btn-danger', () => excluirVendedorGlobal(v.id)));
+    tr.append(nome, tipo, filial, status, acoes);
     tbody.appendChild(tr);
   });
+  if (paginacao) {
+    paginacao.replaceChildren();
+    if (totalPaginas > 1) {
+      const anterior = document.createElement('button');
+      anterior.type = 'button'; anterior.className = 'adm-btn adm-btn-secondary';
+      anterior.textContent = '← Anterior'; anterior.disabled = _vendedoresVisaoGlobalPagina <= 1;
+      anterior.addEventListener('click', () => mudarPaginaVendedoresVisaoGlobal(-1));
+      const textoPagina = document.createElement('span');
+      textoPagina.textContent = `Página ${_vendedoresVisaoGlobalPagina} de ${totalPaginas} · ${vendedores.length} vendedores`;
+      const proxima = document.createElement('button');
+      proxima.type = 'button'; proxima.className = 'adm-btn adm-btn-secondary';
+      proxima.textContent = 'Próxima →'; proxima.disabled = _vendedoresVisaoGlobalPagina >= totalPaginas;
+      proxima.addEventListener('click', () => mudarPaginaVendedoresVisaoGlobal(1));
+      paginacao.append(anterior, textoPagina, proxima);
+    } else {
+      const textoPagina = document.createElement('span');
+      textoPagina.textContent = `${vendedores.length} vendedor${vendedores.length === 1 ? '' : 'es'}`;
+      paginacao.appendChild(textoPagina);
+    }
+  }
+}
+
+function mudarPaginaVendedoresVisaoGlobal(delta) {
+  _vendedoresVisaoGlobalPagina += delta;
+  renderizarVendedoresVisaoGlobal();
 }
 
 async function carregarVendedoresVisaoGlobal() {
   const tbody = document.getElementById('adm-vendedores-global-tbody');
   if (!ehSuperAdminAtual() || !window._supabase || !tbody) return;
-  tbody.innerHTML = '<tr><td colspan="4" class="adm-inline-status">Carregando vendedores de todas as regionais…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Carregando vendedores de todas as regionais…</td></tr>';
   const { data, error } = await window._supabase
     .from('vendedores')
-    .select('id, nome, tipo, filial_id, ativo')
+    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id')
     .order('filial_id')
     .order('nome');
   if (error) {
     console.error('[carregarVendedoresVisaoGlobal]', error);
-    tbody.innerHTML = '<tr><td colspan="4" class="adm-empty-state">Não foi possível carregar os vendedores de todas as regionais.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="adm-empty-state">Não foi possível carregar os vendedores de todas as regionais.</td></tr>';
     return;
   }
   _vendedoresVisaoGlobal = data || [];
+  _vendedoresVisaoGlobalPagina = 1;
   renderizarVendedoresVisaoGlobal();
 }
 
 async function alterarStatusVendedor(id, ativo) {
-  const vendedor = _vendedoresGerenciamento.find(v => Number(v.id) === Number(id));
-  if (!vendedor) return;
-  if (window.ADMIN_FILIAL_ID != null && Number(vendedor.filial_id) !== Number(window.ADMIN_FILIAL_ID)) {
-    showToast('Este acesso só pode alterar vendedores da própria regional.', 'error');
+  if (!ehSuperAdminAtual()) {
+    showToast('Somente o superadministrador pode alterar o status de vendedores.', 'error');
     return;
   }
+  const vendedor = buscarVendedorGerenciado(id);
+  if (!vendedor) return;
   if (!ativo && !confirm(`Desativar ${vendedor.nome}? O histórico de vendas será preservado.`)) return;
   try {
     const { data, error } = await window._supabase
@@ -401,12 +471,66 @@ async function alterarStatusVendedor(id, ativo) {
     if (error) throw error;
     if (!data) throw new Error('O banco não autorizou a alteração para esta regional.');
     showToast(ativo ? `${vendedor.nome} foi reativado.` : `${vendedor.nome} foi desativado.`, 'success');
-    await carregarDados();
-    await carregarVendedoresGerenciamento();
-    if (ehSuperAdminAtual()) await carregarVendedoresVisaoGlobal();
+    if (Number(vendedor.filial_id) === Number(window.FILIAL_ATUAL_ID)) {
+      await carregarDados();
+      await carregarVendedoresGerenciamento();
+    }
+    const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
+    popularSelectVendedoresTodasFiliais(vendedoresTodasFiliais);
+    await carregarVendedoresVisaoGlobal();
   } catch (error) {
     console.error('[alterarStatusVendedor]', error);
     showToast(error.message || 'Não foi possível alterar o status do vendedor.', 'error');
+  }
+}
+
+async function excluirVendedorGlobal(id) {
+  if (!ehSuperAdminAtual() || !window._supabase) {
+    showToast('Somente o superadministrador pode excluir vendedores.', 'error');
+    return;
+  }
+  const vendedor = buscarVendedorGerenciado(id);
+  if (!vendedor) return;
+  if (!confirm(`Excluir permanentemente ${vendedor.nome} de ${(_cache.filiais || []).find(f => Number(f.id) === Number(vendedor.filial_id))?.nome || 'sua regional'}? A exclusão só será permitida quando não houver vendas ou dados vinculados.`)) return;
+
+  try {
+    const referencias = await Promise.all([
+      window._supabase.from('vendas').select('id', { count: 'exact', head: true }).eq('vendedor_id', vendedor.id),
+      window._supabase.from('metas').select('id', { count: 'exact', head: true }).eq('vendedor_id', vendedor.id),
+      window._supabase.from('adicionais_avulsos').select('id', { count: 'exact', head: true }).eq('vendedor_id', vendedor.id),
+    ]);
+    const erroReferencia = referencias.find(resultado => resultado.error)?.error;
+    if (erroReferencia) throw erroReferencia;
+    const [vendas, metas, adicionais] = referencias.map(resultado => resultado.count || 0);
+    if (vendas || metas || adicionais) {
+      showToast(`Não é possível excluir: há ${vendas} venda(s), ${metas} meta(s) e ${adicionais} adicional(is) vinculados. Desative o vendedor para preservar o histórico.`, 'warning');
+      return;
+    }
+
+    const { data, error } = await window._supabase.from('vendedores')
+      .delete()
+      .eq('id', vendedor.id)
+      .eq('filial_id', vendedor.filial_id)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('O Supabase não autorizou a exclusão deste vendedor.');
+
+    await window._supabase.storage.from(BUCKET_FOTOS_VENDEDORES)
+      .remove([`${vendedor.filial_id}/${vendedor.id}/avatar`]);
+    showToast(`${vendedor.nome} foi excluído.`, 'success');
+    if (Number(vendedor.filial_id) === Number(window.FILIAL_ATUAL_ID)) {
+      await carregarDados();
+      await carregarVendedoresGerenciamento();
+    }
+    const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
+    popularSelectVendedoresTodasFiliais(vendedoresTodasFiliais);
+    await carregarVendedoresVisaoGlobal();
+  } catch (error) {
+    console.error('[excluirVendedorGlobal]', error);
+    showToast(error.code === '23503'
+      ? 'Este vendedor possui registros vinculados. Desative-o para preservar o histórico.'
+      : error.message || 'Não foi possível excluir o vendedor.', 'error');
   }
 }
 
@@ -465,8 +589,8 @@ async function cadastrarVendedor(event) {
   const form = document.getElementById('adm-vendedor-form');
   const botao = document.getElementById('adm-vendedor-submit');
   const editId = Number(document.getElementById('adm-vendedor-edit-id')?.value || 0) || null;
-  if (!window.ADMIN_AUTENTICADO || !window._supabase) {
-    showToast('Entre com uma conta administrativa para gerenciar vendedores.', 'error');
+  if (!ehSuperAdminAtual() || !window._supabase) {
+    showToast('Somente o superadministrador pode cadastrar ou editar vendedores.', 'error');
     return;
   }
 
@@ -475,8 +599,8 @@ async function cadastrarVendedor(event) {
   const ixcIdRaw = document.getElementById('adm-vendedor-ixc-id').value.trim();
   const ixcVendedorId = ixcIdRaw || null;
   const arquivoFoto = document.getElementById('adm-vendedor-foto')?.files?.[0] || null;
-  const isSuperAdmin = window.ADMIN_FILIAL_ID == null;
-  const vendedorExistente = editId ? _vendedoresGerenciamento.find(v => Number(v.id) === editId) : null;
+  const isSuperAdmin = ehSuperAdminAtual();
+  const vendedorExistente = editId ? buscarVendedorGerenciado(editId) : null;
   const filialId = vendedorExistente
     ? Number(vendedorExistente.filial_id)
     : isSuperAdmin
@@ -2349,15 +2473,28 @@ function configurarNavegacaoAdmin() {
   const superAdmin = ehSuperAdminAtual();
   const vendedoresGlobaisCard = document.getElementById('adm-vendedores-global-card');
   const vendedoresGlobaisFiltro = document.getElementById('adm-vendedores-global-filial');
+  const vendedoresGlobaisBusca = document.getElementById('adm-vendedores-global-busca');
+  const formCadastroVendedor = document.querySelector('.adm-vendedor-cadastro-card');
   if (vendedoresGlobaisCard) vendedoresGlobaisCard.hidden = !superAdmin;
+  if (formCadastroVendedor) formCadastroVendedor.hidden = !superAdmin;
   if (superAdmin && vendedoresGlobaisFiltro) {
     if (!vendedoresGlobaisFiltro.dataset.filiaisCarregadas) {
       (_cache.filiais || []).forEach(f => vendedoresGlobaisFiltro.add(new Option(f.nome, String(f.id))));
       vendedoresGlobaisFiltro.dataset.filiaisCarregadas = 'true';
     }
     if (!vendedoresGlobaisFiltro.dataset.listenerRegistrado) {
-      vendedoresGlobaisFiltro.addEventListener('change', renderizarVendedoresVisaoGlobal);
+      vendedoresGlobaisFiltro.addEventListener('change', () => {
+        _vendedoresVisaoGlobalPagina = 1;
+        renderizarVendedoresVisaoGlobal();
+      });
       vendedoresGlobaisFiltro.dataset.listenerRegistrado = 'true';
+    }
+    if (vendedoresGlobaisBusca && !vendedoresGlobaisBusca.dataset.listenerRegistrado) {
+      vendedoresGlobaisBusca.addEventListener('input', () => {
+        _vendedoresVisaoGlobalPagina = 1;
+        renderizarVendedoresVisaoGlobal();
+      });
+      vendedoresGlobaisBusca.dataset.listenerRegistrado = 'true';
     }
     carregarVendedoresVisaoGlobal();
   }
@@ -3392,17 +3529,21 @@ function renderAdmVendedoresTable(d) {
 
     const acoesTd = document.createElement('td');
     acoesTd.className = 'adm-vendedor-actions';
-    const editarBtn = document.createElement('button');
-    editarBtn.type = 'button';
-    editarBtn.className = 'adm-btn adm-btn-small';
-    editarBtn.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-edit"></use></svg><span>Editar</span>';
-    editarBtn.addEventListener('click', () => iniciarEdicaoVendedor(v.id));
-    const desativarBtn = document.createElement('button');
-    desativarBtn.type = 'button';
-    desativarBtn.className = 'adm-btn adm-btn-small adm-btn-danger';
-    desativarBtn.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-ban"></use></svg><span>Desativar</span>';
-    desativarBtn.addEventListener('click', () => alterarStatusVendedor(v.id, false));
-    acoesTd.append(editarBtn, desativarBtn);
+    if (ehSuperAdminAtual()) {
+      const editarBtn = document.createElement('button');
+      editarBtn.type = 'button';
+      editarBtn.className = 'adm-btn adm-btn-small';
+      editarBtn.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-edit"></use></svg><span>Editar</span>';
+      editarBtn.addEventListener('click', () => iniciarEdicaoVendedor(v.id));
+      const desativarBtn = document.createElement('button');
+      desativarBtn.type = 'button';
+      desativarBtn.className = 'adm-btn adm-btn-small adm-btn-danger';
+      desativarBtn.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-ban"></use></svg><span>Desativar</span>';
+      desativarBtn.addEventListener('click', () => alterarStatusVendedor(v.id, false));
+      acoesTd.append(editarBtn, desativarBtn);
+    } else {
+      acoesTd.textContent = '—';
+    }
 
     tr.append(fotoTd, nomeTd, tipoTd, metaTd, vendasTd, pctTd, statusTd, acoesTd);
     return tr;

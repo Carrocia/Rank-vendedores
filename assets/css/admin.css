@@ -134,6 +134,17 @@ body.adm-modal-open { overflow: hidden; }
 .adm-vendedores-inativos summary { padding: 14px 16px; color: var(--text-muted); font-size: 0.84rem; font-weight: 700; cursor: pointer; }
 .adm-vendedores-inativos[open] summary { color: var(--heading-color); border-bottom: 1px solid rgba(255,255,255,0.08); }
 .adm-vendedores-inativos .adm-table-wrap { border: 0; border-radius: 0 0 12px 12px; }
+.adm-vendedores-global { margin-top: 24px; }
+.adm-vendedores-global summary { color: var(--accent); }
+.adm-vendedores-global-content { padding: 16px; }
+.adm-vendedores-global-filtros { display: grid; grid-template-columns: minmax(220px, 1.5fr) minmax(220px, 1fr); gap: 16px; }
+.adm-vendedores-global-filtros .adm-field { margin-bottom: 12px; }
+.adm-vendedores-global .adm-vendedor-actions { flex-wrap: wrap; }
+.adm-vendedores-global .adm-pagination { justify-content: center; gap: 12px; margin: 16px 0 0; }
+@media (max-width: 720px) {
+  .adm-vendedores-global-filtros { grid-template-columns: 1fr; gap: 0; }
+  .adm-vendedores-global-content { padding: 12px; }
+}
 .adm-field label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
 .adm-field input, .adm-field select, .adm-field textarea {
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
