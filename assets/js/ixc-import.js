@@ -11,8 +11,13 @@ const IXC_FILIAIS_POR_CODIGO = {
   '7': ['machadinho'],
   '8': ['rolim de moura'],
   '9': ['jaru'],
+  '10': ['ouro preto'],
+  '11': ['nova brasilandia'],
+  '12': ['presidente medice'],
   '14': ['alvorada'],
   '15': ['alta floresta'],
+  '16': ['sao francisco'],
+  '17': ['sao francisco'],
   '18': ['sao francisco'],
 };
 
