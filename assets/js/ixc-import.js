@@ -330,12 +330,20 @@ async function analisarImportacaoIxc(event) {
     let contratosExistentes = new Set();
     const destinosIxc = [...new Set(linhasAtivas.map(linha => linha.filialDestinoId).filter(id => id != null).map(Number))];
     if (contratos.length && destinosIxc.length) {
-      const { data, error } = await window._supabase.from('vendas')
-        .select('numero_venda, filial_destino_id')
-        .in('filial_destino_id', destinosIxc)
-        .in('numero_venda', [...new Set(contratos)]);
-      if (error) throw error;
-      contratosExistentes = new Set((data || []).map(v => `${v.filial_destino_id}:${v.numero_venda}`));
+      const contratosUnicos = [...new Set(contratos)];
+      const registrosExistentes = [];
+      for (let inicio = 0; inicio < contratosUnicos.length; inicio += 250) {
+        const loteContratos = contratosUnicos.slice(inicio, inicio + 250);
+        const lote = await carregarTodasPaginas(() => window._supabase.from('vendas')
+          .select('id, numero_venda, filial_destino_id')
+          .in('filial_destino_id', destinosIxc)
+          .in('numero_venda', loteContratos)
+          .order('filial_destino_id', { ascending: true })
+          .order('numero_venda', { ascending: true })
+          .order('id', { ascending: true }), 'contratos já cadastrados');
+        registrosExistentes.push(...lote);
+      }
+      contratosExistentes = new Set(registrosExistentes.map(v => `${v.filial_destino_id}:${v.numero_venda}`));
     }
     const vistosNoArquivo = new Set();
     _linhasImportacaoIxc = linhasComDestino.map(linha => {

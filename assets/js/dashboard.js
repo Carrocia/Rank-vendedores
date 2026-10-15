@@ -1154,14 +1154,14 @@ async function carregarDados() {
     if (typeof checkAdminSession === 'function') await checkAdminSession();
     const vendedores = await loadVendedores();
     const vendedorIds = vendedores.map(v => v.id);
-    const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate).catch(() => [])));
-    const pFechadosOrigem = Promise.all(mesesFechados.map(m => loadVendasOrigem(m.de, m.ate).catch(() => [])));
+    const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate)));
+    const pFechadosOrigem = Promise.all(mesesFechados.map(m => loadVendasOrigem(m.de, m.ate)));
 
     // Carregar os dados da filial selecionada em paralelo.
     const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, destaquesRenovacao, configSite,
-           conquistasGlobais, destaquesExternosGlobais] = await Promise.all([
+           conquistasGlobais, destaquesExternosGlobais, vendasFechados, vendasFechadosOrigem] = await Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
       loadAdicionais(),
@@ -1186,6 +1186,8 @@ async function carregarDados() {
         console.warn('[carregarDestaquesExternosGlobais]', err);
         return { lista: [], erro: true };
       }),
+      pFechados,
+      pFechadosOrigem,
     ]);
 
     _cache.vendedores = vendedores;
@@ -1205,7 +1207,6 @@ async function carregarDados() {
     _cache.vendasOrigemMes = vendasOrigemMes;
     _cache.conquistasGlobais = conquistasGlobais;
     _cache.destaquesExternosGlobais = destaquesExternosGlobais;
-    const [vendasFechados, vendasFechadosOrigem] = await Promise.all([pFechados, pFechadosOrigem]);
     _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(
       m, vendasFechados[i], vendedores,
       vendasFechadosOrigem[i].filter(v => v.tipo === 'interno')
@@ -1360,17 +1361,20 @@ async function atualizarMaisVendidosDaFilial(filialId) {
     if (!window.ADMIN_AUTENTICADO || !window._supabase || !_cache.mes) return;
     const de = _cache.mes.de;
     const ateExclusivo = fimDoDiaExclusivo(_cache.mes.ate);
-    const [respostaVendas, respostaRecebidas] = await Promise.all([
-      window._supabase.from('vendas_admin').select('plano_id')
-        .eq('filial_destino_id', id).gte('data_venda', de).lt('data_venda', ateExclusivo),
-      window._supabase.from('vendas_outras_filiais_admin').select('plano_id, quantidade')
-        .eq('filial_destino_id', id).gte('data_venda', de).lt('data_venda', ateExclusivo),
-    ]);
-    if (respostaVendas.error || respostaRecebidas.error) {
-      console.warn('[atualizarMaisVendidosDaFilial] Não foi possível obter o ranking da filial escolhida.', respostaVendas.error || respostaRecebidas.error);
-      contagem = new Map();
-    } else {
-      contagem = contarPlanosVendidos([...(respostaVendas.data || []), ...(respostaRecebidas.data || [])]);
+    try {
+      const [vendas, recebidas] = await Promise.all([
+        carregarTodasPaginas(() => window._supabase.from('vendas_admin').select('id, plano_id')
+          .eq('filial_destino_id', id).gte('data_venda', de).lt('data_venda', ateExclusivo)
+          .order('data_venda', { ascending: false }).order('id', { ascending: false }), 'vendas da filial selecionada'),
+        carregarTodasPaginas(() => window._supabase.from('vendas_outras_filiais_admin').select('id, plano_id, quantidade')
+          .eq('filial_destino_id', id).gte('data_venda', de).lt('data_venda', ateExclusivo)
+          .order('data_venda', { ascending: false }).order('id', { ascending: false }), 'vendas recebidas pela filial selecionada'),
+      ]);
+      contagem = contarPlanosVendidos([...vendas, ...recebidas]);
+    } catch (error) {
+      console.warn('[atualizarMaisVendidosDaFilial] Não foi possível obter o ranking da filial escolhida.', error);
+      showToast('Não foi possível calcular os planos mais vendidos dessa filial. Tente novamente.', 'warning');
+      return;
     }
     _maisVendidosCache.set(String(id), contagem);
   }

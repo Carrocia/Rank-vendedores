@@ -919,20 +919,44 @@ function dataNoPeriodo(raw, de, ate) {
   return (utc >= de && utc <= ate) || (loc >= de && loc <= ate);
 }
 
+// O PostgREST limita cada resposta (normalmente a 1.000 linhas). Percorre
+// páginas ordenadas até terminar, sem deixar dashboard e relatórios
+// contabilizarem silenciosamente apenas a primeira página.
+const SUPABASE_PAGE_SIZE = 1000;
+const SUPABASE_QUERY_MAX_ROWS = 100000;
+async function carregarTodasPaginas(criarConsulta, descricao = 'consulta') {
+  const registros = [];
+  for (let offset = 0; offset < SUPABASE_QUERY_MAX_ROWS; offset += SUPABASE_PAGE_SIZE) {
+    const { data, error } = await criarConsulta()
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+    if (error) throw error;
+    const pagina = data || [];
+    registros.push(...pagina);
+    if (pagina.length < SUPABASE_PAGE_SIZE) return registros;
+  }
+
+  // Uma leitura de uma linha verifica se o limite foi atingido exatamente ou
+  // se ainda existem dados. Nunca retorna um conjunto truncado como completo.
+  const { data, error } = await criarConsulta()
+    .range(SUPABASE_QUERY_MAX_ROWS, SUPABASE_QUERY_MAX_ROWS);
+  if (error) throw error;
+  if (data?.length) {
+    throw new Error(`A consulta de dados (${descricao}) excedeu ${SUPABASE_QUERY_MAX_ROWS.toLocaleString('pt-BR')} registros. Reduza o período para carregar os dados com segurança.`);
+  }
+  return registros;
+}
+
 async function loadVendas(de, ate) {
   const viewVendas = window.ADMIN_AUTENTICADO ? 'vendas_admin' : 'vendas_ranking_publicas';
-  const { data, error } = await window._supabase
+  const data = await carregarTodasPaginas(() => window._supabase
     .from(viewVendas)
     .select('*')
     .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .gte('data_venda', de)
     .lt('data_venda', fimDoDiaExclusivo(ate))
-    .order('data_venda', { ascending: false });
-  if (error) {
-    console.error('[loadVendas]', error);
-    return [];
-  }
-  return (data || []).map(v => ({
+    .order('data_venda', { ascending: false })
+    .order('id', { ascending: false }), 'vendas da filial');
+  return data.map(v => ({
     ...v,
     vendedores: {
       id: v.vendedor_id,
@@ -957,16 +981,12 @@ async function loadVendasOrigem(de, ate) {
   if (!ano || !mes || !dia || !window._supabase) return [];
   const inicio = new Date(ano, mes - 1, dia, 0, 0, 0, 0).toISOString();
   const fim = fimDoDiaExclusivo(ate);
-  const { data, error } = await window._supabase.rpc('ranking_vendas_por_origem', {
+  const data = await carregarTodasPaginas(() => window._supabase.rpc('ranking_vendas_por_origem', {
     p_filial_origem_id: window.FILIAL_ATUAL_ID,
     p_inicio: inicio,
     p_fim: fim,
-  });
-  if (error) {
-    console.error('[loadVendasOrigem]', error);
-    return [];
-  }
-  return (data || []).map(item => ({
+  }).order('dia', { ascending: true }).order('vendedor_id', { ascending: true }).order('tipo', { ascending: true }), 'vendas feitas pela equipe em outras filiais');
+  return data.map(item => ({
     vendedor_id: Number(item.vendedor_id),
     tipo: String(item.tipo || ''),
     dia: String(item.dia || '').slice(0, 10),
@@ -979,18 +999,15 @@ async function loadVendasOrigem(de, ate) {
 // administrativo. A view vendas_admin deve usar security_invoker e depender
 // das políticas de administrador nas tabelas vendas e venda_adicionais.
 async function loadVendasAdmin(de, ate) {
-  const { data, error } = await window._supabase
+  const data = await carregarTodasPaginas(() => window._supabase
     .from('vendas_admin')
     .select('*')
     .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .gte('data_venda', de)
     .lt('data_venda', fimDoDiaExclusivo(ate))
-    .order('data_venda', { ascending: false });
-  if (error) {
-    console.error('[loadVendasAdmin]', error);
-    throw error;
-  }
-  return (data || []).map(v => ({
+    .order('data_venda', { ascending: false })
+    .order('id', { ascending: false }), 'relatório de vendas');
+  return data.map(v => ({
     ...v,
     vendedores: {
       id: v.vendedor_id,
@@ -1012,19 +1029,16 @@ async function loadVendasAdmin(de, ate) {
 // A política regional de vendas permite que a filial de origem consulte esses
 // registros, mantendo edição e exclusão sob responsabilidade do destino.
 async function loadVendasEquipeEmOutrasFiliais(de, ate) {
-  const { data, error } = await window._supabase
+  const data = await carregarTodasPaginas(() => window._supabase
     .from('vendas_admin')
     .select('*')
     .eq('filial_origem_id', window.FILIAL_ATUAL_ID)
     .neq('filial_destino_id', window.FILIAL_ATUAL_ID)
     .gte('data_venda', de)
     .lt('data_venda', fimDoDiaExclusivo(ate))
-    .order('data_venda', { ascending: false });
-  if (error) {
-    console.error('[loadVendasEquipeEmOutrasFiliais]', error);
-    throw error;
-  }
-  return (data || []).map(v => ({
+    .order('data_venda', { ascending: false })
+    .order('id', { ascending: false }), 'vendas da equipe em outras filiais');
+  return data.map(v => ({
     ...v,
     vendedores: { id: v.vendedor_id, nome: v.vendedor_nome, slug: v.vendedor_slug },
     planos: { id: v.plano_id, nome: v.plano_nome },
@@ -1039,15 +1053,17 @@ async function loadVendasOutrasFiliais(de, ate) {
   const viewVendas = window.ADMIN_AUTENTICADO
     ? 'vendas_outras_filiais_admin'
     : 'vendas_outras_filiais_publicas';
-  let query = window._supabase
-    .from(viewVendas)
-    .select('*')
-    .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
-    .order('data_venda', { ascending: false });
-  if (de) query = query.gte('data_venda', de);
-  if (ate) query = query.lt('data_venda', fimDoDiaExclusivo(ate));
-  const { data, error } = await query;
-  if (error) { console.error('[loadVendasOutrasFiliais]', error); return []; }
+  const data = await carregarTodasPaginas(() => {
+    let query = window._supabase
+      .from(viewVendas)
+      .select('*')
+      .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
+      .order('data_venda', { ascending: false })
+      .order('id', { ascending: false });
+    if (de) query = query.gte('data_venda', de);
+    if (ate) query = query.lt('data_venda', fimDoDiaExclusivo(ate));
+    return query;
+  }, 'vendas recebidas de outras filiais');
   return data;
 }
 
@@ -1247,13 +1263,21 @@ async function excluirVendasDoMesConferido() {
 // módulo, e só busca o que realmente falta.
 async function loadAdicionaisPorVendas(vendaIds) {
   if (!vendaIds || vendaIds.length === 0) return {};
-  const { data, error } = await window._supabase
-    .from('venda_adicionais')
-    .select('venda_id, quantidade, valor_unitario, produtos_adicionais(nome)')
-    .in('venda_id', vendaIds);
-  if (error) { console.error('[loadAdicionaisPorVendas]', error); return {}; }
+  // Divide os IDs para manter o tamanho das URLs sob controle quando um
+  // relatório contém milhares de vendas; cada lote também percorre páginas.
+  const data = [];
+  for (let inicio = 0; inicio < vendaIds.length; inicio += 500) {
+    const loteIds = vendaIds.slice(inicio, inicio + 500);
+    const lote = await carregarTodasPaginas(() => window._supabase
+      .from('venda_adicionais')
+      .select('id, venda_id, quantidade, valor_unitario, produtos_adicionais(nome)')
+      .in('venda_id', loteIds)
+      .order('venda_id', { ascending: true })
+      .order('id', { ascending: true }), 'adicionais do relatório');
+    data.push(...lote);
+  }
   const mapa = {};
-  (data || []).forEach(a => {
+  data.forEach(a => {
     if (!mapa[a.venda_id]) mapa[a.venda_id] = [];
     mapa[a.venda_id].push({
       nome: a.produtos_adicionais?.nome || '—',
@@ -2535,26 +2559,12 @@ function formatarMoedaRede(valor) {
 }
 
 function carregarVendasRede(inicio, fim) {
-  const carregarPagina = async offset => {
-    const { data, error } = await window._supabase
-      .from('vendas_admin')
-      .select('id, filial_destino_id, valor_total, data_venda')
-      .gte('data_venda', inicio)
-      .lt('data_venda', fim)
-      .order('id')
-      .range(offset, offset + 999);
-    if (error) throw error;
-    return data || [];
-  };
-  return (async () => {
-    const todas = [];
-    for (let offset = 0; offset < 100000; offset += 1000) {
-      const pagina = await carregarPagina(offset);
-      todas.push(...pagina);
-      if (pagina.length < 1000) return todas;
-    }
-    throw new Error('O período tem mais de 100 mil vendas. Reduza o período para carregar o comparativo.');
-  })();
+  return carregarTodasPaginas(() => window._supabase
+    .from('vendas_admin')
+    .select('id, filial_destino_id, valor_total, data_venda')
+    .gte('data_venda', inicio)
+    .lt('data_venda', fim)
+    .order('id', { ascending: true }), 'comparativo da rede');
 }
 
 async function carregarDashboardRede() {
