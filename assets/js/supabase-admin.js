@@ -1893,9 +1893,14 @@ function exportarRelatorioPDF() {
     y = doc.lastAutoTable.finalY + 10;
   }
 
-  if (y > 240) { doc.addPage(); desenharFundoRelatorioPDF(doc); y = 20; }
+  // O detalhamento sempre começa em uma página própria para manter a
+  // tabela na mesma posição, mesmo quando o resumo ocupa mais ou menos espaço.
+  doc.addPage();
+  desenharFundoRelatorioPDF(doc);
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, 210, 45, 'F');
   doc.setFont(undefined, 'bold'); doc.setFontSize(11); doc.setTextColor(...corAccent2);
-  doc.text('DETALHAMENTO DAS VENDAS', 14, y); y += 6;
+  doc.text('DETALHAMENTO DAS VENDAS', 14, 17);
   // Tabela de detalhamento pode quebrar em várias páginas sozinha
   // (linhas demais para caber na página atual). O jspdf-autotable
   // chama willDrawPage a cada página nova ANTES de desenhar o
@@ -1904,12 +1909,11 @@ function exportarRelatorioPDF() {
   // desenhada: usá-lo aqui pintava o fundo em cima das linhas recém
   // desenhadas e "sumia" com elas, que era exatamente o bug relatado
   // — a página 2 em diante ficava só com o fundo, sem nenhuma linha).
-  // A 1ª página já tem o fundo desenhado manualmente acima (antes do
-  // título "DETALHAMENTO DAS VENDAS"), então pulamos ela aqui pra não
-  // cobrir o que já foi escrito nela (Resumo, Vendas por Vendedor etc.).
+  // A 1ª página da tabela já tem o fundo e o título desenhados manualmente;
+  // nas continuações repetimos o mesmo cabeçalho e reservamos sua altura.
   let _primeiraPaginaDetalhamento = true;
   doc.autoTable({
-    startY: y, theme: 'grid', styles: { fontSize: 7.5, cellPadding: 2, overflow: 'linebreak', valign: 'top' }, headStyles: { fillColor: corAccent2 },
+    startY: 25, theme: 'grid', styles: { fontSize: 7.5, cellPadding: 2, overflow: 'linebreak', valign: 'top' }, headStyles: { fillColor: corAccent2 },
     // Larguras fixas (mm) pra cada coluna: evita que o autoTable
     // espreme a coluna "Cliente" quando outras colunas (Plano,
     // Adicionais) têm texto longo, o que fazia o nome sair cortado.
@@ -1950,10 +1954,14 @@ function exportarRelatorioPDF() {
       if (!ocultarFinanceiro) linha.push(fmt(l.valorTotal));
       return linha;
     }),
-    margin: { left: 14, right: 14, top: 20, bottom: 20 },
+    margin: { left: 14, right: 14, top: 25, bottom: 20 },
     willDrawPage: () => {
       if (_primeiraPaginaDetalhamento) { _primeiraPaginaDetalhamento = false; return; }
       desenharFundoRelatorioPDF(doc);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 45, 'F');
+      doc.setFont(undefined, 'bold'); doc.setFontSize(11); doc.setTextColor(...corAccent2);
+      doc.text('DETALHAMENTO DAS VENDAS', 14, 17);
     },
   });
 
@@ -1961,7 +1969,7 @@ function exportarRelatorioPDF() {
   const totalPaginas = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPaginas; i++) {
     doc.setPage(i);
-    doc.setFontSize(8); doc.setTextColor(140, 140, 140);
+    doc.setFont(undefined, 'bold'); doc.setFontSize(8); doc.setTextColor(26, 36, 62);
     doc.text(`Página ${i} de ${totalPaginas}`, 105, 290, { align: 'center' });
   }
 
