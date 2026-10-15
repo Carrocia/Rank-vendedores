@@ -659,7 +659,7 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
   if (tituloEl) tituloEl.textContent = mensal ? `🏆 Destaques de ${mesNome}` : '🏆 Destaques da Semana';
 
   const nomeDoVendedor = vendedor => vendedor.nome || nomeDe(vendedor.id);
-  const fotoDoVendedor = vendedor => vendedor.foto_url
+  const fotoDoVendedor = mensal ? () => '' : vendedor => vendedor.foto_url
     || (PESSOAS[vendedor.slug] || PESSOAS[vendedor.id] || {}).foto || fotoDe(vendedor.id);
   const valorEvolucao = Number(evolucao.evolucao || 0);
   const textoEvolucao = valorEvolucao > 0
@@ -669,9 +669,9 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
       : 'Mesmo volume da semana passada';
 
   const cards = [
-    { icon: '👑', cor: 'gold', label: 'Líder Externo', nome: nomeDoVendedor(liderExterno), foto: fotoDoVendedor(liderExterno), valor: formatVendas(liderExterno.vendas || 0) },
-    { icon: '👑', cor: 'gold', label: 'Líder Interno', nome: nomeDoVendedor(liderInterno), foto: fotoDoVendedor(liderInterno), valor: formatVendas(liderInterno.vendas || 0) },
-    { icon: '⚡', cor: 'purple', label: mensal ? 'Mais Vendas no Mês' : 'Mais Vendas na Semana', nome: nomeDoVendedor(maisVendas), foto: fotoDoVendedor(maisVendas), valor: formatVendas(maisVendas.vendas || 0) },
+    { icon: '👑', cor: 'gold', label: 'Líder Externo', nome: nomeDoVendedor(liderExterno), foto: fotoDoVendedor(liderExterno), valor: mensal ? '' : formatVendas(liderExterno.vendas || 0) },
+    { icon: '👑', cor: 'gold', label: 'Líder Interno', nome: nomeDoVendedor(liderInterno), foto: fotoDoVendedor(liderInterno), valor: mensal ? '' : formatVendas(liderInterno.vendas || 0) },
+    { icon: '⚡', cor: 'purple', label: mensal ? 'Mais Vendas no Mês' : 'Mais Vendas na Semana', nome: nomeDoVendedor(maisVendas), foto: fotoDoVendedor(maisVendas), valor: mensal ? '' : formatVendas(maisVendas.vendas || 0) },
     mensal
       ? { icon: '🎯', cor: 'red', label: 'Maior % da Meta Mensal', nome: nomeDoVendedor(maiorPctMeta), foto: fotoDoVendedor(maiorPctMeta), valor: pctMeta !== null ? `${pctMeta}% da meta` : 'Sem meta cadastrada' }
       : { icon: '📈', cor: 'red', label: 'Maior Evolução Semanal', nome: nomeDoVendedor(evolucao), foto: fotoDoVendedor(evolucao), valor: evolucao.id ? textoEvolucao : 'Sem comparação' },
@@ -688,7 +688,7 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
         ${c.foto ? `<img class="destaque-foto" src="${c.foto}" alt="${c.nome}">` : ''}
         ${c.nome ? `<span class="destaque-nome">${c.nome}</span>` : ''}
       </div>
-      <span class="destaque-valor">${c.valor}</span>
+      ${c.valor ? `<span class="destaque-valor">${c.valor}</span>` : ''}
     </div>
   `).join('');
 }
