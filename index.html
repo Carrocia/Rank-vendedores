@@ -28,7 +28,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Poppins:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Bibliotecas de exportação (Excel, PDF, imagem, GIF): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
+<!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css">
 
 <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css">
@@ -1021,9 +1021,9 @@
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>Celebrações — Marcos Individuais</div>
           <div class="adm-card adm-compact-card">
             <p class="adm-description">
-              Escolha um vendedor e um marco individual já alcançado neste mês. Gere um PNG
-              vertical pronto para compartilhar ou um GIF animado de comemoração. Para vendedores
-              internos, aparecem M3, M2 e M1; para externos, a meta mensal cadastrada.
+              Escolha um vendedor e um marco individual já alcançado neste mês. Gere uma imagem
+              vertical pronta para compartilhar. Para vendedores internos, aparecem M3, M2 e M1;
+              para externos, a meta mensal cadastrada.
             </p>
             <div class="adm-field">
               <label>Vendedor</label>
@@ -1040,7 +1040,6 @@
             <div id="cel-preview-info" class="adm-preview-status"></div>
             <div class="adm-celebration-actions">
               <button type="button" class="adm-btn adm-btn-primary" id="cel-gerar-png-btn" onclick="gerarImagemCelebracao()"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg>Baixar imagem para Story</button>
-              <button type="button" class="adm-btn adm-btn-secondary" id="cel-gerar-btn" onclick="gerarGifCelebracao()"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg>Baixar GIF animado</button>
             </div>
           </div>
 

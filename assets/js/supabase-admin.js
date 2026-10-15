@@ -2442,7 +2442,7 @@ function adm_hideLogin() {
   adm_unlockBackgroundScrollIfClosed();
 }
 
-// Bibliotecas e fontes usadas só pelo ADM (exportar Excel/PDF, gerar imagens/GIF).
+// Bibliotecas e fontes usadas só pelo ADM (exportar Excel/PDF e gerar imagens).
 // Carregam quando o painel abre — quem só visita o ranking nunca baixa isso.
 let _libsAdminPromise = null;
 function carregarLibsAdmin() {
@@ -2463,7 +2463,6 @@ function carregarLibsAdmin() {
     addScript(CDN + 'exceljs@4.4.0/dist/exceljs.min.js'),
     addScript(CDN + 'jspdf@2.5.1/dist/jspdf.umd.min.js').then(() => addScript(CDN + 'jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js')),
     addScript(CDN + 'html2canvas@1.4.1/dist/html2canvas.min.js'),
-    addScript(CDN + 'gif.js@0.2.0/dist/gif.min.js'),
     addScript(CDN + 'jszip@3.10.1/dist/jszip.min.js'),
   ]).catch(err => { console.error('[carregarLibsAdmin]', err); _libsAdminPromise = null; });
   return _libsAdminPromise;
@@ -4052,7 +4051,7 @@ async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
 }
 
 function configurarBotoesCelebracao(ativo, mensagem = '') {
-  ['cel-gerar-png-btn', 'cel-gerar-btn'].forEach(id => {
+  ['cel-gerar-png-btn'].forEach(id => {
     const button = document.getElementById(id);
     if (button) button.disabled = ativo;
   });
@@ -4087,90 +4086,6 @@ async function gerarImagemCelebracao() {
     console.error('[gerarImagemCelebracao]', err);
     configurarBotoesCelebracao(false, err.message || 'Não foi possível gerar a imagem.');
     showToast(err.message || 'Não foi possível gerar a imagem.', 'error');
-  }
-}
-
-async function gerarGifCelebracao() {
-  let gif, workerUrl;
-  try {
-    const { slug, metaInfo, vendedorMes } = obterDadosCelebracaoSelecionada();
-    configurarBotoesCelebracao(true, 'Preparando o GIF animado…');
-    await preencherCardCelebracao(slug, metaInfo, vendedorMes);
-    if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') await carregarLibsAdmin();
-    if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') throw new Error('Não foi possível carregar o gerador de GIF. Tente novamente.');
-
-    // Mantém a arte estável e faz somente um brilho sutil no selo.
-    // Sem partículas flutuantes ou anéis grandes para não competir
-    // com a foto, o nome e o marco conquistado.
-    const SCALE = 1.5;
-    const badgeEl = document.getElementById('gf-badge-wrap');
-    const cardEl = document.getElementById('gf-card');
-    const bRect = badgeEl.getBoundingClientRect();
-    const cRect = cardEl.getBoundingClientRect();
-    const cx = (bRect.left - cRect.left + bRect.width / 2) * SCALE;
-    const cy = (bRect.top - cRect.top + bRect.height / 2) * SCALE;
-
-    const baseCanvas = await html2canvas(cardEl, { backgroundColor: '#05070d', scale: SCALE });
-    const W = baseCanvas.width, H = baseCanvas.height;
-
-    const workerBlob = await fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js').then(r => {
-      if (!r.ok) throw new Error('Não foi possível carregar o worker do gif.js');
-      return r.blob();
-    });
-    workerUrl = URL.createObjectURL(workerBlob);
-
-    gif = new GIF({
-      workers: 2,
-      quality: 8,
-      workerScript: workerUrl,
-      width: W,
-      height: H,
-      background: '#05070d',
-      repeat: 0, // looping infinito
-    });
-
-    const frameCanvas = document.createElement('canvas');
-    frameCanvas.width = W;
-    frameCanvas.height = H;
-    const ctx = frameCanvas.getContext('2d');
-
-    const TOTAL_FRAMES = 16;
-    for (let f = 0; f < TOTAL_FRAMES; f++) {
-      ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(baseCanvas, 0, 0);
-      const pulso = (Math.sin((f / TOTAL_FRAMES) * Math.PI * 2) + 1) / 2;
-      const raio = (67 + pulso * 5) * SCALE;
-      ctx.beginPath();
-      ctx.arc(cx, cy, raio, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(111,230,212,${(0.12 + pulso * 0.10).toFixed(3)})`;
-      ctx.lineWidth = 2 * SCALE;
-      ctx.stroke();
-      gif.addFrame(ctx, { copy: true, delay: 85 });
-    }
-
-    gif.on('progress', progresso => {
-      configurarBotoesCelebracao(true, `Montando o GIF… ${Math.round(progresso * 100)}%`);
-    });
-    gif.on('finished', (blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Comemoracao_${slug}_${metaInfo.value}_${new Date().toISOString().slice(0, 10)}.gif`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-      if (workerUrl) URL.revokeObjectURL(workerUrl);
-      configurarBotoesCelebracao(false, 'GIF pronto para compartilhar.');
-      showToast('GIF de comemoração gerado com sucesso!', 'success');
-    });
-    gif.render();
-  } catch (err) {
-    console.error('[gerarGifCelebracao]', err);
-    if (gif?.abort) gif.abort();
-    if (workerUrl) URL.revokeObjectURL(workerUrl);
-    configurarBotoesCelebracao(false, err.message || 'Não foi possível gerar o GIF.');
-    showToast('Não foi possível gerar o GIF.', 'error');
   }
 }
 

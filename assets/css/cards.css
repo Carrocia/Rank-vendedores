@@ -175,7 +175,7 @@
 #sc-card.is-external .sc-phrase { padding: 0 12px; font-size: 15px; }
 #sc-card.is-external .sc-brandline { margin-top: 13px; }
 
-/* ── Card de CELEBRAÇÃO (GIF de meta batida) — reaproveita as classes
+/* ── Card de CELEBRAÇÃO (imagem estática de meta batida) — reaproveita as classes
    .sc-* acima (moldura, ondas, logo, avatar) e só acrescenta o selo
    central, o título e a caixa "próxima meta". ── */
 #gf-card {
