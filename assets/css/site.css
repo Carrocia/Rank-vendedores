@@ -1242,6 +1242,9 @@
 
 /* Navegação mobile pública: atalhos somente para conteúdo público. */
 .mobile-public-nav, .mobile-public-more { display: none; }
+@media (min-width: 641px) {
+  #mobilePublicNav, #mobilePublicMore { display: none !important; }
+}
 @media (max-width: 640px) {
   .page-shell { padding: 76px 14px calc(104px + env(safe-area-inset-bottom)); }
   .mobile-public-nav {
