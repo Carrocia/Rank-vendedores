@@ -178,17 +178,37 @@
 /* ── Card de CELEBRAÇÃO (GIF de meta batida) — reaproveita as classes
    .sc-* acima (moldura, ondas, logo, avatar) e só acrescenta o selo
    central, o título e a caixa "próxima meta". ── */
-.gf-badge-wrap { position: relative; width: 100px; height: 100px; margin: 26px auto 0; display: flex; align-items: center; justify-content: center; }
+#gf-card {
+  width: 540px; height: 960px;
+  --sc-accent: #21d9bf; --sc-accent-2: #2d5fff;
+  background: radial-gradient(circle at 50% 0%, rgba(33,217,191,0.10), transparent 45%), linear-gradient(180deg, #0b1120, #070b16 58%, #05070d);
+}
+#gf-card[data-achieved-tier="m3"] { --sc-accent: #21d9bf; --sc-accent-2: #23b8c8; }
+#gf-card[data-achieved-tier="m2"] { --sc-accent: #31c8da; --sc-accent-2: #3979ff; }
+#gf-card[data-achieved-tier="m1"] { --sc-accent: #8c75ff; --sc-accent-2: #36c8e8; }
+#gf-card[data-achieved-tier="meta"] { --sc-accent: #31c8da; --sc-accent-2: #3979ff; }
+#gf-card .sc-waves { display: none; }
+#gf-card .sc-inner { margin: 28px; height: calc(100% - 56px); padding: 34px 34px 28px; border: 1px solid rgba(111,230,212,0.22); border-radius: 24px; background: rgba(255,255,255,0.025); box-shadow: 0 0 48px rgba(33,217,191,0.07); }
+#gf-card .sc-brand-row img { height: 50px; }
+#gf-card .sc-kicker { font-size: 12px; letter-spacing: 2.5px; }
+#gf-card .sc-divider { margin-top: 18px; background: linear-gradient(90deg, transparent, var(--sc-accent), var(--sc-accent-2), transparent); }
+#gf-card .sc-avatar-ring { background: linear-gradient(135deg, var(--sc-accent), var(--sc-accent-2)); }
+#gf-card .sc-avatar-inner { font-size: 30px; }
+.gf-badge-wrap { position: relative; width: 132px; height: 132px; margin: 52px auto 0; display: flex; align-items: center; justify-content: center; }
 .gf-badge-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(33,217,191,0.35); }
 .gf-badge-ring2 { inset: -14px; border-color: rgba(45,95,255,0.25); }
-.gf-badge-check { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #21d9bf, #2d5fff); display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 800; color: #04202b; }
-.gf-headline { text-align: center; margin-top: 20px; font-size: 15px; font-weight: 800; letter-spacing: 3px; color: #6fe6d4; text-transform: uppercase; }
-.gf-meta-name { text-align: center; margin-top: 6px; font-size: 28px; font-weight: 800; color: #f5fbff; padding: 0 20px; }
-.gf-congrats { text-align: center; margin-top: 10px; font-size: 14px; font-weight: 600; color: #d6f5ef; }
-.gf-identity { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 22px; }
-.gf-next-box { margin-top: 22px; border-radius: 16px; padding: 16px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); text-align: center; }
-.gf-next-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #8296a8; text-transform: uppercase; }
-.gf-next-text { margin-top: 6px; font-size: 15px; font-weight: 700; color: #d6f5ef; }
+.gf-badge-check { width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(135deg, var(--sc-accent), var(--sc-accent-2)); display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 800; color: #04202b; }
+.gf-headline { text-align: center; margin-top: 30px; font-size: 16px; font-weight: 800; letter-spacing: 2.5px; color: #6fe6d4; text-transform: uppercase; }
+.gf-meta-name { text-align: center; margin-top: 11px; font-size: 27px; line-height: 1.35; font-weight: 800; color: #f5fbff; padding: 0 16px; }
+.gf-congrats { text-align: center; margin-top: 10px; font-size: 16px; font-weight: 600; color: #d6f5ef; }
+.gf-identity { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 34px; }
+#gf-card .gf-identity .sc-avatar-ring { width: 82px; height: 82px; padding: 3px; }
+#gf-card .gf-identity .sc-name { max-width: 300px; font-size: 23px; line-height: 1.25; }
+.gf-next-box { margin-top: 38px; border-radius: 16px; padding: 22px 24px; background: linear-gradient(125deg, rgba(33,217,191,0.10), rgba(45,95,255,0.12)); border: 1px solid rgba(111,230,212,0.2); text-align: center; }
+.gf-next-label { font-size: 11px; font-weight: 700; letter-spacing: 1.8px; color: #a8b8c8; text-transform: uppercase; }
+.gf-next-text { margin-top: 8px; font-size: 16px; line-height: 1.45; font-weight: 700; color: #e4f0f6; }
+#gf-card .sc-phrase-box { margin-top: auto; padding-top: 24px; text-align: center; }
+#gf-card .sc-brandline { margin-top: 0; font-size: 10px; color: #a8b8c8; }
 
 /* ── Destaque do mês — composição com os elementos enviados do Canva. ── */
 #dm-offscreen { position: absolute; left: -10000px; top: 0; width: 572px; height: 1017px; overflow: hidden; }

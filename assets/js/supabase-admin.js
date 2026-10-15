@@ -3931,36 +3931,44 @@ async function baixarCardsStatusZip(evt) {
 }
 
 // ================================================================
-// ABA "CELEBRAÇÕES" — GIF animado de meta batida (M1/M2/M3 da filial
-// na semana, ou meta individual do mês). Só oferece pra celebrar
-// metas que o vendedor bateu DE VERDADE (mesmos números de
-// gerarStatusVendedor); nunca inventa uma meta batida.
+// ABA "CELEBRAÇÕES" — arte de conquista baseada nas metas individuais
+// mensais. Só permite celebrar marcos efetivamente alcançados.
 // ================================================================
 
-// Lista as metas que ESSE vendedor bateu agora, cada uma já com o
-// rótulo pra mostrar e qual é "a próxima" (pra seção "O que vem aí"
-// do card). M1→M2→M3→Meta Global é a progressão natural da filial;
-// a meta individual não tem "próxima" (é renovada todo mês).
 function metasBatidasDoVendedor(slug) {
   const d = _ultimoProcessado;
   if (!d) return [];
-  const vendedorMes = [...d.intMes, ...d.extMes].find(v => v.slug === slug);
+  const vendedorMes = [...(d.intMes || []), ...(d.extMes || [])].find(v => v.slug === slug);
   if (!vendedorMes) return [];
-  const mf = d.metasFilial;
-  const resultado = [];
-  if (vendedorMes.meta && vendedorMes.vendas >= vendedorMes.meta) {
-    resultado.push({ value: 'individual', label: 'Meta Individual do Mês', proxima: null });
+  const cadastro = (_cache.vendedores || []).find(v => String(v.slug || v.id) === String(slug));
+  const vendasMes = Number(vendedorMes.vendas || 0);
+
+  if (vendedorMes.tipo === 'interno') {
+    const metas = (_cache.metas || []).find(m => String(m.vendedor_id) === String(cadastro?.id));
+    const niveis = [
+      { value: 'm3', label: 'M3', meta: Number(metas?.meta_m3) },
+      { value: 'm2', label: 'M2', meta: Number(metas?.meta_m2) },
+      { value: 'm1', label: 'M1', meta: Number(metas?.meta_m1) },
+    ].filter(m => Number.isFinite(m.meta) && m.meta > 0).sort((a, b) => a.meta - b.meta);
+
+    return niveis
+      .filter(m => vendasMes >= m.meta)
+      .reverse()
+      .map(m => {
+        const proxima = niveis.find(n => n.meta > m.meta);
+        return {
+          value: m.value,
+          label: `${m.label} — Meta Individual do Mês`,
+          proxima: proxima ? `${proxima.label} — Meta Individual` : 'Continue superando sua marca este mês!',
+          titulo: `${m.label} CONQUISTADA!`,
+        };
+      });
   }
-  if (mf && mf.semanal_m1 && d.totalSemana >= mf.semanal_m1) {
-    resultado.push({ value: 'm1', label: 'M1 — Meta Semanal', proxima: 'M2 — Meta Semanal da Filial' });
-  }
-  if (mf && mf.semanal_m2 && d.totalSemana >= mf.semanal_m2) {
-    resultado.push({ value: 'm2', label: 'M2 — Meta Semanal', proxima: 'M3 — Meta Semanal da Filial' });
-  }
-  if (mf && mf.semanal_m3 && d.totalSemana >= mf.semanal_m3) {
-    resultado.push({ value: 'm3', label: 'M3 — Meta Semanal', proxima: 'Meta Global do Mês' });
-  }
-  return resultado;
+
+  const metaMensal = Number(vendedorMes.meta || 0);
+  return metaMensal > 0 && vendasMes >= metaMensal
+    ? [{ value: 'individual', label: 'Meta Individual do Mês', proxima: 'Continue somando vendas pra ir além este mês!', titulo: 'META CONQUISTADA!' }]
+    : [];
 }
 
 // Chamada pelo <select> de vendedor na aba Celebrações — repopula o
@@ -3977,50 +3985,102 @@ function atualizarMetasCelebraveis() {
   const metas = metasBatidasDoVendedor(slug);
   if (!metas.length) {
     metaSelect.innerHTML = '<option value="">Nenhuma meta batida no momento</option>';
-    infoEl.textContent = 'Esse vendedor ainda não bateu nenhuma meta disponível pra celebrar (individual do mês ou M1/M2/M3 da semana).';
+    infoEl.textContent = 'Esse vendedor ainda não atingiu um marco individual disponível para celebrar neste mês.';
     return;
   }
   metaSelect.innerHTML = metas.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
-  infoEl.textContent = '';
+  infoEl.textContent = `${metas.length} marco(s) realmente alcançado(s). A imagem terá formato vertical para Story.`;
 }
 
-async function gerarGifCelebracao() {
+function obterDadosCelebracaoSelecionada() {
   const slug = document.getElementById('cel-vendedor').value;
   const metaValue = document.getElementById('cel-meta').value;
-  if (!slug || !metaValue) { showToast('Selecione o vendedor e a meta batida.', 'warning'); return; }
-
   const d = _ultimoProcessado;
-  if (!d) { showToast('Ainda não há dados carregados.', 'warning'); return; }
+  if (!slug || !metaValue) throw new Error('Selecione o vendedor e o marco atingido.');
+  if (!d) throw new Error('Ainda não há dados carregados.');
+  const metaInfo = metasBatidasDoVendedor(slug).find(m => m.value === metaValue);
+  if (!metaInfo) throw new Error('Esse marco não está mais disponível para esse vendedor. Atualize os dados e tente novamente.');
+  const vendedorMes = [...(d.intMes || []), ...(d.extMes || [])].find(v => v.slug === slug);
+  if (!vendedorMes) throw new Error('Vendedor não encontrado nos dados mensais.');
+  return { slug, metaInfo, vendedorMes };
+}
 
-  const metas = metasBatidasDoVendedor(slug);
-  const metaInfo = metas.find(m => m.value === metaValue);
-  if (!metaInfo) { showToast('Essa meta não está mais disponível pra esse vendedor.', 'error'); return; }
+async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
+  const vendedorCadastro = (_cache.vendedores || []).find(v => String(v.slug || v.id) === String(slug));
+  const foto = vendedorCadastro?.foto_url || vendedorMes.foto_url || PHOTOS[slug] || '';
+  const card = document.getElementById('gf-card');
+  if (card) card.dataset.achievedTier = ['m3', 'm2', 'm1'].includes(metaInfo.value) ? metaInfo.value : 'meta';
+  const avatar = document.getElementById('gf-avatar');
+  const inicial = String(vendedorMes.nome || '?').trim().charAt(0).toUpperCase();
+  avatar.replaceChildren();
+  if (foto) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.crossOrigin = 'anonymous';
+    img.src = foto;
+    img.onerror = () => avatar.replaceChildren(document.createTextNode(inicial));
+    avatar.appendChild(img);
+    try { if (img.decode) await img.decode(); } catch (_) { avatar.replaceChildren(document.createTextNode(inicial)); }
+  } else {
+    avatar.textContent = inicial;
+  }
 
-  const vendedorSemana = [...d.intSem, ...d.extSem].find(v => v.slug === slug);
-  if (!vendedorSemana) { showToast('Vendedor não encontrado.', 'error'); return; }
-
-  // ── Preenche o template oculto ──────────────────────────────────
-  const foto = vendedorMes.foto_url || PHOTOS[slug];
-  document.getElementById('gf-avatar').innerHTML = foto ? `<img src="${foto}" alt="">` : vendedorSemana.nome.charAt(0).toUpperCase();
-  document.getElementById('gf-nome').textContent = vendedorSemana.nome;
+  document.getElementById('gf-nome').textContent = vendedorMes.nome;
   document.getElementById('gf-meta-label').textContent = metaInfo.label;
-  document.getElementById('gf-congrats').textContent = `Parabéns, ${vendedorSemana.nome}!`;
+  document.getElementById('gf-headline').textContent = metaInfo.titulo || 'META CONQUISTADA!';
+  document.getElementById('gf-congrats').textContent = `Parabéns, ${vendedorMes.nome}! Esse resultado é seu.`;
   document.getElementById('gf-proxima').textContent = metaInfo.proxima
     ? `Próxima meta: ${metaInfo.proxima}`
     : 'Continue somando vendas pra ir além este mês!';
+}
 
-  const btn = document.getElementById('cel-gerar-btn');
-  const textoOriginalBtn = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Gerando GIF... (leva alguns segundos)';
+function configurarBotoesCelebracao(ativo, mensagem = '') {
+  ['cel-gerar-png-btn', 'cel-gerar-btn'].forEach(id => {
+    const button = document.getElementById(id);
+    if (button) button.disabled = ativo;
+  });
+  const info = document.getElementById('cel-preview-info');
+  if (info && mensagem) info.textContent = mensagem;
+}
 
+async function gerarImagemCelebracao() {
   try {
-    if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') {
-      carregarLibsAdmin(); showToast('Bibliotecas de imagem/GIF ainda carregando — aguarde alguns segundos e tente de novo.', 'error');
-      btn.disabled = false;
-      btn.textContent = textoOriginalBtn;
-      return;
-    }
+    const { slug, metaInfo, vendedorMes } = obterDadosCelebracaoSelecionada();
+    configurarBotoesCelebracao(true, 'Preparando a imagem…');
+    await preencherCardCelebracao(slug, metaInfo, vendedorMes);
+    if (typeof html2canvas === 'undefined') await carregarLibsAdmin();
+    if (typeof html2canvas === 'undefined') throw new Error('Não foi possível carregar o gerador de imagens. Tente novamente.');
+    if (document.fonts?.ready) await document.fonts.ready;
+    const canvas = await html2canvas(document.getElementById('gf-card'), {
+      backgroundColor: '#05070d', scale: 2, useCORS: true, allowTaint: false, imageTimeout: 10000,
+    });
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Não foi possível converter a arte em imagem.');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Conquista_${slug}_${metaInfo.value}_${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    configurarBotoesCelebracao(false, 'Imagem pronta para compartilhar.');
+    showToast('Imagem de comemoração baixada!', 'success');
+  } catch (err) {
+    console.error('[gerarImagemCelebracao]', err);
+    configurarBotoesCelebracao(false, err.message || 'Não foi possível gerar a imagem.');
+    showToast(err.message || 'Não foi possível gerar a imagem.', 'error');
+  }
+}
+
+async function gerarGifCelebracao() {
+  let gif, workerUrl;
+  try {
+    const { slug, metaInfo, vendedorMes } = obterDadosCelebracaoSelecionada();
+    configurarBotoesCelebracao(true, 'Preparando o GIF animado…');
+    await preencherCardCelebracao(slug, metaInfo, vendedorMes);
+    if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') await carregarLibsAdmin();
+    if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') throw new Error('Não foi possível carregar o gerador de GIF. Tente novamente.');
 
     // fotografa o card "parado" — essa imagem vira o fundo de TODOS
     // os frames do gif; a animação por cima é só sinal/conexão (anéis
@@ -4060,11 +4120,12 @@ async function gerarGifCelebracao() {
       if (!r.ok) throw new Error('Não foi possível carregar o worker do gif.js');
       return r.blob();
     });
+    workerUrl = URL.createObjectURL(workerBlob);
 
-    const gif = new GIF({
+    gif = new GIF({
       workers: 2,
       quality: 8,
-      workerScript: URL.createObjectURL(workerBlob),
+      workerScript: workerUrl,
       width: W,
       height: H,
       background: '#05070d',
@@ -4112,25 +4173,29 @@ async function gerarGifCelebracao() {
       gif.addFrame(ctx, { copy: true, delay: 55 });
     }
 
+    gif.on('progress', progresso => {
+      configurarBotoesCelebracao(true, `Montando o GIF… ${Math.round(progresso * 100)}%`);
+    });
     gif.on('finished', (blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Comemoracao_${vendedorSemana.nome}_${metaValue}_${new Date().toISOString().split('T')[0]}.gif`;
+      a.download = `Comemoracao_${slug}_${metaInfo.value}_${new Date().toISOString().slice(0, 10)}.gif`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      if (workerUrl) URL.revokeObjectURL(workerUrl);
+      configurarBotoesCelebracao(false, 'GIF pronto para compartilhar.');
       showToast('GIF de comemoração gerado com sucesso!', 'success');
-      btn.disabled = false;
-      btn.textContent = textoOriginalBtn;
     });
     gif.render();
   } catch (err) {
     console.error('[gerarGifCelebracao]', err);
+    if (gif?.abort) gif.abort();
+    if (workerUrl) URL.revokeObjectURL(workerUrl);
+    configurarBotoesCelebracao(false, err.message || 'Não foi possível gerar o GIF.');
     showToast('Não foi possível gerar o GIF.', 'error');
-    btn.disabled = false;
-    btn.textContent = textoOriginalBtn;
   }
 }
 

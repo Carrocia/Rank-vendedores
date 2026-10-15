@@ -1018,13 +1018,12 @@
 
         <!-- ── CELEBRAÇÕES ─────────────────────────────────────── -->
         <section class="adm-section" id="sec-celebracoes">
-          <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>Celebrações — GIF de Meta Batida</div>
+          <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>Celebrações — Marcos Individuais</div>
           <div class="adm-card adm-compact-card">
             <p class="adm-description">
-              Escolha o vendedor e qual meta ele bateu — o sistema gera um GIF animado de
-              parabéns (anéis de sinal + partículas subindo, no mesmo estilo do card de
-              desempenho) mostrando a meta alcançada e qual é a próxima, pronto pra
-              compartilhar. Só aparecem aqui metas que a pessoa bateu de verdade.
+              Escolha um vendedor e um marco individual já alcançado neste mês. Gere um PNG
+              vertical pronto para compartilhar ou um GIF animado de comemoração. Para vendedores
+              internos, aparecem M3, M2 e M1; para externos, a meta mensal cadastrada.
             </p>
             <div class="adm-field">
               <label>Vendedor</label>
@@ -1033,13 +1032,16 @@
               </select>
             </div>
             <div class="adm-field">
-              <label>Meta batida a celebrar</label>
+              <label>Marco atingido</label>
               <select id="cel-meta">
                 <option value="">Selecione o vendedor primeiro</option>
               </select>
             </div>
             <div id="cel-preview-info" class="adm-preview-status"></div>
-            <button type="button" class="adm-btn" id="cel-gerar-btn" onclick="gerarGifCelebracao()"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg>Gerar GIF de Comemoração</button>
+            <div class="adm-celebration-actions">
+              <button type="button" class="adm-btn adm-btn-primary" id="cel-gerar-png-btn" onclick="gerarImagemCelebracao()"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg>Baixar imagem para Story</button>
+              <button type="button" class="adm-btn adm-btn-secondary" id="cel-gerar-btn" onclick="gerarGifCelebracao()"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg>Baixar GIF animado</button>
+            </div>
           </div>
 
           <div class="adm-section-title adm-section-title-spaced"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg></span>Destaque do Mês</div>
@@ -1525,10 +1527,8 @@
   </div>
 </div>
 
-<!-- Template oculto do card de CELEBRAÇÃO — igual ao #sc-offscreen,
-     só é preenchido e fotografado (base do GIF) quando o admin clica
-     em "Gerar GIF de Comemoração" na aba Celebrações. -->
-<div id="gf-offscreen" style="position:absolute;left:-9999px;top:0;width:600px;height:780px;">
+<!-- Template oculto do card de CELEBRAÇÃO em proporção Story 9:16. -->
+<div id="gf-offscreen" style="position:absolute;left:-9999px;top:0;width:540px;height:960px;">
   <div class="sc-card" id="gf-card">
     <div class="sc-waves">
       <div style="width:900px;height:900px;"></div>
@@ -1548,7 +1548,7 @@
         <div class="gf-badge-check">✓</div>
       </div>
 
-      <div class="gf-headline">Meta Batida!</div>
+      <div class="gf-headline" id="gf-headline">Meta Batida!</div>
       <div class="gf-meta-name" id="gf-meta-label">—</div>
       <div class="gf-congrats" id="gf-congrats">—</div>
 

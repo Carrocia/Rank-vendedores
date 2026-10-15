@@ -494,9 +494,14 @@ body.adm-modal-open { overflow: hidden; }
 .adm-vendedores-bulk-copy .adm-vendedores-bulk-status { color: var(--accent); font-size: .78rem; font-weight: 700; }
 .adm-vendedores-bulk-export button { flex: 0 0 auto; }
 .adm-vendedores-bulk-export button:disabled { opacity: .65; cursor: progress; }
+.adm-celebration-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.adm-celebration-actions .adm-btn { flex: 1 1 220px; justify-content: center; }
+.adm-celebration-actions .adm-btn:disabled { opacity: .58; cursor: progress; transform: none; }
 @media (max-width: 640px) {
   .adm-vendedores-bulk-export { align-items: stretch; flex-direction: column; }
   .adm-vendedores-bulk-export button { justify-content: center; width: 100%; }
+  .adm-celebration-actions { flex-direction: column; }
+  .adm-celebration-actions .adm-btn { width: 100%; }
 }
 
 /* ── formulário nova venda ──────────────────────────────────── */
