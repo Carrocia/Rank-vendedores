@@ -3763,6 +3763,16 @@ async function gerarStatusVendedor(slug, evt) {
   const maiorMetaBatida = metasBatidas[metasBatidas.length - 1];
   if (maiorMetaBatida) badges.push({ label: `${maiorMetaBatida.label} Atingida` });
   if (posicao === 1) badges.push({ label: 'Líder da Semana' });
+  const cardStory = document.getElementById('sc-card');
+  // A moldura comunica somente a maior conquista confirmada. Para
+  // externos, a cor especial aparece apenas quando a meta mensal foi batida.
+  const marcoAtingido = maiorMetaBatida?.tier || (
+    tipo === 'externo' && Number(vendedorMes.meta) > 0 && vendasMesPessoa >= Number(vendedorMes.meta) ? 'meta' : ''
+  );
+  if (cardStory) {
+    if (marcoAtingido) cardStory.dataset.achievedTier = marcoAtingido;
+    else delete cardStory.dataset.achievedTier;
+  }
   const badgesSection = document.getElementById('sc-badges-section');
   if (badges.length) {
     badgesSection.style.display = '';

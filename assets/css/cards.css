@@ -100,55 +100,80 @@
 /* Status individual em proporção vertical de Story (1080 × 1920 exportado
    com html2canvas em escala 2). As regras ficam restritas ao status para
    preservar o template independente usado na arte de celebração. */
-#sc-card { width: 540px; height: 960px; }
+#sc-card {
+  width: 540px; height: 960px;
+  --sc-accent: #21d9bf;
+  --sc-accent-2: #2d5fff;
+}
+#sc-card[data-achieved-tier="m3"] { --sc-accent: #21d9bf; --sc-accent-2: #23b8c8; }
+#sc-card[data-achieved-tier="m2"] { --sc-accent: #31c8da; --sc-accent-2: #3979ff; }
+#sc-card[data-achieved-tier="m1"] { --sc-accent: #8c75ff; --sc-accent-2: #36c8e8; }
+#sc-card[data-achieved-tier="meta"] { --sc-accent: #31c8da; --sc-accent-2: #3979ff; }
+/* Moldura de conquista: a cor indica apenas um marco realmente atingido. */
+#sc-card::after {
+  content: ""; position: absolute; z-index: 1; inset: 14px;
+  border: 2px solid transparent; border-radius: 24px; pointer-events: none;
+  background: linear-gradient(#070b16, #070b16) padding-box,
+    linear-gradient(135deg, var(--sc-accent), rgba(255,255,255,0.12), var(--sc-accent-2)) border-box;
+  opacity: .8;
+}
+#sc-card .sc-waves { display: none; }
 #sc-card .sc-inner {
+  z-index: 2;
   margin: 28px;
   height: calc(100% - 56px);
-  padding: 26px 32px 18px;
+  padding: 32px 34px 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 #sc-card .sc-brand-row { gap: 10px; }
-#sc-card .sc-brand-row img { height: 46px; }
-#sc-card .sc-kicker { font-size: 12px; letter-spacing: 3px; }
-#sc-card .sc-divider { margin-top: 22px; }
-#sc-card .sc-identity { gap: 10px; margin-top: 26px; min-width: 0; }
-#sc-card .sc-avatar-ring { width: 78px; height: 78px; }
+#sc-card .sc-brand-row img { height: 50px; }
+#sc-card .sc-kicker { font-size: 12px; letter-spacing: 2.5px; }
+#sc-card .sc-divider { height: 2px; margin-top: 20px; background: linear-gradient(90deg, transparent, var(--sc-accent), var(--sc-accent-2), transparent); }
+#sc-card .sc-identity { gap: 14px; margin-top: 30px; min-width: 0; }
+#sc-card .sc-avatar-ring { width: 82px; height: 82px; padding: 3px; background: linear-gradient(135deg, var(--sc-accent), var(--sc-accent-2)); }
 #sc-card .sc-id-text { min-width: 0; }
-#sc-card .sc-name { font-size: 22px; line-height: 1.2; }
-#sc-card .sc-role-tag { margin-top: 8px; font-size: 9.5px; letter-spacing: 0.8px; padding: 5px 8px; }
+#sc-card .sc-name { font-size: 23px; line-height: 1.22; }
+#sc-card .sc-role-tag { margin-top: 8px; font-size: 10px; letter-spacing: 0.7px; padding: 6px 9px; }
 #sc-card .sc-signal-badge { gap: 6px; flex-shrink: 0; }
 #sc-card .sc-signal-bars { height: 20px; gap: 2px; }
 #sc-card .sc-signal-bars span { width: 4px; }
-#sc-card .sc-signal-label { font-size: 9px; letter-spacing: 0; }
-#sc-card .sc-hero { margin-top: 28px; padding: 20px 22px; border-radius: 20px; }
-#sc-card .sc-hero-label { font-size: 11px; }
-#sc-card .sc-hero-goal { font-size: 18px; margin-top: 8px; }
-#sc-card .sc-hero-bar-row { gap: 12px; margin-top: 16px; }
-#sc-card .sc-hero-bar-track { height: 12px; }
-#sc-card .sc-hero-pct { font-size: 25px; min-width: 64px; }
-#sc-card .sc-hero-sub { margin-top: 12px; font-size: 13px; }
-#sc-card .sc-badges-label { margin-top: 22px; font-size: 11px; }
-#sc-card .sc-badges-row { gap: 10px; margin-top: 10px; }
-#sc-card .sc-badge { padding: 12px 8px; border-radius: 14px; font-size: 12px; }
+#sc-card .sc-signal-label { font-size: 10px; letter-spacing: 0; }
+#sc-card .sc-hero { margin-top: 30px; padding: 22px 24px; border-radius: 18px; background: linear-gradient(125deg, rgba(33,217,191,0.12), rgba(45,95,255,0.14)); border: 1px solid rgba(111,230,212,0.24); }
+#sc-card .sc-hero-label { font-size: 12px; letter-spacing: 1.6px; }
+#sc-card .sc-hero-goal { font-size: 19px; line-height: 1.35; margin-top: 9px; }
+#sc-card .sc-hero-bar-row { gap: 14px; margin-top: 18px; }
+#sc-card .sc-hero-bar-track { height: 13px; }
+#sc-card .sc-hero-bar-fill { background: linear-gradient(90deg, var(--sc-accent), var(--sc-accent-2)); }
+#sc-card .sc-hero-pct { font-size: 27px; min-width: 66px; }
+#sc-card .sc-hero-sub { margin-top: 13px; font-size: 14px; line-height: 1.45; color: #c2d1df; }
+#sc-card .sc-hero-sub b { color: #73ead8; }
+#sc-card .sc-badges-label { margin-top: 26px; font-size: 11px; letter-spacing: 1.7px; }
+#sc-card .sc-badges-row { gap: 10px; margin-top: 11px; }
+#sc-card .sc-badge { padding: 13px 10px; border-radius: 12px; font-size: 12px; }
+#sc-card .sc-badge.on { background: rgba(33,217,191,0.11); border-color: var(--sc-accent); }
 #sc-card .sc-badge-check { font-size: 16px; margin-bottom: 3px; }
-#sc-card .sc-stats-grid { flex-shrink: 0; gap: 10px; margin-top: 16px; }
-#sc-card .sc-stat-tile { padding: 14px 8px; border-radius: 15px; }
-#sc-card .sc-stat-label { font-size: 9px; letter-spacing: 0.6px; }
-#sc-card .sc-stat-value { font-size: 22px; margin-top: 6px; }
-#sc-card .sc-phrase-box { padding-top: 16px; }
-#sc-card .sc-phrase { font-size: 15px; padding: 0 12px; line-height: 1.4; }
-#sc-card .sc-brandline { margin-top: 14px; font-size: 9px; }
-#sc-card.is-external .sc-inner { padding: 26px 32px 18px; }
-#sc-card.is-external .sc-divider { margin-top: 22px; }
-#sc-card.is-external .sc-identity { gap: 10px; margin-top: 26px; }
-#sc-card.is-external .sc-avatar-ring { width: 78px; height: 78px; }
-#sc-card.is-external .sc-name { font-size: 22px; }
-#sc-card.is-external .sc-hero { margin-top: 28px; padding: 20px 22px; }
-#sc-card.is-external .sc-badges-label { margin-top: 22px; }
-#sc-card.is-external .sc-stats-grid { margin-top: 16px; }
-#sc-card.is-external .sc-stat-tile { padding: 14px 8px; }
-#sc-card.is-external .sc-phrase-box { padding-top: 16px; }
+#sc-card .sc-stats-grid { flex-shrink: 0; gap: 10px; margin-top: 18px; }
+#sc-card .sc-stat-tile { padding: 15px 9px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.09); }
+#sc-card .sc-stat-label { font-size: 10px; line-height: 1.4; letter-spacing: 0.65px; color: #b0bdcc; }
+#sc-card .sc-stat-value { font-size: 23px; margin-top: 7px; }
+#sc-card .sc-phrase-box { padding-top: 18px; }
+#sc-card .sc-phrase { font-size: 15px; padding: 0 12px; line-height: 1.5; color: #e0e9f2; }
+#sc-card .sc-brandline { margin-top: 13px; font-size: 9px; color: #8193a7; }
+#sc-card.is-external .sc-inner { padding: 32px 34px 24px; }
+#sc-card.is-external .sc-divider { margin-top: 20px; }
+#sc-card.is-external .sc-identity { gap: 14px; margin-top: 30px; }
+#sc-card.is-external .sc-avatar-ring { width: 82px; height: 82px; }
+#sc-card.is-external .sc-name { font-size: 23px; }
+#sc-card.is-external .sc-hero { margin-top: 30px; padding: 22px 24px; }
+#sc-card.is-external .sc-badges-label { margin-top: 26px; }
+#sc-card.is-external .sc-stats-grid { margin-top: 18px; }
+#sc-card.is-external .sc-stat-tile { padding: 15px 9px; }
+#sc-card.is-external .sc-phrase-box { padding-top: 18px; }
 #sc-card.is-external .sc-phrase { padding: 0 12px; font-size: 15px; }
-#sc-card.is-external .sc-brandline { margin-top: 14px; }
+#sc-card.is-external .sc-brandline { margin-top: 13px; }
 
 /* ── Card de CELEBRAÇÃO (GIF de meta batida) — reaproveita as classes
    .sc-* acima (moldura, ondas, logo, avatar) e só acrescenta o selo
