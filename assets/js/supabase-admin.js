@@ -2235,9 +2235,14 @@ function carregarLibsAdmin() {
 async function adm_showPanel() {
   adm_lockBackgroundScroll();
   const painelOverlay = document.getElementById('adm-panel-overlay');
+  const painelConteudo = document.querySelector('#adm-panel .adm-panel-inner');
   painelOverlay.scrollTop = 0;
+  if (painelConteudo) painelConteudo.scrollTop = 0;
   painelOverlay.classList.add('active');
-  requestAnimationFrame(() => painelOverlay.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+  requestAnimationFrame(() => {
+    painelOverlay.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    painelConteudo?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  });
   carregarLibsAdmin();
   // data padrão no formulário = hoje
   const hoje = new Date().toISOString().split('T')[0];
@@ -2868,8 +2873,8 @@ function adm_navigateTo(sectionId) {
   if (sectionId === 'admins') carregarAdminsGerenciados();
   if (sectionId === 'filiais-admin') carregarFiliaisGerenciadas();
   if (sectionId === 'rede') carregarDashboardRede();
-  // volta pro topo ao trocar de seção — sem isso, a rolagem da seção
-  // anterior ficava "presa", escondendo filtros/cabeçalho da nova seção
+  // A área rolável é o conteúdo interno no mobile e o overlay no desktop.
+  document.querySelector('#adm-panel .adm-panel-inner')?.scrollTo({ top: 0, behavior: 'auto' });
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
 }
 
