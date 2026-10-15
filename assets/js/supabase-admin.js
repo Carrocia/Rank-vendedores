@@ -3509,6 +3509,7 @@ async function gerarStatusVendedor(slug, evt) {
   const statForaTile = document.getElementById('sc-stat-fora-tile');
   const statFora = document.getElementById('sc-stat-fora');
   const ehExterno = tipo === 'externo';
+  document.getElementById('sc-card')?.classList.toggle('is-external', ehExterno);
   if (statsGrid) statsGrid.classList.toggle('is-external', ehExterno);
   if (statVendasLabel) statVendasLabel.textContent = ehExterno ? 'Vendas para a Meta' : 'Vendas no Mês';
   if (statForaTile) {

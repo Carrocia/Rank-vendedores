@@ -84,6 +84,21 @@
 .sc-phrase { font-size: 14px; font-weight: 600; color: #d6f5ef; line-height: 1.5; padding: 0 12px; }
 .sc-brandline { margin-top: 16px; font-size: 9.5px; letter-spacing: 2px; color: rgba(148,178,201,0.4); font-weight: 700; }
 
+/* O status externo tem quatro indicadores em duas linhas; compacta seus
+   espaçamentos para manter frase e rodapé dentro da mesma arte 600×780. */
+.sc-card.is-external .sc-inner { padding: 30px 40px 24px; }
+.sc-card.is-external .sc-divider { margin-top: 14px; }
+.sc-card.is-external .sc-identity { gap: 14px; margin-top: 18px; }
+.sc-card.is-external .sc-avatar-ring { width: 72px; height: 72px; }
+.sc-card.is-external .sc-name { font-size: 24px; }
+.sc-card.is-external .sc-hero { margin-top: 18px; padding: 16px 20px; }
+.sc-card.is-external .sc-badges-label { margin-top: 14px; }
+.sc-card.is-external .sc-stats-grid { margin-top: 12px; }
+.sc-card.is-external .sc-stat-tile { padding: 9px 8px; }
+.sc-card.is-external .sc-phrase-box { padding-top: 12px; }
+.sc-card.is-external .sc-phrase { padding: 0 8px; font-size: 12px; }
+.sc-card.is-external .sc-brandline { margin-top: 10px; }
+
 /* ── Card de CELEBRAÇÃO (GIF de meta batida) — reaproveita as classes
    .sc-* acima (moldura, ondas, logo, avatar) e só acrescenta o selo
    central, o título e a caixa "próxima meta". ── */
