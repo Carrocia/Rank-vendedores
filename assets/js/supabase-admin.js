@@ -4006,8 +4006,12 @@ function obterDadosCelebracaoSelecionada() {
 }
 
 async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
-  const vendedorCadastro = (_cache.vendedores || []).find(v => String(v.slug || v.id) === String(slug));
-  const foto = vendedorCadastro?.foto_url || vendedorMes.foto_url || PHOTOS[slug] || '';
+  const vendedorCadastro = (_cache.vendedores || []).find(v =>
+    String(v.slug || '') === String(slug) ||
+    String(v.id) === String(vendedorMes.id) ||
+    String(v.id) === String(slug)
+  );
+  const foto = vendedorCadastro?.foto_url || vendedorMes.foto_url || PHOTOS[slug] || PHOTOS[vendedorMes.id] || '';
   const card = document.getElementById('gf-card');
   if (card) card.dataset.achievedTier = ['m3', 'm2', 'm1'].includes(metaInfo.value) ? metaInfo.value : 'meta';
   const avatar = document.getElementById('gf-avatar');
@@ -4016,11 +4020,24 @@ async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
   if (foto) {
     const img = document.createElement('img');
     img.alt = '';
+    img.decoding = 'async';
     img.crossOrigin = 'anonymous';
-    img.src = foto;
-    img.onerror = () => avatar.replaceChildren(document.createTextNode(inicial));
     avatar.appendChild(img);
-    try { if (img.decode) await img.decode(); } catch (_) { avatar.replaceChildren(document.createTextNode(inicial)); }
+    await new Promise(resolve => {
+      let concluido = false;
+      const terminar = () => {
+        if (concluido) return;
+        concluido = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(terminar, 8000);
+      img.addEventListener('load', terminar, { once: true });
+      img.addEventListener('error', terminar, { once: true });
+      img.src = foto;
+      if (img.complete) terminar();
+    });
+    if (!img.naturalWidth) avatar.replaceChildren(document.createTextNode(inicial));
   } else {
     avatar.textContent = inicial;
   }
@@ -4082,10 +4099,9 @@ async function gerarGifCelebracao() {
     if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') await carregarLibsAdmin();
     if (typeof html2canvas === 'undefined' || typeof GIF === 'undefined') throw new Error('Não foi possível carregar o gerador de GIF. Tente novamente.');
 
-    // fotografa o card "parado" — essa imagem vira o fundo de TODOS
-    // os frames do gif; a animação por cima é só sinal/conexão (anéis
-    // tipo "ping" saindo do selo + partículas de sinal subindo),
-    // sempre nas cores da marca — nada de confete.
+    // Mantém a arte estável e faz somente um brilho sutil no selo.
+    // Sem partículas flutuantes ou anéis grandes para não competir
+    // com a foto, o nome e o marco conquistado.
     const SCALE = 1.5;
     const badgeEl = document.getElementById('gf-badge-wrap');
     const cardEl = document.getElementById('gf-card');
@@ -4096,25 +4112,6 @@ async function gerarGifCelebracao() {
 
     const baseCanvas = await html2canvas(cardEl, { backgroundColor: '#05070d', scale: SCALE });
     const W = baseCanvas.width, H = baseCanvas.height;
-
-    // anéis de "ping" (tipo sinal de wifi/sonar) expandindo e sumindo
-    // a partir do selo — posição determinística por frame, sem estado
-    const NUM_ANEIS = 3;
-    const CICLO_ANEL = 26; // frames que um anel leva pra nascer, crescer e sumir
-
-    // partículas de sinal subindo devagar com leve oscilação lateral e
-    // brilho (glow) — como "pacotes de dados" transmitindo, não confete
-    const CICLO_ALTURA = H + 60;
-    const particulasSinal = Array.from({ length: 24 }, () => ({
-      x: Math.random() * W,
-      offsetY: Math.random() * CICLO_ALTURA,
-      vy: (0.6 + Math.random() * 0.7) * SCALE,
-      amplitude: (8 + Math.random() * 16) * SCALE,
-      freq: 0.03 + Math.random() * 0.04,
-      fase: Math.random() * Math.PI * 2,
-      raio: (1.6 + Math.random() * 2.2) * SCALE,
-      cor: Math.random() > 0.5 ? '94,234,255' : '124,140,255',
-    }));
 
     const workerBlob = await fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js').then(r => {
       if (!r.ok) throw new Error('Não foi possível carregar o worker do gif.js');
@@ -4137,40 +4134,18 @@ async function gerarGifCelebracao() {
     frameCanvas.height = H;
     const ctx = frameCanvas.getContext('2d');
 
-    const TOTAL_FRAMES = 36;
+    const TOTAL_FRAMES = 16;
     for (let f = 0; f < TOTAL_FRAMES; f++) {
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(baseCanvas, 0, 0);
-
-      // anéis de ping saindo do selo, defasados entre si
-      for (let i = 0; i < NUM_ANEIS; i++) {
-        const t = ((f + i * (CICLO_ANEL / NUM_ANEIS)) % CICLO_ANEL) / CICLO_ANEL; // 0..1
-        const raio = (46 + t * 92) * SCALE;
-        const alpha = (1 - t) * 0.5;
-        ctx.beginPath();
-        ctx.arc(cx, cy, raio, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(94,234,255,${alpha.toFixed(3)})`;
-        ctx.lineWidth = 2.5 * SCALE;
-        ctx.stroke();
-      }
-
-      // partículas de sinal subindo, com brilho, nascendo/sumindo suave
-      particulasSinal.forEach(p => {
-        const posInCycle = ((f * p.vy + p.offsetY) % CICLO_ALTURA) / CICLO_ALTURA;
-        const y = H - posInCycle * CICLO_ALTURA;
-        const x = p.x + Math.sin(f * p.freq + p.fase) * p.amplitude;
-        const alpha = Math.max(0.05, Math.sin(Math.PI * posInCycle));
-        ctx.save();
-        ctx.shadowColor = `rgba(${p.cor},0.9)`;
-        ctx.shadowBlur = 9 * SCALE;
-        ctx.beginPath();
-        ctx.arc(x, y, p.raio, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${p.cor},${alpha.toFixed(3)})`;
-        ctx.fill();
-        ctx.restore();
-      });
-
-      gif.addFrame(ctx, { copy: true, delay: 55 });
+      const pulso = (Math.sin((f / TOTAL_FRAMES) * Math.PI * 2) + 1) / 2;
+      const raio = (67 + pulso * 5) * SCALE;
+      ctx.beginPath();
+      ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(111,230,212,${(0.12 + pulso * 0.10).toFixed(3)})`;
+      ctx.lineWidth = 2 * SCALE;
+      ctx.stroke();
+      gif.addFrame(ctx, { copy: true, delay: 85 });
     }
 
     gif.on('progress', progresso => {
