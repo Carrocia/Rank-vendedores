@@ -198,7 +198,7 @@
 .gf-badge-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(33,217,191,0.35); }
 .gf-badge-ring2 { inset: -14px; border-color: rgba(45,95,255,0.25); }
 .gf-badge-check { width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(135deg, var(--sc-accent), var(--sc-accent-2)); display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 800; color: #04202b; }
-#gf-card .gf-headline { margin-top: 22px; color: var(--sc-accent); }
+#gf-card .gf-headline { margin-top: 22px; text-align: center; font-size: 16px; font-weight: 800; letter-spacing: 2.5px; color: var(--sc-accent); text-transform: uppercase; }
 .gf-meta-name { text-align: center; margin-top: 9px; font-size: 27px; line-height: 1.3; font-weight: 800; color: #f5fbff; padding: 0 16px; text-wrap: balance; }
 .gf-congrats { text-align: center; margin: 10px auto 0; max-width: 420px; font-size: 16px; line-height: 1.45; font-weight: 600; color: #d6f5ef; text-wrap: balance; }
 .gf-identity { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 26px; }
