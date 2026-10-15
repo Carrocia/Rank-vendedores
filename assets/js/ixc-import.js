@@ -1,7 +1,20 @@
 // Importação controlada de contratos ativos exportados do IXC em CSV.
-// A regional aberta é o destino; a origem vem do cadastro do vendedor.
+// A coluna Filial define o destino quando presente; a origem vem do cadastro do vendedor.
 let _linhasImportacaoIxc = [];
 let _importacaoIxcEmAndamento = false;
+
+// Códigos da coluna "Filial" exportada pelo IXC (não são IDs do Supabase).
+// Para cadastrar outro código de uma filial já listada, adicione uma chave
+// apontando para o mesmo nome; por exemplo, outro código de São Francisco.
+const IXC_FILIAIS_POR_CODIGO = {
+  '6': ['ji parana'],
+  '7': ['machadinho'],
+  '8': ['rolim de moura'],
+  '9': ['jaru'],
+  '14': ['alvorada'],
+  '15': ['alta floresta'],
+  '18': ['sao francisco'],
+};
 
 function normalizarTextoIxc(valor) {
   return String(valor ?? '')
@@ -47,6 +60,7 @@ function analisarCsvIxc(texto) {
   const indice = nome => cabecalhos.indexOf(normalizarTextoIxc(nome));
   const colunas = {
     contrato: indice('ID'),
+    filial: indice('Filial'),
     status: indice('Status contrato'),
     cliente: indice('Cliente'),
     plano: indice('Descrição'),
@@ -61,6 +75,8 @@ function analisarCsvIxc(texto) {
   return linhas.slice(1).map((linha, indiceLinha) => ({
     linha: indiceLinha + 2,
     contrato: String(linha[colunas.contrato] || '').replace(/\s+/g, ''),
+    codigoFilialIxc: colunas.filial >= 0 ? String(linha[colunas.filial] || '').trim() : '',
+    temColunaFilialIxc: colunas.filial >= 0,
     status: colunas.status >= 0 ? String(linha[colunas.status] || '').trim() : 'Ativo',
     cliente: String(linha[colunas.cliente] || '').trim(),
     descricaoPlano: String(linha[colunas.plano] || '').trim(),
@@ -68,6 +84,34 @@ function analisarCsvIxc(texto) {
     ixcVendedorId: String(linha[colunas.vendedor] || '').replace(/\s+/g, ''),
     ultimaAtualizacao: String(linha[colunas.atualizacao] || '').trim(),
   })).filter(linha => linha.contrato || linha.ixcVendedorId || linha.cliente);
+}
+
+function resolverFilialDestinoIxc(codigoFilialIxc, filiais, temColunaFilialIxc = false) {
+  const codigo = String(codigoFilialIxc || '').trim();
+  if (!codigo) {
+    if (temColunaFilialIxc) return { filial: null, erro: 'A coluna Filial está vazia nesta linha.' };
+    const filial = (filiais || []).find(f => String(f.id) === String(window.FILIAL_ATUAL_ID));
+    return filial
+      ? { filial, erro: '' }
+      : { filial: null, erro: 'A filial selecionada não foi encontrada.' };
+  }
+
+  const aliases = IXC_FILIAIS_POR_CODIGO[codigo];
+  if (!aliases) return { filial: null, erro: `Código de filial IXC ${codigo} ainda não mapeado.` };
+  const normalizados = aliases.map(normalizarTextoIxc);
+  const candidatas = (filiais || []).filter(f => {
+    const nome = normalizarTextoIxc(f.nome);
+    return normalizados.some(alias => nome.includes(alias));
+  });
+  if (candidatas.length !== 1) {
+    return {
+      filial: null,
+      erro: candidatas.length
+        ? `Código IXC ${codigo} corresponde a mais de uma filial no cadastro.`
+        : `Código IXC ${codigo} reconhecido, mas a filial correspondente não está ativa/cadastrada.`,
+    };
+  }
+  return { filial: candidatas[0], erro: '' };
 }
 
 function converterDataIxcParaIso(valor) {
@@ -229,7 +273,7 @@ function renderizarPreviaIxc() {
       <td>${escapar(linha.contrato)}</td><td>${escapar(linha.cliente)}</td>
       <td>${escapar(linha.plano?.nome || linha.descricaoPlano)}</td><td>${linha.valor == null ? '—' : `R$ ${Number(linha.valor).toFixed(2).replace('.', ',')}`}</td>
       <td>${escapar(linha.vendedor?.nome || `IXC ${linha.ixcVendedorId}`)}</td>
-      <td>${escapar(linha.filialOrigemNome || '—')}</td>
+      <td>${escapar(linha.filialOrigemNome || '—')} → ${escapar(linha.filialDestinoNome || (linha.codigoFilialIxc ? `IXC ${linha.codigoFilialIxc}` : '—'))}${linha.codigoFilialIxc ? ` (IXC ${escapar(linha.codigoFilialIxc)})` : ''}</td>
       <td>${escapar(linha.dataAtivacao || '—')} · ${escapar(linha.horaAtualizacao || '—')}</td>
       <td>${selecionavel ? `<label><input type="checkbox" data-ixc-linha="${indice}" ${linha.incluir ? 'checked' : ''}> ${escapar(situacao)}</label>` : escapar(situacao)}</td>
     </tr>`;
@@ -272,25 +316,32 @@ async function analisarImportacaoIxc(event) {
     if (!window.ADMIN_AUTENTICADO || !window._supabase) throw new Error('Entre no painel administrativo antes de importar vendas.');
     const linhas = analisarCsvIxc(await arquivo.text());
     const [vendedores, planos, filiais] = await Promise.all([carregarVendedoresComIdIxc(), loadPlanos(), loadFiliais()]);
-    const linhasAtivas = linhas.filter(linha => normalizarTextoIxc(linha.status) === 'ativo');
+    const linhasComDestino = linhas.map(linha => {
+      const resolucao = resolverFilialDestinoIxc(linha.codigoFilialIxc, filiais, linha.temColunaFilialIxc);
+      return { ...linha, filialDestinoId: resolucao.filial?.id ?? null, filialDestinoNome: resolucao.filial?.nome || '', erroFilialDestino: resolucao.erro };
+    });
+    const linhasAtivas = linhasComDestino.filter(linha => normalizarTextoIxc(linha.status) === 'ativo');
     const contratos = linhasAtivas.map(linha => linha.contrato).filter(Boolean);
     let contratosExistentes = new Set();
-    if (contratos.length) {
+    const destinosIxc = [...new Set(linhasAtivas.map(linha => linha.filialDestinoId).filter(id => id != null).map(Number))];
+    if (contratos.length && destinosIxc.length) {
       const { data, error } = await window._supabase.from('vendas')
-        .select('numero_venda')
-        .eq('filial_destino_id', window.FILIAL_ATUAL_ID)
+        .select('numero_venda, filial_destino_id')
+        .in('filial_destino_id', destinosIxc)
         .in('numero_venda', [...new Set(contratos)]);
       if (error) throw error;
-      contratosExistentes = new Set((data || []).map(v => String(v.numero_venda)));
+      contratosExistentes = new Set((data || []).map(v => `${v.filial_destino_id}:${v.numero_venda}`));
     }
     const vistosNoArquivo = new Set();
-    _linhasImportacaoIxc = linhas.map(linha => {
+    _linhasImportacaoIxc = linhasComDestino.map(linha => {
       const resultado = { ...linha, podeImportar: false, incluir: false, importada: false, duplicada: false, erro: '' };
       if (normalizarTextoIxc(linha.status) !== 'ativo') { resultado.erro = 'Contrato não está ativo'; return resultado; }
+      if (linha.erroFilialDestino) { resultado.erro = linha.erroFilialDestino; return resultado; }
       if (!linha.contrato || !/^\d+$/.test(linha.contrato)) { resultado.erro = 'ID do contrato inválido'; return resultado; }
-      if (vistosNoArquivo.has(linha.contrato)) { resultado.duplicada = true; resultado.erro = 'Contrato repetido no CSV'; return resultado; }
-      vistosNoArquivo.add(linha.contrato);
-      if (contratosExistentes.has(linha.contrato)) { resultado.duplicada = true; resultado.erro = 'Contrato já cadastrado nesta regional'; return resultado; }
+      const chaveContrato = `${linha.filialDestinoId}:${linha.contrato}`;
+      if (vistosNoArquivo.has(chaveContrato)) { resultado.duplicada = true; resultado.erro = 'Contrato repetido no CSV para a mesma filial'; return resultado; }
+      vistosNoArquivo.add(chaveContrato);
+      if (contratosExistentes.has(chaveContrato)) { resultado.duplicada = true; resultado.erro = 'Contrato já cadastrado nesta filial de destino'; return resultado; }
       const vendedoresDoCodigo = vendedores.filter(v => String(v.ixc_vendedor_id || '').trim() === linha.ixcVendedorId);
       if (!linha.ixcVendedorId || vendedoresDoCodigo.length !== 1) {
         resultado.erro = vendedoresDoCodigo.length > 1 ? 'ID IXC associado a mais de um vendedor' : 'Vendedor IXC sem cadastro único';
@@ -344,13 +395,13 @@ async function confirmarImportacaoIxc() {
         await saveVenda({
           vendedor_id: linha.vendedor.id,
           filial_origem_id: filialOrigemId,
-          filial_destino_id: Number(window.FILIAL_ATUAL_ID),
+          filial_destino_id: Number(linha.filialDestinoId),
           plano_id: linha.plano.id,
           data_venda: linha.dataVenda,
           valor: linha.valor,
           cliente: linha.cliente,
           numero_venda: linha.contrato,
-          observacao: `Importado do IXC; descrição original do plano: ${linha.descricaoPlano}`,
+          observacao: `Importado do IXC${linha.codigoFilialIxc ? `; filial IXC ${linha.codigoFilialIxc}` : ''}; descrição original do plano: ${linha.descricaoPlano}`,
           fora_filial: false,
         });
         linha.importada = true;
