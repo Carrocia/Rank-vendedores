@@ -13,7 +13,9 @@ const IXC_FILIAIS_POR_CODIGO = {
   '9': ['jaru'],
   '10': ['ouro preto'],
   '11': ['nova brasilandia'],
-  '12': ['presidente medice'],
+  // O nome oficial da filial é Presidente Médici. Mantemos também a
+  // grafia "Medice" usada anteriormente para cobrir cadastros legados.
+  '12': ['presidente medici', 'presidente medice'],
   '14': ['alvorada'],
   '15': ['alta floresta'],
   '16': ['sao francisco'],
