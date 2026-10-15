@@ -764,6 +764,17 @@
               </div>
             </form>
           </div>
+          <div class="adm-vendedores-bulk-export">
+            <div class="adm-vendedores-bulk-copy">
+              <strong>Cards de desempenho</strong>
+              <span>Gere uma imagem para cada vendedor ativo desta tabela e baixe tudo em um ZIP.</span>
+              <span id="adm-vendedores-bulk-status" class="adm-vendedores-bulk-status" aria-live="polite"></span>
+            </div>
+            <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="adm-vendedores-bulk-btn" onclick="baixarCardsStatusZip(event)">
+              <svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-package"></use></svg>
+              <span>Gerar todos e baixar ZIP</span>
+            </button>
+          </div>
           <div class="adm-table-wrap">
             <table class="adm-table" id="adm-vendedores-table">
               <thead>

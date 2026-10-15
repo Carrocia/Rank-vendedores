@@ -482,6 +482,23 @@ body.adm-modal-open { overflow: hidden; }
 .vt-pct-bar-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent), #34d399); transition: width 0.6s ease; }
 .vt-pct-wrap span { font-size: 0.78rem; font-weight: 700; color: var(--heading-color); white-space: nowrap; }
 
+.adm-vendedores-bulk-export {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  margin: 18px 0 12px; padding: 16px 18px; border-radius: 14px;
+  border: 1px solid rgba(var(--accent-rgb),0.2);
+  background: linear-gradient(110deg, rgba(var(--accent-rgb),0.08), rgba(45,95,255,0.07));
+}
+.adm-vendedores-bulk-copy { display: grid; gap: 4px; min-width: 0; }
+.adm-vendedores-bulk-copy strong { color: var(--heading-color); font-size: .9rem; }
+.adm-vendedores-bulk-copy > span { color: var(--text-muted); font-size: .78rem; line-height: 1.45; }
+.adm-vendedores-bulk-copy .adm-vendedores-bulk-status { color: var(--accent); font-size: .78rem; font-weight: 700; }
+.adm-vendedores-bulk-export button { flex: 0 0 auto; }
+.adm-vendedores-bulk-export button:disabled { opacity: .65; cursor: progress; }
+@media (max-width: 640px) {
+  .adm-vendedores-bulk-export { align-items: stretch; flex-direction: column; }
+  .adm-vendedores-bulk-export button { justify-content: center; width: 100%; }
+}
+
 /* ── formulário nova venda ──────────────────────────────────── */
 .adm-form-card {
   background: linear-gradient(160deg, #12141d, #15171f);

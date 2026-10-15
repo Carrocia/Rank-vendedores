@@ -2464,6 +2464,7 @@ function carregarLibsAdmin() {
     addScript(CDN + 'jspdf@2.5.1/dist/jspdf.umd.min.js').then(() => addScript(CDN + 'jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js')),
     addScript(CDN + 'html2canvas@1.4.1/dist/html2canvas.min.js'),
     addScript(CDN + 'gif.js@0.2.0/dist/gif.min.js'),
+    addScript(CDN + 'jszip@3.10.1/dist/jszip.min.js'),
   ]).catch(err => { console.error('[carregarLibsAdmin]', err); _libsAdminPromise = null; });
   return _libsAdminPromise;
 }
@@ -3655,7 +3656,7 @@ const SC_FRASES_BAIXA = [
   'Respira, ajusta a rota e chama o próximo cliente. Você consegue!',
 ];
 
-async function gerarStatusVendedor(slug, evt) {
+async function gerarStatusVendedor(slug, evt, options = {}) {
   const d = _ultimoProcessado;
   if (!d) { showToast('Ainda não há dados carregados para gerar o card.', 'warning'); return; }
 
@@ -3827,6 +3828,8 @@ async function gerarStatusVendedor(slug, evt) {
       imageTimeout: 10000,
     });
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Não foi possível converter o card em imagem.');
+    if (options.returnBlob) return blob;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -3838,9 +3841,92 @@ async function gerarStatusVendedor(slug, evt) {
     showToast('Card gerado com sucesso!', 'success');
   } catch (err) {
     console.error('[gerarStatusVendedor]', err);
+    if (options.returnBlob) throw err;
     showToast('Não foi possível gerar o card.', 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
+  }
+}
+
+// Gera os cards dos vendedores ativos atualmente exibidos na tabela e
+// entrega um ZIP único. O processamento é sequencial para limitar o uso
+// de memória do canvas em celulares e computadores com pouca memória.
+async function baixarCardsStatusZip(evt) {
+  const d = _ultimoProcessado;
+  const btn = evt?.currentTarget || document.getElementById('adm-vendedores-bulk-btn');
+  const status = document.getElementById('adm-vendedores-bulk-status');
+  if (!d) { showToast('Carregue os dados da equipe antes de gerar os cards.', 'warning'); return; }
+
+  const vendedores = [...(d.intMes || []), ...(d.extMes || [])]
+    .filter(v => v?.slug)
+    .filter((v, i, lista) => lista.findIndex(item => item.slug === v.slug) === i);
+  if (!vendedores.length) { showToast('Não há vendedores ativos para gerar cards.', 'warning'); return; }
+
+  const textoOriginal = btn?.querySelector('span')?.textContent || 'Gerar todos e baixar ZIP';
+  const botoesIndividuais = [...document.querySelectorAll('#adm-vendedores-tbody .adm-btn-status')];
+  let zip;
+  const erros = [];
+  if (btn) btn.disabled = true;
+  botoesIndividuais.forEach(botao => { botao.disabled = true; });
+
+  try {
+    if (status) status.textContent = 'Preparando gerador de imagens…';
+    if (typeof html2canvas === 'undefined' || typeof JSZip === 'undefined') await carregarLibsAdmin();
+    if (typeof html2canvas === 'undefined' || typeof JSZip === 'undefined') {
+      throw new Error('Não foi possível carregar as bibliotecas necessárias para criar o ZIP.');
+    }
+    zip = new JSZip();
+    if (document.fonts?.ready) await document.fonts.ready;
+
+    const arquivoSeguro = nome => String(nome || 'vendedor')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'vendedor';
+
+    for (let i = 0; i < vendedores.length; i++) {
+      const vendedor = vendedores[i];
+      if (status) status.textContent = `Gerando imagem ${i + 1} de ${vendedores.length}: ${vendedor.nome}…`;
+      if (btn?.querySelector('span')) btn.querySelector('span').textContent = `Gerando ${i + 1}/${vendedores.length}`;
+      try {
+        const blob = await gerarStatusVendedor(vendedor.slug, null, { returnBlob: true });
+        if (!blob) throw new Error('Card não foi gerado');
+        zip.file(`${String(i + 1).padStart(2, '0')}_${arquivoSeguro(vendedor.nome)}.png`, blob);
+      } catch (err) {
+        console.warn('[baixarCardsStatusZip] falha para', vendedor.nome, err);
+        erros.push(vendedor.nome);
+      }
+      // Deixa a interface atualizar o progresso entre capturas.
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    if (!Object.keys(zip.files).length) throw new Error('Nenhum card pôde ser gerado.');
+    if (status) status.textContent = 'Compactando as imagens…';
+    const arquivoZip = await zip.generateAsync({ type: 'blob' }, progresso => {
+      if (status) status.textContent = `Compactando as imagens… ${Math.round(progresso.percent)}%`;
+    });
+    const url = URL.createObjectURL(arquivoZip);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Cards_Desempenho_${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+    const gerados = Object.keys(zip.files).length;
+    if (status) status.textContent = erros.length
+      ? `${gerados} cards no ZIP. ${erros.length} não foram gerados: ${erros.join(', ')}.`
+      : `${gerados} cards gerados e baixados.`;
+    showToast(erros.length
+      ? `ZIP baixado com ${gerados} cards. ${erros.length} vendedor(es) falharam; veja o resumo aqui.`
+      : `ZIP baixado com ${gerados} cards de desempenho.`, erros.length ? 'warning' : 'success');
+  } catch (err) {
+    console.error('[baixarCardsStatusZip]', err);
+    if (status) status.textContent = err.message || 'Falha ao gerar o ZIP.';
+    showToast(err.message || 'Não foi possível gerar o ZIP.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (btn?.querySelector('span')) btn.querySelector('span').textContent = textoOriginal;
+    botoesIndividuais.forEach(botao => { botao.disabled = false; });
   }
 }
 
