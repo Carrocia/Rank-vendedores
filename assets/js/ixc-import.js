@@ -302,6 +302,22 @@ async function carregarVendedoresComIdIxc() {
   return data || [];
 }
 
+// Procura contratos globalmente sem consultar os dados completos das vendas.
+// A função SQL retorna somente o número do contrato e sua filial de destino.
+async function carregarContratosExistentesIxc(contratos) {
+  const contratosUnicos = [...new Set((contratos || []).map(v => String(v || '').trim()).filter(Boolean))];
+  const encontrados = [];
+  for (let inicio = 0; inicio < contratosUnicos.length; inicio += 250) {
+    const loteContratos = contratosUnicos.slice(inicio, inicio + 250);
+    const lote = await carregarTodasPaginas(() => window._supabase
+      .rpc('vendas_ixc_contratos_existentes', { p_numeros_venda: loteContratos })
+      .order('numero_venda', { ascending: true })
+      .order('filial_destino_id', { ascending: true }), 'verificação de contratos IXC');
+    encontrados.push(...lote);
+  }
+  return encontrados;
+}
+
 async function analisarImportacaoIxc(event) {
   if (_importacaoIxcEmAndamento) return;
   const arquivo = event.currentTarget.files?.[0];
@@ -327,34 +343,27 @@ async function analisarImportacaoIxc(event) {
     });
     const linhasAtivas = linhasComDestino.filter(linha => normalizarTextoIxc(linha.status) === 'ativo');
     const contratos = linhasAtivas.map(linha => linha.contrato).filter(Boolean);
-    let contratosExistentes = new Set();
-    const destinosIxc = [...new Set(linhasAtivas.map(linha => linha.filialDestinoId).filter(id => id != null).map(Number))];
-    if (contratos.length && destinosIxc.length) {
-      const contratosUnicos = [...new Set(contratos)];
-      const registrosExistentes = [];
-      for (let inicio = 0; inicio < contratosUnicos.length; inicio += 250) {
-        const loteContratos = contratosUnicos.slice(inicio, inicio + 250);
-        const lote = await carregarTodasPaginas(() => window._supabase.from('vendas')
-          .select('id, numero_venda, filial_destino_id')
-          .in('filial_destino_id', destinosIxc)
-          .in('numero_venda', loteContratos)
-          .order('filial_destino_id', { ascending: true })
-          .order('numero_venda', { ascending: true })
-          .order('id', { ascending: true }), 'contratos já cadastrados');
-        registrosExistentes.push(...lote);
-      }
-      contratosExistentes = new Set(registrosExistentes.map(v => `${v.filial_destino_id}:${v.numero_venda}`));
-    }
+    const registrosExistentes = await carregarContratosExistentesIxc(contratos);
+    const contratosExistentes = new Map();
+    registrosExistentes.forEach(v => {
+      const contrato = String(v.numero_venda || '').trim();
+      if (!contratosExistentes.has(contrato)) contratosExistentes.set(contrato, []);
+      contratosExistentes.get(contrato).push(v.filial_destino_nome || 'filial não identificada');
+    });
     const vistosNoArquivo = new Set();
     _linhasImportacaoIxc = linhasComDestino.map(linha => {
       const resultado = { ...linha, podeImportar: false, incluir: false, importada: false, duplicada: false, erro: '' };
       if (normalizarTextoIxc(linha.status) !== 'ativo') { resultado.erro = 'Contrato não está ativo'; return resultado; }
       if (linha.erroFilialDestino) { resultado.erro = linha.erroFilialDestino; return resultado; }
       if (!linha.contrato || !/^\d+$/.test(linha.contrato)) { resultado.erro = 'ID do contrato inválido'; return resultado; }
-      const chaveContrato = `${linha.filialDestinoId}:${linha.contrato}`;
-      if (vistosNoArquivo.has(chaveContrato)) { resultado.duplicada = true; resultado.erro = 'Contrato repetido no CSV para a mesma filial'; return resultado; }
-      vistosNoArquivo.add(chaveContrato);
-      if (contratosExistentes.has(chaveContrato)) { resultado.duplicada = true; resultado.erro = 'Contrato já cadastrado nesta filial de destino'; return resultado; }
+      const chaveContrato = String(linha.contrato).trim();
+      const filiaisExistentes = contratosExistentes.get(chaveContrato);
+      if (filiaisExistentes?.length) {
+        resultado.duplicada = true;
+        resultado.erro = `Contrato já cadastrado em: ${[...new Set(filiaisExistentes)].join(', ')}`;
+        return resultado;
+      }
+      if (vistosNoArquivo.has(chaveContrato)) { resultado.duplicada = true; resultado.erro = 'Contrato repetido no CSV; cada contrato pode ser importado uma única vez'; return resultado; }
       const vendedoresDoCodigo = vendedores.filter(v => String(v.ixc_vendedor_id || '').trim() === linha.ixcVendedorId);
       if (!linha.ixcVendedorId || vendedoresDoCodigo.length !== 1) {
         resultado.erro = vendedoresDoCodigo.length > 1 ? 'ID IXC associado a mais de um vendedor' : 'Vendedor IXC sem cadastro único';
@@ -373,6 +382,7 @@ async function analisarImportacaoIxc(event) {
       if (!resultado.plano) { resultado.erro = diagnosticarPlanoIxc(linha.descricaoPlano, planos); return resultado; }
       resultado.valor = obterValorExplicitoRelatorioIxc(linha.descricaoPlano) ?? obterValorPlanoIxc(resultado.plano);
       if (resultado.valor == null) { resultado.erro = 'Plano sem valor cadastrado'; return resultado; }
+      vistosNoArquivo.add(chaveContrato);
       resultado.podeImportar = true;
       resultado.incluir = true;
       return resultado;
@@ -402,7 +412,22 @@ async function confirmarImportacaoIxc() {
   let duplicadas = 0;
   let falhas = 0;
   try {
-    for (const linha of selecionadas) {
+    // Revalida no momento da confirmação, pois outro usuário pode ter
+    // importado o mesmo contrato depois que a prévia foi carregada.
+    const existentesAgora = await carregarContratosExistentesIxc(selecionadas.map(linha => linha.contrato));
+    const contratosAgora = new Set(existentesAgora.map(v => String(v.numero_venda || '').trim()));
+    selecionadas.forEach(linha => {
+      if (!contratosAgora.has(String(linha.contrato || '').trim())) return;
+      linha.duplicada = true;
+      linha.incluir = false;
+      const filiais = [...new Set(existentesAgora
+        .filter(v => String(v.numero_venda || '').trim() === String(linha.contrato || '').trim())
+        .map(v => v.filial_destino_nome || 'filial não identificada'))];
+      linha.erro = `Contrato já cadastrado em: ${filiais.join(', ')}`;
+      duplicadas++;
+    });
+    const paraImportar = selecionadas.filter(linha => !linha.duplicada);
+    for (const linha of paraImportar) {
       try {
         const filialOrigemId = Number(linha.vendedor.filial_id);
         await saveVenda({

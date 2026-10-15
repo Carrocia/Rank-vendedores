@@ -1,6 +1,6 @@
 -- Suporte à identificação de vendedores pelo ID do IXC na importação de vendas.
--- O número do contrato do IXC será salvo no campo existente vendas.numero_venda,
--- que já é utilizado pelo fluxo manual e pela verificação de contratos duplicados.
+-- O número do contrato do IXC será salvo no campo existente vendas.numero_venda.
+-- A unicidade é global: o mesmo contrato não pode ser registrado em duas filiais.
 
 begin;
 
@@ -19,16 +19,18 @@ begin
     select 1
     from public.vendas
     where numero_venda is not null and btrim(numero_venda) <> ''
-    group by filial_destino_id, numero_venda
+    group by btrim(numero_venda)
     having count(*) > 1
   ) then
-    raise exception 'Há contratos duplicados na mesma filial de destino. Resolva as duplicidades antes de ativar a importação IXC.';
+    raise exception 'Há números de contrato repetidos entre filiais ou com espaços diferentes. Resolva as duplicidades antes de ativar a importação IXC.';
   end if;
 end;
 $block$;
 
-create unique index if not exists vendas_numero_destino_uidx
-  on public.vendas (filial_destino_id, numero_venda)
+create unique index if not exists vendas_numero_global_uidx
+  on public.vendas ((btrim(numero_venda)))
   where numero_venda is not null and btrim(numero_venda) <> '';
+
+drop index if exists public.vendas_numero_destino_uidx;
 
 commit;
