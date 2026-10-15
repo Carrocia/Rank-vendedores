@@ -3971,6 +3971,73 @@ function metasBatidasDoVendedor(slug) {
     : [];
 }
 
+const FRASES_CELEBRACAO_POR_RITMO = {
+  acima: [
+    'Seu ritmo está tão forte que o Wi-Fi pediu dicas. 🚀',
+    'Meta no retrovisor, próximo desafio no radar. Bora!',
+    'Seu resultado chegou antes até do sinal. 📶',
+    'Você tá voando — até o modem quer pegar carona!',
+    'Constância ligada no máximo. O resultado também!',
+    'Cliente conectado, meta avançando em alta velocidade!',
+  ],
+  no: [
+    'Ritmo firme, conexão boa e cada venda contando. 📶',
+    'Um passo consistente hoje deixa a meta mais perto amanhã.',
+    'Tá no ritmo: segue assim que a próxima conquista vem!',
+    'Cliente conectado, meta avançando. Boa!',
+    'Seu esforço já aparece nos números. Continua!',
+    'A constância está fazendo o trabalho dela. Segue firme!',
+  ],
+  avancando: [
+    'Cada venda é uma conexão a mais com a meta.',
+    'Todo grande resultado começa com um próximo passo. Bora?',
+    'O sinal pode oscilar; sua capacidade continua aí. Vamos nessa!',
+    'Respira, ajusta a rota e chama o próximo cliente. Você consegue!',
+    'Uma venda de cada vez — o importante é seguir avançando.',
+    'A próxima venda pode mudar o ritmo do dia. Vai que é sua!',
+  ],
+};
+
+function faixaRitmoCelebracao(vendedorMes, slug) {
+  const cadastro = (_cache.vendedores || []).find(v =>
+    String(v.slug || '') === String(slug) || String(v.id) === String(vendedorMes.id)
+  );
+  let metaPrincipal = Number(vendedorMes.meta || 0);
+  if (vendedorMes.tipo === 'interno') {
+    const metas = (_cache.metas || []).find(m => String(m.vendedor_id) === String(cadastro?.id));
+    metaPrincipal = Math.max(
+      Number(metas?.meta_m1) || 0,
+      Number(metas?.meta_m2) || 0,
+      Number(metas?.meta_m3) || 0
+    );
+  }
+  if (!(metaPrincipal > 0)) return 'avancando';
+
+  const vendas = Number(vendedorMes.vendas || 0);
+  const progressoPercentual = (vendas / metaPrincipal) * 100;
+  const { diaAtual, diasNoMes } = calcularPeriodoMes();
+  const esperadoPercentual = diasNoMes > 0 ? (diaAtual / diasNoMes) * 100 : 0;
+  if (progressoPercentual >= esperadoPercentual + 5) return 'acima';
+  if (progressoPercentual >= esperadoPercentual - 5) return 'no';
+  return 'avancando';
+}
+
+function selecionarFraseCelebracao(slug, ritmo) {
+  const frases = FRASES_CELEBRACAO_POR_RITMO[ritmo] || FRASES_CELEBRACAO_POR_RITMO.avancando;
+  const chave = `uni-celebracao-frase:${slug}:${ritmo}`;
+  let indiceAnterior = -1;
+  try {
+    indiceAnterior = Number.parseInt(localStorage.getItem(chave), 10);
+  } catch (_) { /* armazenamento pode estar indisponível; ainda geramos a arte */ }
+  const indice = Number.isInteger(indiceAnterior) && indiceAnterior >= 0
+    ? (indiceAnterior + 1) % frases.length
+    : Math.floor(Math.random() * frases.length);
+  try {
+    localStorage.setItem(chave, String(indice));
+  } catch (_) { /* a rotação segue em memória enquanto a página estiver aberta */ }
+  return frases[indice];
+}
+
 // Chamada pelo <select> de vendedor na aba Celebrações — repopula o
 // <select> de metas só com as que essa pessoa bateu de verdade.
 function atualizarMetasCelebraveis() {
@@ -4050,6 +4117,8 @@ async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
   document.getElementById('gf-headline').textContent = metaInfo.titulo || 'META CONQUISTADA!';
   const nextLabel = document.getElementById('gf-next-label');
   const nextText = document.getElementById('gf-proxima');
+  const ritmo = faixaRitmoCelebracao(vendedorMes, slug);
+  document.getElementById('gf-motivation').textContent = selecionarFraseCelebracao(slug, ritmo);
   document.getElementById('gf-congrats').textContent = metaInfo.isFinal
     ? (metaInfo.value === 'individual'
       ? `Parabéns, ${vendedorMes.nome}! Você concluiu sua meta do mês. Que conquista!`
