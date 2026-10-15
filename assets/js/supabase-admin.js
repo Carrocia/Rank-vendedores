@@ -3958,7 +3958,8 @@ function metasBatidasDoVendedor(slug) {
         return {
           value: m.value,
           label: `${m.label} — Meta Individual do Mês`,
-          proxima: proxima ? `${proxima.label} — Meta Individual` : 'Continue superando sua marca este mês!',
+          proxima: proxima ? `${proxima.label} — Meta Individual` : null,
+          isFinal: !proxima,
           titulo: `${m.label} CONQUISTADA!`,
         };
       });
@@ -3966,7 +3967,7 @@ function metasBatidasDoVendedor(slug) {
 
   const metaMensal = Number(vendedorMes.meta || 0);
   return metaMensal > 0 && vendasMes >= metaMensal
-    ? [{ value: 'individual', label: 'Meta Individual do Mês', proxima: 'Continue somando vendas pra ir além este mês!', titulo: 'META CONQUISTADA!' }]
+    ? [{ value: 'individual', label: 'Meta Individual do Mês', proxima: null, isFinal: true, titulo: 'META CONQUISTADA!' }]
     : [];
 }
 
@@ -4012,7 +4013,10 @@ async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
   );
   const foto = vendedorCadastro?.foto_url || vendedorMes.foto_url || PHOTOS[slug] || PHOTOS[vendedorMes.id] || '';
   const card = document.getElementById('gf-card');
-  if (card) card.dataset.achievedTier = ['m3', 'm2', 'm1'].includes(metaInfo.value) ? metaInfo.value : 'meta';
+  if (card) {
+    card.dataset.achievedTier = ['m3', 'm2', 'm1'].includes(metaInfo.value) ? metaInfo.value : 'meta';
+    card.classList.toggle('is-final', Boolean(metaInfo.isFinal));
+  }
   const avatar = document.getElementById('gf-avatar');
   const inicial = String(vendedorMes.nome || '?').trim().charAt(0).toUpperCase();
   avatar.replaceChildren();
@@ -4044,10 +4048,19 @@ async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
   document.getElementById('gf-nome').textContent = vendedorMes.nome;
   document.getElementById('gf-meta-label').textContent = metaInfo.label;
   document.getElementById('gf-headline').textContent = metaInfo.titulo || 'META CONQUISTADA!';
-  document.getElementById('gf-congrats').textContent = `Parabéns, ${vendedorMes.nome}! Esse resultado é seu.`;
-  document.getElementById('gf-proxima').textContent = metaInfo.proxima
-    ? `Próxima meta: ${metaInfo.proxima}`
-    : 'Continue somando vendas pra ir além este mês!';
+  const nextLabel = document.getElementById('gf-next-label');
+  const nextText = document.getElementById('gf-proxima');
+  document.getElementById('gf-congrats').textContent = metaInfo.isFinal
+    ? (metaInfo.value === 'individual'
+      ? `Parabéns, ${vendedorMes.nome}! Você concluiu sua meta do mês. Que conquista!`
+      : `Parabéns, ${vendedorMes.nome}! Você chegou ao topo do mês. Que conquista!`)
+    : `Parabéns, ${vendedorMes.nome}! Sua dedicação fez essa conquista acontecer.`;
+  nextLabel.textContent = metaInfo.isFinal
+    ? (metaInfo.value === 'individual' ? 'Meta do mês concluída' : 'Conquista máxima')
+    : 'Próxima meta';
+  nextText.textContent = metaInfo.isFinal
+    ? 'Celebre esse resultado — você fez por merecer!'
+    : metaInfo.proxima;
 }
 
 function configurarBotoesCelebracao(ativo, mensagem = '') {
