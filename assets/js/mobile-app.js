@@ -26,8 +26,8 @@
     moreButton?.setAttribute('aria-expanded', 'false');
   };
 
-  const scrollPublicTo = targetId => {
-    const target = document.getElementById(targetId);
+  const scrollPublicTo = targetOrId => {
+    const target = typeof targetOrId === 'string' ? document.getElementById(targetOrId) : targetOrId;
     if (!target) return;
     target.scrollIntoView({
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
@@ -51,7 +51,7 @@
       publicNav.querySelectorAll('[data-mobile-public]').forEach(item => item.removeAttribute('aria-current'));
       button.setAttribute('aria-current', 'page');
       if (destination === 'inicio') window.scrollTo({ top: 0, behavior: 'smooth' });
-      if (destination === 'ranking') scrollPublicTo('publicRankingStart');
+      if (destination === 'ranking') scrollPublicTo(document.querySelector('.ranking-panel:not(.hidden)'));
       if (destination === 'destaques') scrollPublicTo('publicHighlights');
     });
   });
@@ -79,7 +79,7 @@
 
   const syncAdminDock = () => {
     const section = document.querySelector('.adm-nav-item.active')?.dataset.section || 'dashboard';
-    const destinations = ['dashboard', 'ranking-adm', 'nova-venda', 'adicionais'];
+    const destinations = ['dashboard', 'ranking-adm', 'nova-venda', 'relatorios'];
     adminDock?.querySelectorAll('[data-adm-mobile-section]').forEach(button => {
       if (button.dataset.admMobileSection === section) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
@@ -91,7 +91,9 @@
 
   adminDock?.querySelectorAll('[data-adm-mobile-section]').forEach(button => {
     button.addEventListener('click', () => {
-      window.adm_navigateTo?.(button.dataset.admMobileSection);
+      const sectionId = button.dataset.admMobileSection;
+      const sectionButton = adminPanel?.querySelector(`.adm-nav-item[data-section="${sectionId}"]`);
+      sectionButton?.click();
       syncAdminDock();
     });
   });
