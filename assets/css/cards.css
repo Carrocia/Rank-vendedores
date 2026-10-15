@@ -152,16 +152,16 @@
 #sc-card .sc-hero-sub b { color: #73ead8; }
 #sc-card .sc-badges-label { margin-top: 26px; font-size: 11px; letter-spacing: 1.7px; }
 #sc-card .sc-badges-row { gap: 10px; margin-top: 11px; }
-#sc-card .sc-badge { padding: 13px 10px; border-radius: 12px; font-size: 12px; }
+#sc-card .sc-badge { padding: 15px 10px; border-radius: 12px; font-size: 12px; }
 #sc-card .sc-badge.on { background: rgba(33,217,191,0.11); border-color: var(--sc-accent); }
 #sc-card .sc-badge-check { font-size: 16px; margin-bottom: 3px; }
 #sc-card .sc-stats-grid { flex-shrink: 0; gap: 10px; margin-top: 18px; }
-#sc-card .sc-stat-tile { padding: 15px 9px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.09); }
+#sc-card .sc-stat-tile { padding: 18px 9px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.09); }
 #sc-card .sc-stat-label { font-size: 10px; line-height: 1.4; letter-spacing: 0.65px; color: #b0bdcc; }
 #sc-card .sc-stat-value { font-size: 23px; margin-top: 7px; }
 #sc-card .sc-phrase-box { padding-top: 18px; }
-#sc-card .sc-phrase { font-size: 15px; padding: 0 12px; line-height: 1.5; color: #e0e9f2; }
-#sc-card .sc-brandline { margin-top: 13px; font-size: 9px; color: #8193a7; }
+#sc-card .sc-phrase { font-size: 15px; padding: 0 12px; line-height: 1.5; color: #f0f7fc; }
+#sc-card .sc-brandline { margin-top: 13px; font-size: 10px; color: #a8b8c8; }
 #sc-card.is-external .sc-inner { padding: 32px 34px 24px; }
 #sc-card.is-external .sc-divider { margin-top: 20px; }
 #sc-card.is-external .sc-identity { gap: 14px; margin-top: 30px; }
@@ -170,7 +170,7 @@
 #sc-card.is-external .sc-hero { margin-top: 30px; padding: 22px 24px; }
 #sc-card.is-external .sc-badges-label { margin-top: 26px; }
 #sc-card.is-external .sc-stats-grid { margin-top: 18px; }
-#sc-card.is-external .sc-stat-tile { padding: 15px 9px; }
+#sc-card.is-external .sc-stat-tile { padding: 18px 9px; }
 #sc-card.is-external .sc-phrase-box { padding-top: 18px; }
 #sc-card.is-external .sc-phrase { padding: 0 12px; font-size: 15px; }
 #sc-card.is-external .sc-brandline { margin-top: 13px; }
