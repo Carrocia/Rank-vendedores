@@ -884,6 +884,33 @@ async function loadVendasAdmin(de, ate) {
   }));
 }
 
+// Vendas feitas pelos vendedores da filial atual com destino em outra filial.
+// A política regional de vendas permite que a filial de origem consulte esses
+// registros, mantendo edição e exclusão sob responsabilidade do destino.
+async function loadVendasEquipeEmOutrasFiliais(de, ate) {
+  const { data, error } = await window._supabase
+    .from('vendas_admin')
+    .select('*')
+    .eq('filial_origem_id', window.FILIAL_ATUAL_ID)
+    .neq('filial_destino_id', window.FILIAL_ATUAL_ID)
+    .gte('data_venda', de)
+    .lt('data_venda', fimDoDiaExclusivo(ate))
+    .order('data_venda', { ascending: false });
+  if (error) {
+    console.error('[loadVendasEquipeEmOutrasFiliais]', error);
+    throw error;
+  }
+  return (data || []).map(v => ({
+    ...v,
+    vendedores: { id: v.vendedor_id, nome: v.vendedor_nome, slug: v.vendedor_slug },
+    planos: { id: v.plano_id, nome: v.plano_nome },
+    valor: Number(v.valor_plano || 0),
+    valor_plano: Number(v.valor_plano || 0),
+    valor_adicionais: Number(v.valor_adicionais || 0),
+    valor_total: Number(v.valor_total || 0),
+  }));
+}
+
 async function loadVendasOutrasFiliais(de, ate) {
   const viewVendas = window.ADMIN_AUTENTICADO
     ? 'vendas_outras_filiais_admin'
@@ -951,7 +978,7 @@ function atualizarAcoesSelecaoRelatorio() {
 }
 
 function selecionarTodasVendasRelatorio() {
-  _relatorioState.linhas.forEach(linha => _relatorioState.selecionadas.add(chaveVendaRelatorio(linha)));
+  _relatorioState.linhas.filter(linha => !linha.somenteLeitura).forEach(linha => _relatorioState.selecionadas.add(chaveVendaRelatorio(linha)));
   renderRelatorioTabela();
 }
 
@@ -974,6 +1001,7 @@ async function excluirVendasSelecionadasRelatorio() {
   for (const linha of selecionadas) {
     try {
       if (linha.tipoLinha === 'outra_filial') await deleteVendaOutraFilial(linha.id);
+      else if (linha.tipoLinha === 'origem_outra_filial') throw new Error('A exclusão deve ser feita pela filial de destino.');
       else await deleteVenda(linha.id);
       _relatorioState.selecionadas.delete(chaveVendaRelatorio(linha));
       excluidas++;
@@ -1183,14 +1211,15 @@ async function aplicarFiltrosRelatorio() {
 
   // O cache público não contém cliente nem observação. O relatório
   // administrativo consulta sua view própria, protegida por RLS.
-  let vendasBase, filiaisBase;
+  let vendasBase, filiaisBase, vendasEquipeOutrasFiliais;
   try {
-    [vendasBase, filiaisBase] = await Promise.all([
+    [vendasBase, filiaisBase, vendasEquipeOutrasFiliais] = await Promise.all([
       loadVendasAdmin(dataIni, dataFim),
       loadVendasOutrasFiliais(dataIni, dataFim),
+      loadVendasEquipeEmOutrasFiliais(dataIni, dataFim),
     ]);
 
-    const vendaIds = vendasBase.map(v => v.id).filter(Boolean);
+    const vendaIds = [...vendasBase, ...vendasEquipeOutrasFiliais].map(v => v.id).filter(Boolean);
     const adicionaisPorVenda = await loadAdicionaisPorVendas(vendaIds);
 
     let linhas = [];
@@ -1222,6 +1251,36 @@ async function aplicarFiltrosRelatorio() {
         observacao: v.observacao || null,
       });
     });
+    (vendasEquipeOutrasFiliais || []).forEach(v => {
+      if (!dataNoPeriodo(v.data_venda, dataIni, dataFim)) return;
+      const vend = (_cache.vendedores || []).find(x => x.id === v.vendedor_id);
+      const plano = (_cache.planos || []).find(p => p.id === v.plano_id);
+      const adicionais = adicionaisPorVenda[v.id] || [];
+      linhas.push({
+        tipoLinha: 'origem_outra_filial',
+        id: v.id,
+        data: dataLocalStr(v.data_venda),
+        hora: extrairHoraRelatorio(v.data_venda),
+        vendedorId: v.vendedor_id,
+        vendedorSlug: vend?.slug || v.vendedores?.slug || null,
+        vendedorNome: vend?.nome || v.vendedores?.nome || '—',
+        vendedorTipo: vend?.tipo || null,
+        cliente: v.cliente || extrairClienteDeObservacao(v.observacao) || null,
+        planoId: v.plano_id,
+        planoNome: plano?.nome || v.planos?.nome || '—',
+        velocidade: plano?.velocidade_mb || null,
+        valorPlano: Number(v.valor_plano || 0),
+        adicionaisNomes: adicionais.map(a => a.nome),
+        valorAdicionais: Number(v.valor_adicionais || 0),
+        valorTotal: Number(v.valor_total || (Number(v.valor_plano || 0) + Number(v.valor_adicionais || 0))),
+        foraFilial: false,
+        filialOrigem: window.FILIAL_ATUAL?.nome || 'Nossa filial',
+        filialDestinoId: v.filial_destino_id,
+        filialDestino: (_cache.filiais || []).find(f => Number(f.id) === Number(v.filial_destino_id))?.nome || 'outra filial',
+        observacao: v.observacao || null,
+        somenteLeitura: true,
+      });
+    });
     (filiaisBase || []).forEach(v => {
       const dataStr = dataLocalStr(v.data_venda);
       if (!dataNoPeriodo(v.data_venda, dataIni, dataFim)) return;
@@ -1249,10 +1308,11 @@ async function aplicarFiltrosRelatorio() {
     });
 
     linhas = linhas.filter(l => {
-      if (vendedorId && l.vendedorId !== vendedorId && l.vendedorSlug !== vendedorSlug) return false;
+      if (vendedorId && String(l.vendedorId) !== vendedorId && l.vendedorSlug !== vendedorSlug) return false;
       if (tipoVendedor && l.vendedorTipo !== tipoVendedor) return false;
-      if (planoId && l.planoId !== planoId) return false;
-      if (tipoVenda && l.tipoLinha !== tipoVenda) return false;
+      if (planoId && String(l.planoId) !== planoId) return false;
+      if (tipoVenda === 'outra_filial' && l.tipoLinha !== 'outra_filial' && l.tipoLinha !== 'origem_outra_filial') return false;
+      if (tipoVenda && tipoVenda !== 'outra_filial' && l.tipoLinha !== tipoVenda) return false;
       return true;
     });
 
@@ -1272,9 +1332,10 @@ function renderRelatorioIndicadores(linhas) {
   const totalVendas = linhas.length; // adicionais nunca contam como venda principal
   const valorTotal = linhas.reduce((s, l) => s + l.valorTotal, 0);
   const ticketMedio = totalVendas ? valorTotal / totalVendas : 0;
-  const vendasEquipe = linhas.filter(l => l.tipoLinha === 'normal').length;
+  const vendasEquipe = linhas.filter(l => l.tipoLinha === 'normal' || l.tipoLinha === 'origem_outra_filial').length;
   const vendasForaFilial = linhas.filter(l => l.tipoLinha === 'fora_filial').length;
   const vendasOutrasFiliais = linhas.filter(l => l.tipoLinha === 'outra_filial').length;
+  const vendasEquipeOutrasFiliais = linhas.filter(l => l.tipoLinha === 'origem_outra_filial').length;
   const fmt = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
 
   const cards = [
@@ -1284,6 +1345,7 @@ function renderRelatorioIndicadores(linhas) {
     { label: 'Vendas da Equipe', valor: vendasEquipe },
     { label: 'Fora da Filial', valor: vendasForaFilial },
     { label: 'Outras Filiais', valor: vendasOutrasFiliais },
+    { label: 'Equipe em outras filiais', valor: vendasEquipeOutrasFiliais },
   ];
   const wrap = document.getElementById('rel-indicadores');
   if (wrap) wrap.innerHTML = cards.map(c => `
@@ -1311,6 +1373,10 @@ function renderRelatorioTabela() {
         origemTxt = `<span class="adm-inline-icon"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-building"></use></svg>${l.filialOrigem}</span>`;
         vendedorTxt = 'Outra filial';
         tipoTxt = '—';
+      } else if (l.tipoLinha === 'origem_outra_filial') {
+        origemTxt = `<span class="adm-inline-icon"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-building"></use></svg>Destino: ${escapeHtmlText(l.filialDestino)}</span>`;
+        vendedorTxt = l.vendedorNome;
+        tipoTxt = l.vendedorTipo === 'interno' ? 'Interno' : (l.vendedorTipo === 'externo' ? 'Externo' : '—');
       } else {
         origemTxt = l.foraFilial
           ? '<span class="adm-inline-icon"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-map-pin"></use></svg>Fora da filial</span>'
@@ -1318,10 +1384,10 @@ function renderRelatorioTabela() {
         vendedorTxt = l.vendedorNome;
         tipoTxt = l.vendedorTipo === 'interno' ? 'Interno' : (l.vendedorTipo === 'externo' ? 'Externo' : '—');
       }
-      const acoesTxt = `<button type="button" class="adm-btn-excluir" onclick="handleExcluirVenda('${l.id}', '${l.tipoLinha}')" title="Excluir esta venda" aria-label="Excluir esta venda"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg></button>`;
+      const acoesTxt = l.somenteLeitura ? '<span class="adm-inline-status" title="A exclusão é feita pela filial de destino.">Somente leitura</span>' : `<button type="button" class="adm-btn-excluir" onclick="handleExcluirVenda('${l.id}', '${l.tipoLinha}')" title="Excluir esta venda" aria-label="Excluir esta venda"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg></button>`;
       const selecionada = _relatorioState.selecionadas.has(chaveVendaRelatorio(l));
       return `<tr>
-        <td><input type="checkbox" class="rel-venda-selecao" data-venda-id="${escapeHtmlText(String(l.id))}" data-venda-tipo="${escapeHtmlText(l.tipoLinha)}" aria-label="Selecionar venda de ${escapeHtmlText(l.cliente || l.vendedorNome || 'cliente')}" ${selecionada ? 'checked' : ''}></td>
+        <td><input type="checkbox" class="rel-venda-selecao" data-venda-id="${escapeHtmlText(String(l.id))}" data-venda-tipo="${escapeHtmlText(l.tipoLinha)}" aria-label="Selecionar venda de ${escapeHtmlText(l.cliente || l.vendedorNome || 'cliente')}" ${selecionada ? 'checked' : ''} ${l.somenteLeitura ? 'disabled title="A exclusão é feita pela filial de destino."' : ''}></td>
         <td>${dataFmt}</td><td>${l.hora || '—'}</td><td>${vendedorTxt}</td><td>${tipoTxt}</td>
         <td>${l.cliente || '—'}</td><td>${l.planoNome}</td><td>${veloc}</td>
         <td>${adicionaisTxt}</td><td><strong>${valorFmt}</strong></td><td>${origemTxt}</td>
@@ -1528,9 +1594,10 @@ async function exportarRelatorioExcel() {
   const totalVendas = linhas.length;
   const valorTotal = linhas.reduce((s, l) => s + l.valorTotal, 0);
   const ticketMedio = totalVendas ? valorTotal / totalVendas : 0;
-  const vendasEquipe = linhas.filter(l => l.tipoLinha === 'normal').length;
+  const vendasEquipe = linhas.filter(l => l.tipoLinha === 'normal' || l.tipoLinha === 'origem_outra_filial').length;
   const vendasForaFilial = linhas.filter(l => l.tipoLinha === 'fora_filial').length;
   const vendasOutrasFiliais = linhas.filter(l => l.tipoLinha === 'outra_filial').length;
+  const vendasEquipeOutrasFiliais = linhas.filter(l => l.tipoLinha === 'origem_outra_filial').length;
   const { porVendedor, porPlano, porAdicional } = calcularResumosRelatorio(linhas);
   const periodoTxt = document.getElementById('rel-data-ini').value.split('-').reverse().join('/') + ' a ' + document.getElementById('rel-data-fim').value.split('-').reverse().join('/');
   const geradoEm = new Date().toLocaleString('pt-BR');
@@ -1581,6 +1648,7 @@ async function exportarRelatorioExcel() {
       ['Ticket Médio', ticketMedio, fmtMoeda, EXCEL_COR_AZUL, EXCEL_COR_AZUL_TINT],
     ]),
     ['Vendas da Equipe', vendasEquipe, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
+    ['Equipe em outras filiais', vendasEquipeOutrasFiliais, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
     ['Vendas Fora da Filial', vendasForaFilial, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
     ['Vendas de Outras Filiais', vendasOutrasFiliais, '0', EXCEL_COR_TEAL, EXCEL_COR_TEAL_TINT],
   ];
@@ -1687,7 +1755,7 @@ async function exportarRelatorioExcel() {
       { v: l.valorAdicionais, financeiro: true },
       { v: l.valorTotal, financeiro: true },
       { v: l.foraFilial ? 'Sim' : 'Não' },
-      { v: l.tipoLinha === 'outra_filial' ? 'Outra filial' : (l.foraFilial ? 'Fora da filial' : 'Nossa filial') },
+      { v: l.tipoLinha === 'outra_filial' ? 'Outra filial' : (l.tipoLinha === 'origem_outra_filial' ? `Nossa equipe → ${l.filialDestino}` : (l.foraFilial ? 'Fora da filial' : 'Nossa filial')) },
       { v: l.filialOrigem || '—' },
       { v: l.observacao || '—' },
     ];
@@ -1770,8 +1838,9 @@ function exportarRelatorioPDF() {
   const totalVendas = linhas.length;
   const valorTotal = linhas.reduce((s, l) => s + l.valorTotal, 0);
   const ticketMedio = totalVendas ? valorTotal / totalVendas : 0;
-  const vendasEquipe = linhas.filter(l => l.tipoLinha === 'normal').length;
+  const vendasEquipe = linhas.filter(l => l.tipoLinha === 'normal' || l.tipoLinha === 'origem_outra_filial').length;
   const vendasOutras = linhas.filter(l => l.tipoLinha === 'outra_filial').length;
+  const vendasEquipeOutrasFiliais = linhas.filter(l => l.tipoLinha === 'origem_outra_filial').length;
   const { porVendedor, porPlano, porAdicional } = calcularResumosRelatorio(linhas);
   const fmt = n => 'R$ ' + n.toFixed(2).replace('.', ',');
 
@@ -1781,11 +1850,11 @@ function exportarRelatorioPDF() {
   doc.autoTable({
     startY: y, theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: corAccent2 },
     head: [ocultarFinanceiro
-      ? ['Total de Vendas', 'Vendas da Equipe', 'Outras Filiais']
-      : ['Total de Vendas', 'Valor Total', 'Ticket Médio', 'Vendas da Equipe', 'Outras Filiais']],
+      ? ['Total de Vendas', 'Vendas da Equipe', 'Equipe em outras filiais', 'Outras Filiais']
+      : ['Total de Vendas', 'Valor Total', 'Ticket Médio', 'Vendas da Equipe', 'Equipe em outras filiais', 'Outras Filiais']],
     body: [ocultarFinanceiro
-      ? [totalVendas, vendasEquipe, vendasOutras]
-      : [totalVendas, fmt(valorTotal), fmt(ticketMedio), vendasEquipe, vendasOutras]],
+      ? [totalVendas, vendasEquipe, vendasEquipeOutrasFiliais, vendasOutras]
+      : [totalVendas, fmt(valorTotal), fmt(ticketMedio), vendasEquipe, vendasEquipeOutrasFiliais, vendasOutras]],
     margin: { left: 14, right: 14 },
   });
   y = doc.lastAutoTable.finalY + 10;
@@ -1873,7 +1942,7 @@ function exportarRelatorioPDF() {
       const linha = [
         l.data ? l.data.split('-').reverse().join('/') : '—',
         l.hora || '—',
-        l.tipoLinha === 'outra_filial' ? ('Filial: ' + l.filialOrigem) : l.vendedorNome,
+        l.tipoLinha === 'outra_filial' ? ('Filial: ' + l.filialOrigem) : (l.vendedorNome + (l.tipoLinha === 'origem_outra_filial' ? ` (venda para ${l.filialDestino})` : '')),
         l.cliente || '—',
         l.planoNome + (l.velocidade ? ' - ' + l.velocidade + ' Mbps' : ''),
         l.adicionaisNomes.join(', ') || '—',
