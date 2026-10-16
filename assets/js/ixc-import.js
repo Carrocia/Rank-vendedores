@@ -3,6 +3,45 @@
 let _linhasImportacaoIxc = [];
 let _importacaoIxcEmAndamento = false;
 let _conferenciaIxcEmAndamento = false;
+let _analiseIxcEmAndamento = false;
+
+function atualizarBotaoLimparImportacaoIxc() {
+  const botao = document.getElementById('ixc-import-clear');
+  const temRelatorio = Boolean(document.getElementById('ixc-csv-file')?.files?.length || _linhasImportacaoIxc.length);
+  if (botao) botao.disabled = _analiseIxcEmAndamento || _importacaoIxcEmAndamento || _conferenciaIxcEmAndamento || !temRelatorio;
+}
+
+function limparImportacaoIxc() {
+  if (_analiseIxcEmAndamento || _importacaoIxcEmAndamento || _conferenciaIxcEmAndamento) {
+    showToast('Aguarde a análise ou operação atual terminar para limpar o relatório.', 'warning');
+    return;
+  }
+  const arquivo = document.getElementById('ixc-csv-file')?.files?.[0];
+  if (!_linhasImportacaoIxc.length && !arquivo) return;
+  if (!window.confirm('Limpar o arquivo e a prévia deste relatório? Vendas já gravadas e pendências de conferência não serão apagadas.')) return;
+
+  _linhasImportacaoIxc = [];
+  const input = document.getElementById('ixc-csv-file');
+  const resumo = document.getElementById('ixc-import-summary');
+  const preview = document.getElementById('ixc-import-preview');
+  const wrapper = document.getElementById('ixc-import-preview-wrap');
+  const botaoImportar = document.getElementById('ixc-import-submit');
+  const confirmacao = document.getElementById('ixc-reconciliation-complete');
+  const status = document.getElementById('ixc-reconciliation-status');
+  if (input) input.value = '';
+  if (resumo) resumo.textContent = '';
+  if (preview) preview.replaceChildren();
+  if (wrapper) wrapper.hidden = true;
+  if (botaoImportar) {
+    botaoImportar.disabled = true;
+    botaoImportar.textContent = 'Importar vendas novas';
+  }
+  if (confirmacao) confirmacao.checked = false;
+  if (status) status.textContent = '';
+  atualizarBotaoConferenciaIxc();
+  atualizarBotaoLimparImportacaoIxc();
+  showToast('Relatório removido da tela. Vendas gravadas e pendências foram mantidas.', 'success');
+}
 
 // Códigos da coluna "Filial" exportada pelo IXC (não são IDs do Supabase).
 // Para cadastrar outro código de uma filial já listada, adicione uma chave
@@ -368,6 +407,7 @@ function atualizarBotaoConferenciaIxc() {
   );
   controles.hidden = !temDadosComparaveis;
   botao.disabled = _conferenciaIxcEmAndamento || !confirmacao.checked || !temDadosComparaveis;
+  atualizarBotaoLimparImportacaoIxc();
 }
 
 async function reconciliarRelatorioIxc() {
@@ -393,6 +433,7 @@ async function reconciliarRelatorioIxc() {
     return;
   }
   _conferenciaIxcEmAndamento = true;
+  atualizarBotaoLimparImportacaoIxc();
   if (botao) botao.textContent = 'Conferindo…';
   if (status) status.textContent = 'Comparando os contratos do arquivo com as vendas cadastradas…';
   atualizarBotaoConferenciaIxc();
@@ -415,6 +456,7 @@ async function reconciliarRelatorioIxc() {
     showToast(mensagem, 'error');
   } finally {
     _conferenciaIxcEmAndamento = false;
+    atualizarBotaoLimparImportacaoIxc();
     if (botao) botao.textContent = 'Conferir vendas já cadastradas';
     atualizarBotaoConferenciaIxc();
   }
@@ -510,7 +552,7 @@ async function resolverConferenciaIxc(id, decisao, cliente) {
 }
 
 async function analisarImportacaoIxc(event) {
-  if (_importacaoIxcEmAndamento) return;
+  if (_analiseIxcEmAndamento || _importacaoIxcEmAndamento || _conferenciaIxcEmAndamento) return;
   const arquivo = event.currentTarget.files?.[0];
   const resumo = document.getElementById('ixc-import-summary');
   const wrapper = document.getElementById('ixc-import-preview-wrap');
@@ -524,11 +566,14 @@ async function analisarImportacaoIxc(event) {
   if (resumo) resumo.textContent = '';
   if (wrapper) wrapper.hidden = true;
   if (botao) botao.disabled = true;
+  atualizarBotaoLimparImportacaoIxc();
   if (!arquivo) return;
   if (arquivo.size > 10 * 1024 * 1024) {
     if (resumo) resumo.textContent = 'O arquivo excede 10 MB. Exporte um CSV menor.';
     return;
   }
+  _analiseIxcEmAndamento = true;
+  atualizarBotaoLimparImportacaoIxc();
   try {
     if (!window.ADMIN_AUTENTICADO || !window._supabase) throw new Error('Entre no painel administrativo antes de importar vendas.');
     const linhas = analisarCsvIxc(await arquivo.text());
@@ -589,6 +634,9 @@ async function analisarImportacaoIxc(event) {
   } catch (error) {
     console.error('[analisarImportacaoIxc]', error);
     if (resumo) resumo.textContent = error.message || 'Não foi possível analisar o arquivo.';
+  } finally {
+    _analiseIxcEmAndamento = false;
+    atualizarBotaoLimparImportacaoIxc();
   }
 }
 
@@ -604,6 +652,7 @@ async function confirmarImportacaoIxc() {
   botao.disabled = true;
   botao.textContent = 'Importando…';
   _importacaoIxcEmAndamento = true;
+  atualizarBotaoLimparImportacaoIxc();
   const inputArquivo = document.getElementById('ixc-csv-file');
   if (inputArquivo) inputArquivo.disabled = true;
   let importadas = 0;
@@ -663,6 +712,7 @@ async function confirmarImportacaoIxc() {
     showToast(error.message || 'A importação não foi concluída.', 'error');
   } finally {
     _importacaoIxcEmAndamento = false;
+    atualizarBotaoLimparImportacaoIxc();
     if (inputArquivo) inputArquivo.disabled = false;
     botao.textContent = 'Importar vendas novas';
     renderizarPreviaIxc();

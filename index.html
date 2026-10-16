@@ -333,7 +333,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js"></script>
   <script src="assets/js/supabase-admin.js"></script>
-  <script src="assets/js/ixc-import.js?v=20261016-plan-match-2"></script>
+  <script src="assets/js/ixc-import.js?v=20261016-import-clear-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -638,7 +638,7 @@
           </div>
           <div class="adm-form-card" id="ixc-import-card">
             <div class="adm-section-title adm-subsection-title">Importar vendas do IXC</div>
-            <p class="adm-vendedor-cadastro-hint">Quando o CSV inclui a coluna Filial, o código IXC define a filial de destino e o cadastro do vendedor define a origem. Confira origem e destino na prévia; códigos ainda não mapeados ficam bloqueados para revisão. Se o CSV não incluir essa coluna, a filial atualmente aberta será usada como destino. A data usa Data ativação e a hora vem de Última atualização. Contratos já registrados não serão alterados nem duplicados.</p>
+            <p class="adm-vendedor-cadastro-hint">A prévia do CSV fica temporariamente nesta tela e só grava vendas quando você confirma a importação. Quando o CSV inclui a coluna Filial, o código IXC define a filial de destino e o cadastro do vendedor define a origem. Confira origem e destino na prévia; códigos ainda não mapeados ficam bloqueados para revisão. Se o CSV não incluir essa coluna, a filial atualmente aberta será usada como destino. A data usa Data ativação e a hora vem de Última atualização. Contratos já registrados não serão alterados nem duplicados.</p>
             <div class="adm-form-grid">
               <div class="adm-field adm-form-full">
                 <label for="ixc-csv-file">Relatório CSV</label>
@@ -653,6 +653,7 @@
               </div>
               <div class="adm-form-full adm-form-actions">
                 <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="ixc-import-submit" onclick="confirmarImportacaoIxc()" disabled>Importar vendas novas</button>
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="ixc-import-clear" onclick="limparImportacaoIxc()" disabled>Limpar relatório</button>
               </div>
               <div class="adm-form-full ixc-reconciliation-controls" id="ixc-reconciliation-controls" hidden>
                 <label class="tema-check ixc-reconciliation-confirm">
