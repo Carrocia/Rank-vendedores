@@ -537,6 +537,7 @@ body.adm-modal-open { overflow: hidden; }
 @media (max-width: 640px) { .adm-form-grid { grid-template-columns: 1fr; } }
 .adm-form-full { grid-column: 1 / -1; }
 #filial-vendedor-field[hidden], #filial-vendedor-escopo-hint[hidden] { display: none !important; }
+#rel-limpeza-vendedor-card[hidden] { display: none !important; }
 .adm-panel-header {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.07);

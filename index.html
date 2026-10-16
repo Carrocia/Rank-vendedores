@@ -1020,6 +1020,29 @@
               </div>
             </div>
           </div>
+          <div class="adm-form-card adm-danger-card" id="rel-limpeza-vendedor-card" hidden>
+            <div class="adm-section-title adm-subsection-title"><span class="adm-title-icon is-danger"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trash"/></svg></span>Limpar vendas de um vendedor</div>
+            <p class="adm-muted-copy">
+              Exclusivo do superadministrador. Confira o vendedor e o mês para apagar as vendas dele em todas as filiais de destino, além dos adicionais vinculados e lançamentos avulsos do período.
+            </p>
+            <div class="adm-form-grid">
+              <div class="adm-field">
+                <label for="rel-limpeza-vendedor">Vendedor</label>
+                <select id="rel-limpeza-vendedor" onchange="invalidarConferenciaExclusaoVendedor()"><option value="">Selecione um vendedor</option></select>
+              </div>
+              <div class="adm-field">
+                <label for="rel-limpeza-vendedor-mes">Mês das vendas</label>
+                <input type="month" id="rel-limpeza-vendedor-mes" onchange="invalidarConferenciaExclusaoVendedor()">
+              </div>
+              <div class="adm-field adm-field-align-end">
+                <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="conferirExclusaoVendedorMes()">Conferir registros</button>
+              </div>
+              <div class="adm-form-full adm-status-copy" id="rel-limpeza-vendedor-resumo" aria-live="polite">Selecione um vendedor e um mês para conferir.</div>
+              <div class="adm-form-full adm-form-actions">
+                <button type="button" class="adm-btn adm-btn-inline adm-btn-danger-solid" id="rel-limpeza-vendedor-excluir" disabled onclick="excluirVendasVendedorMesConferido()">Excluir vendas deste vendedor no mês</button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- ── CELEBRAÇÕES ─────────────────────────────────────── -->

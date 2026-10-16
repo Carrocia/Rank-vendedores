@@ -744,6 +744,132 @@ async function loadVendedoresTodasFiliais() {
   return _vendedoresTodasFiliais;
 }
 
+let _limpezaVendedorConferida = null;
+
+function limitesMesLimpezaVendedor(mes) {
+  const [ano, numeroMes] = String(mes || '').split('-').map(Number);
+  if (!ano || !numeroMes || numeroMes < 1 || numeroMes > 12) return null;
+  const proximoMes = numeroMes === 12 ? `${ano + 1}-01` : `${ano}-${String(numeroMes + 1).padStart(2, '0')}`;
+  return {
+    inicio: new Date(`${mes}-01T00:00:00-04:00`).toISOString(),
+    fim: new Date(`${proximoMes}-01T00:00:00-04:00`).toISOString(),
+  };
+}
+
+async function carregarVendedoresParaLimpezaSuperadmin() {
+  const card = document.getElementById('rel-limpeza-vendedor-card');
+  const select = document.getElementById('rel-limpeza-vendedor');
+  if (!card || !select || !ehSuperAdminAtual() || !window._supabase) return;
+  card.hidden = false;
+  select.replaceChildren(new Option('Selecione um vendedor', ''));
+  const { data, error } = await window._supabase
+    .from('vendedores')
+    .select('id, nome, filial_id, ativo')
+    .order('nome');
+  if (error) {
+    console.error('[carregarVendedoresParaLimpezaSuperadmin]', error);
+    showToast('Não foi possível carregar os vendedores para a limpeza.', 'error');
+    return;
+  }
+  const nomeFilial = id => (_cache.filiais || []).find(f => Number(f.id) === Number(id))?.nome || `Filial ${id}`;
+  (data || []).forEach(v => {
+    const inativo = v.ativo === false ? ' — inativo' : '';
+    select.add(new Option(`${v.nome} — ${nomeFilial(v.filial_id)}${inativo}`, String(v.id)));
+  });
+  const mes = document.getElementById('rel-limpeza-vendedor-mes');
+  if (mes && !mes.value) {
+    const agora = new Date();
+    mes.value = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+  }
+}
+
+function invalidarConferenciaExclusaoVendedor() {
+  _limpezaVendedorConferida = null;
+  const botao = document.getElementById('rel-limpeza-vendedor-excluir');
+  const resumo = document.getElementById('rel-limpeza-vendedor-resumo');
+  if (botao) botao.disabled = true;
+  if (resumo) resumo.textContent = 'Confira novamente os registros para o vendedor e mês selecionados.';
+}
+
+async function conferirExclusaoVendedorMes() {
+  if (!ehSuperAdminAtual()) { showToast('Somente o superadministrador pode excluir vendas por vendedor.', 'error'); return; }
+  const selectVendedor = document.getElementById('rel-limpeza-vendedor');
+  const vendedorId = selectVendedor?.value;
+  const mes = document.getElementById('rel-limpeza-vendedor-mes')?.value;
+  const resumo = document.getElementById('rel-limpeza-vendedor-resumo');
+  const excluir = document.getElementById('rel-limpeza-vendedor-excluir');
+  invalidarConferenciaExclusaoVendedor();
+  if (!vendedorId || !mes) { showToast('Selecione o vendedor e o mês.', 'warning'); return; }
+  const limites = limitesMesLimpezaVendedor(mes);
+  if (!limites) { showToast('Selecione um mês válido.', 'warning'); return; }
+  const nomeVendedor = selectVendedor.selectedOptions[0]?.textContent || 'vendedor';
+  if (resumo) resumo.textContent = 'Conferindo vendas em todas as filiais…';
+  try {
+    const vendas = await carregarTodasPaginas(() => window._supabase
+      .from('vendas')
+      .select('id, filial_destino_id')
+      .eq('vendedor_id', Number(vendedorId))
+      .gte('data_venda', limites.inicio)
+      .lt('data_venda', limites.fim)
+      .order('id', { ascending: true }), 'vendas para limpeza do vendedor');
+    const { count: avulsos, error } = await window._supabase
+      .from('adicionais_avulsos')
+      .select('id', { count: 'exact', head: true })
+      .eq('vendedor_id', Number(vendedorId))
+      .gte('data_venda', limites.inicio)
+      .lt('data_venda', limites.fim);
+    if (error) throw error;
+    const destinos = new Map();
+    vendas.forEach(v => destinos.set(v.filial_destino_id, (destinos.get(v.filial_destino_id) || 0) + 1));
+    const resumoDestinos = [...destinos.entries()].map(([id, quantidade]) => {
+      const nome = (_cache.filiais || []).find(f => Number(f.id) === Number(id))?.nome || `Filial ${id}`;
+      return `${nome}: ${quantidade}`;
+    }).join(' · ');
+    _limpezaVendedorConferida = {
+      vendedorId: Number(vendedorId), mes, nomeVendedor,
+      vendas: vendas.length, adicionaisAvulsos: avulsos || 0,
+    };
+    if (resumo) resumo.textContent = `${nomeVendedor}: ${vendas.length} venda(s) em ${destinos.size} filial(is)${resumoDestinos ? ` (${resumoDestinos})` : ''} e ${avulsos || 0} adicional(is) avulso(s) em ${mes}. A exclusão também remove os adicionais vinculados e pendências de conferência relacionadas.`;
+    if (excluir) excluir.disabled = vendas.length + (avulsos || 0) === 0;
+    if (!vendas.length && !(avulsos || 0)) showToast('Não há registros desse vendedor no mês selecionado.', 'warning');
+  } catch (err) {
+    console.error('[conferirExclusaoVendedorMes]', err);
+    if (resumo) resumo.textContent = 'Não foi possível consultar os registros. Verifique a conexão e as permissões do Supabase.';
+    showToast(err.message || 'Não foi possível conferir as vendas.', 'error');
+  }
+}
+
+async function excluirVendasVendedorMesConferido() {
+  const conferencia = _limpezaVendedorConferida;
+  if (!ehSuperAdminAtual()) { showToast('Somente o superadministrador pode excluir vendas por vendedor.', 'error'); return; }
+  if (!conferencia) { showToast('Confira os registros novamente antes de excluir.', 'warning'); return; }
+  const total = conferencia.vendas + conferencia.adicionaisAvulsos;
+  if (!total) { showToast('Não há registros para excluir.', 'warning'); return; }
+  const confirmado = window.confirm(`EXCLUSÃO PERMANENTE\n\nApagar ${conferencia.vendas} venda(s) de ${conferencia.nomeVendedor} em todas as filiais de destino e ${conferencia.adicionaisAvulsos} adicional(is) avulso(s) de ${conferencia.mes}? Os adicionais vinculados às vendas e as pendências de conferência também serão removidos. Esta ação não pode ser desfeita.`);
+  if (!confirmado) return;
+  const botao = document.getElementById('rel-limpeza-vendedor-excluir');
+  if (botao) { botao.disabled = true; botao.textContent = 'Excluindo…'; }
+  try {
+    const { data, error } = await window._supabase.rpc('apagar_vendas_vendedor_mes', {
+      p_vendedor_id: conferencia.vendedorId,
+      p_mes: `${conferencia.mes}-01`,
+    });
+    if (error) throw error;
+    const resultado = Array.isArray(data) ? data[0] : data;
+    _limpezaVendedorConferida = null;
+    const resumo = document.getElementById('rel-limpeza-vendedor-resumo');
+    if (resumo) resumo.textContent = `Limpeza concluída para ${conferencia.nomeVendedor} em ${conferencia.mes}: ${resultado?.vendas_apagadas ?? conferencia.vendas} venda(s), ${resultado?.adicionais_avulsos_apagados ?? conferencia.adicionaisAvulsos} adicional(is) avulso(s), adicionais vinculados e pendências relacionadas removidas.`;
+    showToast('Vendas do vendedor removidas em todas as filiais.', 'success');
+    await carregarDados();
+    if (typeof aplicarFiltrosRelatorio === 'function') await aplicarFiltrosRelatorio();
+  } catch (err) {
+    console.error('[excluirVendasVendedorMesConferido]', err);
+    showToast(err.message || 'Não foi possível excluir as vendas. Confira se a função SQL foi instalada no Supabase.', 'error');
+  } finally {
+    if (botao) { botao.textContent = 'Excluir vendas deste vendedor no mês'; botao.disabled = !_limpezaVendedorConferida; }
+  }
+}
+
 function popularSelectVendedoresTodasFiliais(vendedores) {
   const select = document.getElementById('filial-vendedor');
   if (!select) return;
@@ -2494,6 +2620,7 @@ async function adm_showPanel() {
   try {
     const vendedoresTodasFiliais = await loadVendedoresTodasFiliais();
     popularSelectVendedoresTodasFiliais(vendedoresTodasFiliais);
+    await carregarVendedoresParaLimpezaSuperadmin();
   } catch (err) {
     console.error('[adm_showPanel] vendedores por regional', err);
     showToast(err.message || 'Não foi possível carregar vendedores por regional.', 'error');
@@ -2502,6 +2629,8 @@ async function adm_showPanel() {
 
 function configurarNavegacaoAdmin() {
   const superAdmin = ehSuperAdminAtual();
+  const limpezaVendedorCard = document.getElementById('rel-limpeza-vendedor-card');
+  if (limpezaVendedorCard) limpezaVendedorCard.hidden = !superAdmin;
   const vendedoresGlobaisCard = document.getElementById('adm-vendedores-global-card');
   const vendedoresGlobaisFiltro = document.getElementById('adm-vendedores-global-filial');
   const vendedoresGlobaisBusca = document.getElementById('adm-vendedores-global-busca');
