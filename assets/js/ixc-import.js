@@ -207,7 +207,9 @@ function resolverPlanoIxc(descricao, planos) {
       .replace(/\b(enterprise|entreprise|empresarial|empresas?)\b/g, 'empresa')
       .replace(/\b(eventos?)\b/g, 'evento')
       .replace(/\b(combinado)\b/g, 'combo');
-    const ignorar = new Set(['uni', 'at', 'plano', 'internet', 'mega', 'mb', 'mbps', 'gb', 'giga', 'ded', 'atualizado']);
+    // "Uni" faz parte do nome comercial e diferencia, por exemplo,
+    // "Uni Empresas" dos planos Enterprise; não deve ser descartado.
+    const ignorar = new Set(['at', 'plano', 'internet', 'mega', 'mb', 'mbps', 'gb', 'giga', 'ded', 'atualizado']);
     return new Set(texto.split(' ').filter(token => token && !/^\d+$/.test(token) && !ignorar.has(token)));
   };
   const igualdadeDeTokens = (a, b) => a.size === b.size && [...a].every(token => b.has(token));
@@ -232,6 +234,13 @@ function resolverPlanoIxc(descricao, planos) {
   });
   if (candidatosMesmoValor.length === 1) return candidatosMesmoValor[0];
   const planosParaComparar = candidatosMesmoValor.length > 1 ? candidatosMesmoValor : mesmaVelocidade;
+
+  // Prioriza o nome do próprio plano: categoria e tipo podem trazer palavras
+  // extras que não aparecem na descrição do IXC e atrapalhar a igualdade.
+  const nomeCorrespondente = planosParaComparar.filter(plano =>
+    igualdadeDeTokens(descricaoTokens, tokens(plano.nome || ''))
+  );
+  if (nomeCorrespondente.length === 1) return nomeCorrespondente[0];
 
   // Quando só muda a ordem das palavras, compara os termos normalizados como conjunto.
   const equivalentes = planosParaComparar.filter(plano => {
