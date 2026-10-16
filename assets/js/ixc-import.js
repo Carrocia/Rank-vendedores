@@ -7,6 +7,12 @@ let _importacaoIxcEmAndamento = false;
 let _conferenciaIxcEmAndamento = false;
 let _analiseIxcEmAndamento = false;
 let _limpezaPendenciasIxcEmAndamento = false;
+let _edicaoVendaPendenteIxc = null;
+let _opcoesEdicaoVendaIxc = { filiais: [], vendedores: [], planos: [], produtos: [], adicionais: [] };
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !document.getElementById('ixc-edit-backdrop')?.hidden) fecharEdicaoVendaIxc();
+});
 
 function atualizarBotaoLimparImportacaoIxc() {
   const botao = document.getElementById('ixc-import-clear');
@@ -599,7 +605,7 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
   const ids = pendencias.map(item => Number(item.venda_id)).filter(Number.isFinite);
   const vendas = await carregarTodasPaginas(() => window._supabase
     .from('vendas_admin')
-    .select('id, numero_venda, cliente, vendedor_nome, plano_nome, valor_total, data_venda, filial_destino_id')
+    .select('*')
     .in('id', ids)
     .order('id', { ascending: true }), 'vendas pendentes de conferência IXC');
   const vendaPorId = new Map(vendas.map(venda => [String(venda.id), venda]));
@@ -620,7 +626,7 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
     const blocoSugestoes = sugestoes.length ? `<div class="ixc-pending-suggestions">
       <span>Possíveis contratos ativos na mesma filial. Confira antes de vincular:</span>
       ${sugestoes.map(sugestao => `<div class="ixc-suggestion-item">
-        <button type="button" class="adm-btn adm-btn-small ixc-suggestion-btn" data-ixc-action="vincular-sugerido" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}" data-contrato="${escapar(sugestao.contrato)}">
+        <button type="button" class="adm-btn adm-btn-small ixc-suggestion-btn" data-ixc-action="vincular-sugerido" data-id="${Number(pendencia.id)}" data-venda-id="${vendaId}" data-cliente="${escapar(venda?.cliente || 'venda')}" data-contrato="${escapar(sugestao.contrato)}">
           Usar IXC ${escapar(sugestao.contrato)} · ${escapar(sugestao.nome)} · cliente ${Math.round(sugestao.similaridadeCliente * 100)}%${sugestao.vendedorCompativel ? ' · vendedor igual' : ''}${sugestao.similaridadePlano >= 0.8 ? ' · plano parecido' : ''}
         </button>
         <details class="ixc-suggestion-details"><summary>Conferir data e valores</summary>
@@ -640,16 +646,185 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
         ${blocoSugestoes}
         <button type="button" class="adm-btn adm-btn-secondary adm-btn-small" data-ixc-action="validar" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Manter válida</button>
         <button type="button" class="adm-btn adm-btn-danger adm-btn-small" data-ixc-action="cancelar" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Confirmar cancelamento</button>
-        <button type="button" class="adm-btn adm-btn-small" data-ixc-action="vincular" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Vincular contrato</button>
+        <button type="button" class="adm-btn adm-btn-small" data-ixc-action="editar" data-id="${Number(pendencia.id)}" data-venda-id="${vendaId}" data-cliente="${escapar(venda?.cliente || 'venda')}">Editar venda</button>
       </div></td>
     </tr>`;
   }).join('');
   corpo.querySelectorAll('[data-ixc-action]:not([data-ixc-action="vincular-sugerido"])').forEach(botao => botao.addEventListener('click', () => {
+    if (botao.dataset.ixcAction === 'editar') {
+      abrirEdicaoVendaIxc(Number(botao.dataset.id), Number(botao.dataset.vendaId));
+      return;
+    }
     resolverConferenciaIxc(Number(botao.dataset.id), botao.dataset.ixcAction, botao.dataset.cliente || 'venda');
   }));
   corpo.querySelectorAll('[data-ixc-action="vincular-sugerido"]').forEach(botao => botao.addEventListener('click', () => {
-    resolverConferenciaIxc(Number(botao.dataset.id), 'vincular', botao.dataset.cliente || 'venda', botao.dataset.contrato || '');
+    abrirEdicaoVendaIxc(Number(botao.dataset.id), Number(botao.dataset.vendaId), botao.dataset.contrato || '');
   }));
+}
+
+function definirOpcoesSelectIxc(id, itens, valorAtual, rotulo, placeholder) {
+  const select = document.getElementById(id);
+  if (!select) return;
+  select.replaceChildren(new Option(placeholder, ''));
+  (itens || []).forEach(item => select.add(new Option(rotulo(item), String(item.id))));
+  if (valorAtual && ![...select.options].some(option => option.value === String(valorAtual))) {
+    select.add(new Option(`Cadastro atual (${valorAtual})`, String(valorAtual)));
+  }
+  select.value = valorAtual == null ? '' : String(valorAtual);
+}
+
+function dataHoraLocalInputIxc(valor) {
+  if (!valor) return '';
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '';
+  const local = new Date(data.getTime() - data.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function renderizarAdicionaisEdicaoIxc(adicionais = []) {
+  const lista = document.getElementById('ixc-edit-additions-list');
+  if (!lista) return;
+  const escapar = valor => escapeHtmlText(String(valor ?? ''));
+  if (!adicionais.length) {
+    lista.innerHTML = '<p class="adm-muted-copy ixc-edit-no-additions">Nenhum adicional vinculado.</p>';
+    return;
+  }
+  lista.innerHTML = adicionais.map(item => {
+    const produtoAtual = _opcoesEdicaoVendaIxc.produtos.find(p => String(p.id) === String(item.produto_adicional_id));
+    const opcoes = [..._opcoesEdicaoVendaIxc.produtos];
+    if (item.produto_adicional_id && !produtoAtual) opcoes.push({ id: item.produto_adicional_id, nome: item.produtos_adicionais?.nome || `Produto ${item.produto_adicional_id}` });
+    return `<div class="ixc-edit-addition-row">
+      <div class="adm-field"><label>Produto</label><select class="ixc-edit-addition-product"><option value="">Selecione</option>${opcoes.map(p => `<option value="${escapar(p.id)}" ${String(p.id) === String(item.produto_adicional_id) ? 'selected' : ''}>${escapar(p.nome)}</option>`).join('')}</select></div>
+      <div class="adm-field"><label>Quantidade</label><input class="ixc-edit-addition-quantity" type="number" min="1" step="1" value="${escapar(item.quantidade || 1)}"></div>
+      <div class="adm-field"><label>Valor unitário (R$)</label><input class="ixc-edit-addition-value" type="number" min="0" step="0.01" value="${escapar(Number(item.valor_unitario || 0).toFixed(2))}"></div>
+      <button type="button" class="adm-btn adm-btn-danger adm-btn-small" aria-label="Remover adicional" onclick="this.closest('.ixc-edit-addition-row').remove();atualizarListaAdicionaisEdicaoIxc()">Remover</button>
+    </div>`;
+  }).join('');
+}
+
+function atualizarListaAdicionaisEdicaoIxc() {
+  const lista = document.getElementById('ixc-edit-additions-list');
+  if (lista && !lista.querySelector('.ixc-edit-addition-row')) {
+    lista.innerHTML = '<p class="adm-muted-copy ixc-edit-no-additions">Nenhum adicional vinculado.</p>';
+  }
+}
+
+function adicionarAdicionalEdicaoIxc() {
+  const atuais = [...document.querySelectorAll('.ixc-edit-addition-row')].map(row => ({
+    produto_adicional_id: row.querySelector('.ixc-edit-addition-product')?.value || '',
+    quantidade: row.querySelector('.ixc-edit-addition-quantity')?.value || 1,
+    valor_unitario: row.querySelector('.ixc-edit-addition-value')?.value || 0,
+  }));
+  atuais.push({ produto_adicional_id: '', quantidade: 1, valor_unitario: 0 });
+  renderizarAdicionaisEdicaoIxc(atuais);
+}
+
+async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '') {
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) return;
+  const backdrop = document.getElementById('ixc-edit-backdrop');
+  try {
+    const [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult] = await Promise.all([
+      window._supabase.from('vendas_admin').select('*').eq('id', vendaId).maybeSingle(),
+      window._supabase.from('filiais').select('id, nome, ativo').order('nome'),
+      window._supabase.from('vendedores').select('id, nome, filial_id, ativo').order('nome'),
+      window._supabase.from('planos').select('*').order('nome'),
+      window._supabase.from('produtos_adicionais').select('*').order('nome'),
+      window._supabase.from('venda_adicionais').select('produto_adicional_id, quantidade, valor_unitario, produtos_adicionais(nome)').eq('venda_id', vendaId).order('id'),
+    ]);
+    for (const result of [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult]) {
+      if (result.error) throw result.error;
+    }
+    const venda = vendaResult.data;
+    if (!venda) throw new Error('A venda não foi encontrada ou sua conta não tem acesso a ela.');
+    _opcoesEdicaoVendaIxc = {
+      filiais: filiaisResult.data || [],
+      vendedores: vendedoresResult.data || [],
+      planos: planosResult.data || [],
+      produtos: produtosResult.data || [],
+      adicionais: adicionaisResult.data || [],
+    };
+    const formatarPlano = p => `${p.nome}${p.velocidade_mb ? ` · ${p.velocidade_mb} Mbps` : ''}`;
+    definirOpcoesSelectIxc('ixc-edit-vendedor', _opcoesEdicaoVendaIxc.vendedores, venda.vendedor_id, v => `${v.nome}${v.ativo === false ? ' (inativo)' : ''}`, 'Sem vendedor');
+    definirOpcoesSelectIxc('ixc-edit-plano', _opcoesEdicaoVendaIxc.planos, venda.plano_id, formatarPlano, 'Selecione o plano');
+    definirOpcoesSelectIxc('ixc-edit-origem', _opcoesEdicaoVendaIxc.filiais, venda.filial_origem_id, f => `${f.nome}${f.ativo === false ? ' (inativa)' : ''}`, 'Selecione a origem');
+    definirOpcoesSelectIxc('ixc-edit-destino', _opcoesEdicaoVendaIxc.filiais, venda.filial_destino_id, f => `${f.nome}${f.ativo === false ? ' (inativa)' : ''}`, 'Selecione o destino');
+    document.getElementById('ixc-edit-numero').value = contratoSugerido || venda.numero_venda || '';
+    document.getElementById('ixc-edit-cliente').value = venda.cliente || '';
+    document.getElementById('ixc-edit-data').value = dataHoraLocalInputIxc(venda.data_venda);
+    document.getElementById('ixc-edit-valor').value = Number(venda.valor_plano ?? venda.valor ?? 0).toFixed(2);
+    document.getElementById('ixc-edit-fora-filial').checked = venda.fora_filial === true;
+    document.getElementById('ixc-edit-observacao').value = venda.observacao || '';
+    const subtitulo = document.getElementById('ixc-edit-subtitle');
+    if (subtitulo) subtitulo.textContent = `${venda.cliente || 'Venda sem cliente'} · ${venda.vendedor_nome || 'Sem vendedor'} · ${formatarMoedaCurtaIxc(venda.valor_total || venda.valor_plano || venda.valor || 0)}. Corrija os campos necessários antes de salvar.`;
+    renderizarAdicionaisEdicaoIxc(_opcoesEdicaoVendaIxc.adicionais);
+    _edicaoVendaPendenteIxc = { pendenciaId, vendaId };
+    backdrop.hidden = false;
+    document.body.classList.add('adm-modal-open');
+    document.getElementById('ixc-edit-numero')?.focus();
+  } catch (error) {
+    console.error('[abrirEdicaoVendaIxc]', error);
+    showToast(error.message || 'Não foi possível abrir a venda para edição.', 'error');
+  }
+}
+
+function fecharEdicaoVendaIxc() {
+  const backdrop = document.getElementById('ixc-edit-backdrop');
+  if (backdrop) backdrop.hidden = true;
+  _edicaoVendaPendenteIxc = null;
+  document.body.classList.remove('adm-modal-open');
+}
+
+async function salvarEdicaoVendaIxc(vincular) {
+  const edicao = _edicaoVendaPendenteIxc;
+  if (!edicao || !window._supabase) return;
+  const numero = document.getElementById('ixc-edit-numero').value.trim();
+  const dataLocal = document.getElementById('ixc-edit-data').value;
+  const valor = Number(document.getElementById('ixc-edit-valor').value);
+  const adicionais = [...document.querySelectorAll('.ixc-edit-addition-row')].map(row => ({
+    produto_adicional_id: row.querySelector('.ixc-edit-addition-product').value,
+    quantidade: Number(row.querySelector('.ixc-edit-addition-quantity').value),
+    valor_unitario: Number(row.querySelector('.ixc-edit-addition-value').value),
+  }));
+  if (!/^\d+$/.test(numero)) { showToast('Informe um número de contrato contendo apenas números.', 'warning'); return; }
+  if (!dataLocal || !Number.isFinite(valor) || valor < 0) { showToast('Confira a data e o valor da venda.', 'warning'); return; }
+  if (adicionais.some(a => !a.produto_adicional_id || !Number.isInteger(a.quantidade) || a.quantidade < 1 || !Number.isFinite(a.valor_unitario) || a.valor_unitario < 0)) {
+    showToast('Confira produto, quantidade e valor de cada adicional.', 'warning'); return;
+  }
+  const dados = {
+    numero_venda: numero,
+    cliente: document.getElementById('ixc-edit-cliente').value.trim(),
+    vendedor_id: document.getElementById('ixc-edit-vendedor').value || null,
+    filial_origem_id: document.getElementById('ixc-edit-origem').value,
+    filial_destino_id: document.getElementById('ixc-edit-destino').value,
+    plano_id: document.getElementById('ixc-edit-plano').value,
+    data_venda: new Date(dataLocal).toISOString(),
+    valor,
+    observacao: document.getElementById('ixc-edit-observacao').value.trim(),
+    fora_filial: document.getElementById('ixc-edit-fora-filial').checked,
+  };
+  const botoes = ['ixc-edit-save', 'ixc-edit-link'].map(id => document.getElementById(id)).filter(Boolean);
+  botoes.forEach(botao => { botao.disabled = true; });
+  try {
+    const { error } = await window._supabase.rpc('editar_venda_pendente_ixc', {
+      p_pendencia_id: edicao.pendenciaId,
+      p_venda: dados,
+      p_adicionais: adicionais,
+      p_vincular: vincular,
+    });
+    if (error) throw error;
+    fecharEdicaoVendaIxc();
+    showToast(vincular ? 'Venda corrigida e contrato vinculado.' : 'Correções da venda salvas; ela continua pendente de conferência.', 'success');
+    await carregarDados();
+    await carregarPendenciasIxc();
+  } catch (error) {
+    console.error('[salvarEdicaoVendaIxc]', error);
+    const mensagem = error.code === 'PGRST202'
+      ? 'A função de edição ainda não existe no Supabase. Execute supabase/editar-venda-pendente-ixc.sql no SQL Editor.'
+      : error.message || 'Não foi possível salvar as correções da venda.';
+    showToast(mensagem, 'error');
+  } finally {
+    botoes.forEach(botao => { botao.disabled = false; });
+  }
 }
 
 async function limparPendenciasIxc() {
@@ -692,24 +867,17 @@ async function limparPendenciasIxc() {
 
 async function resolverConferenciaIxc(id, decisao, cliente, contratoSugerido = '') {
   if (!window.ADMIN_AUTENTICADO || !window._supabase) return;
-  let numeroContrato = null;
-  if (decisao === 'cancelar' && !confirm(`Confirma que a venda de ${cliente} foi cancelada? Ela será arquivada e deixará de contar nos indicadores.`)) return;
   if (decisao === 'vincular') {
-    numeroContrato = contratoSugerido
-      ? (confirm(`A comparação encontrou o contrato IXC ${contratoSugerido} como possível correspondência para ${cliente}. O nome do cliente, vendedor e plano são apenas sinais de sugestão. Confirma que este é o contrato correto?`) ? contratoSugerido : null)
-      : prompt(`Informe o número correto do contrato IXC para ${cliente}:`);
-    if (numeroContrato === null) return;
-    numeroContrato = numeroContrato.trim();
-    if (!/^\d+$/.test(numeroContrato)) {
-      showToast('Informe um número de contrato IXC válido.', 'warning');
-      return;
-    }
+    const pendencia = _pendenciasIxcCarregadas.find(item => Number(item.id) === Number(id));
+    if (pendencia) await abrirEdicaoVendaIxc(Number(id), Number(pendencia.venda_id), contratoSugerido);
+    return;
   }
+  if (decisao === 'cancelar' && !confirm(`Confirma que a venda de ${cliente} foi cancelada? Ela será arquivada e deixará de contar nos indicadores.`)) return;
   try {
     const { error } = await window._supabase.rpc('resolver_conferencia_venda_ixc', {
       p_pendencia_id: id,
       p_decisao: decisao,
-      p_numero_contrato: numeroContrato,
+      p_numero_contrato: null,
     });
     if (error) throw error;
     showToast(decisao === 'validar' ? 'Venda mantida como válida.' : decisao === 'cancelar' ? 'Cancelamento registrado e venda arquivada.' : 'Contrato vinculado à venda.', 'success');

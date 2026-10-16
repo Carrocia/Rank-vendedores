@@ -680,6 +680,39 @@
               </table>
             </div>
           </div>
+          <div class="ixc-edit-backdrop" id="ixc-edit-backdrop" hidden onclick="if(event.target===this)fecharEdicaoVendaIxc()">
+            <section class="ixc-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="ixc-edit-title">
+              <header class="ixc-edit-header">
+                <div>
+                  <span class="adm-vendedor-cadastro-hint">CORREÇÃO DE CADASTRO</span>
+                  <h2 id="ixc-edit-title">Editar venda pendente</h2>
+                  <p id="ixc-edit-subtitle">Corrija os dados da venda e confira antes de vincular ao IXC.</p>
+                </div>
+                <button type="button" class="ixc-edit-close" aria-label="Fechar edição" onclick="fecharEdicaoVendaIxc()">×</button>
+              </header>
+              <div class="ixc-edit-grid">
+                <div class="adm-field"><label for="ixc-edit-numero">Número do contrato IXC</label><input id="ixc-edit-numero" inputmode="numeric" autocomplete="off"></div>
+                <div class="adm-field"><label for="ixc-edit-cliente">Cliente</label><input id="ixc-edit-cliente" maxlength="200"></div>
+                <div class="adm-field"><label for="ixc-edit-vendedor">Vendedor</label><select id="ixc-edit-vendedor"></select></div>
+                <div class="adm-field"><label for="ixc-edit-plano">Plano</label><select id="ixc-edit-plano"></select></div>
+                <div class="adm-field"><label for="ixc-edit-origem">Filial de origem</label><select id="ixc-edit-origem"></select></div>
+                <div class="adm-field"><label for="ixc-edit-destino">Filial de destino</label><select id="ixc-edit-destino"></select></div>
+                <div class="adm-field"><label for="ixc-edit-data">Data e hora</label><input id="ixc-edit-data" type="datetime-local"></div>
+                <div class="adm-field"><label for="ixc-edit-valor">Valor do plano (R$)</label><input id="ixc-edit-valor" type="number" min="0" step="0.01"></div>
+                <label class="ixc-edit-checkbox"><input id="ixc-edit-fora-filial" type="checkbox"><span>Venda realizada fora da filial de origem</span></label>
+                <div class="adm-field ixc-edit-observacao"><label for="ixc-edit-observacao">Observação</label><textarea id="ixc-edit-observacao" rows="3"></textarea></div>
+                <div class="ixc-edit-additions">
+                  <div class="ixc-edit-additions-heading"><strong>Adicionais da venda</strong><button type="button" class="adm-btn adm-btn-secondary adm-btn-small" onclick="adicionarAdicionalEdicaoIxc()">Adicionar item</button></div>
+                  <div id="ixc-edit-additions-list"></div>
+                </div>
+              </div>
+              <footer class="ixc-edit-actions">
+                <button type="button" class="adm-btn adm-btn-secondary" onclick="fecharEdicaoVendaIxc()">Cancelar</button>
+                <button type="button" class="adm-btn adm-btn-secondary" id="ixc-edit-save" onclick="salvarEdicaoVendaIxc(false)">Salvar correções</button>
+                <button type="button" class="adm-btn adm-btn-primary" id="ixc-edit-link" onclick="salvarEdicaoVendaIxc(true)">Salvar e vincular contrato</button>
+              </footer>
+            </section>
+          </div>
         </section>
 
         <!-- ── ADICIONAIS ──────────────────────────────────────── -->
