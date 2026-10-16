@@ -834,6 +834,10 @@ body.adm-modal-open { overflow: hidden; }
   background: rgba(var(--accent2-rgb),0.045); color: var(--text-muted); font-size: 0.72rem;
 }
 .ixc-suggestion-btn { width: auto; max-width: 100%; margin: 0; padding: 7px 9px; font-size: 0.68rem; text-align: left; white-space: normal; }
+.ixc-suggestion-item { display: grid; justify-items: start; gap: 4px; }
+.ixc-suggestion-details { display: grid; gap: 3px; padding: 0 4px; font-size: 0.68rem; }
+.ixc-suggestion-details summary { cursor: pointer; color: var(--accent2); }
+.ixc-suggestion-details span { display: block; }
 
 @media (max-width: 700px) {
   .ixc-reconciliation-controls {

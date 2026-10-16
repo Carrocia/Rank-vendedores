@@ -439,6 +439,18 @@ function similaridadeTextoIxc(a, b) {
   return Math.max(dice, jaccard);
 }
 
+function formatarDataCurtaIxc(valor) {
+  if (!valor) return '—';
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? '—' : data.toLocaleDateString('pt-BR', { timeZone: 'America/Manaus' });
+}
+
+function formatarMoedaCurtaIxc(valor) {
+  if (valor == null || String(valor).trim() === '') return '—';
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? `R$ ${numero.toFixed(2).replace('.', ',')}` : '—';
+}
+
 function sugerirContratosIxc(venda, relatorioAtivo = []) {
   const nomeCliente = normalizarTextoIxc(venda?.cliente);
   const filialId = String(venda?.filial_destino_id ?? '');
@@ -466,6 +478,8 @@ function sugerirContratosIxc(venda, relatorioAtivo = []) {
         contrato: String(linha.contrato).trim(),
         cliente: linha.cliente,
         nome: linha.plano?.nome || linha.descricaoPlano,
+        dataVenda: linha.dataVenda || linha.dataAtivacao,
+        valor: linha.valor ?? obterValorExplicitoRelatorioIxc(linha.descricaoPlano),
         similaridadeCliente,
         vendedorCompativel,
         similaridadePlano,
@@ -574,9 +588,15 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
     const sugestoes = venda ? sugerirContratosIxc(venda, relatorioAtivo) : [];
     const blocoSugestoes = sugestoes.length ? `<div class="ixc-pending-suggestions">
       <span>Possíveis contratos ativos na mesma filial. Confira antes de vincular:</span>
-      ${sugestoes.map(sugestao => `<button type="button" class="adm-btn adm-btn-small ixc-suggestion-btn" data-ixc-action="vincular-sugerido" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}" data-contrato="${escapar(sugestao.contrato)}">
-        Usar IXC ${escapar(sugestao.contrato)} · ${escapar(sugestao.nome)} · cliente ${Math.round(sugestao.similaridadeCliente * 100)}%${sugestao.vendedorCompativel ? ' · vendedor igual' : ''}${sugestao.similaridadePlano >= 0.8 ? ' · plano parecido' : ''}
-      </button>`).join('')}
+      ${sugestoes.map(sugestao => `<div class="ixc-suggestion-item">
+        <button type="button" class="adm-btn adm-btn-small ixc-suggestion-btn" data-ixc-action="vincular-sugerido" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}" data-contrato="${escapar(sugestao.contrato)}">
+          Usar IXC ${escapar(sugestao.contrato)} · ${escapar(sugestao.nome)} · cliente ${Math.round(sugestao.similaridadeCliente * 100)}%${sugestao.vendedorCompativel ? ' · vendedor igual' : ''}${sugestao.similaridadePlano >= 0.8 ? ' · plano parecido' : ''}
+        </button>
+        <details class="ixc-suggestion-details"><summary>Conferir data e valores</summary>
+          <span>Relatório ativo: ${escapar(formatarDataCurtaIxc(sugestao.dataVenda))} · plano ${escapar(formatarMoedaCurtaIxc(sugestao.valor))}.</span>
+          <span>Venda cadastrada: ${escapar(formatarDataCurtaIxc(venda?.data_venda))} · total ${escapar(formatarMoedaCurtaIxc(venda?.valor_total))}, que pode incluir adicionais.</span>
+        </details>
+      </div>`).join('')}
     </div>` : '';
     return `<tr>
       <td>${escapar(formatarData(venda?.data_venda))}</td>
