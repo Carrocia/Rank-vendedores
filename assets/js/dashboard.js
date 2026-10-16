@@ -18,13 +18,11 @@ function computeRitmo(pct) {
 // individuais reais (meta_m1/m2/m3 pra interno, meta_vendas pra
 // externo — os mesmos campos de detectarConquistasIndividuais/
 // renderConfigMetas):
-//  - ringTier: nível visual do ANEL — "liga" a partir de 60% do
-//    caminho até cada meta (dá o feedback antes de bater 100%).
 //  - badgeTier: a maior meta já atingida.
 //  - progressPct: progresso em direção à próxima meta; após M1, continua
 //    calculado sobre M1 e pode passar de 100%.
 function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesPorId) {
-  const vazio = { ringTier: null, badgeTier: null, progressPct: null };
+  const vazio = { badgeTier: null, progressPct: null };
   const linha = (metasIndividuais || []).find(m => m.vendedor_id === vendedorId);
   if (!linha) return vazio;
   const vendasMes = Number(vendasMesPorId[vendedorId] || 0);
@@ -39,29 +37,36 @@ function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesP
       .sort((a, b) => a.meta - b.meta); // metas válidas em ordem de alcance
     if (!tiers.length) return vazio;
 
-    let badgeTier = null, ringTier = null;
+    let badgeTier = null;
     tiers.forEach(t => {
       if (vendasMes >= t.meta) badgeTier = t;             // meta batida de verdade (100%)
-      if (vendasMes >= t.meta * 0.6) ringTier = t.tier;    // anel liga a partir de 60%
     });
 
     // A porcentagem acompanha a próxima meta até M1. Depois de M1,
     // continua usando M1 como referência e pode ultrapassar 100%.
     const proximaMeta = tiers.find(t => vendasMes < t.meta) || tiers[tiers.length - 1];
     const progressPct = Math.round((vendasMes / proximaMeta.meta) * 100);
-    return { ringTier, badgeTier, progressPct };
+    return { badgeTier, progressPct };
   }
 
-  // Externo: só uma meta (sem níveis) — o anel liga a partir de 60%
-  // do caminho até ela; o selo só aparece quando bate de verdade.
+  // Externo: mantém a meta única e seu selo textual ao atingir 100%.
   if (!linha.meta_vendas) return vazio;
   const bateu = vendasMes >= linha.meta_vendas;
-  const proximo = vendasMes >= linha.meta_vendas * 0.6;
   return {
-    ringTier: bateu ? 'meta' : (proximo ? 'meta' : null),
     badgeTier: bateu ? { tier: 'meta', label: 'Meta' } : null,
   };
 }
+
+const PODIUM_FRAME_ASSETS = {
+  1: 'assets/images/ranking/moldura-1-lugar.png',
+  2: 'assets/images/ranking/moldura-2-lugar.png',
+  3: 'assets/images/ranking/moldura-3-lugar.png',
+};
+const PODIUM_TIER_ASSETS = {
+  m1: 'assets/images/ranking/meta-m1.png',
+  m2: 'assets/images/ranking/meta-m2.png',
+  m3: 'assets/images/ranking/meta-m3.png',
+};
 
 // mode: 'semanal' mostra vendas + meta + %  |  'mensal' mostra so % + barra + ritmo
 function renderPodium(containerId, entries, options = {}) {
@@ -83,19 +88,16 @@ function renderPodium(containerId, entries, options = {}) {
       ? `<img class="podium-photo" src="${photo}" alt="${nomeSeguro}">`
       : `<div class="podium-photo podium-photo-fallback" aria-label="${nomeSeguro}">${escapeHtmlText(String(nome || '?').trim().charAt(0).toUpperCase())}</div>`;
     const pctBase = e.meta ? Math.round((e.vendas / e.meta) * 100) : 0;
-    const crownHTML = style.crown
-      ? '<span class="crown" aria-hidden="true">👑</span><span class="sparkle s1" aria-hidden="true">✨</span><span class="sparkle s2" aria-hidden="true">✨</span>'
-      : '';
-
-    const tiers = metasIndividuais ? calcularTiersIndividuais(e.id, e.tipo, metasIndividuais, vendasMesPorId) : { ringTier: null, badgeTier: null, progressPct: null };
+    const tiers = metasIndividuais ? calcularTiersIndividuais(e.id, e.tipo, metasIndividuais, vendasMesPorId) : { badgeTier: null, progressPct: null };
     const pct = mode === 'mensal' && e.tipo === 'interno' && tiers.progressPct !== null
       ? tiers.progressPct
       : Math.min(100, pctBase);
-    const tierAttr = tiers.ringTier || '';
     // Só UM selo — a maior meta já batida (M3 sozinha conta, assim como M2 e M1).
     const badgesHTML = tiers.badgeTier
       ? `<div class="podium-tier-badges">
-          <span class="podium-tier-badge tier-${tiers.badgeTier.tier}">${tiers.badgeTier.label}</span>
+          ${PODIUM_TIER_ASSETS[tiers.badgeTier.tier]
+            ? `<img class="podium-tier-badge-image" src="${PODIUM_TIER_ASSETS[tiers.badgeTier.tier]}" alt="Meta ${tiers.badgeTier.label} atingida" loading="lazy">`
+            : `<span class="podium-tier-badge">${tiers.badgeTier.label}</span>`}
         </div>`
       : '';
 
@@ -120,9 +122,9 @@ function renderPodium(containerId, entries, options = {}) {
       : `<strong>${nomeSeguro}</strong>${tooltipMeta}`;
     return `<div class="podium-stand" data-rank="${rank}" style="--rank-color:${style.color};--rank-color-dark:${style.dark};--rank-glow:${style.glow};--gold-c:#ffc94d;">
       <div class="podium-tooltip">${tooltipContent}</div>
-      <div class="podium-photo-wrap" data-tier="${tierAttr}">
-        ${crownHTML}
+      <div class="podium-photo-wrap">
         ${avatarHTML}
+        <img class="podium-rank-frame" src="${PODIUM_FRAME_ASSETS[rank]}" alt="" aria-hidden="true" loading="lazy">
         ${badgesHTML}
       </div>
       <span class="podium-name" style="margin-bottom:6px;">${nomeSeguro}</span>
