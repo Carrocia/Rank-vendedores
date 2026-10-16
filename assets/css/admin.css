@@ -255,6 +255,20 @@ body.adm-modal-open { overflow: hidden; }
 .custom-select-option.selected .csopt-price { color: #d6cfff; }
 .custom-select-panel::-webkit-scrollbar { width: 8px; }
 .custom-select-panel::-webkit-scrollbar-thumb { background: rgba(var(--accent2-rgb),0.3); border-radius: 8px; }
+.custom-select-search-wrap {
+  position: sticky; top: -6px; z-index: 1; display: flex; align-items: center; gap: 8px;
+  padding: 8px; margin: -6px -6px 4px; background: #14151f;
+  border-bottom: 1px solid rgba(var(--accent2-rgb),0.18);
+}
+.custom-select-search {
+  min-width: 0; flex: 1; padding: 9px 11px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
+  color: var(--text); font: inherit; font-size: 0.78rem; outline: none;
+}
+.custom-select-search:focus { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(var(--accent2-rgb),0.14); }
+.custom-select-result-count { flex-shrink: 0; color: var(--text-muted); font-size: 0.68rem; white-space: nowrap; }
+.custom-select-no-results { padding: 14px 10px; color: var(--text-muted); font-size: 0.78rem; text-align: center; }
+.custom-select-option[hidden], .custom-select-group[hidden], .custom-select-no-results[hidden] { display: none; }
 
 #filial-origem {
   background-color: rgba(255,201,77,0.05);

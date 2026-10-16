@@ -1319,14 +1319,15 @@ function contarPlanosVendidos(vendas = []) {
   return contagem;
 }
 
-function montarGruposSelectPlanos(planos, categorias, contagem, filialNome = '') {
+function montarGruposSelectPlanos(planos, categorias, contagem) {
   const categoriasPorId = new Map((categorias || []).map(c => [String(c.id), c.nome]));
   const ativos = (planos || []).filter(p => p.ativo !== false);
   const gruposNormais = {};
   ativos.forEach(plano => {
     const grupo = categoriasPorId.get(String(plano.categoria_id)) || 'Sem categoria';
     if (!gruposNormais[grupo]) gruposNormais[grupo] = [];
-    gruposNormais[grupo].push(plano);
+    const vendasNoMes = contagem.get(String(plano.id)) || 0;
+    gruposNormais[grupo].push({ ...plano, ...(vendasNoMes ? { vendasNoMes } : {}) });
   });
 
   const ordenarVelocidade = lista => lista.sort((a, b) => {
@@ -1336,19 +1337,7 @@ function montarGruposSelectPlanos(planos, categorias, contagem, filialNome = '')
   });
   Object.values(gruposNormais).forEach(ordenarVelocidade);
 
-  const maisVendidos = ativos
-    .filter(plano => (contagem.get(String(plano.id)) || 0) > 0)
-    .sort((a, b) => (contagem.get(String(b.id)) || 0) - (contagem.get(String(a.id)) || 0)
-      || String(a.nome).localeCompare(String(b.nome), 'pt-BR')
-      || Number(a.velocidade_mb) - Number(b.velocidade_mb))
-    .slice(0, 5)
-    .map(plano => ({ ...plano, vendasNoMes: contagem.get(String(plano.id)) || 0 }));
-
   const grupos = {};
-  if (maisVendidos.length) {
-    const nomeFilial = String(filialNome || '').trim();
-    grupos[nomeFilial ? `Mais vendidos — ${nomeFilial}` : 'Mais vendidos'] = maisVendidos;
-  }
   Object.entries(gruposNormais).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
     .forEach(([nome, lista]) => { grupos[nome] = lista; });
   return grupos;
@@ -1370,15 +1359,13 @@ function popularSelectPlanos(planos, categorias = _cache.categoriasPlanos || [])
   const filialIdAtual = Number(window.FILIAL_ATUAL_ID);
   const vendasDaFilial = [...(_cache.vendasMes || []), ...(_cache.vendasFiliais || [])];
   const contagemAtual = contarPlanosVendidos(vendasDaFilial);
-  const filialAtualNome = (_cache.filiais || []).find(f => Number(f.id) === filialIdAtual)?.nome || '';
-  const gruposAtuais = montarGruposSelectPlanos(planos, categorias, contagemAtual, filialAtualNome);
+  const gruposAtuais = montarGruposSelectPlanos(planos, categorias, contagemAtual);
 
   // Nova Venda segue a filial de destino escolhida (quando houver).
   const destinoSelecionado = Number(document.getElementById('venda-destino')?.value || filialIdAtual);
-  const filialDestinoNome = (_cache.filiais || []).find(f => Number(f.id) === destinoSelecionado)?.nome || filialAtualNome;
   const gruposNovaVenda = destinoSelecionado === filialIdAtual
     ? gruposAtuais
-    : montarGruposSelectPlanos(planos, categorias, _maisVendidosCache.get(String(destinoSelecionado)) || new Map(), filialDestinoNome);
+    : montarGruposSelectPlanos(planos, categorias, _maisVendidosCache.get(String(destinoSelecionado)) || new Map());
 
   renderSelectPlanos('venda-plano', gruposNovaVenda);
   // A venda recebida de outra filial sempre é contabilizada para a filial aberta.
@@ -1392,11 +1379,9 @@ async function atualizarMaisVendidosDaFilial(filialId) {
   const filialAtualId = Number(window.FILIAL_ATUAL_ID);
   const planos = _cache.planos || [];
   const categorias = _cache.categoriasPlanos || [];
-  const nomeFilial = (_cache.filiais || []).find(f => Number(f.id) === id)?.nome || '';
-
   if (id === filialAtualId) {
     const contagem = contarPlanosVendidos([...(_cache.vendasMes || []), ...(_cache.vendasFiliais || [])]);
-    renderSelectPlanos('venda-plano', montarGruposSelectPlanos(planos, categorias, contagem, nomeFilial));
+    renderSelectPlanos('venda-plano', montarGruposSelectPlanos(planos, categorias, contagem));
     return;
   }
 
@@ -1425,7 +1410,7 @@ async function atualizarMaisVendidosDaFilial(filialId) {
 
   // Evita uma consulta lenta trocar a lista depois que o usuário já escolheu outra filial.
   if (Number(document.getElementById('venda-destino')?.value || filialAtualId) !== id) return;
-  renderSelectPlanos('venda-plano', montarGruposSelectPlanos(planos, categorias, contagem, nomeFilial));
+  renderSelectPlanos('venda-plano', montarGruposSelectPlanos(planos, categorias, contagem));
 }
 
 function renderTabelaPlanos(planos, categorias = _cache.categoriasPlanos || []) {
@@ -1844,17 +1829,27 @@ function preencherValorAdicional() {
 function buildCustomSelectPanel(selectId, grupos) {
   const panel = document.getElementById(selectId + '-panel');
   if (!panel) return;
-  panel.innerHTML = Object.entries(grupos).map(([g, ps]) => `
-    <div class="custom-select-group-label">${escapeHtmlText(g)}</div>
-    ${ps.map(p => {
+  const planos = Object.values(grupos).flat();
+  panel.innerHTML = `
+    <div class="custom-select-search-wrap">
+      <input type="search" class="custom-select-search" placeholder="Buscar plano, velocidade ou preço…" aria-label="Buscar plano por nome, velocidade ou preço" autocomplete="off">
+      <span class="custom-select-result-count" aria-live="polite">${planos.length} planos</span>
+    </div>
+    <div class="custom-select-no-results" hidden>Nenhum plano encontrado. Tente outro termo.</div>
+    ${Object.entries(grupos).map(([g, ps]) => `
+      <div class="custom-select-group">
+        <div class="custom-select-group-label">${escapeHtmlText(g)}</div>
+        ${ps.map(p => {
       const value = `${p.id}|${p.valor}`;
       const label = `${p.nome} ${p.velocidade_mb} Mbps${p.vendasNoMes ? ` — ${p.vendasNoMes} venda${p.vendasNoMes === 1 ? '' : 's'} no mês` : ''}`;
       const priceLabel = 'R$ ' + Number(p.valor).toFixed(2).replace('.', ',');
-      return `<div class="custom-select-option" data-value="${escapeHtmlText(value)}" data-label="${escapeHtmlText(`${label} — ${priceLabel}`)}">
+      const busca = `${g} ${p.nome} ${p.velocidade_mb} Mbps ${p.valor} ${priceLabel}`;
+      return `<div class="custom-select-option" data-value="${escapeHtmlText(value)}" data-label="${escapeHtmlText(`${label} — ${priceLabel}`)}" data-search="${escapeHtmlText(busca)}">
         <span>${escapeHtmlText(label)}</span><span class="csopt-price">${escapeHtmlText(priceLabel)}</span>
       </div>`;
-    }).join('')}
-  `).join('');
+        }).join('')}
+      </div>
+    `).join('')}`;
   // garante que o botão volte a mostrar o placeholder quando os
   // planos são recarregados (ex.: depois de registrar uma venda)
   const trigger = document.getElementById(selectId + '-trigger');
@@ -1906,12 +1901,41 @@ document.addEventListener('click', (e) => {
       const abrirAcima = espacoAbaixo < 260 && espacoAcima > espacoAbaixo;
       wrap.classList.toggle('opens-up', abrirAcima);
       wrap.style.setProperty('--custom-select-max-height', `${Math.max(120, Math.min(300, abrirAcima ? espacoAcima : espacoAbaixo) - 12)}px`);
+      const busca = wrap.querySelector('.custom-select-search');
+      if (busca) {
+        busca.value = '';
+        busca.dispatchEvent(new Event('input', { bubbles: true }));
+        setTimeout(() => busca.focus(), 0);
+      }
     }
     return;
   }
   document.querySelectorAll('.custom-select.open').forEach(wrap => {
     if (!wrap.contains(e.target)) wrap.classList.remove('open');
   });
+});
+
+document.addEventListener('input', event => {
+  const busca = event.target.closest('.custom-select-search');
+  if (!busca) return;
+  const panel = busca.closest('.custom-select-panel');
+  const termo = busca.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+  let encontrados = 0;
+  panel.querySelectorAll('.custom-select-group').forEach(grupo => {
+    let visiveisNoGrupo = 0;
+    grupo.querySelectorAll('.custom-select-option').forEach(opcao => {
+      const texto = String(opcao.dataset.search || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+      const visivel = !termo || texto.includes(termo);
+      opcao.hidden = !visivel;
+      if (visivel) visiveisNoGrupo++;
+    });
+    grupo.hidden = visiveisNoGrupo === 0;
+    encontrados += visiveisNoGrupo;
+  });
+  const contador = panel.querySelector('.custom-select-result-count');
+  const vazio = panel.querySelector('.custom-select-no-results');
+  if (contador) contador.textContent = `${encontrados} plano${encontrados === 1 ? '' : 's'}`;
+  if (vazio) vazio.hidden = encontrados > 0;
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') document.querySelectorAll('.custom-select.open').forEach(w => w.classList.remove('open'));
