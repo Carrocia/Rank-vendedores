@@ -1,6 +1,7 @@
 // Importação controlada de contratos ativos exportados do IXC em CSV.
 // A coluna Filial define o destino quando presente; a origem vem do cadastro do vendedor.
 let _linhasImportacaoIxc = [];
+let _relatorioIxcParaSugestoes = [];
 let _importacaoIxcEmAndamento = false;
 let _conferenciaIxcEmAndamento = false;
 let _analiseIxcEmAndamento = false;
@@ -21,6 +22,7 @@ function limparImportacaoIxc() {
   if (!window.confirm('Limpar o arquivo e a prévia deste relatório? Vendas já gravadas e pendências de conferência não serão apagadas.')) return;
 
   _linhasImportacaoIxc = [];
+  _relatorioIxcParaSugestoes = [];
   const input = document.getElementById('ixc-csv-file');
   const resumo = document.getElementById('ixc-import-summary');
   const preview = document.getElementById('ixc-import-preview');
@@ -40,6 +42,7 @@ function limparImportacaoIxc() {
   if (status) status.textContent = '';
   atualizarBotaoConferenciaIxc();
   atualizarBotaoLimparImportacaoIxc();
+  carregarPendenciasIxc([]);
   showToast('Relatório removido da tela. Vendas gravadas e pendências foram mantidas.', 'success');
 }
 
@@ -410,6 +413,70 @@ function atualizarBotaoConferenciaIxc() {
   atualizarBotaoLimparImportacaoIxc();
 }
 
+function similaridadeTextoIxc(a, b) {
+  const textoA = normalizarTextoIxc(a);
+  const textoB = normalizarTextoIxc(b);
+  if (!textoA || !textoB) return 0;
+  if (textoA === textoB) return 1;
+
+  const trigramas = texto => {
+    const acolchoado = `  ${texto} `;
+    const conjunto = new Set();
+    for (let i = 0; i <= acolchoado.length - 3; i++) conjunto.add(acolchoado.slice(i, i + 3));
+    return conjunto;
+  };
+  const trigramaA = trigramas(textoA);
+  const trigramaB = trigramas(textoB);
+  let comuns = 0;
+  trigramaA.forEach(item => { if (trigramaB.has(item)) comuns++; });
+  const dice = (2 * comuns) / (trigramaA.size + trigramaB.size);
+
+  const tokensA = new Set(textoA.split(' ').filter(token => token.length > 1));
+  const tokensB = new Set(textoB.split(' ').filter(token => token.length > 1));
+  let tokensComuns = 0;
+  tokensA.forEach(token => { if (tokensB.has(token)) tokensComuns++; });
+  const jaccard = tokensComuns / Math.max(1, tokensA.size + tokensB.size - tokensComuns);
+  return Math.max(dice, jaccard);
+}
+
+function sugerirContratosIxc(venda, relatorioAtivo = []) {
+  const nomeCliente = normalizarTextoIxc(venda?.cliente);
+  const filialId = String(venda?.filial_destino_id ?? '');
+  if (!nomeCliente || !filialId) return [];
+  const vendedor = normalizarTextoIxc(venda?.vendedor_nome);
+  const plano = normalizarTextoIxc(venda?.plano_nome);
+
+  return (relatorioAtivo || [])
+    .filter(linha => normalizarTextoIxc(linha.status) === 'ativo'
+      && String(linha.filialDestinoId ?? '') === filialId
+      && String(linha.contrato || '').trim() !== String(venda.numero_venda || '').trim()
+      && !linha.duplicada
+      && !linha.importada
+      && /^\d+$/.test(String(linha.contrato || '').trim()))
+    .map(linha => {
+      const similaridadeCliente = similaridadeTextoIxc(venda.cliente, linha.cliente);
+      const vendedorCompativel = Boolean(vendedor && linha.vendedor?.nome
+        && vendedor === normalizarTextoIxc(linha.vendedor.nome));
+      const similaridadePlano = plano && linha.plano?.nome
+        ? similaridadeTextoIxc(venda.plano_nome, linha.plano.nome)
+        : 0;
+      const sinaisApoio = vendedorCompativel || similaridadePlano >= 0.8;
+      if (similaridadeCliente < 0.82 || !sinaisApoio) return null;
+      return {
+        contrato: String(linha.contrato).trim(),
+        cliente: linha.cliente,
+        nome: linha.plano?.nome || linha.descricaoPlano,
+        similaridadeCliente,
+        vendedorCompativel,
+        similaridadePlano,
+        pontuacao: similaridadeCliente * 0.76 + (vendedorCompativel ? 0.14 : 0) + similaridadePlano * 0.10,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.pontuacao - a.pontuacao)
+    .slice(0, 3);
+}
+
 async function reconciliarRelatorioIxc() {
   const confirmacao = document.getElementById('ixc-reconciliation-complete');
   const botao = document.getElementById('ixc-reconciliation-submit');
@@ -446,7 +513,8 @@ async function reconciliarRelatorioIxc() {
     const total = Number(data || 0);
     if (status) status.textContent = `Conferência concluída. ${total} venda(s) pendente(s) nova(s) ou revisitada(s).`;
     showToast(`Conferência concluída: ${total} venda(s) aguardando revisão.`, 'success');
-    await carregarPendenciasIxc();
+    _relatorioIxcParaSugestoes = [..._linhasImportacaoIxc];
+    await carregarPendenciasIxc(_relatorioIxcParaSugestoes);
   } catch (error) {
     console.error('[reconciliarRelatorioIxc]', error);
     const mensagem = error.code === 'PGRST202'
@@ -462,7 +530,7 @@ async function reconciliarRelatorioIxc() {
   }
 }
 
-async function carregarPendenciasIxc() {
+async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes) {
   const corpo = document.getElementById('ixc-pending-body');
   if (!corpo || !window.ADMIN_AUTENTICADO || !window._supabase) return;
   corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Carregando vendas pendentes…</td></tr>';
@@ -503,6 +571,13 @@ async function carregarPendenciasIxc() {
     const vendaId = Number(pendencia.venda_id);
     const filialNome = filialPorId.get(String(pendencia.filial_id)) || '—';
     const valor = venda?.valor_total == null ? '—' : `R$ ${Number(venda.valor_total).toFixed(2).replace('.', ',')}`;
+    const sugestoes = venda ? sugerirContratosIxc(venda, relatorioAtivo) : [];
+    const blocoSugestoes = sugestoes.length ? `<div class="ixc-pending-suggestions">
+      <span>Possíveis contratos ativos na mesma filial. Confira antes de vincular:</span>
+      ${sugestoes.map(sugestao => `<button type="button" class="adm-btn adm-btn-small ixc-suggestion-btn" data-ixc-action="vincular-sugerido" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}" data-contrato="${escapar(sugestao.contrato)}">
+        Usar IXC ${escapar(sugestao.contrato)} · ${escapar(sugestao.nome)} · cliente ${Math.round(sugestao.similaridadeCliente * 100)}%${sugestao.vendedorCompativel ? ' · vendedor igual' : ''}${sugestao.similaridadePlano >= 0.8 ? ' · plano parecido' : ''}
+      </button>`).join('')}
+    </div>` : '';
     return `<tr>
       <td>${escapar(formatarData(venda?.data_venda))}</td>
       <td>${escapar(venda?.numero_venda || pendencia.numero_venda)}</td>
@@ -511,23 +586,29 @@ async function carregarPendenciasIxc() {
       <td>${escapar(filialNome)}</td>
       <td>${escapar(valor)}</td>
       <td><div class="ixc-pending-actions">
+        ${blocoSugestoes}
         <button type="button" class="adm-btn adm-btn-secondary adm-btn-small" data-ixc-action="validar" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Manter válida</button>
         <button type="button" class="adm-btn adm-btn-danger adm-btn-small" data-ixc-action="cancelar" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Confirmar cancelamento</button>
         <button type="button" class="adm-btn adm-btn-small" data-ixc-action="vincular" data-id="${Number(pendencia.id)}" data-cliente="${escapar(venda?.cliente || 'venda')}">Vincular contrato</button>
       </div></td>
     </tr>`;
   }).join('');
-  corpo.querySelectorAll('[data-ixc-action]').forEach(botao => botao.addEventListener('click', () => {
+  corpo.querySelectorAll('[data-ixc-action]:not([data-ixc-action="vincular-sugerido"])').forEach(botao => botao.addEventListener('click', () => {
     resolverConferenciaIxc(Number(botao.dataset.id), botao.dataset.ixcAction, botao.dataset.cliente || 'venda');
+  }));
+  corpo.querySelectorAll('[data-ixc-action="vincular-sugerido"]').forEach(botao => botao.addEventListener('click', () => {
+    resolverConferenciaIxc(Number(botao.dataset.id), 'vincular', botao.dataset.cliente || 'venda', botao.dataset.contrato || '');
   }));
 }
 
-async function resolverConferenciaIxc(id, decisao, cliente) {
+async function resolverConferenciaIxc(id, decisao, cliente, contratoSugerido = '') {
   if (!window.ADMIN_AUTENTICADO || !window._supabase) return;
   let numeroContrato = null;
   if (decisao === 'cancelar' && !confirm(`Confirma que a venda de ${cliente} foi cancelada? Ela será arquivada e deixará de contar nos indicadores.`)) return;
   if (decisao === 'vincular') {
-    numeroContrato = prompt(`Informe o número correto do contrato IXC para ${cliente}:`);
+    numeroContrato = contratoSugerido
+      ? (confirm(`A comparação encontrou o contrato IXC ${contratoSugerido} como possível correspondência para ${cliente}. O nome do cliente, vendedor e plano são apenas sinais de sugestão. Confirma que este é o contrato correto?`) ? contratoSugerido : null)
+      : prompt(`Informe o número correto do contrato IXC para ${cliente}:`);
     if (numeroContrato === null) return;
     numeroContrato = numeroContrato.trim();
     if (!/^\d+$/.test(numeroContrato)) {
@@ -560,6 +641,7 @@ async function analisarImportacaoIxc(event) {
   const checkboxConferencia = document.getElementById('ixc-reconciliation-complete');
   const statusConferencia = document.getElementById('ixc-reconciliation-status');
   _linhasImportacaoIxc = [];
+  _relatorioIxcParaSugestoes = [];
   if (checkboxConferencia) checkboxConferencia.checked = false;
   if (statusConferencia) statusConferencia.textContent = '';
   atualizarBotaoConferenciaIxc();
@@ -594,6 +676,9 @@ async function analisarImportacaoIxc(event) {
     const vistosNoArquivo = new Set();
     _linhasImportacaoIxc = linhasComDestino.map(linha => {
       const resultado = { ...linha, podeImportar: false, incluir: false, importada: false, duplicada: false, erro: '' };
+      const vendedoresDoCodigo = vendedores.filter(v => String(v.ixc_vendedor_id || '').trim() === linha.ixcVendedorId);
+      if (vendedoresDoCodigo.length === 1) resultado.vendedor = vendedoresDoCodigo[0];
+      resultado.plano = resolverPlanoIxc(linha.descricaoPlano, planos);
       if (normalizarTextoIxc(linha.status) !== 'ativo') { resultado.erro = 'Contrato não está ativo'; return resultado; }
       if (linha.erroFilialDestino) { resultado.erro = linha.erroFilialDestino; return resultado; }
       if (!linha.contrato || !/^\d+$/.test(linha.contrato)) { resultado.erro = 'ID do contrato inválido'; return resultado; }
@@ -605,7 +690,6 @@ async function analisarImportacaoIxc(event) {
         return resultado;
       }
       if (vistosNoArquivo.has(chaveContrato)) { resultado.duplicada = true; resultado.erro = 'Contrato repetido no CSV; cada contrato pode ser importado uma única vez'; return resultado; }
-      const vendedoresDoCodigo = vendedores.filter(v => String(v.ixc_vendedor_id || '').trim() === linha.ixcVendedorId);
       if (!linha.ixcVendedorId || vendedoresDoCodigo.length !== 1) {
         resultado.erro = vendedoresDoCodigo.length > 1 ? 'ID IXC associado a mais de um vendedor' : 'Vendedor IXC sem cadastro único';
         return resultado;
@@ -619,7 +703,6 @@ async function analisarImportacaoIxc(event) {
       resultado.dataAtivacao = dataAtivacao;
       resultado.horaAtualizacao = horaAtualizacao;
       resultado.dataVenda = instante;
-      resultado.plano = resolverPlanoIxc(linha.descricaoPlano, planos);
       if (!resultado.plano) { resultado.erro = diagnosticarPlanoIxc(linha.descricaoPlano, planos); return resultado; }
       resultado.valor = obterValorExplicitoRelatorioIxc(linha.descricaoPlano) ?? obterValorPlanoIxc(resultado.plano);
       if (resultado.valor == null) { resultado.erro = 'Plano sem valor cadastrado'; return resultado; }

@@ -828,6 +828,13 @@ body.adm-modal-open { overflow: hidden; }
   white-space: nowrap;
 }
 
+.ixc-pending-suggestions {
+  flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 8px; border: 1px solid rgba(var(--accent2-rgb),0.2); border-radius: 8px;
+  background: rgba(var(--accent2-rgb),0.045); color: var(--text-muted); font-size: 0.72rem;
+}
+.ixc-suggestion-btn { width: auto; max-width: 100%; margin: 0; padding: 7px 9px; font-size: 0.68rem; text-align: left; white-space: normal; }
+
 @media (max-width: 700px) {
   .ixc-reconciliation-controls {
     align-items: stretch;
