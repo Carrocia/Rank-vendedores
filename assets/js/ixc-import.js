@@ -401,13 +401,31 @@ async function carregarContratosExistentesIxc(contratos) {
 
 function atualizarBotaoConferenciaIxc() {
   const controles = document.getElementById('ixc-reconciliation-controls');
+  const resumoFiliais = document.getElementById('ixc-reconciliation-summary');
   const confirmacao = document.getElementById('ixc-reconciliation-complete');
   const botao = document.getElementById('ixc-reconciliation-submit');
   if (!controles || !confirmacao || !botao) return;
-  const temDadosComparaveis = _linhasImportacaoIxc.some(linha =>
+  const linhasComparaveis = _linhasImportacaoIxc.filter(linha =>
     normalizarTextoIxc(linha.status) === 'ativo' &&
     linha.filialDestinoId && /^\d+$/.test(String(linha.contrato || '').trim())
   );
+  const contagens = new Map();
+  linhasComparaveis.forEach(linha => {
+    const filialId = String(linha.filialDestinoId);
+    if (!contagens.has(filialId)) contagens.set(filialId, {
+      nome: linha.filialDestinoNome || `Filial ${filialId}`,
+      contratos: new Set(),
+    });
+    contagens.get(filialId).contratos.add(String(linha.contrato).trim());
+  });
+  const totalContratos = [...contagens.values()].reduce((total, filial) => total + filial.contratos.size, 0);
+  if (resumoFiliais) {
+    const filiaisOrdenadas = [...contagens.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    resumoFiliais.innerHTML = filiaisOrdenadas.length
+      ? `<strong>${totalContratos} contrato(s) ativo(s) em ${filiaisOrdenadas.length} filial(is)</strong><div class="ixc-reconciliation-branch-counts">${filiaisOrdenadas.map(filial => `<span>${escapeHtmlText(filial.nome)}: <b>${filial.contratos.size}</b></span>`).join('')}</div>`
+      : '';
+  }
+  const temDadosComparaveis = totalContratos > 0;
   controles.hidden = !temDadosComparaveis;
   botao.disabled = _conferenciaIxcEmAndamento || !confirmacao.checked || !temDadosComparaveis;
   atualizarBotaoLimparImportacaoIxc();

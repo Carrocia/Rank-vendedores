@@ -808,6 +808,30 @@ body.adm-modal-open { overflow: hidden; }
   margin-right: auto;
 }
 
+.ixc-reconciliation-summary {
+  flex-basis: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--accent-rgb), .22);
+  border-radius: 9px;
+  background: rgba(var(--accent-rgb), .055);
+  color: var(--text-primary, #e8edf5);
+  font-size: .82rem;
+}
+
+.ixc-reconciliation-branch-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 7px;
+  color: var(--text-muted, #9aa4b2);
+  font-size: .76rem;
+}
+
+.ixc-reconciliation-warning {
+  color: #f2c879;
+  text-align: left !important;
+}
+
 .ixc-reconciliation-controls .adm-vendedor-cadastro-hint {
   flex-basis: 100%;
   margin: 0;

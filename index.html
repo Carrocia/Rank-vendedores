@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261016-candidate-review-2">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261016-candidate-review-3">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -333,7 +333,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261016-plan-search-1"></script>
   <script src="assets/js/supabase-admin.js"></script>
-  <script src="assets/js/ixc-import.js?v=20261016-candidate-review-2"></script>
+  <script src="assets/js/ixc-import.js?v=20261016-candidate-review-3"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -656,9 +656,11 @@
                 <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="ixc-import-clear" onclick="limparImportacaoIxc()" disabled>Limpar relatório</button>
               </div>
               <div class="adm-form-full ixc-reconciliation-controls" id="ixc-reconciliation-controls" hidden>
+                <div class="ixc-reconciliation-summary" id="ixc-reconciliation-summary" aria-live="polite"></div>
+                <p class="adm-vendedor-cadastro-hint ixc-reconciliation-warning">Confira se os totais correspondem ao relatório completo do IXC. Arquivos filtrados por cliente, vendedor ou filial podem fazer vendas válidas aparecerem como pendentes.</p>
                 <label class="tema-check ixc-reconciliation-confirm">
                   <input type="checkbox" id="ixc-reconciliation-complete" onchange="atualizarBotaoConferenciaIxc()">
-                  Confirmo que este arquivo contém todos os contratos ativos das filiais listadas.
+                  Confirmo que este arquivo contém todos os contratos ativos das filiais listadas e que os totais acima estão corretos.
                 </label>
                 <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="ixc-reconciliation-submit" onclick="reconciliarRelatorioIxc()" disabled>Conferir vendas já cadastradas</button>
                 <span class="adm-vendedor-cadastro-hint" id="ixc-reconciliation-status" aria-live="polite"></span>
