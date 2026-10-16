@@ -433,7 +433,9 @@
     min-height: 48px; padding: 8px 10px; border-top: 1px solid var(--border); color: var(--text);
   }
   .ranking-full-position { color: var(--accent); font-weight: 900; }
-  .ranking-full-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .ranking-full-person { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .ranking-full-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .ranking-full-tier-badge { display: block; flex: 0 0 auto; width: 56px; height: 38px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
   .ranking-full-numbers { color: var(--text-muted); font-size: 0.82rem; font-weight: 700; text-align: right; }
 
   .podium { display: flex; align-items: flex-end; justify-content: center; gap: 18px; padding: 0 8px; }

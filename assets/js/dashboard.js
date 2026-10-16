@@ -23,7 +23,7 @@ function computeRitmo(pct) {
 //    calculado sobre M1 e pode passar de 100%.
 function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesPorId) {
   const vazio = { badgeTier: null, progressPct: null };
-  const linha = (metasIndividuais || []).find(m => m.vendedor_id === vendedorId);
+  const linha = (metasIndividuais || []).find(m => String(m.vendedor_id) === String(vendedorId));
   if (!linha) return vazio;
   const vendasMes = Number(vendasMesPorId[vendedorId] || 0);
 
@@ -66,6 +66,10 @@ const PODIUM_TIER_ASSETS = {
   m1: 'assets/images/ranking/meta-m1.png',
   m2: 'assets/images/ranking/meta-m2.png',
   m3: 'assets/images/ranking/meta-m3.png',
+};
+const LIST_TIER_ASSETS = {
+  ...PODIUM_TIER_ASSETS,
+  naoAtingida: 'assets/images/ranking/meta-nao-atingida.png',
 };
 
 // mode: 'semanal' mostra vendas + meta + %  |  'mensal' mostra so % + barra + ritmo
@@ -151,7 +155,7 @@ function renderPodium(containerId, entries, options = {}) {
   });
 }
 
-function renderListaClassificacao(containerId, entries, mode) {
+function renderListaClassificacao(containerId, entries, mode, options = {}) {
   const lista = document.getElementById(containerId);
   if (!lista) return;
   const ordenados = [...(entries || [])].sort((a, b) =>
@@ -164,10 +168,44 @@ function renderListaClassificacao(containerId, entries, mode) {
     const posicao = document.createElement('span');
     posicao.className = 'ranking-full-position';
     posicao.textContent = `${index + 1}º`;
+    const identidade = document.createElement('span');
+    identidade.className = 'ranking-full-person';
     const nome = document.createElement('span');
     nome.className = 'ranking-full-name';
     nome.textContent = vendedor.nome || 'Vendedor';
-    item.append(posicao, nome);
+    identidade.appendChild(nome);
+
+    // As faixas M1/M2/M3 são mensais; a lista semanal mantém contexto só da semana.
+    if (mode === 'mensal' && vendedor.tipo === 'interno') {
+      const metas = options.metasIndividuais || [];
+      const metaVendedor = metas.find(m => String(m.vendedor_id) === String(vendedor.id));
+      const tier = calcularTiersIndividuais(
+        vendedor.id,
+        vendedor.tipo,
+        metas,
+        options.vendasMesPorId || {}
+      ).badgeTier;
+      const metaM3 = Number(metaVendedor?.meta_m3);
+      const seloTier = tier || (
+        Number.isFinite(metaM3) && metaM3 > 0
+          ? { tier: 'naoAtingida', label: 'Meta M3 ainda não atingida' }
+          : null
+      );
+      const assetSelo = seloTier && LIST_TIER_ASSETS[seloTier.tier];
+      if (assetSelo) {
+        const selo = document.createElement('img');
+        selo.className = 'ranking-full-tier-badge';
+        selo.src = assetSelo;
+        selo.alt = seloTier.label === 'Meta M3 ainda não atingida'
+          ? 'Meta M3 ainda não atingida'
+          : `Meta ${seloTier.label} atingida`;
+        selo.title = selo.alt;
+        selo.loading = 'lazy';
+        identidade.appendChild(selo);
+      }
+    }
+
+    item.append(posicao, identidade);
     if (mode === 'semanal') {
       const vendas = document.createElement('span');
       vendas.className = 'ranking-full-numbers';
@@ -178,7 +216,7 @@ function renderListaClassificacao(containerId, entries, mode) {
   });
 }
 
-function atualizarListaClassificacaoCompleta(periodo, grupos, modo) {
+function atualizarListaClassificacaoCompleta(periodo, grupos, modo, options = {}) {
   const painel = document.getElementById(`ranking-lista-${periodo}`);
   const botao = document.querySelector(`[data-ranking-toggle="${periodo}"]`);
   if (!painel || !botao) return;
@@ -192,7 +230,8 @@ function atualizarListaClassificacaoCompleta(periodo, grupos, modo) {
   grupos.forEach((grupo, index) => renderListaClassificacao(
     `ranking-lista-${periodo}-${index === 0 ? 'externos' : 'internos'}`,
     grupo,
-    modo
+    modo,
+    options
   ));
 }
 
@@ -2464,8 +2503,9 @@ function renderAll(cache) {
   renderPodium('podium-mensal-externo',  d.extMes,  { mode: 'mensal', ...opcoesTier });
   renderPodium('podium-mensal-interno',  d.intMes,  { mode: 'mensal', ...opcoesTier });
 
-  atualizarListaClassificacaoCompleta('semanal', [d.extSem, d.intSem], 'semanal');
-  atualizarListaClassificacaoCompleta('mensal', [d.extMes, d.intMes], 'mensal');
+  const opcoesSelosClassificacao = { metasIndividuais: cache.metas, vendasMesPorId };
+  atualizarListaClassificacaoCompleta('semanal', [d.extSem, d.intSem], 'semanal', opcoesSelosClassificacao);
+  atualizarListaClassificacaoCompleta('mensal', [d.extMes, d.intMes], 'mensal', opcoesSelosClassificacao);
 
   // Totalizador global — sempre dados reais
   atualizarTotalizadorComDados(d.totalGlobal);
