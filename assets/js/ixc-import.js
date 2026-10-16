@@ -211,7 +211,8 @@ function resolverPlanoIxc(descricao, planos) {
     return new Set(texto.split(' ').filter(token => token && !/^\d+$/.test(token) && !ignorar.has(token)));
   };
   const igualdadeDeTokens = (a, b) => a.size === b.size && [...a].every(token => b.has(token));
-  const descricaoTokens = tokens(descricao);
+  const descricaoSemValor = String(descricao || '').replace(/(?:r\$\s*)?\d{1,4}[,.]\d{2}\s*$/i, '');
+  const descricaoTokens = tokens(descricaoSemValor);
   const mesmaVelocidade = planos.filter(plano => {
     const nomeCompleto = `${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`;
     const velocidadeCatalogo = Number(plano.velocidade_mb) || velocidadePlanoIxc(nomeCompleto);
@@ -219,8 +220,21 @@ function resolverPlanoIxc(descricao, planos) {
   });
   if (!mesmaVelocidade.length) return null;
 
+  // O IXC costuma anexar o valor ao fim da descrição. Quando vários planos
+  // compartilham família e velocidade, esse valor pode distinguir o plano
+  // certo sem depender da ordem das palavras no nome.
+  const valorRelatorio = obterValorExplicitoRelatorioIxc(descricao);
+  const candidatosMesmoValor = valorRelatorio == null ? [] : mesmaVelocidade.filter(plano => {
+    const familiaCatalogo = identificarFamiliaPlanoIxc(`${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`);
+    const familiaCompativel = !familia || familiaCatalogo === familia;
+    const valorCatalogo = obterValorPlanoIxc(plano);
+    return familiaCompativel && valorCatalogo != null && Math.abs(valorCatalogo - valorRelatorio) < 0.01;
+  });
+  if (candidatosMesmoValor.length === 1) return candidatosMesmoValor[0];
+  const planosParaComparar = candidatosMesmoValor.length > 1 ? candidatosMesmoValor : mesmaVelocidade;
+
   // Quando só muda a ordem das palavras, compara os termos normalizados como conjunto.
-  const equivalentes = mesmaVelocidade.filter(plano => {
+  const equivalentes = planosParaComparar.filter(plano => {
     const textoPlano = `${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`;
     return igualdadeDeTokens(descricaoTokens, tokens(textoPlano));
   });
@@ -228,8 +242,8 @@ function resolverPlanoIxc(descricao, planos) {
   if (equivalentes.length > 1) return null;
 
   const candidatos = familia
-    ? mesmaVelocidade.filter(plano => identificarFamiliaPlanoIxc(`${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`) === familia)
-    : mesmaVelocidade;
+    ? planosParaComparar.filter(plano => identificarFamiliaPlanoIxc(`${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`) === familia)
+    : planosParaComparar;
   if (candidatos.length === 1) return candidatos[0];
   if (candidatos.length < 2) return null;
 
