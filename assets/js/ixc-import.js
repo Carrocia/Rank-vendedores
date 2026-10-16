@@ -232,15 +232,21 @@ function resolverPlanoIxc(descricao, planos) {
     const valorCatalogo = obterValorPlanoIxc(plano);
     return familiaCompativel && valorCatalogo != null && Math.abs(valorCatalogo - valorRelatorio) < 0.01;
   });
-  if (candidatosMesmoValor.length === 1) return candidatosMesmoValor[0];
-  const planosParaComparar = candidatosMesmoValor.length > 1 ? candidatosMesmoValor : mesmaVelocidade;
+  const candidatosMesmoValorAtivos = candidatosMesmoValor.filter(plano => plano.ativo !== false);
+  if (candidatosMesmoValorAtivos.length === 1) return candidatosMesmoValorAtivos[0];
+  if (!candidatosMesmoValorAtivos.length && candidatosMesmoValor.length === 1) return candidatosMesmoValor[0];
+  const planosParaComparar = candidatosMesmoValorAtivos.length
+    ? candidatosMesmoValorAtivos
+    : candidatosMesmoValor.length > 1 ? candidatosMesmoValor : mesmaVelocidade;
 
   // Prioriza o nome do próprio plano: categoria e tipo podem trazer palavras
   // extras que não aparecem na descrição do IXC e atrapalhar a igualdade.
   const nomeCorrespondente = planosParaComparar.filter(plano =>
     igualdadeDeTokens(descricaoTokens, tokens(plano.nome || ''))
   );
-  if (nomeCorrespondente.length === 1) return nomeCorrespondente[0];
+  const nomeCorrespondenteAtivo = nomeCorrespondente.filter(plano => plano.ativo !== false);
+  if (nomeCorrespondenteAtivo.length === 1) return nomeCorrespondenteAtivo[0];
+  if (!nomeCorrespondenteAtivo.length && nomeCorrespondente.length === 1) return nomeCorrespondente[0];
 
   // Quando só muda a ordem das palavras, compara os termos normalizados como conjunto.
   const equivalentes = planosParaComparar.filter(plano => {
@@ -271,18 +277,25 @@ function resolverPlanoIxc(descricao, planos) {
 function diagnosticarPlanoIxc(descricao, planos) {
   const familia = identificarFamiliaPlanoIxc(descricao);
   const velocidade = velocidadePlanoIxc(descricao);
+  const valorRelatorio = obterValorExplicitoRelatorioIxc(descricao);
   const candidatos = (planos || []).filter(plano => {
     const nomeCompleto = `${plano.nome || ''} ${plano.categoria || ''} ${plano.tipo || ''}`;
     const velocidadeCatalogo = Number(plano.velocidade_mb) || velocidadePlanoIxc(nomeCompleto);
     const familiaCatalogo = identificarFamiliaPlanoIxc(nomeCompleto);
     return velocidade != null && velocidadeCatalogo === velocidade && (!familia || familiaCatalogo === familia);
   });
-  const nomes = candidatos.slice(0, 3).map(plano => plano.nome).filter(Boolean);
+  const detalhesCandidatos = candidatos.map(plano => {
+    const nome = plano.nome || 'Plano sem nome';
+    const valor = obterValorPlanoIxc(plano);
+    const situacao = plano.ativo === false ? 'inativo' : 'ativo';
+    return `${nome} [${situacao}${valor == null ? '; sem valor' : `; R$ ${valor.toFixed(2).replace('.', ',')}`}]`;
+  });
   const perfil = [familia || 'tipo não identificado', velocidade == null ? 'velocidade não identificada' : `${velocidade} Mbps`].join(', ');
+  const valorResumo = valorRelatorio == null ? '' : `, valor no IXC R$ ${valorRelatorio.toFixed(2).replace('.', ',')}`;
   const resumo = candidatos.length
-    ? `${candidatos.length} candidato(s)${nomes.length ? `: ${nomes.join(', ')}` : ''}`
+    ? `${candidatos.length} candidato(s): ${detalhesCandidatos.join('; ')}`
     : 'nenhum candidato compatível no catálogo';
-  return `Plano sem correspondência única (${perfil}; ${resumo}).`;
+  return `Plano sem correspondência única (${perfil}${valorResumo}; ${resumo}).`;
 }
 
 function renderizarPreviaIxc() {
