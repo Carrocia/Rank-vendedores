@@ -1274,7 +1274,7 @@ async function excluirVendasSelecionadasRelatorio() {
   for (const linha of selecionadas) {
     try {
       if (linha.tipoLinha === 'outra_filial') await deleteVendaOutraFilial(linha.id);
-      else if (linha.tipoLinha === 'origem_outra_filial') throw new Error('A exclusão deve ser feita pela filial de destino.');
+      else if (linha.tipoLinha === 'origem_outra_filial' && !ehSuperAdminAtual()) throw new Error('A exclusão deve ser feita pela filial de destino.');
       else await deleteVenda(linha.id);
       _relatorioState.selecionadas.delete(chaveVendaRelatorio(linha));
       excluidas++;
@@ -1561,7 +1561,9 @@ async function aplicarFiltrosRelatorio() {
         filialDestinoId: v.filial_destino_id,
         filialDestino: (_cache.filiais || []).find(f => Number(f.id) === Number(v.filial_destino_id))?.nome || 'outra filial',
         observacao: v.observacao || null,
-        somenteLeitura: true,
+        // Conta regional só consulta vendas da própria equipe destinadas a
+        // outra filial; o superadministrador pode excluí-las pela RLS global.
+        somenteLeitura: !ehSuperAdminAtual(),
       });
     });
     (filiaisBase || []).forEach(v => {
