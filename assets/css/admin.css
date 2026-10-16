@@ -842,6 +842,22 @@ body.adm-modal-open { overflow: hidden; }
   margin-top: 14px;
 }
 
+.ixc-pending-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ixc-pending-heading .adm-section-title {
+  margin-bottom: 0;
+}
+
+.ixc-pending-clear {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
 .ixc-pending-actions {
   display: flex;
   flex-wrap: wrap;
@@ -864,6 +880,11 @@ body.adm-modal-open { overflow: hidden; }
 .ixc-suggestion-details span { display: block; }
 
 @media (max-width: 700px) {
+  .ixc-pending-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .ixc-reconciliation-controls {
     align-items: stretch;
   }

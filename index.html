@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261016-candidate-review-3">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261016-pending-cleanup-1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -333,7 +333,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261016-plan-search-1"></script>
   <script src="assets/js/supabase-admin.js"></script>
-  <script src="assets/js/ixc-import.js?v=20261016-candidate-review-3"></script>
+  <script src="assets/js/ixc-import.js?v=20261016-pending-cleanup-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -668,7 +668,10 @@
             </div>
           </div>
           <div class="adm-form-card ixc-pending-card" id="ixc-pending-card">
-            <div class="adm-section-title adm-subsection-title">Vendas pendentes de conferência</div>
+            <div class="ixc-pending-heading">
+              <div class="adm-section-title adm-subsection-title">Vendas pendentes de conferência</div>
+              <button type="button" class="adm-btn adm-btn-secondary adm-btn-small ixc-pending-clear" id="ixc-pending-clear" hidden disabled>Limpar pendências</button>
+            </div>
             <p class="adm-vendedor-cadastro-hint">Vendas que não apareceram na última lista completa de contratos ativos ficam aqui até você confirmar se continuam válidas, foram canceladas ou precisam ser vinculadas a outro número do IXC. Após conferir um relatório, o sistema pode sugerir contratos ativos com cliente, vendedor e plano parecidos. A comparação roda no navegador, sem API de IA paga; data e valores aparecem como contexto e não decidem o vínculo. As sugestões só vinculam depois da sua confirmação. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores.</p>
             <div class="adm-table-wrap">
               <table class="adm-table">

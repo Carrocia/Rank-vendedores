@@ -2,9 +2,11 @@
 // A coluna Filial define o destino quando presente; a origem vem do cadastro do vendedor.
 let _linhasImportacaoIxc = [];
 let _relatorioIxcParaSugestoes = [];
+let _pendenciasIxcCarregadas = [];
 let _importacaoIxcEmAndamento = false;
 let _conferenciaIxcEmAndamento = false;
 let _analiseIxcEmAndamento = false;
+let _limpezaPendenciasIxcEmAndamento = false;
 
 function atualizarBotaoLimparImportacaoIxc() {
   const botao = document.getElementById('ixc-import-clear');
@@ -564,20 +566,31 @@ async function reconciliarRelatorioIxc() {
 
 async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes) {
   const corpo = document.getElementById('ixc-pending-body');
+  const botaoLimpar = document.getElementById('ixc-pending-clear');
   if (!corpo || !window.ADMIN_AUTENTICADO || !window._supabase) return;
   corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Carregando vendas pendentes…</td></tr>';
+  if (botaoLimpar) botaoLimpar.disabled = true;
   const { data: pendencias, error } = await window._supabase
     .from('vendas_conferencia_ixc')
     .select('id, venda_id, filial_id, numero_venda, situacao, relatorio_em')
     .eq('situacao', 'pendente')
     .order('relatorio_em', { ascending: false });
   if (error) {
+    _pendenciasIxcCarregadas = [];
     console.error('[carregarPendenciasIxc]', error);
     const mensagem = ['42P01', 'PGRST205'].includes(error.code)
       ? 'A tabela de conferência ainda não existe. Execute supabase/conferencia-vendas-ixc.sql no SQL Editor do Supabase.'
       : error.message || 'Não foi possível carregar as pendências.';
     corpo.innerHTML = `<tr><td colspan="7" class="adm-empty-state">${escapeHtmlText(mensagem)}</td></tr>`;
+    if (botaoLimpar) botaoLimpar.hidden = true;
     return;
+  }
+  _pendenciasIxcCarregadas = pendencias || [];
+  if (botaoLimpar) {
+    botaoLimpar.hidden = !_pendenciasIxcCarregadas.length;
+    botaoLimpar.disabled = _limpezaPendenciasIxcEmAndamento || !_pendenciasIxcCarregadas.length;
+    botaoLimpar.textContent = `Limpar pendências (${_pendenciasIxcCarregadas.length})`;
+    botaoLimpar.onclick = limparPendenciasIxc;
   }
   if (!pendencias?.length) {
     corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Nenhuma venda pendente de conferência.</td></tr>';
@@ -637,6 +650,44 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
   corpo.querySelectorAll('[data-ixc-action="vincular-sugerido"]').forEach(botao => botao.addEventListener('click', () => {
     resolverConferenciaIxc(Number(botao.dataset.id), 'vincular', botao.dataset.cliente || 'venda', botao.dataset.contrato || '');
   }));
+}
+
+async function limparPendenciasIxc() {
+  if (!window.ADMIN_AUTENTICADO || !window._supabase || _limpezaPendenciasIxcEmAndamento) return;
+  const ids = _pendenciasIxcCarregadas.map(item => Number(item.id)).filter(Number.isFinite);
+  if (!ids.length) return;
+  const confirmacao = confirm(
+    `Limpar ${ids.length} pendência(s) da lista? Elas serão marcadas como válidas. As vendas permanecerão cadastradas e continuarão contando nos indicadores.`
+  );
+  if (!confirmacao) return;
+
+  const botao = document.getElementById('ixc-pending-clear');
+  _limpezaPendenciasIxcEmAndamento = true;
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = 'Limpando…';
+  }
+  try {
+    const { data, error } = await window._supabase.rpc('resolver_conferencias_ixc_lote_validar', {
+      p_pendencia_ids: ids,
+    });
+    if (error) throw error;
+    showToast(`${Number(data || 0)} pendência(s) removida(s) da lista. As vendas e métricas foram mantidas.`, 'success');
+    await carregarPendenciasIxc();
+  } catch (error) {
+    console.error('[limparPendenciasIxc]', error);
+    const mensagem = error.code === 'PGRST202'
+      ? 'A função de limpeza ainda não existe no Supabase. Execute supabase/limpar-pendencias-vendas-ixc.sql no SQL Editor.'
+      : error.message || 'Não foi possível limpar as pendências.';
+    showToast(mensagem, 'error');
+  } finally {
+    _limpezaPendenciasIxcEmAndamento = false;
+    if (botao) {
+      botao.hidden = !_pendenciasIxcCarregadas.length;
+      botao.disabled = !_pendenciasIxcCarregadas.length;
+      botao.textContent = `Limpar pendências (${_pendenciasIxcCarregadas.length})`;
+    }
+  }
 }
 
 async function resolverConferenciaIxc(id, decisao, cliente, contratoSugerido = '') {
