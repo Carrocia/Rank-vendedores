@@ -4027,6 +4027,7 @@ async function gerarResumoMensalFilial(evt) {
       .reduce((soma, v) => soma + Number(v.valor_total || 0), 0);
     const ticketMedio = vendas > 0 ? (valorVendas + valorOutrasFiliais) / vendas : null;
     const formatarNumero = valor => Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+    const formatarInteiro = valor => Number(valor).toLocaleString('pt-BR');
     const formatarMoeda = valor => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const nomeMes = d.mes.mesNome ? d.mes.mesNome.charAt(0).toLocaleUpperCase('pt-BR') + d.mes.mesNome.slice(1) : inicioMes.toLocaleDateString('pt-BR', { month: 'long' });
     const filialNome = window.FILIAL_ATUAL?.nome || 'Filial';
@@ -4042,6 +4043,32 @@ async function gerarResumoMensalFilial(evt) {
     setText('mf-faltam', faltam === null ? 'Meta não cadastrada' : faltam ? `Faltam ${faltam.toLocaleString('pt-BR')} vendas para atingir a meta` : 'Meta atingida');
     setText('mf-cancelamentos', metasRenovCancel.cancelamentos_atual == null ? '—' : Number(metasRenovCancel.cancelamentos_atual).toLocaleString('pt-BR'));
     setText('mf-renovacoes', metasRenovCancel.renovacoes_atual == null ? '—' : Number(metasRenovCancel.renovacoes_atual).toLocaleString('pt-BR'));
+    const cancelAtual = metasRenovCancel.cancelamentos_atual == null ? null : Number(metasRenovCancel.cancelamentos_atual);
+    const limitesCancelamento = [
+      { label: 'M1', meta: Number(metasRenovCancel.cancelamentos_m1) },
+      { label: 'M2', meta: Number(metasRenovCancel.cancelamentos_m2) },
+      { label: 'M3', meta: Number(metasRenovCancel.cancelamentos_m3) },
+    ].filter(item => item.meta > 0).sort((a, b) => a.meta - b.meta);
+    const limiteEmUso = cancelAtual == null ? null : (limitesCancelamento.find(item => cancelAtual <= item.meta) || limitesCancelamento[limitesCancelamento.length - 1]);
+    const textoMetaCancelamento = cancelAtual == null
+      ? 'Atualize o valor no painel ADM'
+      : !limiteEmUso
+        ? 'Defina os limites M1, M2 ou M3'
+        : `${limiteEmUso.label} · ${formatarInteiro(cancelAtual)}/${formatarInteiro(limiteEmUso.meta)} · ${Math.round((cancelAtual / limiteEmUso.meta) * 100)}% do limite`;
+    const renovAtual = metasRenovCancel.renovacoes_atual == null ? null : Number(metasRenovCancel.renovacoes_atual);
+    const metasRenovacao = [
+      { label: 'M3', meta: Number(metasRenovCancel.renovacoes_m3) },
+      { label: 'M2', meta: Number(metasRenovCancel.renovacoes_m2) },
+      { label: 'M1', meta: Number(metasRenovCancel.renovacoes_m1) },
+    ].filter(item => item.meta > 0).sort((a, b) => a.meta - b.meta);
+    const metaRenovacaoEmUso = renovAtual == null ? null : (metasRenovacao.find(item => renovAtual < item.meta) || metasRenovacao[metasRenovacao.length - 1]);
+    const textoMetaRenovacao = renovAtual == null
+      ? 'Atualize o valor no painel ADM'
+      : !metaRenovacaoEmUso
+        ? 'Defina as metas M1, M2 ou M3'
+        : `${metaRenovacaoEmUso.label} · ${formatarInteiro(renovAtual)}/${formatarInteiro(metaRenovacaoEmUso.meta)} · ${Math.round((renovAtual / metaRenovacaoEmUso.meta) * 100)}% da meta`;
+    setText('mf-cancelamentos-meta', textoMetaCancelamento);
+    setText('mf-renovacoes-meta', textoMetaRenovacao);
     setText('mf-media-atual', mediaAtual === null ? '—' : `${formatarNumero(mediaAtual)} / dia`);
     setText('mf-media-necessaria', mediaNecessaria === null ? '—' : mediaNecessaria === 0 ? 'Meta atingida' : `${formatarNumero(mediaNecessaria)} / dia`);
     setText('mf-ticket', ticketMedio === null ? '—' : formatarMoeda(ticketMedio));
