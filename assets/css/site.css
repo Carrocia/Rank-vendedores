@@ -107,6 +107,18 @@
   html, body { background: var(--bg); }
   html.theme-switch-instant,
   html.theme-switch-instant * { transition: none !important; }
+  html.theme-bootstrap-pending::after {
+    content: "Carregando tema…";
+    position: fixed;
+    z-index: 999999;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--bg, #060810);
+    color: var(--text-muted, #9aa4b2);
+    font: 600 14px 'Poppins', sans-serif;
+    letter-spacing: .04em;
+  }
 
   @keyframes filialPageEnter {
     from { opacity: 0; transform: translateY(9px) scale(0.995); }

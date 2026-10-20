@@ -415,6 +415,10 @@ function aplicarConfigSite(cfg) {
   if (window.__uniTemaFixo) return; // ?tema= na URL tem prioridade
   const escolha = (cfg && cfg.tema_sazonal) || 'auto';
   const fx = !(cfg && cfg.tema_particulas === '0');
+  try {
+    localStorage.setItem('uni-tema-sazonal', escolha);
+    localStorage.setItem('uni-tema-particulas', fx ? '1' : '0');
+  } catch (_) {}
   let id = escolha === 'auto' ? window.uniTemaAutomatico(new Date()) : escolha;
   if (id !== 'padrao' && !window.UNI_TEMAS[id]) id = window.uniTemaAutomatico(new Date());
   window.uniAplicarTema(id, fx);
@@ -1233,12 +1237,26 @@ async function carregarDados() {
   hideErrorBanner();
 
   if (!configurado) {
+    document.documentElement.classList.remove('theme-bootstrap-pending');
     console.error('[carregarDados] Supabase não configurado — preencha SUPABASE_URL e SUPABASE_ANON_KEY.');
     showErrorBanner('O Supabase ainda não foi configurado. Preencha SUPABASE_URL e SUPABASE_ANON_KEY no código.');
     _dadosCarregados = false;
     renderEstadoSemDados();
     return;
   }
+
+  // Busca a preferência visual assim que o Supabase é iniciado, em paralelo
+  // com os demais dados. Sem cache local, a tela de carregamento permanece até
+  // este resultado definir o tema real salvo no banco.
+  const promessaConfigSite = loadConfigSite().then(config => {
+    if (!_temaPreview) aplicarConfigSite(config);
+    document.documentElement.classList.remove('theme-bootstrap-pending');
+    return config;
+  }).catch(err => {
+    console.warn('[carregarDados] Não foi possível carregar o tema salvo.', err);
+    document.documentElement.classList.remove('theme-bootstrap-pending');
+    return {};
+  });
 
   try {
     _maisVendidosCache.clear();
@@ -1285,7 +1303,7 @@ async function carregarDados() {
       loadVendasOrigem(semanaAnterior.de, semanaAnterior.ate),
       loadVendasOrigem(_cache.mes.de, _cache.mes.ate),
       loadDestaquesRenovacao(),
-      loadConfigSite(),
+      promessaConfigSite,
       carregarConquistasGlobais().catch(err => {
         console.warn('[carregarConquistasGlobais]', err);
         return { lista: [], erro: true };
@@ -1322,7 +1340,7 @@ async function carregarDados() {
     _cache.destaquesRenovacao = destaquesRenovacao;
     popularAdmRenovacoes();
     _cache.configSite = configSite;
-    if (!_temaPreview) { aplicarConfigSite(configSite); popularAdmTema(); }
+    if (!_temaPreview) popularAdmTema();
 
     // Atualizar formulários ADM com dados reais
     popularSelectVendedores(vendedores);

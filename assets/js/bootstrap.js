@@ -99,6 +99,12 @@
   };
 
   var estado = { id: 'padrao', fx: true };
+  var temaSalvoInicial = null;
+  var fxSalvoInicial = true;
+  try {
+    temaSalvoInicial = localStorage.getItem('uni-tema-sazonal');
+    fxSalvoInicial = localStorage.getItem('uni-tema-particulas') !== '0';
+  } catch (_) {}
   var natalTimer = null;
   function limparNatal() {
     if (natalTimer) { window.clearTimeout(natalTimer); natalTimer = null; }
@@ -175,6 +181,15 @@
   // Isso evita um flash do tema sazonal do calendário antes do tema salvo.
   var q = null, fxUrl = true;
   try { var sp = new URLSearchParams(location.search); q = sp.get('tema'); fxUrl = sp.get('fx') !== '0'; } catch (e) {}
-  if (q && (TEMAS[q] || q === 'padrao')) { window.__uniTemaFixo = true; window.uniAplicarTema(q, fxUrl); }
-  else { window.uniAplicarTema('padrao', fxUrl); }
+  if (q && (TEMAS[q] || q === 'padrao')) {
+    window.__uniTemaFixo = true;
+    window.uniAplicarTema(q, fxUrl);
+  } else {
+    var temaInicial = temaSalvoInicial === 'auto' ? window.uniTemaAutomatico(new Date()) : temaSalvoInicial;
+    if (!TEMAS[temaInicial] && temaInicial !== 'padrao') {
+      temaInicial = 'padrao';
+      document.documentElement.classList.add('theme-bootstrap-pending');
+    }
+    window.uniAplicarTema(temaInicial, fxUrl && fxSalvoInicial);
+  }
 })();
