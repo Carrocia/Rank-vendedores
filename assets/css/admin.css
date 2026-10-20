@@ -373,6 +373,10 @@ body.adm-modal-open { overflow: hidden; }
   background: linear-gradient(115deg, rgba(var(--accent-rgb),0.08), rgba(255,255,255,0.025) 52%, rgba(var(--accent2-rgb),0.07));
 }
 .adm-dashboard-intro-copy p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.84rem; line-height: 1.5; }
+.adm-resumo-filial-action { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 18px; }
+.adm-resumo-filial-action strong { color: var(--heading-color); font-size: .95rem; }
+.adm-resumo-filial-action .adm-muted-copy { margin: 5px 0 0; }
+@media (max-width: 640px) { .adm-resumo-filial-action { align-items: stretch; flex-direction: column; } .adm-resumo-filial-action .adm-btn { width: 100%; justify-content: center; } }
 .adm-dashboard-eyebrow { color: var(--accent); font-size: 0.68rem; font-weight: 800; letter-spacing: 1px; }
 .adm-dashboard-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .adm-dashboard-action {

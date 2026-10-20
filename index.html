@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-hide-conquest-sales-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261016-pending-cleanup-1">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261020-resumo-filial-1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-1">
 </head>
 <body>
 
@@ -332,7 +332,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261020-renov-period-1"></script>
-  <script src="assets/js/supabase-admin.js"></script>
+  <script src="assets/js/supabase-admin.js?v=20261020-resumo-filial-1"></script>
   <script src="assets/js/ixc-import.js?v=20261016-pending-cleanup-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -478,6 +478,14 @@
               </div>
               <div class="adm-dashboard-week-bars" id="dash-week-bars" aria-label="Vendas por dia nesta semana"></div>
             </article>
+          </div>
+
+          <div class="adm-form-card adm-resumo-filial-action">
+            <div>
+              <strong>Resumo mensal para compartilhar</strong>
+              <p class="adm-muted-copy">Gere uma imagem com o desempenho consolidado da filial, pronta para enviar ao grupo geral.</p>
+            </div>
+            <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" onclick="gerarResumoMensalFilial(event)"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-package"/></svg>Baixar resumo do mês</button>
           </div>
         </section>
 
@@ -1584,6 +1592,48 @@
         <div class="sc-phrase" id="sc-phrase">—</div>
         <div class="sc-brandline" id="sc-data-geracao">UNI INTERNET · GERADO EM —</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Card mensal consolidado da filial: baixado pelo administrador para compartilhar. -->
+<div id="mf-offscreen" aria-hidden="true">
+  <div id="mf-card">
+    <div class="mf-topline"></div>
+    <div class="mf-content">
+      <header class="mf-header">
+        <img data-logo="dark" alt="UNI Internet">
+        <div class="mf-header-copy">
+          <span>ACOMPANHAMENTO DA FILIAL</span>
+          <strong id="mf-filial">—</strong>
+        </div>
+        <div class="mf-period" id="mf-periodo">—</div>
+      </header>
+      <div class="mf-divider"></div>
+      <section class="mf-goal">
+        <div class="mf-goal-copy">
+          <span class="mf-eyebrow">META MENSAL DA FILIAL</span>
+          <strong id="mf-meta-title">—</strong>
+          <span id="mf-meta-detail">—</span>
+        </div>
+        <div class="mf-progress-wrap">
+          <div class="mf-progress"><span id="mf-progress-fill"></span></div>
+          <strong id="mf-progress-pct">—</strong>
+        </div>
+      </section>
+      <section class="mf-stats">
+        <article><span>VENDAS</span><strong id="mf-vendas">—</strong><small id="mf-faltam">—</small></article>
+        <article><span>CANCELAMENTOS</span><strong id="mf-cancelamentos">—</strong><small>registrados pelo administrador</small></article>
+        <article><span>RENOVAÇÕES</span><strong id="mf-renovacoes">—</strong><small>registradas pelo administrador</small></article>
+        <article><span>MÉDIA DE VENDAS</span><strong id="mf-media-atual">—</strong><small>por dia útil decorrido</small></article>
+        <article><span>RITMO NECESSÁRIO</span><strong id="mf-media-necessaria">—</strong><small>por dia útil restante</small></article>
+        <article><span>TICKET MÉDIO</span><strong id="mf-ticket">—</strong><small>valor total dividido pelas vendas</small></article>
+      </section>
+      <footer class="mf-footer">
+        <span>UNI INTERNET · RESULTADO CONSOLIDADO</span>
+        <span id="mf-gerado-em">—</span>
+      </footer>
+      <div class="mf-note">Dias úteis consideram segunda a sexta-feira. Cancelamentos e renovações refletem os valores informados no painel administrativo.</div>
     </div>
   </div>
 </div>

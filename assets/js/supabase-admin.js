@@ -3978,6 +3978,99 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   }
 }
 
+function contarDiasUteisResumo(inicio, fim) {
+  let total = 0;
+  const dia = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
+  const limite = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
+  while (dia <= limite) {
+    if (dia.getDay() !== 0 && dia.getDay() !== 6) total++;
+    dia.setDate(dia.getDate() + 1);
+  }
+  return total;
+}
+
+async function gerarResumoMensalFilial(evt) {
+  const d = _ultimoProcessado;
+  if (!d || !d.mes) { showToast('Carregue os dados do painel antes de gerar o resumo.', 'warning'); return; }
+  const btn = evt?.currentTarget || evt?.target?.closest('button');
+  const textoOriginal = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.textContent = 'Gerando imagem…'; }
+
+  try {
+    if (typeof html2canvas === 'undefined') {
+      await carregarLibsAdmin();
+      if (typeof html2canvas === 'undefined') throw new Error('Não foi possível carregar o gerador de imagens. Tente novamente.');
+    }
+
+    const agora = new Date();
+    const mes = Number(d.mes.mesNum) || agora.getMonth() + 1;
+    const ano = Number(d.mes.ano) || agora.getFullYear();
+    const inicioMes = new Date(ano, mes - 1, 1);
+    const fimMes = new Date(ano, mes, 0);
+    const hojeData = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const ultimoDiaDecorrido = hojeData < inicioMes
+      ? new Date(ano, mes - 1, 0)
+      : new Date(Math.min(hojeData.getTime(), fimMes.getTime()));
+    const vendas = Number(d.totalMes || 0);
+    const meta = Number(d.metasFilial?.mensal_m1) || 0;
+    const faltam = meta ? Math.max(0, meta - vendas) : null;
+    const percentual = meta ? Math.round((vendas / meta) * 100) : null;
+    const diasUteisPassados = ultimoDiaDecorrido >= inicioMes ? contarDiasUteisResumo(inicioMes, ultimoDiaDecorrido) : 0;
+    const amanha = new Date(ultimoDiaDecorrido.getFullYear(), ultimoDiaDecorrido.getMonth(), ultimoDiaDecorrido.getDate() + 1);
+    const diasUteisRestantes = ultimoDiaDecorrido < fimMes ? contarDiasUteisResumo(amanha, fimMes) : 0;
+    const mediaAtual = diasUteisPassados ? vendas / diasUteisPassados : null;
+    const mediaNecessaria = faltam === null ? null : faltam === 0 ? 0 : diasUteisRestantes > 0 ? faltam / diasUteisRestantes : null;
+    const metasRenovCancel = d.metasRenovCancel || {};
+    const valorVendas = (_cache.vendasMes || []).filter(v => v.fora_filial !== true)
+      .reduce((soma, v) => soma + (Number(v.valor_total || 0) || (Number(v.valor_plano || v.valor || 0) + Number(v.valor_adicionais || 0))), 0);
+    const valorOutrasFiliais = (_cache.vendasFiliais || [])
+      .reduce((soma, v) => soma + Number(v.valor_total || 0), 0);
+    const ticketMedio = vendas > 0 ? (valorVendas + valorOutrasFiliais) / vendas : null;
+    const formatarNumero = valor => Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+    const formatarMoeda = valor => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const nomeMes = d.mes.mesNome ? d.mes.mesNome.charAt(0).toLocaleUpperCase('pt-BR') + d.mes.mesNome.slice(1) : inicioMes.toLocaleDateString('pt-BR', { month: 'long' });
+    const filialNome = window.FILIAL_ATUAL?.nome || 'Filial';
+    const setText = (id, texto) => { const el = document.getElementById(id); if (el) el.textContent = texto; };
+
+    setText('mf-filial', filialNome);
+    setText('mf-periodo', `${nomeMes} de ${ano}`);
+    setText('mf-meta-title', meta ? `${vendas.toLocaleString('pt-BR')} de ${meta.toLocaleString('pt-BR')} vendas` : `${vendas.toLocaleString('pt-BR')} vendas`);
+    setText('mf-meta-detail', meta ? (faltam ? `Faltam ${faltam.toLocaleString('pt-BR')} vendas para atingir a meta M1` : 'Meta mensal atingida') : 'Meta mensal ainda não cadastrada');
+    setText('mf-progress-pct', percentual === null ? '—' : `${percentual}%`);
+    const progress = document.getElementById('mf-progress-fill');
+    if (progress) progress.style.width = `${Math.min(100, Math.max(0, percentual || 0))}%`;
+    setText('mf-vendas', vendas.toLocaleString('pt-BR'));
+    setText('mf-faltam', faltam === null ? 'Meta não cadastrada' : faltam ? `Faltam ${faltam.toLocaleString('pt-BR')} para a meta` : 'Meta atingida');
+    setText('mf-cancelamentos', metasRenovCancel.cancelamentos_atual == null ? '—' : Number(metasRenovCancel.cancelamentos_atual).toLocaleString('pt-BR'));
+    setText('mf-renovacoes', metasRenovCancel.renovacoes_atual == null ? '—' : Number(metasRenovCancel.renovacoes_atual).toLocaleString('pt-BR'));
+    setText('mf-media-atual', mediaAtual === null ? '—' : `${formatarNumero(mediaAtual)} / dia`);
+    setText('mf-media-necessaria', mediaNecessaria === null ? '—' : mediaNecessaria === 0 ? 'Meta atingida' : `${formatarNumero(mediaNecessaria)} / dia`);
+    setText('mf-ticket', ticketMedio === null ? '—' : formatarMoeda(ticketMedio));
+    setText('mf-gerado-em', `ATUALIZADO EM ${agora.toLocaleDateString('pt-BR')}`);
+
+    if (document.fonts?.ready) await document.fonts.ready;
+    const card = document.getElementById('mf-card');
+    await Promise.all(Array.from(card.querySelectorAll('img'), img => img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+    const canvas = await html2canvas(card, { backgroundColor: null, scale: 1, useCORS: true, allowTaint: false, imageTimeout: 10000 });
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Não foi possível converter o resumo para imagem.');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Resumo_Mensal_${filialNome.replace(/[^a-z0-9]+/gi, '_')}_${ano}-${String(mes).padStart(2, '0')}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Resumo mensal da filial baixado.', 'success');
+  } catch (err) {
+    console.error('[gerarResumoMensalFilial]', err);
+    showToast(err.message || 'Não foi possível gerar o resumo mensal.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+  }
+}
+
 // Gera os cards dos vendedores ativos atualmente exibidos na tabela e
 // entrega um ZIP único. O processamento é sequencial para limitar o uso
 // de memória do canvas em celulares e computadores com pouca memória.
