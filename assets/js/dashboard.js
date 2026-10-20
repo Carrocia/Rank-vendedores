@@ -490,12 +490,13 @@ function renderMuralRenovacoes() {
   const regs = (_cache && _cache.destaquesRenovacao) || [];
   const hoje = new Date();
   const atual = { mes: hoje.getMonth() + 1, ano: hoje.getFullYear() };
-  const d = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
-  const anterior = { mes: d.getMonth() + 1, ano: d.getFullYear() };
-  const cadastrado = m => regs.some(r => Number(r.mes) === m.mes && Number(r.ano) === m.ano);
+  const chaveMes = ({ mes, ano }) => Number(ano) * 12 + Number(mes);
+  const mesAtual = chaveMes(atual);
+  // O mural só começa no mês em que a regional passou a usar o sistema.
+  const regsAtuaisOuFuturos = regs.filter(r => chaveMes({ mes: r.mes, ano: r.ano }) >= mesAtual);
+  const cadastrado = m => regsAtuaisOuFuturos.some(r => Number(r.mes) === m.mes && Number(r.ano) === m.ano);
 
-  const cards = regs.map(r => ({ mes: Number(r.mes), ano: Number(r.ano), vendedor: r.vendedor, quantidade: Number(r.quantidade) || 0 }));
-  if (!cadastrado(anterior)) cards.push({ ...anterior, pendente: true });
+  const cards = regsAtuaisOuFuturos.map(r => ({ mes: Number(r.mes), ano: Number(r.ano), vendedor: r.vendedor, quantidade: Number(r.quantidade) || 0 }));
   if (!cadastrado(atual)) cards.push({ ...atual, pendente: true });
   cards.sort((a, b) => (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes));
 
@@ -522,13 +523,17 @@ function popularAdmRenovacoes() {
     if (atual) sel.value = atual;
   }
   const mesEl = document.getElementById('renov-mes');
-  if (mesEl && !mesEl.value) {
-    const d = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1); // mês que acabou de fechar
-    mesEl.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  if (mesEl) {
+    const hoje = new Date();
+    const mesAtual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    mesEl.min = mesAtual;
+    if (!mesEl.value || mesEl.value < mesAtual) mesEl.value = mesAtual;
   }
   const tbody = document.getElementById('renov-destaques-tbody');
   if (!tbody) return;
-  const regs = _cache.destaquesRenovacao || [];
+  const hoje = new Date();
+  const mesAtualKey = hoje.getFullYear() * 12 + hoje.getMonth() + 1;
+  const regs = (_cache.destaquesRenovacao || []).filter(r => Number(r.ano) * 12 + Number(r.mes) >= mesAtualKey);
   if (!regs.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhum destaque cadastrado ainda.</td></tr>';
     return;
@@ -554,6 +559,12 @@ async function salvarDestaqueRenovacao() {
     return;
   }
   const [ano, mes] = mesVal.split('-').map(Number);
+  const hoje = new Date();
+  const mesAtualKey = hoje.getFullYear() * 12 + hoje.getMonth() + 1;
+  if (ano * 12 + mes < mesAtualKey) {
+    showToast('Só é possível cadastrar destaques a partir do mês atual.', 'warning');
+    return;
+  }
   try {
     const { data: existente, error: errBusca } = await window._supabase
       .from('destaques_renovacao').select('id').eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano).limit(1);
