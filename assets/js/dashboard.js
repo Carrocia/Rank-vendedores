@@ -14,18 +14,27 @@ function computeRitmo(pct) {
   return { classe: 'vermelho', label: 'Abaixo do ritmo', icon: '🔴' };
 }
 
-// Calcula o selo e o progresso individual a partir das metas
-// individuais reais (meta_m1/m2/m3 pra interno, meta_vendas pra
-// externo — os mesmos campos de detectarConquistasIndividuais/
-// renderConfigMetas):
+// Calcula o selo e o progresso mensal individual:
+// metas M1/M2/M3 cadastradas para internos e faixa fixa de 14 vendas
+// para M2 dos externos (M1 começa acima desse marco).
 //  - badgeTier: a maior meta já atingida.
 //  - progressPct: progresso em direção à próxima meta; após M1, continua
 //    calculado sobre M1 e pode passar de 100%.
 function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesPorId) {
   const vazio = { badgeTier: null, progressPct: null };
   const linha = (metasIndividuais || []).find(m => String(m.vendedor_id) === String(vendedorId));
-  if (!linha) return vazio;
   const vendasMes = Number(vendasMesPorId[vendedorId] || 0);
+
+  if (tipo === 'externo') {
+    return {
+      badgeTier: vendasMes > META_M2_EXTERNO_VENDAS
+        ? { tier: 'm1', label: 'M1' }
+        : vendasMes >= META_M2_EXTERNO_VENDAS
+          ? { tier: 'm2', label: 'M2' }
+          : null,
+    };
+  }
+  if (!linha) return vazio;
 
   if (tipo === 'interno') {
     const tiers = [
@@ -49,12 +58,7 @@ function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesP
     return { badgeTier, progressPct };
   }
 
-  // Externo: mantém a meta única e seu selo textual ao atingir 100%.
-  if (!linha.meta_vendas) return vazio;
-  const bateu = vendasMes >= linha.meta_vendas;
-  return {
-    badgeTier: bateu ? { tier: 'meta', label: 'Meta' } : null,
-  };
+  return vazio;
 }
 
 const PODIUM_FRAME_ASSETS = {
@@ -71,6 +75,7 @@ const LIST_TIER_ASSETS = {
   ...PODIUM_TIER_ASSETS,
   naoAtingida: 'assets/images/ranking/meta-nao-atingida.png',
 };
+const META_M2_EXTERNO_VENDAS = 14;
 
 // mode: 'semanal' mostra vendas + meta + %  |  'mensal' mostra so % + barra + ritmo
 function renderPodium(containerId, entries, options = {}) {
@@ -97,11 +102,9 @@ function renderPodium(containerId, entries, options = {}) {
       ? tiers.progressPct
       : Math.min(100, pctBase);
     // Só UM selo — a maior meta já batida (M3 sozinha conta, assim como M2 e M1).
-    const badgesHTML = tiers.badgeTier
+    const badgesHTML = tiers.badgeTier && PODIUM_TIER_ASSETS[tiers.badgeTier.tier]
       ? `<div class="podium-tier-badges">
-          ${PODIUM_TIER_ASSETS[tiers.badgeTier.tier]
-            ? `<img class="podium-tier-badge-image" src="${PODIUM_TIER_ASSETS[tiers.badgeTier.tier]}" alt="Meta ${tiers.badgeTier.label} atingida" loading="lazy">`
-            : `<span class="podium-tier-badge">${tiers.badgeTier.label}</span>`}
+          <img class="podium-tier-badge-image" src="${PODIUM_TIER_ASSETS[tiers.badgeTier.tier]}" alt="Meta ${tiers.badgeTier.label} atingida" loading="lazy">
         </div>`
       : '';
 
@@ -175,8 +178,8 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
     nome.textContent = vendedor.nome || 'Vendedor';
     identidade.appendChild(nome);
 
-    // As faixas M1/M2/M3 são mensais; a lista semanal mantém contexto só da semana.
-    if (mode === 'mensal' && vendedor.tipo === 'interno') {
+    // Os selos representam metas mensais; a lista semanal mantém contexto só da semana.
+    if (mode === 'mensal' && (vendedor.tipo === 'interno' || vendedor.tipo === 'externo')) {
       const metas = options.metasIndividuais || [];
       const metaVendedor = metas.find(m => String(m.vendedor_id) === String(vendedor.id));
       const tier = calcularTiersIndividuais(
@@ -186,18 +189,19 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
         options.vendasMesPorId || {}
       ).badgeTier;
       const metaM3 = Number(metaVendedor?.meta_m3);
-      const seloTier = tier || (
-        Number.isFinite(metaM3) && metaM3 > 0
-          ? { tier: 'naoAtingida', label: 'Meta M3 ainda não atingida' }
-          : null
-      );
+      const metaBaseConfigurada = vendedor.tipo === 'externo'
+        ? true
+        : Number.isFinite(metaM3) && metaM3 > 0;
+      const seloTier = tier || (metaBaseConfigurada
+        ? { tier: 'naoAtingida', label: 'Meta não atingida' }
+        : null);
       const assetSelo = seloTier && LIST_TIER_ASSETS[seloTier.tier];
       if (assetSelo) {
         const selo = document.createElement('img');
         selo.className = 'ranking-full-tier-badge';
         selo.src = assetSelo;
-        selo.alt = seloTier.label === 'Meta M3 ainda não atingida'
-          ? 'Meta M3 ainda não atingida'
+        selo.alt = seloTier.tier === 'naoAtingida'
+          ? (vendedor.tipo === 'externo' ? 'Meta M2 ainda não atingida' : 'Meta M3 ainda não atingida')
           : `Meta ${seloTier.label} atingida`;
         selo.title = selo.alt;
         selo.loading = 'lazy';
