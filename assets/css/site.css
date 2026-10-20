@@ -153,26 +153,22 @@
   /* ---------- fundo animado (rede / fibra) ---------- */
   .bg-fx { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
   .bg-fx .orb {
-    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.32;
-    animation: floatOrb 20s ease-in-out infinite;
+    position: absolute; border-radius: 50%; filter: blur(56px); opacity: 0.26;
   }
-  .bg-fx .orb-1 { width: 440px; height: 440px; background: var(--accent); top: -140px; left: -120px; }
-  .bg-fx .orb-2 { width: 400px; height: 400px; background: var(--accent2); bottom: -150px; right: -100px; animation-duration: 24s; animation-direction: reverse; }
+  .bg-fx .orb-1 { width: 380px; height: 380px; background: var(--accent); top: -140px; left: -120px; }
+  .bg-fx .orb-2 { width: 350px; height: 350px; background: var(--accent2); bottom: -150px; right: -100px; }
   .bg-fx .grid {
     position: absolute; inset: 0;
     background-image:
       linear-gradient(rgba(var(--accent-rgb),0.05) 1px, transparent 1px),
       linear-gradient(90deg, rgba(var(--accent-rgb),0.05) 1px, transparent 1px);
     background-size: 44px 44px;
-    animation: gridPulse 7s ease-in-out infinite;
   }
   [data-theme="light"] .bg-fx .orb { opacity: 0.18; }
   [data-theme="light"] .bg-fx .grid { background-image:
       linear-gradient(rgba(var(--accent-rgb),0.07) 1px, transparent 1px),
       linear-gradient(90deg, rgba(var(--accent-rgb),0.07) 1px, transparent 1px); }
 
-  @keyframes floatOrb { 0%,100% { transform: translate(0,0); } 50% { transform: translate(34px, 44px); } }
-  @keyframes gridPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.75; } }
 
   /* ── Seletor de tema — pill segmentada, cores do próprio projeto ── */
   .theme-toggle {
@@ -259,12 +255,12 @@
     pointer-events: none;
   }
   .hero-panel::after {
-    content: ''; position: absolute; top: 0; left: -30%; width: 30%; height: 100%;
+    content: ''; position: absolute; top: 0; left: 0; width: 30%; height: 100%;
     background: linear-gradient(100deg, transparent, rgba(255,255,255,0.06), transparent);
     transform: skewX(-18deg);
-    animation: heroSweep 7s ease-in-out infinite;
+    animation: heroSweep 12s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   }
-  @keyframes heroSweep { 0% { left: -30%; } 50% { left: 110%; } 100% { left: 110%; } }
+  @keyframes heroSweep { 0%, 18% { transform: translateX(-150%) skewX(-18deg); } 70%, 100% { transform: translateX(420%) skewX(-18deg); } }
 
   .hero-left { display: flex; align-items: center; gap: 24px; flex: 1; min-width: 280px; position: relative; }
   .header-logo { width: 92px; flex-shrink: 0; filter: drop-shadow(0 0 18px var(--accent-glow)); }
@@ -280,11 +276,10 @@
     color: var(--green); font-size:0.72rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: 1.2px; padding: 6px 14px; border-radius: 50px; margin-bottom: 12px;
   }
-  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulseDot 1.7s infinite; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulseDot 2.4s ease-in-out infinite; }
   @keyframes pulseDot {
-    0% { box-shadow: 0 0 0 0 rgba(52,211,153,0.55); }
-    70% { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
-    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+    0%, 100% { opacity: 0.72; transform: scale(0.92); }
+    50% { opacity: 1; transform: scale(1.08); }
   }
 
   .header-copy h1 {
@@ -358,11 +353,11 @@
     position: relative; width: 132px; height: 132px; flex-shrink: 0;
     border-radius: 50%;
     box-shadow: 0 0 0 3px var(--border), 0 0 30px var(--accent-glow), inset 0 0 24px rgba(0,0,0,0.35);
-    animation: jarGlow 3.6s ease-in-out infinite;
+    animation: jarGlow 5s ease-in-out infinite;
   }
   @keyframes jarGlow {
-    0%, 100% { box-shadow: 0 0 0 3px var(--border), 0 0 22px var(--accent-glow), inset 0 0 24px rgba(0,0,0,0.35); }
-    50% { box-shadow: 0 0 0 3px var(--border), 0 0 34px var(--accent-glow), inset 0 0 24px rgba(0,0,0,0.35); }
+    0%, 100% { opacity: 0.88; }
+    50% { opacity: 1; }
   }
 
   .goal-liquid-jar {
@@ -379,7 +374,7 @@
   .wave-surface.wave-back { top: -5px; height: 12px; opacity: 0.55; }
   .wave-track {
     position: absolute; top: 0; left: 0; width: 200%; height: 100%;
-    display: flex; animation: waveScroll 5s linear infinite;
+    display: flex; animation: waveScroll 8s linear infinite;
   }
   .wave-back .wave-track { animation-duration: 8s; animation-direction: reverse; }
   .wave-track svg { width: 50%; height: 100%; display: block; flex-shrink: 0; }
@@ -505,7 +500,7 @@
     display: flex; align-items: flex-start; justify-content: center; padding-top: 10px;
     box-shadow: 0 -6px 26px var(--rank-glow);
     height: 0px;
-    transition: height 1s cubic-bezier(0.22, 1.4, 0.36, 1);
+    transition: height 0.85s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .podium-base::after {
     content: ''; position: absolute; top: 0; left: -40%; width: 40%; height: 100%;
@@ -518,6 +513,12 @@
   .podium-base .rank-number { font-size: 1.5rem; font-weight: 900; color: rgba(0,0,0,0.32); }
 
   @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
     html.filial-page-entering .page-shell, html.filial-page-exiting .page-shell,
     html.filial-page-entering #themeToggle, html.filial-page-entering #adm-trigger,
     html.filial-page-exiting #themeToggle, html.filial-page-exiting #adm-trigger { animation: none !important; }
@@ -864,7 +865,7 @@
   .churn-card {
     position: relative;
     background: linear-gradient(155deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 20px;
     padding: 26px 24px 22px;
@@ -1078,7 +1079,7 @@
   }
   .season-badge[hidden] { display: none; }
   .season-fx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-  .season-fx span { position: absolute; top: -12vh; line-height: 1; opacity: 0.45; animation: seasonFall linear infinite; will-change: transform; }
+  .season-fx span { position: absolute; top: -12vh; line-height: 1; opacity: 0.45; animation: seasonFall linear infinite; }
   [data-theme="light"] .season-fx span { opacity: 0.55; }
   html[data-season="natal"] .season-fx span {
     color: #f7fcff; opacity: 0.66; font-family: Arial, sans-serif;

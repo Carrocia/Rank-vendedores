@@ -154,7 +154,7 @@
       agendarTreno();
     }
     var box = document.createElement('div'); box.className = 'season-fx'; box.setAttribute('aria-hidden', 'true');
-    var qtd = estado.id === 'natal' ? (window.innerWidth < 640 ? 13 : 28) : (window.innerWidth < 640 ? 9 : 16);
+    var qtd = estado.id === 'natal' ? (window.innerWidth < 640 ? 8 : 16) : (window.innerWidth < 640 ? 6 : 10);
     for (var i = 0; i < qtd; i++) {
       var sp = document.createElement('span');
       sp.textContent = estado.id === 'natal' ? (i % 4 === 0 ? '✦' : '❄') : t.fx;
