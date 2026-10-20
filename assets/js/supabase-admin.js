@@ -4049,7 +4049,6 @@ async function gerarResumoMensalFilial(evt) {
 
     if (document.fonts?.ready) await document.fonts.ready;
     const card = document.getElementById('mf-card');
-    card.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); });
     await Promise.all(Array.from(card.querySelectorAll('img'), img => img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
     const canvas = await html2canvas(card, { backgroundColor: null, scale: 1, useCORS: true, allowTaint: false, imageTimeout: 10000 });
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));

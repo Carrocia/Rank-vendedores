@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-4">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-5">
 </head>
 <body>
 
@@ -332,7 +332,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261020-renov-period-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261020-resumo-filial-2"></script>
+  <script src="assets/js/supabase-admin.js?v=20261020-resumo-filial-3"></script>
   <script src="assets/js/ixc-import.js?v=20261016-pending-cleanup-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1599,14 +1599,13 @@
 <!-- Card mensal consolidado da filial: baixado pelo administrador para compartilhar. -->
 <div id="mf-offscreen" aria-hidden="true">
   <div id="mf-card">
-    <img class="mf-background" data-src="assets/images/monthly-report-background.png" alt="">
-    <img class="mf-ornament" data-src="assets/images/monthly-report-ornament.png" alt="">
     <div class="mf-content">
       <header class="mf-header">
         <img data-logo="dark" alt="UNI Internet">
-        <div class="mf-header-copy"><span>RESULTADO DA EQUIPE</span><strong id="mf-filial">—</strong></div>
-        <div class="mf-period" id="mf-periodo">—</div>
+        <span>RESUMO MENSAL</span>
       </header>
+      <div class="mf-divider"></div>
+      <div class="mf-identity"><strong id="mf-filial">—</strong><div class="mf-period" id="mf-periodo">—</div></div>
       <main class="mf-main">
         <div class="mf-eyebrow">META MENSAL DA FILIAL <span class="mf-eyebrow-dot"></span> M1</div>
         <div class="mf-hero-line">
