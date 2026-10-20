@@ -1035,7 +1035,10 @@ function renderConquistas() {
   const mesEl = document.getElementById('conquistasMes');
   if (mesEl) mesEl.textContent = new Date().toLocaleDateString('pt-BR', { month: 'long' });
 
-  const { lista = [], erro = false } = _cache.conquistasGlobais || {};
+  const { lista: conquistas = [], erro = false } = _cache.conquistasGlobais || {};
+  const lista = conquistas.filter(c => !(
+    c.tipo === 'externo' && c.conquista === 'Meta de vendas' && Number(c.vendas) < 14
+  ));
   if (!lista.length) {
     container.innerHTML = `<div class="conquistas-vazio">${erro
       ? 'Conquistas de todas as filiais indisponíveis. Aplique a atualização do Supabase para carregar este painel.'
@@ -1044,17 +1047,22 @@ function renderConquistas() {
   }
 
   const esc = escapeHtmlText;
-  const medalha = conquista => conquista === 'M1' ? '🥇' : conquista === 'M2' ? '🥈' : conquista === 'M3' ? '🥉' : '🏆';
+  const nomeMeta = conquista => conquista.conquista === 'Meta de vendas'
+    ? (Number(conquista.vendas) > 14 ? 'M1' : 'M2')
+    : (conquista.conquista || 'do mês'); // compatibilidade enquanto a RPC antiga não for atualizada
+  const medalha = conquista => {
+    const meta = nomeMeta(conquista);
+    return meta === 'M1' ? '🥇' : meta === 'M2' ? '🥈' : meta === 'M3' ? '🥉' : '🏆';
+  };
   container.innerHTML = `
     <div class="conquistas-carousel" role="region" aria-label="Conquistas deste mês de todas as filiais">
       <button type="button" class="conquista-nav" data-conquista-anterior aria-label="Conquista anterior">‹</button>
       <div class="conquistas-viewport" aria-live="polite">
         <div class="conquistas-track">${lista.map(c => `
           <article class="conquista-card">
-            <div class="conquista-card-top"><span class="conquista-medalha">${medalha(c.conquista)}</span><span class="conquista-filial">${esc(c.filial_nome || 'Filial')}</span></div>
+            <div class="conquista-card-top"><span class="conquista-medalha">${medalha(c)}</span><span class="conquista-filial">${esc(c.filial_nome || 'Filial')}</span></div>
             <strong class="conquista-vendedor">${esc(c.vendedor_nome || 'Vendedor')}</strong>
-            <span class="conquista-texto">atingiu a meta <b>${esc(c.conquista || 'do mês')}</b></span>
-            <span class="conquista-quando">${esc(c.vendas)} de ${esc(c.meta)} vendas · neste mês</span>
+            <span class="conquista-texto">atingiu a meta <b>${esc(nomeMeta(c))}</b></span>
           </article>`).join('')}
         </div>
       </div>

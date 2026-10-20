@@ -1,15 +1,16 @@
--- Exibe somente metas individuais atingidas no mês atual, consolidadas
--- entre todas as filiais. A função retorna apenas campos usados nos cards.
-create or replace function public.conquistas_mensais_globais()
+-- Exibe somente metas atingidas no mês atual, consolidadas entre filiais.
+-- Contagens e alvos não são retornados pela RPC para não expor os números
+-- individuais de vendas aos clientes públicos do painel.
+drop function if exists public.conquistas_mensais_globais();
+
+create function public.conquistas_mensais_globais()
 returns table (
   filial_id bigint,
   filial_nome text,
   vendedor_id bigint,
   vendedor_nome text,
   tipo text,
-  conquista text,
-  vendas bigint,
-  meta numeric
+  conquista text
 )
 language sql
 stable
@@ -44,13 +45,14 @@ as $function$
     vd.id,
     vd.nome::text,
     vd.tipo::text,
-    metas_conquista.conquista,
-    coalesce(vm.quantidade, 0)::bigint,
-    metas_conquista.meta
+    metas_conquista.conquista
   from public.vendedores vd
   join public.filiais f on f.id = vd.filial_id and f.ativo is true
-  join public.metas m on m.vendedor_id = vd.id
   cross join periodo p
+  left join public.metas m
+    on m.vendedor_id = vd.id
+   and m.mes = p.mes
+   and m.ano = p.ano
   left join vendas_mes vm on vm.vendedor_id = vd.id
   cross join lateral (
     select 'M3'::text as conquista, m.meta_m3::numeric as meta where vd.tipo::text = 'interno'
@@ -59,15 +61,18 @@ as $function$
     union all
     select 'M1'::text, m.meta_m1::numeric where vd.tipo::text = 'interno'
     union all
-    select 'Meta de vendas'::text, m.meta_vendas::numeric where vd.tipo::text = 'externo'
+    select 'M1'::text, 15::numeric
+      where vd.tipo::text = 'externo' and coalesce(vm.quantidade, 0) >= 15
+    union all
+    select 'M2'::text, 14::numeric
+      where vd.tipo::text = 'externo' and coalesce(vm.quantidade, 0) = 14
   ) as metas_conquista
   where vd.ativo is true
-    and m.mes = p.mes
-    and m.ano = p.ano
+    and (vd.tipo::text = 'externo' or m.vendedor_id is not null)
     and metas_conquista.meta is not null
     and metas_conquista.meta > 0
     and coalesce(vm.quantidade, 0) >= metas_conquista.meta
-  order by f.nome, coalesce(vm.quantidade, 0) desc, vd.nome, metas_conquista.meta;
+  order by f.nome, vd.nome, metas_conquista.conquista;
 $function$;
 
 revoke all on function public.conquistas_mensais_globais() from public;

@@ -1023,7 +1023,6 @@
   .conquista-filial { color: var(--accent); font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
   .conquista-vendedor { color: var(--heading-color); font-size: 1.08rem; }
   .conquista-texto { font-size: 0.84rem; color: var(--text); line-height: 1.4; }
-  .conquista-quando { font-size: .75rem; color: var(--text-muted); font-weight: 600; }
   .conquista-nav { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--heading-color); font-size: 1.5rem; cursor: pointer; transition: background .2s, transform .2s; }
   .conquista-nav:hover { background: var(--surface-hover); transform: scale(1.06); }
   .conquistas-pontos { display: flex; justify-content: center; gap: 7px; margin-top: 12px; }
