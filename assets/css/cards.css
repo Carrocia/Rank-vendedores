@@ -3,7 +3,7 @@
 #sc-offscreen { position: absolute; left: -9999px; top: 0; width: 540px; height: 960px; }
 
 #mf-offscreen { position: absolute; left: -10000px; top: 0; width: 1280px; height: 720px; pointer-events: none; }
-#mf-card { width: 1280px; height: 720px; overflow: hidden; position: relative; color: #f5fbff; font-family: 'Plus Jakarta Sans','Manrope',sans-serif; font-variant-numeric: tabular-nums; background: radial-gradient(circle at 50% 0%,rgba(33,217,191,.10) 0%,transparent 45%),linear-gradient(180deg,#0b1120 0%,#070b16 55%,#05070d 100%); }
+#mf-card { width: 1280px; height: 720px; overflow: hidden; position: relative; color: #f5fbff; font-family: 'Plus Jakarta Sans','Manrope',sans-serif; background: radial-gradient(circle at 50% 0%,rgba(33,217,191,.10) 0%,transparent 45%),linear-gradient(180deg,#0b1120 0%,#070b16 55%,#05070d 100%); }
 #mf-card * { box-sizing: border-box; }
 #mf-card::after { content: ""; position: absolute; z-index: 1; inset: 14px; border: 2px solid transparent; border-radius: 24px; pointer-events: none; background: linear-gradient(#070b16,#070b16) padding-box,linear-gradient(135deg,#21d9bf,rgba(255,255,255,.12),#2d5fff) border-box; opacity: .8; }
 .mf-content { position: relative; z-index: 2; margin: 18px; height: calc(100% - 36px); padding: 20px 28px 16px; display: grid; grid-template-columns: minmax(0,1.13fr) minmax(340px,.87fr); grid-template-rows: 52px 2px 36px 260px 82px auto auto; align-content: space-between; column-gap: 22px; row-gap: 0; }
