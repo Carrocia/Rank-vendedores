@@ -4034,13 +4034,12 @@ async function gerarResumoMensalFilial(evt) {
 
     setText('mf-filial', filialNome);
     setText('mf-periodo', `${nomeMes} de ${ano}`);
-    setText('mf-meta-title', meta ? `${vendas.toLocaleString('pt-BR')} de ${meta.toLocaleString('pt-BR')} vendas` : `${vendas.toLocaleString('pt-BR')} vendas`);
-    setText('mf-meta-detail', meta ? (faltam ? `Faltam ${faltam.toLocaleString('pt-BR')} vendas para atingir a meta M1` : 'Meta mensal atingida') : 'Meta mensal ainda não cadastrada');
+    setText('mf-meta-title', meta ? `de ${meta.toLocaleString('pt-BR')} vendas` : 'vendas realizadas');
     setText('mf-progress-pct', percentual === null ? '—' : `${percentual}%`);
     const progress = document.getElementById('mf-progress-fill');
     if (progress) progress.style.width = `${Math.min(100, Math.max(0, percentual || 0))}%`;
     setText('mf-vendas', vendas.toLocaleString('pt-BR'));
-    setText('mf-faltam', faltam === null ? 'Meta não cadastrada' : faltam ? `Faltam ${faltam.toLocaleString('pt-BR')} para a meta` : 'Meta atingida');
+    setText('mf-faltam', faltam === null ? 'Meta não cadastrada' : faltam ? `Faltam ${faltam.toLocaleString('pt-BR')} vendas para atingir a meta` : 'Meta atingida');
     setText('mf-cancelamentos', metasRenovCancel.cancelamentos_atual == null ? '—' : Number(metasRenovCancel.cancelamentos_atual).toLocaleString('pt-BR'));
     setText('mf-renovacoes', metasRenovCancel.renovacoes_atual == null ? '—' : Number(metasRenovCancel.renovacoes_atual).toLocaleString('pt-BR'));
     setText('mf-media-atual', mediaAtual === null ? '—' : `${formatarNumero(mediaAtual)} / dia`);
@@ -4050,6 +4049,7 @@ async function gerarResumoMensalFilial(evt) {
 
     if (document.fonts?.ready) await document.fonts.ready;
     const card = document.getElementById('mf-card');
+    card.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); });
     await Promise.all(Array.from(card.querySelectorAll('img'), img => img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
     const canvas = await html2canvas(card, { backgroundColor: null, scale: 1, useCORS: true, allowTaint: false, imageTimeout: 10000 });
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));

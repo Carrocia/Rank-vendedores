@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-2">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-4">
 </head>
 <body>
 
@@ -332,7 +332,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261020-renov-period-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261020-resumo-filial-1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261020-resumo-filial-2"></script>
   <script src="assets/js/ixc-import.js?v=20261016-pending-cleanup-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1599,36 +1599,35 @@
 <!-- Card mensal consolidado da filial: baixado pelo administrador para compartilhar. -->
 <div id="mf-offscreen" aria-hidden="true">
   <div id="mf-card">
-    <div class="mf-topline"></div>
+    <img class="mf-background" data-src="assets/images/monthly-report-background.png" alt="">
+    <img class="mf-ornament" data-src="assets/images/monthly-report-ornament.png" alt="">
     <div class="mf-content">
       <header class="mf-header">
         <img data-logo="dark" alt="UNI Internet">
-        <div class="mf-header-copy"><span>RESUMO MENSAL</span><strong id="mf-filial">—</strong></div>
+        <div class="mf-header-copy"><span>RESULTADO DA EQUIPE</span><strong id="mf-filial">—</strong></div>
         <div class="mf-period" id="mf-periodo">—</div>
       </header>
-      <div class="mf-divider"></div>
-      <section class="mf-goal">
-        <div class="mf-goal-copy">
-          <span class="mf-eyebrow">PROGRESSO DA META M1</span>
-          <div class="mf-goal-figures"><strong id="mf-vendas">—</strong><span id="mf-meta-title">—</span></div>
-          <div class="mf-progress"><span id="mf-progress-fill"></span></div>
-          <span id="mf-meta-detail">—</span>
+      <main class="mf-main">
+        <div class="mf-eyebrow">META MENSAL DA FILIAL <span class="mf-eyebrow-dot"></span> M1</div>
+        <div class="mf-hero-line">
+          <div class="mf-percent"><strong id="mf-progress-pct">—</strong><span>DA META<br>ALCANÇADA</span></div>
+          <div class="mf-goal-copy">
+            <div class="mf-goal-figures"><strong id="mf-vendas">—</strong><span id="mf-meta-title">—</span></div>
+            <div class="mf-progress"><span id="mf-progress-fill"></span></div>
+          </div>
         </div>
-        <div class="mf-percent-block">
-          <strong id="mf-progress-pct">—</strong>
-          <span>DA META</span>
-          <small id="mf-faltam">—</small>
-        </div>
-      </section>
+        <div class="mf-faltam" id="mf-faltam">—</div>
+      </main>
       <section class="mf-stats">
         <article><span>CANCELAMENTOS</span><strong id="mf-cancelamentos">—</strong><small>no mês</small></article>
         <article><span>RENOVAÇÕES</span><strong id="mf-renovacoes">—</strong><small>no mês</small></article>
         <article><span>TICKET MÉDIO</span><strong id="mf-ticket">—</strong><small>por venda</small></article>
       </section>
       <section class="mf-pace">
-        <div><span>RITMO ATUAL</span><strong id="mf-media-atual">—</strong><small>vendas por dia útil</small></div>
+        <div class="mf-pace-heading"><span>RITMO DA EQUIPE</span><small>Para alcançar a meta até o fim do mês</small></div>
+        <div class="mf-pace-stat"><span>ATUAL</span><strong id="mf-media-atual">—</strong><small>vendas por dia útil</small></div>
         <div class="mf-pace-divider"></div>
-        <div><span>RITMO NECESSÁRIO</span><strong id="mf-media-necessaria">—</strong><small>por dia útil restante</small></div>
+        <div class="mf-pace-stat mf-pace-stat--goal"><span>NECESSÁRIO</span><strong id="mf-media-necessaria">—</strong><small>por dia útil restante</small></div>
       </section>
       <footer class="mf-footer">
         <span>UNI INTERNET · ACOMPANHAMENTO DA FILIAL</span>
