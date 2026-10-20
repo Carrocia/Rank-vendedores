@@ -18,6 +18,23 @@
   document.documentElement.setAttribute('data-theme', t);
 })();
 
+// Evita que a paleta antiga se misture visualmente com a nova durante a troca.
+// As animações decorativas continuam ativas; apenas transições CSS são pausadas.
+(function () {
+  var revisaoTroca = 0;
+  window.uniTrocarTemaInstantaneo = function (aplicar) {
+    var html = document.documentElement;
+    var revisao = ++revisaoTroca;
+    html.classList.add('theme-switch-instant');
+    aplicar();
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        if (revisao === revisaoTroca) html.classList.remove('theme-switch-instant');
+      });
+    });
+  };
+})();
+
 // ================================================================
 // TEMAS SAZONAIS — só trocam cores e decoração; dados e layout não mudam.
 // Cada tema tem a paleta do modo ESCURO (d) e do CLARO (l), já com contraste
@@ -147,9 +164,11 @@
   window.uniAplicarTema = function (id, fx) {
     if (!TEMAS[id]) id = 'padrao';
     var html = document.documentElement;
-    if (id === 'padrao') html.removeAttribute('data-season'); else html.setAttribute('data-season', id);
-    estado = { id: id, fx: fx !== false };
-    decorar();
+    window.uniTrocarTemaInstantaneo(function () {
+      if (id === 'padrao') html.removeAttribute('data-season'); else html.setAttribute('data-season', id);
+      estado = { id: id, fx: fx !== false };
+      decorar();
+    });
   };
 
   // Mantém o tema base até carregar a configuração do ADM no Supabase.

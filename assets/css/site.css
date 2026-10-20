@@ -105,6 +105,8 @@
   }
 
   html, body { background: var(--bg); }
+  html.theme-switch-instant,
+  html.theme-switch-instant * { transition: none !important; }
 
   @keyframes filialPageEnter {
     from { opacity: 0; transform: translateY(9px) scale(0.995); }

@@ -2550,7 +2550,9 @@ function toggleTheme(force) {
   const html = document.documentElement;
   const atual = html.getAttribute('data-theme');
   const novo = (force === 'light' || force === 'dark') ? force : (atual === 'dark' ? 'light' : 'dark');
-  html.setAttribute('data-theme', novo);
+  const aplicar = () => html.setAttribute('data-theme', novo);
+  if (window.uniTrocarTemaInstantaneo) window.uniTrocarTemaInstantaneo(aplicar);
+  else aplicar();
   try { localStorage.setItem('uni-theme', novo); } catch (e) {}
 
   const wrap = document.getElementById('themeToggle');
