@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-1">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-2">
 </head>
 <body>
 
@@ -1603,37 +1603,38 @@
     <div class="mf-content">
       <header class="mf-header">
         <img data-logo="dark" alt="UNI Internet">
-        <div class="mf-header-copy">
-          <span>ACOMPANHAMENTO DA FILIAL</span>
-          <strong id="mf-filial">—</strong>
-        </div>
+        <div class="mf-header-copy"><span>RESUMO MENSAL</span><strong id="mf-filial">—</strong></div>
         <div class="mf-period" id="mf-periodo">—</div>
       </header>
       <div class="mf-divider"></div>
       <section class="mf-goal">
         <div class="mf-goal-copy">
-          <span class="mf-eyebrow">META MENSAL DA FILIAL</span>
-          <strong id="mf-meta-title">—</strong>
+          <span class="mf-eyebrow">PROGRESSO DA META M1</span>
+          <div class="mf-goal-figures"><strong id="mf-vendas">—</strong><span id="mf-meta-title">—</span></div>
+          <div class="mf-progress"><span id="mf-progress-fill"></span></div>
           <span id="mf-meta-detail">—</span>
         </div>
-        <div class="mf-progress-wrap">
-          <div class="mf-progress"><span id="mf-progress-fill"></span></div>
+        <div class="mf-percent-block">
           <strong id="mf-progress-pct">—</strong>
+          <span>DA META</span>
+          <small id="mf-faltam">—</small>
         </div>
       </section>
       <section class="mf-stats">
-        <article><span>VENDAS</span><strong id="mf-vendas">—</strong><small id="mf-faltam">—</small></article>
-        <article><span>CANCELAMENTOS</span><strong id="mf-cancelamentos">—</strong><small>registrados pelo administrador</small></article>
-        <article><span>RENOVAÇÕES</span><strong id="mf-renovacoes">—</strong><small>registradas pelo administrador</small></article>
-        <article><span>MÉDIA DE VENDAS</span><strong id="mf-media-atual">—</strong><small>por dia útil decorrido</small></article>
-        <article><span>RITMO NECESSÁRIO</span><strong id="mf-media-necessaria">—</strong><small>por dia útil restante</small></article>
-        <article><span>TICKET MÉDIO</span><strong id="mf-ticket">—</strong><small>valor total dividido pelas vendas</small></article>
+        <article><span>CANCELAMENTOS</span><strong id="mf-cancelamentos">—</strong><small>no mês</small></article>
+        <article><span>RENOVAÇÕES</span><strong id="mf-renovacoes">—</strong><small>no mês</small></article>
+        <article><span>TICKET MÉDIO</span><strong id="mf-ticket">—</strong><small>por venda</small></article>
+      </section>
+      <section class="mf-pace">
+        <div><span>RITMO ATUAL</span><strong id="mf-media-atual">—</strong><small>vendas por dia útil</small></div>
+        <div class="mf-pace-divider"></div>
+        <div><span>RITMO NECESSÁRIO</span><strong id="mf-media-necessaria">—</strong><small>por dia útil restante</small></div>
       </section>
       <footer class="mf-footer">
-        <span>UNI INTERNET · RESULTADO CONSOLIDADO</span>
+        <span>UNI INTERNET · ACOMPANHAMENTO DA FILIAL</span>
         <span id="mf-gerado-em">—</span>
       </footer>
-      <div class="mf-note">Dias úteis consideram segunda a sexta-feira. Cancelamentos e renovações refletem os valores informados no painel administrativo.</div>
+      <div class="mf-note">Dias úteis de segunda a sexta. Cancelamentos e renovações informados no painel administrativo.</div>
     </div>
   </div>
 </div>
