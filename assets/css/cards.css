@@ -23,7 +23,7 @@
 .mf-goal-copy { flex: 1; min-width: 0; }
 .mf-goal-figures { display: flex; align-items: baseline; gap: 10px; }
 .mf-goal-figures strong { color: #fff; font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -1.7px; }
-.mf-goal-figures span { color: #b5c8d8; font-size: 14px; font-weight: 600; letter-spacing: -.2px; }
+.mf-goal-figures span { color: #b5c8d8; font-size: 14px; font-weight: 600; letter-spacing: -.2px; font-variant-numeric: proportional-nums; font-feature-settings: "pnum" 1, "tnum" 0; }
 .mf-progress { height: 12px; margin-top: 16px; overflow: hidden; border-radius: 8px; background: rgba(255,255,255,.08); }
 .mf-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#21d9bf,#2d5fff); }
 .mf-faltam { margin-top: 14px; color: #c2d1df; font-size: 12px; font-weight: 500; letter-spacing: -.1px; }
