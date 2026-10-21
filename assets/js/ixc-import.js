@@ -3,6 +3,7 @@
 let _linhasImportacaoIxc = [];
 let _relatorioIxcParaSugestoes = [];
 let _pendenciasIxcCarregadas = [];
+let _filiaisFiltroPendenciasIxc = null;
 let _importacaoIxcEmAndamento = false;
 let _conferenciaIxcEmAndamento = false;
 let _analiseIxcEmAndamento = false;
@@ -551,6 +552,11 @@ async function reconciliarRelatorioIxc() {
     });
     if (error) throw error;
     const total = Number(data || 0);
+    const nomesFiliais = new Map(linhasAtivas.map(linha => [
+      String(linha.filialDestinoId),
+      linha.filialDestinoNome || `Filial ${linha.filialDestinoId}`,
+    ]));
+    _filiaisFiltroPendenciasIxc = filiais.map(id => ({ id, nome: nomesFiliais.get(String(id)) || `Filial ${id}` }));
     if (status) status.textContent = `Conferência concluída. ${total} venda(s) pendente(s) nova(s) ou revisitada(s).`;
     showToast(`Conferência concluída: ${total} venda(s) aguardando revisão.`, 'success');
     _relatorioIxcParaSugestoes = [..._linhasImportacaoIxc];
@@ -576,11 +582,15 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
   if (!corpo || !window.ADMIN_AUTENTICADO || !window._supabase) return;
   corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Carregando vendas pendentes…</td></tr>';
   if (botaoLimpar) botaoLimpar.disabled = true;
-  const { data: pendencias, error } = await window._supabase
+  const consultaPendencias = window._supabase
     .from('vendas_conferencia_ixc')
     .select('id, venda_id, filial_id, numero_venda, situacao, relatorio_em')
     .eq('situacao', 'pendente')
     .order('relatorio_em', { ascending: false });
+  if (_filiaisFiltroPendenciasIxc?.length) {
+    consultaPendencias.in('filial_id', _filiaisFiltroPendenciasIxc.map(filial => filial.id));
+  }
+  const { data: pendencias, error } = await consultaPendencias;
   if (error) {
     _pendenciasIxcCarregadas = [];
     console.error('[carregarPendenciasIxc]', error);
@@ -592,6 +602,12 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
     return;
   }
   _pendenciasIxcCarregadas = pendencias || [];
+  const escopo = document.getElementById('ixc-pending-scope');
+  if (escopo) {
+    escopo.textContent = _filiaisFiltroPendenciasIxc?.length
+      ? `Filiais do último relatório conferido: ${_filiaisFiltroPendenciasIxc.map(filial => filial.nome).join(', ')}`
+      : 'Exibindo pendências de todas as filiais às quais sua conta tem acesso.';
+  }
   if (botaoLimpar) {
     botaoLimpar.hidden = !_pendenciasIxcCarregadas.length;
     botaoLimpar.disabled = _limpezaPendenciasIxcEmAndamento || !_pendenciasIxcCarregadas.length;
@@ -831,8 +847,11 @@ async function limparPendenciasIxc() {
   if (!window.ADMIN_AUTENTICADO || !window._supabase || _limpezaPendenciasIxcEmAndamento) return;
   const ids = _pendenciasIxcCarregadas.map(item => Number(item.id)).filter(Number.isFinite);
   if (!ids.length) return;
+  const escopoTexto = _filiaisFiltroPendenciasIxc?.length
+    ? ` das filiais ${_filiaisFiltroPendenciasIxc.map(filial => filial.nome).join(', ')}`
+    : ' de todas as filiais às quais sua conta tem acesso';
   const confirmacao = confirm(
-    `Limpar ${ids.length} pendência(s) da lista? Elas serão marcadas como válidas. As vendas permanecerão cadastradas e continuarão contando nos indicadores.`
+    `Limpar ${ids.length} pendência(s)${escopoTexto}? Elas serão marcadas como válidas. As vendas permanecerão cadastradas e continuarão contando nos indicadores.`
   );
   if (!confirmacao) return;
 

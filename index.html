@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261020-resumo-filial-1">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261021-ixc-pending-scope-1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -333,7 +333,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261020-theme-bootstrap-1"></script>
   <script src="assets/js/supabase-admin.js?v=20261020-resumo-filial-4"></script>
-  <script src="assets/js/ixc-import.js?v=20261016-pending-cleanup-1"></script>
+  <script src="assets/js/ixc-import.js?v=20261021-ixc-pending-scope-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -677,7 +677,10 @@
           </div>
           <div class="adm-form-card ixc-pending-card" id="ixc-pending-card">
             <div class="ixc-pending-heading">
-              <div class="adm-section-title adm-subsection-title">Vendas pendentes de conferência</div>
+              <div class="ixc-pending-title-group">
+                <div class="adm-section-title adm-subsection-title">Vendas pendentes de conferência</div>
+                <span class="ixc-pending-scope adm-vendedor-cadastro-hint" id="ixc-pending-scope" aria-live="polite">Exibindo pendências de todas as filiais às quais sua conta tem acesso.</span>
+              </div>
               <button type="button" class="adm-btn adm-btn-secondary adm-btn-small ixc-pending-clear" id="ixc-pending-clear" hidden disabled>Limpar pendências</button>
             </div>
             <p class="adm-vendedor-cadastro-hint">Vendas que não apareceram na última lista completa de contratos ativos ficam aqui até você confirmar se continuam válidas, foram canceladas ou precisam ser vinculadas a outro número do IXC. Após conferir um relatório, o sistema pode sugerir contratos ativos com cliente, vendedor e plano parecidos. A comparação roda no navegador, sem API de IA paga; data e valores aparecem como contexto e não decidem o vínculo. As sugestões só vinculam depois da sua confirmação. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores.</p>

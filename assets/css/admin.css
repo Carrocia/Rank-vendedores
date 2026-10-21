@@ -858,6 +858,18 @@ body.adm-modal-open { overflow: hidden; }
   margin-bottom: 0;
 }
 
+.ixc-pending-title-group {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ixc-pending-scope {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
 .ixc-pending-clear {
   flex: 0 0 auto;
   margin: 0;
