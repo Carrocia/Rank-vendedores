@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-renovacoes-2">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-status-externo-3">
 </head>
 <body>
 
@@ -322,8 +322,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261022-renovacoes-2"></script>
-  <script src="assets/js/supabase-admin.js?v=20261022-renovacoes-2"></script>
+  <script src="assets/js/dashboard.js?v=20261022-status-externo-3"></script>
+  <script src="assets/js/supabase-admin.js?v=20261022-status-externo-3"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1157,7 +1157,7 @@
           </div>
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Metas individuais — <span id="cfg-renov-ind-periodo">mês/ano atual</span></div>
-            <p class="adm-description">Defina metas M3, M2 e M1 de renovações para cada vendedor. O progresso será calculado com o relatório importado do mês.</p>
+            <p class="adm-description">Defina metas M3, M2 e M1 de renovações para vendedores internos. Vendedores externos podem ser registrados no relatório quando fizerem uma renovação, mas não recebem meta individual de renovação.</p>
             <div class="adm-table-wrap"><table class="adm-table">
               <thead><tr><th>Vendedor</th><th>Tipo</th><th>M3</th><th>M2</th><th>M1</th></tr></thead>
               <tbody id="cfg-metas-renov-vendedores-tbody"><tr><td colspan="5">Carregando vendedores…</td></tr></tbody>
@@ -1585,7 +1585,7 @@
           <div class="sc-stat-label">Dias Seguidos</div>
           <div class="sc-stat-value" id="sc-stat-dias">—</div>
         </div>
-        <div class="sc-stat-tile sc-stat-renov-tile">
+        <div class="sc-stat-tile sc-stat-renov-tile" id="sc-stat-renov-tile">
           <div class="sc-stat-label">Renovações no Mês</div>
           <div class="sc-stat-value" id="sc-stat-renovacoes">—</div>
           <div class="sc-stat-sub" id="sc-stat-renovacoes-meta">Aguardando relatório</div>

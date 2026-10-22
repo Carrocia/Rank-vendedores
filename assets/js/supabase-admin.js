@@ -4208,14 +4208,16 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   const badges = [];
   const metasBatidas = metasPessoais.filter(m => vendasMesPessoa >= m.meta);
   const maiorMetaBatida = metasBatidas[metasBatidas.length - 1];
-  if (maiorMetaBatida) badges.push({ label: `${maiorMetaBatida.label} Atingida` });
+  const metaExternaBatida = tipo === 'externo'
+    ? (vendasMesPessoa > 14 ? { tier: 'm1', label: 'M1' } : vendasMesPessoa >= 14 ? { tier: 'm2', label: 'M2' } : null)
+    : null;
+  const maiorConquista = tipo === 'externo' ? metaExternaBatida : maiorMetaBatida;
+  if (maiorConquista) badges.push({ label: `${maiorConquista.label} Atingida` });
   if (posicao === 1) badges.push({ label: 'Líder da Semana' });
   const cardStory = document.getElementById('sc-card');
-  // A moldura comunica somente a maior conquista confirmada. Para
-  // externos, a cor especial aparece apenas quando a meta mensal foi batida.
-  const marcoAtingido = maiorMetaBatida?.tier || (
-    tipo === 'externo' && Number(vendedorMes.meta) > 0 && vendasMesPessoa >= Number(vendedorMes.meta) ? 'meta' : ''
-  );
+  // A moldura comunica apenas uma conquista confirmada. No externo, os
+  // marcos de vendas são M2 com 14 e M1 acima de 14 vendas.
+  const marcoAtingido = maiorConquista?.tier || '';
   if (cardStory) {
     if (marcoAtingido) cardStory.dataset.achievedTier = marcoAtingido;
     else delete cardStory.dataset.achievedTier;
@@ -4234,6 +4236,7 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   const statVendasLabel = document.getElementById('sc-stat-vendas-label');
   const statForaTile = document.getElementById('sc-stat-fora-tile');
   const statFora = document.getElementById('sc-stat-fora');
+  const statRenovTile = document.getElementById('sc-stat-renov-tile');
   const ehExterno = tipo === 'externo';
   document.getElementById('sc-card')?.classList.toggle('is-external', ehExterno);
   if (statsGrid) statsGrid.classList.toggle('is-external', ehExterno);
@@ -4241,6 +4244,10 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   if (statForaTile) {
     statForaTile.hidden = false;
     statForaTile.style.display = ehExterno ? 'block' : 'none';
+  }
+  if (statRenovTile) {
+    statRenovTile.hidden = ehExterno;
+    statRenovTile.style.display = ehExterno ? 'none' : '';
   }
   if (ehExterno && statFora) {
     const vendasForaNaFilialDestino = (_cache.vendasMes || []).filter(v =>
@@ -4255,25 +4262,27 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   document.getElementById('sc-stat-vendas').textContent = vendedorMes.vendas;
   document.getElementById('sc-stat-ticket').textContent = ticketMedio ? ('R$' + ticketMedio.toFixed(0)) : '—';
   document.getElementById('sc-stat-dias').innerHTML = `${sequencia}<span class="sc-unit"> ${sequencia === 1 ? 'dia' : 'dias'}</span>`;
-  const renovacaoMensal = Array.isArray(_cache.renovacoesMes) ? _cache.renovacoesMes : null;
-  const renovacaoPessoa = renovacaoMensal?.find(item => String(item.vendedor_id) === String(vendedorCadastro?.id));
-  const quantidadeRenovacoes = renovacaoPessoa ? Number(renovacaoPessoa.quantidade || 0) : (renovacaoMensal ? 0 : null);
-  const metasRenovPessoa = (_cache.metasRenovacaoIndividual || []).find(item => String(item.vendedor_id) === String(vendedorCadastro?.id)) || {};
-  const metasRenovPessoaOrdenadas = [
-    { label: 'M3', valor: Number(metasRenovPessoa.meta_m3) },
-    { label: 'M2', valor: Number(metasRenovPessoa.meta_m2) },
-    { label: 'M1', valor: Number(metasRenovPessoa.meta_m1) },
-  ].filter(meta => meta.valor > 0).sort((a, b) => a.valor - b.valor);
-  const metaRenovacaoAtual = quantidadeRenovacoes === null ? null
-    : (metasRenovPessoaOrdenadas.find(meta => quantidadeRenovacoes < meta.valor) || metasRenovPessoaOrdenadas[metasRenovPessoaOrdenadas.length - 1] || null);
-  const statRenov = document.getElementById('sc-stat-renovacoes');
-  const statRenovMeta = document.getElementById('sc-stat-renovacoes-meta');
-  if (statRenov) statRenov.textContent = quantidadeRenovacoes === null ? '—' : quantidadeRenovacoes.toLocaleString('pt-BR');
-  if (statRenovMeta) statRenovMeta.textContent = quantidadeRenovacoes === null
-    ? 'Aguardando relatório'
-    : metaRenovacaoAtual
-      ? `${metaRenovacaoAtual.label} · ${quantidadeRenovacoes.toLocaleString('pt-BR')} / ${metaRenovacaoAtual.valor.toLocaleString('pt-BR')}`
-      : 'Meta individual não definida';
+  if (!ehExterno) {
+    const renovacaoMensal = Array.isArray(_cache.renovacoesMes) ? _cache.renovacoesMes : null;
+    const renovacaoPessoa = renovacaoMensal?.find(item => String(item.vendedor_id) === String(vendedorCadastro?.id));
+    const quantidadeRenovacoes = renovacaoPessoa ? Number(renovacaoPessoa.quantidade || 0) : (renovacaoMensal ? 0 : null);
+    const metasRenovPessoa = (_cache.metasRenovacaoIndividual || []).find(item => String(item.vendedor_id) === String(vendedorCadastro?.id)) || {};
+    const metasRenovPessoaOrdenadas = [
+      { label: 'M3', valor: Number(metasRenovPessoa.meta_m3) },
+      { label: 'M2', valor: Number(metasRenovPessoa.meta_m2) },
+      { label: 'M1', valor: Number(metasRenovPessoa.meta_m1) },
+    ].filter(meta => meta.valor > 0).sort((a, b) => a.valor - b.valor);
+    const metaRenovacaoAtual = quantidadeRenovacoes === null ? null
+      : (metasRenovPessoaOrdenadas.find(meta => quantidadeRenovacoes < meta.valor) || metasRenovPessoaOrdenadas[metasRenovPessoaOrdenadas.length - 1] || null);
+    const statRenov = document.getElementById('sc-stat-renovacoes');
+    const statRenovMeta = document.getElementById('sc-stat-renovacoes-meta');
+    if (statRenov) statRenov.textContent = quantidadeRenovacoes === null ? '—' : quantidadeRenovacoes.toLocaleString('pt-BR');
+    if (statRenovMeta) statRenovMeta.textContent = quantidadeRenovacoes === null
+      ? 'Aguardando relatório'
+      : metaRenovacaoAtual
+        ? `${metaRenovacaoAtual.label} · ${quantidadeRenovacoes.toLocaleString('pt-BR')} / ${metaRenovacaoAtual.valor.toLocaleString('pt-BR')}`
+        : 'Meta individual não definida';
+  }
 
   document.getElementById('sc-phrase').textContent = `"${frase}"`;
   document.getElementById('sc-data-geracao').textContent = 'UNI INTERNET · GERADO EM ' + new Date().toLocaleDateString('pt-BR');
@@ -5055,12 +5064,12 @@ function renderConfigMetas(cache) {
   const renovTbody = document.getElementById('cfg-metas-renov-vendedores-tbody');
   if (renovTbody) {
     const metasRenov = cache.metasRenovacaoIndividual || [];
-    renovTbody.innerHTML = vendedores.map(v => {
+    const vendedoresComMetaRenovacao = vendedores.filter(v => v.tipo === 'interno');
+    renovTbody.innerHTML = vendedoresComMetaRenovacao.length ? vendedoresComMetaRenovacao.map(v => {
       const m = metasRenov.find(item => String(item.vendedor_id) === String(v.id)) || {};
-      const tipo = v.tipo === 'interno' ? 'interno' : 'externo';
       const input = (campo, valor) => `<input type="number" min="0" step="1" style="width:90px" id="cfg-renov-meta-${v.id}-${campo}" value="${valor ?? ''}" placeholder="—">`;
-      return `<tr data-renov-vendedor-id="${v.id}" data-filial-id="${v.filial_id || window.FILIAL_ATUAL_ID}"><td><strong>${v.nome}</strong></td><td><span class="adm-badge ${tipo}">${tipo === 'interno' ? 'Interno' : 'Externo'}</span></td><td>${input('m3', m.meta_m3)}</td><td>${input('m2', m.meta_m2)}</td><td>${input('m1', m.meta_m1)}</td></tr>`;
-    }).join('');
+      return `<tr data-renov-vendedor-id="${v.id}" data-filial-id="${v.filial_id || window.FILIAL_ATUAL_ID}"><td><strong>${v.nome}</strong></td><td><span class="adm-badge interno">Interno</span></td><td>${input('m3', m.meta_m3)}</td><td>${input('m2', m.meta_m2)}</td><td>${input('m1', m.meta_m1)}</td></tr>`;
+    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Nenhum vendedor interno cadastrado.</td></tr>';
   }
 }
 

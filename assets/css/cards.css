@@ -223,6 +223,14 @@
 #sc-card.is-external .sc-phrase-box { padding-top: 18px; }
 #sc-card.is-external .sc-phrase { padding: 0 12px; font-size: 15px; }
 #sc-card.is-external .sc-brandline { margin-top: 13px; }
+/* Status do externo: mantém o conteúdo alinhado em uma grade 2×2 e remove
+   o espaço que era ocupado pelo card de renovações. */
+#sc-card.is-external .sc-identity { margin-top: 22px; }
+#sc-card.is-external .sc-hero { margin-top: 22px; }
+#sc-card.is-external .sc-badges-label { margin-top: 20px; }
+#sc-card.is-external .sc-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; margin-top: 16px; }
+#sc-card.is-external .sc-stat-tile { min-height: 88px; display: flex; flex-direction: column; justify-content: center; }
+#sc-card.is-external .sc-phrase-box { padding-top: 16px; }
 
 /* ── Card de CELEBRAÇÃO (imagem estática de meta batida) — reaproveita as classes
    .sc-* acima (moldura, ondas, logo, avatar) e só acrescenta o selo
