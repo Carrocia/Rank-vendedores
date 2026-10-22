@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-status-externo-3">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-renovacoes-fluxo-4">
 </head>
 <body>
 
@@ -322,8 +322,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261022-status-externo-3"></script>
-  <script src="assets/js/supabase-admin.js?v=20261022-status-externo-3"></script>
+  <script src="assets/js/dashboard.js?v=20261022-renovacoes-fluxo-4"></script>
+  <script src="assets/js/supabase-admin.js?v=20261022-renovacoes-fluxo-4"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1134,15 +1134,22 @@
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Gestão de Renovações</div>
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Importar relatório mensal</div>
-            <p class="adm-description">Importe o relatório de eventos de renovação. Cada linha será salva com cliente, contrato, plano renovado, valor, data e vendedor vinculado ao cadastro pelo ID IXC. O relatório alimenta os indicadores e metas individuais, sem criar ranking público de renovações.</p>
+            <p class="adm-description">Envie o relatório específico de renovações. O sistema identifica as colunas, vincula o vendedor cadastrado pelo ID IXC e mostra uma prévia para conferência antes de gravar. Cada renovação guarda contrato, cliente, plano e valor.</p>
             <div class="adm-form-grid">
               <div class="adm-field"><label for="renov-relatorio-mes">Mês do relatório</label><input type="month" id="renov-relatorio-mes"></div>
               <div class="adm-field"><label for="renov-relatorio-arquivo">Relatório de renovações</label><input type="file" id="renov-relatorio-arquivo" accept=".csv,.xlsx"></div>
             </div>
-            <div id="renov-relatorio-preview" class="adm-muted-copy" aria-live="polite">Selecione o mês e o arquivo. Você poderá conferir as colunas e associar os vendedores antes de importar.</div>
-            <div id="renov-relatorio-mapeamento" class="adm-form-grid" hidden></div>
-            <div id="renov-relatorio-correspondencias" class="adm-table-wrap" hidden></div>
-            <button type="button" id="renov-relatorio-importar" class="adm-btn adm-btn-primary adm-btn-inline" onclick="importarRelatorioRenovacoes()" disabled><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Importar detalhamento</button>
+            <div id="renov-relatorio-preview" class="adm-muted-copy" aria-live="polite">Selecione o mês e o arquivo para analisar as renovações e conferir o vendedor, plano e valor reconhecidos.</div>
+            <div class="adm-table-wrap" id="renov-relatorio-preview-wrap" hidden>
+              <table class="adm-table">
+                <thead><tr><th>Contrato</th><th>Cliente</th><th>Plano renovado</th><th>Valor</th><th>Vendedor</th><th>Data da renovação</th><th>Situação</th></tr></thead>
+                <tbody id="renov-relatorio-preview-body"></tbody>
+              </table>
+            </div>
+            <div class="adm-form-actions">
+              <button type="button" id="renov-relatorio-importar" class="adm-btn adm-btn-primary adm-btn-inline" onclick="importarRelatorioRenovacoes()" disabled><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Importar renovações selecionadas</button>
+              <button type="button" id="renov-relatorio-limpar" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="limparRelatorioRenovacoes()" disabled>Limpar relatório</button>
+            </div>
             <div class="adm-table-wrap" id="renov-relatorio-resumo-vendedores" aria-live="polite"></div>
             <button type="button" class="adm-btn adm-btn-inline" id="renov-relatorio-exportar" onclick="exportarResumoRenovacoes()" hidden>Exportar relatório por vendedor (CSV)</button>
           </div>
