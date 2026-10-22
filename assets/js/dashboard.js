@@ -1009,6 +1009,7 @@ const _maisVendidosCache = new Map();
 let _cache = {
   vendedores: [], planos: [], categoriasPlanos: [], adicionais: [], filiais: [],
   metasFilial: null, metas: [], metasRenovCancel: null, metasRenovacaoFilial: null, metasRenovacaoIndividual: [], renovacoesMes: null, renovacoesTotal: null,
+  ranksMensais: [],
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
   vendasOrigemSemana: [], vendasOrigemSemanaAnterior: [], vendasOrigemMes: [],
   vendaMaisRecente: null,
@@ -1183,11 +1184,12 @@ async function carregarDados() {
       pFechadosOrigem,
     ]);
 
-    const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal] = await Promise.all([
+    const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal, ranksMensais] = await Promise.all([
       loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
       loadMetasRenovacaoIndividual(_cache.mes.mesNum, _cache.mes.ano),
       loadRenovacoesMensais(_cache.mes.mesNum, _cache.mes.ano),
       loadTotalRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
+      loadRankMensalFilial(_cache.mes.mesNum, _cache.mes.ano),
     ]);
 
     _cache.vendedores = vendedores;
@@ -1201,6 +1203,7 @@ async function carregarDados() {
     _cache.metasRenovacaoIndividual = metasRenovacaoIndividual;
     _cache.renovacoesMes = renovacoesMes;
     _cache.renovacoesTotal = renovacoesTotal;
+    _cache.ranksMensais = ranksMensais || [];
     _cache.vendasSemana = vendasSemana;
     _cache.vendasMes = vendasMes;
     _cache.vendasFiliais = vendasFiliais;

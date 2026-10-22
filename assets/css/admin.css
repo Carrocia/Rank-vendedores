@@ -155,6 +155,14 @@ body.adm-modal-open { overflow: hidden; }
 .adm-carreira-vinculo-campos { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }
 .adm-carreira-vinculo-campos .adm-field { margin: 0; }
 .adm-carreira-identidade { color: var(--text-muted, #9ca7b8); font-size: .86rem; white-space: nowrap; }
+.adm-rank-tag { display: inline-flex; min-width: 34px; height: 30px; padding: 0 9px; align-items: center; justify-content: center; border: 1px solid currentColor; border-radius: 9px; font-size: .82rem; font-weight: 900; letter-spacing: .04em; box-shadow: 0 0 14px color-mix(in srgb, currentColor 15%, transparent); }
+.adm-rank-tag--d { color: #8eacc8; background: #8eacc81a; }
+.adm-rank-tag--c { color: #53b9ff; background: #53b9ff1a; }
+.adm-rank-tag--b { color: #55e1c2; background: #55e1c21a; }
+.adm-rank-tag--a { color: #bd82ff; background: #bd82ff1a; }
+.adm-rank-tag--s { color: #ffc75e; background: #ffc75e1a; }
+.adm-rank-tag--ss { color: #ff7f9f; background: #ff7f9f1a; }
+.adm-rank-no-base { color: var(--text-muted, #9ca7b8); font-size: .82rem; }
 .adm-vendedores-global .adm-pagination { justify-content: center; gap: 12px; margin: 16px 0 0; }
 @media (max-width: 720px) {
   .adm-vendedores-global-filtros { grid-template-columns: 1fr; gap: 0; }

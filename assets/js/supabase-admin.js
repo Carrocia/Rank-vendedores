@@ -506,21 +506,19 @@ function popularSeletoresVinculoCarreira() {
   };
   preencher(novoSelect, 'Selecione o cadastro novo', novoSelect.value);
   preencher(referenciaSelect, 'Selecione o cadastro anterior', referenciaSelect.value);
+  const atualizarReferenciasDisponiveis = () => {
+    const novoId = novoSelect.value;
+    Array.from(referenciaSelect.options).forEach(option => {
+      if (!option.value) return;
+      option.disabled = option.value === novoId
+        || (novoId && identidadePorId.get(option.value) === identidadePorId.get(novoId));
+    });
+    if (referenciaSelect.selectedOptions[0]?.disabled) referenciaSelect.value = '';
+  };
+  atualizarReferenciasDisponiveis();
   if (!novoSelect.dataset.listenerRegistrado) {
-    novoSelect.addEventListener('change', () => {
-      const novoId = novoSelect.value;
-      Array.from(referenciaSelect.options).forEach(option => {
-        if (!option.value) return;
-        option.disabled = option.value === novoId
-          || identidadePorId.get(option.value) === identidadePorId.get(novoId);
-      });
-    });
+    novoSelect.addEventListener('change', atualizarReferenciasDisponiveis);
     novoSelect.dataset.listenerRegistrado = 'true';
-  }
-  if (!referenciaSelect.dataset.listenerRegistrado) {
-    referenciaSelect.addEventListener('change', () => {
-    });
-    referenciaSelect.dataset.listenerRegistrado = 'true';
   }
   const botao = document.getElementById('adm-carreira-vincular-btn');
   if (botao) {
@@ -1154,6 +1152,22 @@ async function loadRenovacoesMensais(mes, ano) {
     .select('id,filial_id,vendedor_id,mes,ano,quantidade,arquivo_origem,importado_em')
     .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano);
   if (error) { console.warn('[loadRenovacoesMensais] aplique supabase/renovacoes-mensais.sql:', error.message); return null; }
+  return data || [];
+}
+
+async function loadRankMensalFilial(mes, ano) {
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) return [];
+  const { data, error } = await window._supabase.rpc('calcular_rank_mensal_filial', {
+    p_filial_id: Number(window.FILIAL_ATUAL_ID),
+    p_mes: Number(mes),
+    p_ano: Number(ano),
+  });
+  if (error) {
+    if (!/calcular_rank_mensal_filial|schema cache|does not exist/i.test(error.message || '')) {
+      console.warn('[loadRankMensalFilial]', error.message);
+    }
+    return [];
+  }
   return data || [];
 }
 
@@ -4181,7 +4195,7 @@ function renderAdmVendedoresTable(d) {
   if (!todos.length) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 8;
+    td.colSpan = 9;
     td.className = 'adm-empty-state';
     td.textContent = 'Nenhum vendedor ativo cadastrado nesta regional.';
     tr.appendChild(td);
@@ -4240,6 +4254,25 @@ function renderAdmVendedoresTable(d) {
       pctTd.textContent = '—';
     }
 
+    const rankTd = document.createElement('td');
+    const rankResumo = (_cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(v.id));
+    if (rankResumo?.elegivel && rankResumo.rank_mensal) {
+      const seloRank = document.createElement('span');
+      seloRank.className = `adm-rank-tag adm-rank-tag--${String(rankResumo.rank_mensal).toLowerCase()}`;
+      seloRank.textContent = rankResumo.rank_mensal;
+      const fmtPct = (atual, meta) => Number(meta) > 0 ? `${Math.round((Number(atual) / Number(meta)) * 100)}%` : '—';
+      seloRank.title = [
+        `Vendas: ${rankResumo.vendas} / ${rankResumo.meta_vendas} (${fmtPct(rankResumo.vendas, rankResumo.meta_vendas)})`,
+        rankResumo.tipo === 'externo' ? 'Renovações: não são critério para externos' : `Renovações: ${rankResumo.renovacoes} / ${rankResumo.meta_renovacoes} (${fmtPct(rankResumo.renovacoes, rankResumo.meta_renovacoes)})`,
+        `Ticket: R$ ${Number(rankResumo.ticket_medio || 0).toFixed(2).replace('.', ',')} · referência regional R$ ${Number(rankResumo.ticket_referencia || 0).toFixed(2).replace('.', ',')}`,
+      ].join('\n');
+      rankTd.appendChild(seloRank);
+    } else {
+      rankTd.textContent = 'Sem base';
+      rankTd.className = 'adm-rank-no-base';
+      rankTd.title = 'O rank depende de meta cadastrada e de referência de ticket disponível para este mês.';
+    }
+
     const statusTd = document.createElement('td');
     const statusBtn = document.createElement('button');
     statusBtn.type = 'button';
@@ -4266,7 +4299,7 @@ function renderAdmVendedoresTable(d) {
       acoesTd.textContent = '—';
     }
 
-    tr.append(fotoTd, nomeTd, tipoTd, metaTd, vendasTd, pctTd, statusTd, acoesTd);
+    tr.append(fotoTd, nomeTd, tipoTd, metaTd, vendasTd, pctTd, rankTd, statusTd, acoesTd);
     return tr;
   });
   tbody.replaceChildren(...linhas);
