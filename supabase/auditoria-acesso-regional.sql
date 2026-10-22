@@ -8,7 +8,8 @@ from information_schema.columns
 where table_schema = 'public'
   and table_name in (
     'filiais', 'admin_usuarios', 'vendedores', 'metas', 'metas_filial',
-    'metas_renovacao_cancelamento', 'destaques_renovacao', 'vendas',
+    'metas_renovacao_cancelamento', 'destaques_renovacao',
+    'metas_renovacao_filial', 'metas_renovacao_individual', 'renovacoes_mensais', 'vendas',
     'venda_adicionais', 'vendas_outras_filiais',
     'venda_outra_filial_adicionais', 'adicionais_avulsos'
   )
@@ -24,7 +25,8 @@ where n.nspname = 'public'
   and c.relkind in ('r', 'p')
   and c.relname in (
     'filiais', 'admin_usuarios', 'vendedores', 'metas', 'metas_filial',
-    'metas_renovacao_cancelamento', 'destaques_renovacao', 'vendas',
+    'metas_renovacao_cancelamento', 'destaques_renovacao',
+    'metas_renovacao_filial', 'metas_renovacao_individual', 'renovacoes_mensais', 'vendas',
     'venda_adicionais', 'vendas_outras_filiais',
     'venda_outra_filial_adicionais', 'adicionais_avulsos'
   )
@@ -36,7 +38,8 @@ from pg_policies
 where schemaname = 'public'
   and tablename in (
     'filiais', 'admin_usuarios', 'vendedores', 'metas', 'metas_filial',
-    'metas_renovacao_cancelamento', 'destaques_renovacao', 'vendas',
+    'metas_renovacao_cancelamento', 'destaques_renovacao',
+    'metas_renovacao_filial', 'metas_renovacao_individual', 'renovacoes_mensais', 'vendas',
     'venda_adicionais', 'vendas_outras_filiais',
     'venda_outra_filial_adicionais', 'adicionais_avulsos'
   )

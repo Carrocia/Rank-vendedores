@@ -122,6 +122,11 @@
 .sc-stat-label { font-size: 9.5px; font-weight: 700; letter-spacing: 1px; color: #8296a8; text-transform: uppercase; }
 .sc-stat-value { font-size: 21px; font-weight: 800; color: #f5fbff; margin-top: 6px; }
 .sc-stat-value .sc-unit { font-size: 11px; color: #6fe6d4; font-weight: 700; }
+.sc-stat-sub { margin-top: 5px; font-size: 10px; line-height: 1.3; color: #9fb6c9; }
+#sc-card .sc-stat-renov-tile { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; align-items: center; padding: 13px 18px; text-align: left; }
+#sc-card .sc-stat-renov-tile .sc-stat-label { grid-column: 1; grid-row: 1; }
+#sc-card .sc-stat-renov-tile .sc-stat-value { grid-column: 2; grid-row: 1 / span 2; margin: 0; }
+#sc-card .sc-stat-renov-tile .sc-stat-sub { grid-column: 1; grid-row: 2; margin-top: 2px; }
 
 .sc-phrase-box { margin-top: auto; padding-top: 22px; text-align: center; }
 .sc-phrase { font-size: 14px; font-weight: 600; color: #d6f5ef; line-height: 1.5; padding: 0 12px; }

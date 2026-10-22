@@ -363,7 +363,6 @@ function renderHistorico() {
   const historico = historicoCompleto();
   if (!historico.length) {
     container.innerHTML = '<p class="mural-empty">Nenhum destaque registrado ainda.</p>';
-    renderMuralRenovacoes();
     return;
   }
   container.innerHTML = historico.map(h => `
@@ -375,24 +374,6 @@ function renderHistorico() {
       </div>
     </div>
   `).join('');
-  renderMuralRenovacoes();
-}
-
-// ---------- Mural de Renovações (cadastro manual no ADM) ----------
-const NOMES_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const formatRenovacoes = n => `${n} ${Number(n) === 1 ? 'renovação' : 'renovações'}`;
-
-async function loadDestaquesRenovacao() {
-  // Se a tabela ainda não foi criada, não quebra o site: só fica vazio.
-  const { data, error } = await window._supabase
-    .from('destaques_renovacao')
-    .select('*')
-    .eq('filial_id', window.FILIAL_ATUAL_ID)
-    .order('ano', { ascending: false })
-    .order('mes', { ascending: false })
-    .limit(36);
-  if (error) { console.warn('[loadDestaquesRenovacao] a tabela destaques_renovacao existe?', error.message); return []; }
-  return data || [];
 }
 
 // Cor atual de uma variável de tema (gráficos/confete acompanham o tema sazonal)
@@ -485,120 +466,6 @@ async function salvarTemaSite() {
     } else {
       showToast('Não foi possível salvar o tema: ' + msg, 'error');
     }
-  }
-}
-
-function renderMuralRenovacoes() {
-  const container = document.getElementById('muralRenovGrid');
-  if (!container) return;
-  const regs = (_cache && _cache.destaquesRenovacao) || [];
-  const hoje = new Date();
-  const atual = { mes: hoje.getMonth() + 1, ano: hoje.getFullYear() };
-  const chaveMes = ({ mes, ano }) => Number(ano) * 12 + Number(mes);
-  const mesAtual = chaveMes(atual);
-  // O mural só começa no mês em que a regional passou a usar o sistema.
-  const regsAtuaisOuFuturos = regs.filter(r => chaveMes({ mes: r.mes, ano: r.ano }) >= mesAtual);
-  const cadastrado = m => regsAtuaisOuFuturos.some(r => Number(r.mes) === m.mes && Number(r.ano) === m.ano);
-
-  const cards = regsAtuaisOuFuturos.map(r => ({ mes: Number(r.mes), ano: Number(r.ano), vendedor: r.vendedor, quantidade: Number(r.quantidade) || 0 }));
-  if (!cadastrado(atual)) cards.push({ ...atual, pendente: true });
-  cards.sort((a, b) => (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes));
-
-  container.innerHTML = cards.map(c => {
-    const rotulo = NOMES_MESES[c.mes - 1] + (c.ano !== atual.ano ? '/' + c.ano : '');
-    const pessoa = c.pendente ? null : { id: c.vendedor, vendas: c.quantidade };
-    return `
-      <div class="mural-card">
-        <span class="mural-month">${rotulo}</span>
-        <div class="mural-pair">
-          ${renderMuralPerson(pessoa, 'Renovações', formatRenovacoes)}
-        </div>
-      </div>`;
-  }).join('');
-}
-
-// ---------- ADM: cadastro do destaque de renovações ----------
-function popularAdmRenovacoes() {
-  const sel = document.getElementById('renov-vendedor');
-  if (sel) {
-    const atual = sel.value;
-    sel.innerHTML = '<option value="">Selecione o vendedor</option>' +
-      (_cache.vendedores || []).map(v => `<option value="${v.slug || v.id}">${v.nome}</option>`).join('');
-    if (atual) sel.value = atual;
-  }
-  const mesEl = document.getElementById('renov-mes');
-  if (mesEl) {
-    const hoje = new Date();
-    const mesAtual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
-    mesEl.min = mesAtual;
-    if (!mesEl.value || mesEl.value < mesAtual) mesEl.value = mesAtual;
-  }
-  const tbody = document.getElementById('renov-destaques-tbody');
-  if (!tbody) return;
-  const hoje = new Date();
-  const mesAtualKey = hoje.getFullYear() * 12 + hoje.getMonth() + 1;
-  const regs = (_cache.destaquesRenovacao || []).filter(r => Number(r.ano) * 12 + Number(r.mes) >= mesAtualKey);
-  if (!regs.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhum destaque cadastrado ainda.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = regs.map(r => {
-    const v = (_cache.vendedores || []).find(x => (x.slug || x.id) === r.vendedor);
-    return `<tr>
-      <td>${NOMES_MESES[Number(r.mes) - 1]}/${r.ano}</td>
-      <td><strong>${v ? v.nome : r.vendedor}</strong></td>
-      <td>${r.quantidade}</td>
-      <td><button type="button" class="adm-btn-excluir" onclick="excluirDestaqueRenovacao('${r.id}')" title="Excluir" aria-label="Excluir destaque"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-trash"></use></svg></button></td>
-    </tr>`;
-  }).join('');
-}
-
-async function salvarDestaqueRenovacao() {
-  const mesVal = document.getElementById('renov-mes').value;      // "YYYY-MM"
-  const vendedor = document.getElementById('renov-vendedor').value;
-  const qtdRaw = document.getElementById('renov-qtd').value.trim();
-  const quantidade = Number(qtdRaw);
-  if (!mesVal || !vendedor || qtdRaw === '' || !Number.isInteger(quantidade) || quantidade < 0) {
-    showToast('Escolha o mês, o vendedor e informe a quantidade de renovações (número inteiro).', 'warning');
-    return;
-  }
-  const [ano, mes] = mesVal.split('-').map(Number);
-  const hoje = new Date();
-  const mesAtualKey = hoje.getFullYear() * 12 + hoje.getMonth() + 1;
-  if (ano * 12 + mes < mesAtualKey) {
-    showToast('Só é possível cadastrar destaques a partir do mês atual.', 'warning');
-    return;
-  }
-  try {
-    const { data: existente, error: errBusca } = await window._supabase
-      .from('destaques_renovacao').select('id').eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano).limit(1);
-    if (errBusca) throw errBusca;
-    let error;
-    if (existente && existente.length) {
-      ({ error } = await window._supabase.from('destaques_renovacao').update({ vendedor, quantidade }).eq('id', existente[0].id));
-    } else {
-      ({ error } = await window._supabase.from('destaques_renovacao').insert([{ filial_id: window.FILIAL_ATUAL_ID, mes, ano, vendedor, quantidade }]));
-    }
-    if (error) throw error;
-    document.getElementById('renov-qtd').value = '';
-    await carregarDados();
-    showToast('Destaque de renovações salvo!', 'success');
-  } catch (err) {
-    console.error('[salvarDestaqueRenovacao]', err);
-    showToast('Não foi possível salvar o destaque: ' + (err.message || err), 'error');
-  }
-}
-
-async function excluirDestaqueRenovacao(id) {
-  if (!confirm('Excluir este destaque de renovações?')) return;
-  try {
-    const { error } = await window._supabase.from('destaques_renovacao').delete().eq('id', id);
-    if (error) throw error;
-    await carregarDados();
-    showToast('Destaque excluído.', 'success');
-  } catch (err) {
-    console.error('[excluirDestaqueRenovacao]', err);
-    showToast('Não foi possível excluir: ' + (err.message || err), 'error');
   }
 }
 
@@ -820,46 +687,47 @@ function renderRenovacaoCancelamento(d) {
   const gridRenov = document.getElementById('renovacoesGrid');
   const gridCancel = document.getElementById('cancelamentosGrid');
   if (!gridRenov || !gridCancel) return;
-  const rc = d && d.metasRenovCancel;
-  if (!rc) {
-    gridRenov.className = 'churn-grid';
-    gridCancel.className = 'churn-grid is-churn';
-    gridRenov.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
-    gridCancel.innerHTML = '<div class="sem-dados-msg">Sem dados configurados ainda.</div>';
-    return;
-  }
+  const rc = (d && d.metasRenovCancel) || {};
 
   // Renovações: quanto mais alto melhor, igual às metas de vendas —
   // M3 é a faixa mais fácil, M1 a mais difícil. Sem estado de alerta
   // aqui (não é uma métrica de risco).
-  const renovAtual = rc.renovacoes_atual || 0;
+  const renovAtual = _cache.renovacoesTotal != null && Number.isFinite(Number(_cache.renovacoesTotal)) ? Number(_cache.renovacoesTotal) : null;
+  const metasRenovacaoFilial = _cache.metasRenovacaoFilial || {
+    meta_m1: rc.renovacoes_m1, meta_m2: rc.renovacoes_m2, meta_m3: rc.renovacoes_m3,
+  };
   const renovMetas = [
-    { label: 'M1', meta: rc.renovacoes_m1 },
-    { label: 'M2', meta: rc.renovacoes_m2 },
-    { label: 'M3', meta: rc.renovacoes_m3 },
+    { label: 'M1', meta: metasRenovacaoFilial.meta_m1 },
+    { label: 'M2', meta: metasRenovacaoFilial.meta_m2 },
+    { label: 'M3', meta: metasRenovacaoFilial.meta_m3 },
   ];
   const fmt = valor => Number(valor || 0).toLocaleString('pt-BR');
   const renovMetasOrdenadas = renovMetas.filter(m => Number(m.meta) > 0).sort((a, b) => Number(a.meta) - Number(b.meta));
-  const metaRenovMaisProxima = renovMetasOrdenadas.find(m => renovAtual < Number(m.meta));
+  const metaRenovMaisProxima = renovAtual === null ? null : renovMetasOrdenadas.find(m => renovAtual < Number(m.meta));
   const temMetaRenovacao = renovMetas.some(m => Number(m.meta) > 0);
-  const renovFinalizada = temMetaRenovacao && !metaRenovMaisProxima;
+  const renovFinalizada = renovAtual !== null && temMetaRenovacao && !metaRenovMaisProxima;
   const alvoRenovacao = metaRenovMaisProxima || renovMetasOrdenadas[renovMetasOrdenadas.length - 1];
-  const renovPct = alvoRenovacao ? Math.min(100, Math.round((renovAtual / Number(alvoRenovacao.meta)) * 100)) : 0;
+  const renovPct = alvoRenovacao && renovAtual !== null ? Math.min(100, Math.round((renovAtual / Number(alvoRenovacao.meta)) * 100)) : 0;
   const renovEtapas = renovMetasOrdenadas.map(m => {
-    const batida = renovAtual >= Number(m.meta);
+    const batida = renovAtual !== null && renovAtual >= Number(m.meta);
     const nivel = m.label === 'M3' ? 'Base' : (m.label === 'M2' ? 'Intermediária' : 'Avançada');
     return `<span class="milestone-chip${batida ? ' is-done' : (m === metaRenovMaisProxima ? ' is-current' : '')}">${batida ? '✓' : (m === metaRenovMaisProxima ? '●' : '○')} <b>${m.label}</b><small>${nivel}</small></span>`;
   }).join('');
   gridRenov.innerHTML = `<article class="churn-card churn-card-renov milestone-card${renovFinalizada ? ' is-complete' : ''}">
     <div class="milestone-main">
-      <div class="milestone-current"><span class="milestone-eyebrow">RENOVAÇÕES NO MÊS</span><strong class="churn-card-atual">${fmt(renovAtual)}</strong><span class="milestone-unit">realizadas</span></div>
+      <div class="milestone-current"><span class="milestone-eyebrow">RENOVAÇÕES NO MÊS</span><strong class="churn-card-atual">${renovAtual === null ? '—' : fmt(renovAtual)}</strong><span class="milestone-unit">${renovAtual === null ? 'importe o relatório' : 'realizadas'}</span></div>
       <div class="milestone-next"><span class="milestone-eyebrow">${renovFinalizada ? 'META MÁXIMA' : 'PRÓXIMA META'}</span><strong>${alvoRenovacao?.label || 'Sem metas'}</strong><span>${alvoRenovacao ? `${fmt(alvoRenovacao.meta)} renovações` : 'Configure uma meta'}</span></div>
     </div>
     <div class="milestone-track-wrap"><div class="churn-bar-track milestone-track"><div class="churn-bar-fill" style="width:0%" data-width="${renovPct}"></div></div><span class="milestone-progress-label">${renovPct}%</span></div>
-    <div class="milestone-message${renovFinalizada ? ' is-complete' : ''}">${!temMetaRenovacao ? 'Cadastre as metas M1, M2 ou M3 para acompanhar o progresso.' : renovFinalizada ? 'Todas as metas de renovação foram concluídas.' : `Faltam ${fmt(Number(alvoRenovacao.meta) - renovAtual)} renovações para concluir ${alvoRenovacao.label}.`}</div>
+    <div class="milestone-message${renovFinalizada ? ' is-complete' : ''}">${renovAtual === null ? 'Importe o relatório mensal de renovações na área administrativa.' : !temMetaRenovacao ? 'Cadastre as metas M1, M2 ou M3 para acompanhar o progresso.' : renovFinalizada ? 'Todas as metas de renovação foram concluídas.' : `Faltam ${fmt(Number(alvoRenovacao.meta) - renovAtual)} renovações para concluir ${alvoRenovacao.label}.`}</div>
     <div class="milestone-steps" aria-label="Etapas das metas de renovação">${renovEtapas || '<span class="milestone-empty">Nenhuma meta configurada</span>'}</div>
   </article>`;
   setTimeout(() => { const fill = gridRenov.querySelector('.churn-bar-fill'); if (fill) fill.style.width = `${fill.dataset.width}%`; }, 50);
+  if (!d?.metasRenovCancel) {
+    gridCancel.className = 'churn-grid is-churn';
+    gridCancel.innerHTML = '<div class="sem-dados-msg">Sem dados de cancelamento configurados ainda.</div>';
+    return;
+  }
   // Risco de Churn (cancelamentos): é o contrário das outras metas —
   // são TETOS que não podem ser ultrapassados, por isso a ordem visual
   // é M1, M2, M3 (M1 é o teto mais apertado/rígido; M3 o mais
@@ -1140,7 +1008,7 @@ function showToast(message, type = 'success', duration = 4500) {
 const _maisVendidosCache = new Map();
 let _cache = {
   vendedores: [], planos: [], categoriasPlanos: [], adicionais: [], filiais: [],
-  metasFilial: null, metas: [], metasRenovCancel: null,
+  metasFilial: null, metas: [], metasRenovCancel: null, metasRenovacaoFilial: null, metasRenovacaoIndividual: [], renovacoesMes: null, renovacoesTotal: null,
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
   vendasOrigemSemana: [], vendasOrigemSemanaAnterior: [], vendasOrigemMes: [],
   vendaMaisRecente: null,
@@ -1286,7 +1154,7 @@ async function carregarDados() {
     // Carregar os dados da filial selecionada em paralelo.
     const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
-           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, destaquesRenovacao, configSite,
+           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
            conquistasGlobais, destaquesExternosGlobais, vendasFechados, vendasFechadosOrigem] = await Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
@@ -1302,7 +1170,6 @@ async function carregarDados() {
       loadVendasOrigem(_cache.semana.de, _cache.semana.ate),
       loadVendasOrigem(semanaAnterior.de, semanaAnterior.ate),
       loadVendasOrigem(_cache.mes.de, _cache.mes.ate),
-      loadDestaquesRenovacao(),
       promessaConfigSite,
       carregarConquistasGlobais().catch(err => {
         console.warn('[carregarConquistasGlobais]', err);
@@ -1316,6 +1183,13 @@ async function carregarDados() {
       pFechadosOrigem,
     ]);
 
+    const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal] = await Promise.all([
+      loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
+      loadMetasRenovacaoIndividual(_cache.mes.mesNum, _cache.mes.ano),
+      loadRenovacoesMensais(_cache.mes.mesNum, _cache.mes.ano),
+      loadTotalRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
+    ]);
+
     _cache.vendedores = vendedores;
     _cache.planos = planos;
     _cache.categoriasPlanos = categoriasPlanos;
@@ -1323,6 +1197,10 @@ async function carregarDados() {
     _cache.metasFilial = metasFilial;
     _cache.metas = metas;
     _cache.metasRenovCancel = metasRenovCancel;
+    _cache.metasRenovacaoFilial = metasRenovacaoFilial;
+    _cache.metasRenovacaoIndividual = metasRenovacaoIndividual;
+    _cache.renovacoesMes = renovacoesMes;
+    _cache.renovacoesTotal = renovacoesTotal;
     _cache.vendasSemana = vendasSemana;
     _cache.vendasMes = vendasMes;
     _cache.vendasFiliais = vendasFiliais;
@@ -1337,8 +1215,6 @@ async function carregarDados() {
       m, vendasFechados[i], vendedores,
       vendasFechadosOrigem[i].filter(v => v.tipo === 'interno')
     ));
-    _cache.destaquesRenovacao = destaquesRenovacao;
-    popularAdmRenovacoes();
     _cache.configSite = configSite;
     if (!_temaPreview) popularAdmTema();
 

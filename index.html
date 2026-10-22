@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261020-resumo-filial-10">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-renovacoes-1">
 </head>
 <body>
 
@@ -253,19 +253,10 @@
     </section>
   </div>
 
-  <!-- ===== MURAIS: destaques do mês + renovações (lado a lado em tela grande) ===== -->
-  <div class="murais-duo">
   <section class="podium-section mural-section" id="muralSection">
     <h2>Mural de Destaques — Vendedor Externo e Interno</h2>
     <div class="mural-grid" id="muralGrid"></div>
   </section>
-
-  <section class="podium-section mural-section" id="muralRenovSection">
-    <h2>Mural de Renovações — Destaque do Mês</h2>
-    <div class="mural-grid" id="muralRenovGrid"></div>
-  </section>
-  </div>
-
   <!-- ===== EVOLUÇÃO DA SEMANA ===== -->
   <section class="podium-section" id="publicEvolution">
     <h2>📈 Evolução da Semana</h2>
@@ -331,8 +322,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261022-service-plan-catalog-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261022-service-plan-catalog-1"></script>
+  <script src="assets/js/dashboard.js?v=20261022-renovacoes-1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261022-renovacoes-1"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -394,7 +385,7 @@
         <button class="adm-nav-item" data-section="relatorios"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Relatórios</button>
         <button class="adm-nav-item" data-section="ranking-adm"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg></span>Ranking da Filial</button>
         <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-building"/></svg></span>Vendas Recebidas</button>
-        <button class="adm-nav-item" data-section="renovacoes"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Mural de Renovações</button>
+        <button class="adm-nav-item" data-section="renovacoes"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Renovações</button>
         <button class="adm-nav-item" data-section="celebracoes"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>Celebrações</button>
         <div class="adm-sidebar-group-label" id="adm-nav-global-label" style="display:none;">GESTÃO DA REDE</div>
         <button class="adm-nav-item" data-section="rede" id="adm-nav-rede" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-network"/></svg></span>Visão da Rede</button>
@@ -1138,29 +1129,38 @@
           </div>
         </section>
 
-        <!-- ── MURAL DE RENOVAÇÕES ─────────────────────────────── -->
+        <!-- ── GESTÃO DE RENOVAÇÕES ───────────────────────────── -->
         <section class="adm-section" id="sec-renovacoes">
-          <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Mural de Renovações</div>
+          <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Gestão de Renovações</div>
           <div class="adm-form-card">
-            <p class="adm-description">
-              Cadastre quem foi o destaque de renovações do mês e quantas renovações fez. O cadastro começa no mês atual e não aceita meses anteriores.
-              Aparece no site, no <strong>Mural de Renovações</strong>. Se já existir um destaque
-              para o mês escolhido, ele é atualizado.
-            </p>
+            <div class="adm-section-title adm-subsection-title">Importar relatório mensal</div>
+            <p class="adm-description">Envie aqui o relatório específico de renovações exportado do sistema. A importação será vinculada à filial selecionada e ao mês informado; os dados serão usados nos indicadores gerais e nas metas individuais, sem criar ranking de renovações.</p>
             <div class="adm-form-grid">
-              <div class="adm-field"><label>Mês</label><input type="month" id="renov-mes"></div>
-              <div class="adm-field"><label>Vendedor destaque</label>
-                <select id="renov-vendedor"><option value="">Selecione o vendedor</option></select>
-              </div>
-              <div class="adm-field"><label>Renovações feitas</label><input type="number" id="renov-qtd" min="0" step="1" placeholder="Ex.: 12"></div>
+              <div class="adm-field"><label for="renov-relatorio-mes">Mês do relatório</label><input type="month" id="renov-relatorio-mes"></div>
+              <div class="adm-field"><label for="renov-relatorio-arquivo">Relatório específico de renovações</label><input type="file" id="renov-relatorio-arquivo" accept=".csv,.xlsx"></div>
             </div>
-            <button type="button" class="adm-btn adm-btn-inline" onclick="salvarDestaqueRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar destaque</button>
+            <div id="renov-relatorio-preview" class="adm-muted-copy" aria-live="polite">Selecione o mês e o arquivo. Você poderá conferir as colunas e associar os vendedores antes de importar.</div>
+            <div id="renov-relatorio-mapeamento" class="adm-form-grid" hidden></div>
+            <div id="renov-relatorio-correspondencias" class="adm-table-wrap" hidden></div>
+            <button type="button" id="renov-relatorio-importar" class="adm-btn adm-btn-primary adm-btn-inline" onclick="importarRelatorioRenovacoes()" disabled><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Importar e substituir mês</button>
           </div>
-          <div class="adm-table-wrap">
-            <table class="adm-table">
-              <thead><tr><th>Mês</th><th>Vendedor</th><th>Renovações</th><th>Ação</th></tr></thead>
-              <tbody id="renov-destaques-tbody"></tbody>
-            </table>
+          <div class="adm-form-card">
+            <div class="adm-section-title adm-subsection-title">Metas gerais — <span id="cfg-renov-periodo">mês/ano atual</span></div>
+            <div class="adm-form-grid">
+              <div class="adm-field"><label>Meta M3</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
+              <div class="adm-field"><label>Meta M1</label><input type="number" id="cfg-renov-m1" min="0" step="1" placeholder="Não configurado"></div>
+            </div>
+            <button type="button" class="adm-btn adm-btn-inline" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas de renovação</button>
+          </div>
+          <div class="adm-form-card">
+            <div class="adm-section-title adm-subsection-title">Metas individuais — <span id="cfg-renov-ind-periodo">mês/ano atual</span></div>
+            <p class="adm-description">Defina metas M3, M2 e M1 de renovações para cada vendedor. O progresso será calculado com o relatório importado do mês.</p>
+            <div class="adm-table-wrap"><table class="adm-table">
+              <thead><tr><th>Vendedor</th><th>Tipo</th><th>M3</th><th>M2</th><th>M1</th></tr></thead>
+              <tbody id="cfg-metas-renov-vendedores-tbody"><tr><td colspan="5">Carregando vendedores…</td></tr></tbody>
+            </table></div>
+            <button type="button" class="adm-btn adm-btn-inline" onclick="handleSalvarMetasIndividuaisRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas individuais</button>
           </div>
         </section>
 
@@ -1416,16 +1416,6 @@
           </div>
 
           <div class="adm-form-card">
-            <div class="adm-section-title adm-subsection-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Renovações — <span id="cfg-renov-periodo">mês/ano atual</span></div>
-            <div class="adm-form-grid">
-              <div class="adm-field"><label>Meta M3</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Meta M1</label><input type="number" id="cfg-renov-m1" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Renovações feitas até agora no mês</label><input type="number" id="cfg-renov-atual" min="0" step="1" placeholder="0"></div>
-            </div>
-          </div>
-
-          <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title"><span class="adm-title-icon is-warning"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-warning"/></svg></span>Cancelamentos — <span id="cfg-cancel-periodo">mês/ano atual</span></div>
             <p class="adm-muted-copy">Aqui é o contrário das outras metas: são tetos que não podem ser ultrapassados. Por isso a ordem é M1 (mais rígido) → M3 (mais tolerante).</p>
             <div class="adm-form-grid">
@@ -1593,6 +1583,11 @@
           <div class="sc-stat-label">Dias Seguidos</div>
           <div class="sc-stat-value" id="sc-stat-dias">—</div>
         </div>
+        <div class="sc-stat-tile sc-stat-renov-tile">
+          <div class="sc-stat-label">Renovações no Mês</div>
+          <div class="sc-stat-value" id="sc-stat-renovacoes">—</div>
+          <div class="sc-stat-sub" id="sc-stat-renovacoes-meta">Aguardando relatório</div>
+        </div>
       </div>
 
       <div class="sc-phrase-box">
@@ -1639,7 +1634,7 @@
         <span>UNI INTERNET · ACOMPANHAMENTO DA FILIAL</span>
         <span id="mf-gerado-em">—</span>
       </footer>
-      <div class="mf-note">Dias úteis de segunda a sexta. Cancelamentos e renovações informados no painel administrativo.</div>
+      <div class="mf-note">Dias úteis de segunda a sexta. Renovações importadas do relatório mensal; cancelamentos atualizados no painel administrativo.</div>
     </div>
   </div>
 </div>
