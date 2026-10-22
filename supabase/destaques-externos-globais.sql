@@ -44,6 +44,7 @@ as $function$
     join public.vendedores vd on vd.id = v.vendedor_id
       and vd.tipo::text = 'externo'
       and vd.ativo is true
+      and coalesce(vd.participa_ranking, true) is true
       and v.filial_origem_id = vd.filial_id
     join public.filiais f on f.id = vd.filial_id and f.ativo is true
     where v.fora_filial is not true

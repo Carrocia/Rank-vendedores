@@ -51,7 +51,8 @@ $block$;
 grant insert on table public.vendedores to authenticated;
 
 alter table public.vendedores
-  add column if not exists foto_url text;
+  add column if not exists foto_url text,
+  add column if not exists participa_ranking boolean not null default true;
 grant update (foto_url) on table public.vendedores to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

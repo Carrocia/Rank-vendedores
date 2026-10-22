@@ -5,7 +5,7 @@
 
 begin;
 
-grant update (nome, tipo, ativo, foto_url)
+grant update (nome, tipo, ativo, foto_url, participa_ranking)
   on table public.vendedores to authenticated;
 
 commit;

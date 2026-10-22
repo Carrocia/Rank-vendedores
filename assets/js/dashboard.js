@@ -311,7 +311,7 @@ function calcularPeriodoMesAnterior(n = 1) {
 function calcularDestaqueMes(periodo, vendas, vendedores, vendasOrigemInternos = []) {
   const vencedor = tipo => {
     const mapa = {};
-    (vendedores || []).filter(v => v.tipo === tipo).forEach(v => {
+    (vendedores || []).filter(v => v.participa_ranking !== false && v.tipo === tipo).forEach(v => {
       mapa[v.id] = { id: v.slug || v.id, nome: v.nome, foto_url: v.foto_url || null, vendas: 0, valor: 0 };
     });
     (vendas || []).forEach(v => {
@@ -1254,6 +1254,7 @@ function popularSelectVendedores(vendedores) {
     const val = el.value;
     el.replaceChildren(new Option(placeholder, ''));
     (vendedores || []).forEach(v => {
+      if (tipo === 'slug' && v.participa_ranking === false) return;
       const option = new Option(
         `${v.nome} (${v.tipo === 'interno' ? 'Interno' : 'Externo'})`,
         tipo === 'slug' ? (v.slug || v.id) : v.id
@@ -2148,8 +2149,9 @@ function processarDadosParaRender(cache) {
     return Object.values(mapa);
   };
 
-  const internos = vendedores.filter(v => v.tipo === 'interno');
-  const externos = vendedores.filter(v => v.tipo === 'externo');
+  const vendedoresDoRanking = vendedores.filter(v => v.participa_ranking !== false);
+  const internos = vendedoresDoRanking.filter(v => v.tipo === 'interno');
+  const externos = vendedoresDoRanking.filter(v => v.tipo === 'externo');
 
   const extSem = agruparPorVendedor(vendasSemana, externos);
   const intSem = agruparPorVendedor(vendasSemana, internos);

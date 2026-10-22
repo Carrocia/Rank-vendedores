@@ -68,6 +68,7 @@ as $function$
       where vd.tipo::text = 'externo' and coalesce(vm.quantidade, 0) = 14
   ) as metas_conquista
   where vd.ativo is true
+    and coalesce(vd.participa_ranking, true) is true
     and (vd.tipo::text = 'externo' or m.vendedor_id is not null)
     and metas_conquista.meta is not null
     and metas_conquista.meta > 0

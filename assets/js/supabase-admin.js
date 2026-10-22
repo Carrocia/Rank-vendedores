@@ -282,6 +282,7 @@ function iniciarEdicaoVendedor(id) {
   document.getElementById('adm-vendedor-nome').value = vendedor.nome || '';
   document.getElementById('adm-vendedor-tipo').value = vendedor.tipo || '';
   document.getElementById('adm-vendedor-ixc-id').value = vendedor.ixc_vendedor_id || '';
+  document.getElementById('adm-vendedor-participa-ranking').checked = vendedor.participa_ranking !== false;
   const filialSelect = document.getElementById('adm-vendedor-filial');
   if (filialSelect) {
     filialSelect.value = String(vendedor.filial_id);
@@ -306,7 +307,7 @@ async function carregarVendedoresGerenciamento() {
   if (!tbody || !window._supabase || !window.FILIAL_ATUAL_ID) return;
   const { data, error } = await window._supabase
     .from('vendedores')
-    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id')
+    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id, participa_ranking')
     .eq('filial_id', window.FILIAL_ATUAL_ID)
     .order('nome');
   if (error) {
@@ -361,7 +362,7 @@ function renderizarVendedoresVisaoGlobal() {
   const vendedores = _vendedoresVisaoGlobal.filter(v => {
     if (filialEscolhida !== 'todas' && String(v.filial_id) !== filialEscolhida) return false;
     const filialNome = filialPorId.get(String(v.filial_id)) || '';
-    const texto = `${v.nome || ''} ${filialNome} ${v.tipo || ''} ${v.ativo ? 'ativo' : 'desativado'}`.toLocaleLowerCase('pt-BR');
+    const texto = `${v.nome || ''} ${filialNome} ${v.tipo || ''} ${v.ativo ? 'ativo' : 'desativado'} ${v.participa_ranking === false ? 'somente relatórios matriz supervisão' : 'participa ranking'}`.toLocaleLowerCase('pt-BR');
     return !termo || texto.includes(termo);
   });
   const totalPaginas = Math.max(1, Math.ceil(vendedores.length / VENDEDORES_GLOBAIS_POR_PAGINA));
@@ -389,7 +390,7 @@ function renderizarVendedoresVisaoGlobal() {
     const filial = document.createElement('td');
     filial.textContent = filialPorId.get(String(v.filial_id)) || 'Regional não identificada';
     const status = document.createElement('td');
-    status.textContent = v.ativo ? 'Ativo' : 'Desativado';
+    status.textContent = `${v.ativo ? 'Ativo' : 'Desativado'}${v.participa_ranking === false ? ' · Somente relatórios' : ''}`;
     const acoes = document.createElement('td');
     acoes.className = 'adm-vendedor-actions';
     const criarBotao = (texto, classe, acao) => {
@@ -439,7 +440,7 @@ async function carregarVendedoresVisaoGlobal() {
   tbody.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Carregando vendedores de todas as regionais…</td></tr>';
   const { data, error } = await window._supabase
     .from('vendedores')
-    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id')
+    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id, participa_ranking')
     .order('filial_id')
     .order('nome');
   if (error) {
@@ -598,6 +599,7 @@ async function cadastrarVendedor(event) {
   const tipo = document.getElementById('adm-vendedor-tipo').value;
   const ixcIdRaw = document.getElementById('adm-vendedor-ixc-id').value.trim();
   const ixcVendedorId = ixcIdRaw || null;
+  const participaRanking = document.getElementById('adm-vendedor-participa-ranking').checked;
   const arquivoFoto = document.getElementById('adm-vendedor-foto')?.files?.[0] || null;
   const isSuperAdmin = ehSuperAdminAtual();
   const vendedorExistente = editId ? buscarVendedorGerenciado(editId) : null;
@@ -635,6 +637,7 @@ async function cadastrarVendedor(event) {
         ativo: true,
         filial_id: filialId,
         ixc_vendedor_id: ixcVendedorId,
+        participa_ranking: participaRanking,
         slug: slugVendedor(nome, filial),
       }]).select('id').single();
       if (error) {
@@ -666,7 +669,7 @@ async function cadastrarVendedor(event) {
 
     if (editId) {
       if (erroFoto) throw new Error(`Não foi possível enviar a nova foto: ${erroFoto.message}`);
-      const alteracoes = { nome, tipo, ixc_vendedor_id: ixcVendedorId };
+      const alteracoes = { nome, tipo, ixc_vendedor_id: ixcVendedorId, participa_ranking: participaRanking };
       if (urlFotoSalva) alteracoes.foto_url = urlFotoSalva;
       const { data, error } = await window._supabase.from('vendedores')
         .update(alteracoes)
@@ -695,7 +698,7 @@ async function cadastrarVendedor(event) {
     showToast(
       erroFoto
         ? `Vendedor salvo em ${filial.nome}, mas a foto não foi vinculada. Confira a configuração do Storage.`
-        : editId ? `${nome} atualizado.` : `Vendedor cadastrado em ${filial.nome}.`,
+      : editId ? `${nome} atualizado${participaRanking ? ' e mantido nos rankings' : ' e ocultado dos rankings (continua nos relatórios)'}.` : `Vendedor cadastrado em ${filial.nome}.`,
       erroFoto ? 'warning' : 'success'
     );
     try {

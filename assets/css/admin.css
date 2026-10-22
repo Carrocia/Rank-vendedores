@@ -123,6 +123,10 @@ body.adm-modal-open { overflow: hidden; }
 .adm-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
 .adm-field[hidden] { display: none; }
 .adm-vendedor-cadastro-card { margin-bottom: 22px; }
+.adm-vendedor-ranking-field { margin: 0 0 18px; }
+.adm-vendedor-ranking-field .adm-inline-checkbox { color: var(--heading-color); font-weight: 700; }
+.adm-vendedor-ranking-field .adm-inline-checkbox input { accent-color: var(--accent); }
+.adm-vendedor-ranking-field .adm-vendedor-cadastro-hint { margin: 5px 0 0 22px; }
 .adm-vendedor-cadastro-hint { margin: -4px 0 18px; color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; }
 .adm-vendedor-foto-preview { display: flex; align-items: center; gap: 12px; margin: 2px 0 16px; color: var(--text-muted); font-size: 0.8rem; }
 .adm-vendedor-foto-preview[hidden] { display: none; }

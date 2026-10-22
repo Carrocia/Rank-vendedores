@@ -322,8 +322,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261022-renovacoes-fluxo-4"></script>
-  <script src="assets/js/supabase-admin.js?v=20261022-renovacoes-conferencia-1"></script>
+  <script src="assets/js/dashboard.js?v=20261022-ranking-elegibilidade-1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261022-ranking-elegibilidade-1"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -789,6 +789,13 @@
                 <div class="adm-field">
                   <label for="adm-vendedor-ixc-id">ID do vendedor no IXC</label>
                   <input id="adm-vendedor-ixc-id" name="ixc_vendedor_id" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="20" autocomplete="off" placeholder="Ex.: 77">
+                </div>
+                <div class="adm-form-full adm-vendedor-ranking-field">
+                  <label class="adm-inline-checkbox" for="adm-vendedor-participa-ranking">
+                    <input id="adm-vendedor-participa-ranking" type="checkbox" checked>
+                    Participa dos rankings regionais
+                  </label>
+                  <p class="adm-vendedor-cadastro-hint">Desmarque para retenção matriz, supervisores e outros cadastros que devem aparecer somente nos relatórios.</p>
                 </div>
                 <div class="adm-field adm-form-full">
                   <label for="adm-vendedor-foto">Foto do vendedor (opcional; JPG, PNG ou WebP; até 2 MB)</label>
