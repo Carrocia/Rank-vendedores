@@ -984,10 +984,8 @@ async function loadMetasFilial(mes, ano) {
   };
 }
 
-// Renovações/Cancelamentos são só mensais e não vêm de nenhuma venda
-// lançada — são digitados manualmente pelo admin (tanto as metas M1/M2/M3
-// quanto o "quanto já foi feito no mês"), por isso moram numa tabela à
-// parte (metas_renovacao_cancelamento), 1 linha por mes/ano.
+// As metas gerais antigas de renovações/cancelamentos continuam lidas para
+// compatibilidade; a produção mensal de renovações vem dos registros importados.
 async function loadMetasRenovCancel(mes, ano) {
   const { data, error } = await window._supabase
     .from('metas_renovacao_cancelamento')
@@ -1039,6 +1037,47 @@ async function loadRenovacoesMensais(mes, ano) {
     .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano);
   if (error) { console.warn('[loadRenovacoesMensais] aplique supabase/renovacoes-mensais.sql:', error.message); return null; }
   return data || [];
+}
+
+async function carregarRelatorioResumoRenovacoes() {
+  const wrap = document.getElementById('renov-relatorio-resumo-vendedores');
+  const exportar = document.getElementById('renov-relatorio-exportar');
+  const periodo = document.getElementById('renov-relatorio-mes')?.value || '';
+  if (!wrap || !periodo) return;
+  const [ano, mes] = periodo.split('-').map(Number);
+  wrap.innerHTML = '<p class="adm-muted-copy">Carregando relatório por vendedor…</p>';
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) { wrap.innerHTML = ''; if (exportar) exportar.hidden = true; return; }
+  const { data, error } = await window._supabase.from('renovacoes_registros')
+    .select('vendedor_id,contrato,cliente,plano,valor,data_renovacao')
+    .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano);
+  if (error) {
+    wrap.innerHTML = `<p class="adm-muted-copy">Aplique a atualização de banco de dados para consultar o detalhamento: ${escapeHtmlText(error.message)}</p>`;
+    if (exportar) exportar.hidden = true;
+    return;
+  }
+  const vendedores = _cache.vendedores || [];
+  const grupos = new Map();
+  (data || []).forEach(registro => {
+    const id = String(registro.vendedor_id);
+    if (!grupos.has(id)) grupos.set(id, { vendedor_id: Number(id), vendedor: vendedores.find(v => String(v.id) === id)?.nome || 'Vendedor sem cadastro', quantidade: 0, valor: 0 });
+    const g = grupos.get(id); g.quantidade++; g.valor += Number(registro.valor || 0);
+  });
+  const linhas = [...grupos.values()].sort((a, b) => b.quantidade - a.quantidade || a.vendedor.localeCompare(b.vendedor, 'pt-BR'));
+  window._relatorioResumoRenovacoes = { periodo, linhas };
+  if (exportar) exportar.hidden = linhas.length === 0;
+  wrap.innerHTML = linhas.length
+    ? `<table class="adm-table"><thead><tr><th>Vendedor</th><th>Renovações</th><th>Valor total</th></tr></thead><tbody>${linhas.map(l => `<tr><td>${escapeHtmlText(l.vendedor)}</td><td>${l.quantidade}</td><td>R$ ${l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="adm-muted-copy">Ainda não há registros detalhados importados para este mês.</p>';
+}
+
+function exportarResumoRenovacoes() {
+  const relatorio = window._relatorioResumoRenovacoes;
+  if (!relatorio?.linhas?.length) return;
+  const csv = ['Vendedor;Quantidade de renovações;Valor total (R$)', ...relatorio.linhas.map(l => `${String(l.vendedor).replace(/;/g, ',')};${l.quantidade};${l.valor.toFixed(2).replace('.', ',')}`)].join('\r\n');
+  const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `Relatorio_Renovacoes_${relatorio.periodo}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function loadTotalRenovacoesPublico(mes, ano) {
@@ -1111,6 +1150,33 @@ function valorInteiroRelatorio(valor) {
   return Number.isSafeInteger(n) ? n : null;
 }
 
+function normalizarIdIxcRenovacao(valor) {
+  return String(valor ?? '').trim().replace(/^=\s*"?/, '').replace(/"?$/, '').replace(/^"|"$/g, '').trim();
+}
+
+function valorMoedaRenovacao(valor) {
+  if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
+  let raw = String(valor ?? '').trim().replace(/R\$|\s/gi, '');
+  if (!raw) return null;
+  if (raw.includes(',')) raw = raw.replace(/\./g, '').replace(',', '.');
+  const numero = Number(raw);
+  return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) / 100 : null;
+}
+
+function dataIsoRenovacao(valor) {
+  if (valor instanceof Date && !Number.isNaN(valor.getTime())) return valor.toISOString().slice(0, 10);
+  const raw = String(valor ?? '').trim();
+  let m = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+  if (m) return `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+}
+
+function lerCampoRenovacao(nome) {
+  const value = document.getElementById(`renov-col-${nome}`)?.value ?? '';
+  return value === '' ? -1 : Number(value);
+}
+
 function atualizarPreviewRelatorioRenovacao() {
   const dados = _relatorioRenovacao;
   const preview = document.getElementById('renov-relatorio-preview');
@@ -1121,58 +1187,74 @@ function atualizarPreviewRelatorioRenovacao() {
   window._previewRenovacaoImport = null;
   btn.disabled = true;
   const colunaVendedor = document.getElementById('renov-col-vendedor')?.value ?? '';
-  const colunaQtd = document.getElementById('renov-col-quantidade')?.value ?? '';
-  const colunaContrato = document.getElementById('renov-col-contrato')?.value ?? '';
-  if (colunaVendedor === '') { preview.textContent = 'Selecione a coluna que identifica o vendedor.'; btn.disabled = true; return; }
+  const indices = {
+    vendedor: lerCampoRenovacao('vendedor'), contrato: lerCampoRenovacao('contrato'),
+    cliente: lerCampoRenovacao('cliente'), plano: lerCampoRenovacao('plano'),
+    valor: lerCampoRenovacao('valor'), data: lerCampoRenovacao('data'),
+  };
+  const arquivoPareceAtivos = dados.headers.some(h => /status contrato/i.test(h)) && !dados.headers.some(h => /data (da )?renova/i.test(normalizarChaveRenovacao(h)));
+  if (arquivoPareceAtivos) {
+    preview.textContent = 'Este arquivo parece uma lista de contratos ativos, não um relatório de eventos de renovação. Ele não informa quando cada renovação ocorreu. Envie o relatório específico de renovações para evitar contabilizar contratos ativos como renovações.';
+    return;
+  }
+  const faltamColunas = Object.entries(indices).filter(([k, i]) => k !== 'valor' && i < 0).map(([k]) => k);
+  if (faltamColunas.length) { preview.textContent = `Selecione as colunas de vendedor, contrato, cliente, plano, valor e data da renovação. Campos faltando: ${faltamColunas.join(', ')}.`; return; }
 
   const vendedores = _cache.vendedores || [];
-  const indiceNome = Number(colunaVendedor);
-  const indiceQtd = colunaQtd === '' ? -1 : Number(colunaQtd);
-  const indiceContrato = colunaContrato === '' ? -1 : Number(colunaContrato);
-  const nomesOriginais = [...new Set(dados.rows.map(row => String(row[indiceNome] ?? '').trim()).filter(Boolean))];
+  const indiceNome = indices.vendedor;
+  const nomesOriginais = [...new Set(dados.rows.map(row => normalizarIdIxcRenovacao(row[indiceNome])).filter(Boolean))];
+  const idsIxc = new Map();
+  vendedores.forEach(v => {
+    const id = normalizarIdIxcRenovacao(v.ixc_vendedor_id);
+    if (id) idsIxc.set(id, String(v.id));
+  });
   const idsNormalizados = new Map(vendedores.map(v => [normalizarChaveRenovacao(v.nome), String(v.id)]));
   const mapaAnterior = new Map([...document.querySelectorAll('#renov-relatorio-correspondencias select[data-renov-nome-index]')]
     .map(el => [Number(el.dataset.renovNomeIndex), el.value]));
   const selecoes = nomesOriginais.map((nome, i) => {
-    const id = mapaAnterior.get(i) || idsNormalizados.get(normalizarChaveRenovacao(nome)) || '';
+    const auto = idsIxc.get(nome) || idsNormalizados.get(normalizarChaveRenovacao(nome)) || '';
+    const id = mapaAnterior.get(i) || auto;
     return `<tr><td>${escapeHtmlText(nome)}</td><td><select data-renov-nome-index="${i}" aria-label="Vendedor correspondente a ${escapeHtmlText(nome)}"><option value="">Selecione vendedor</option>${vendedores.map(v => `<option value="${v.id}" ${String(v.id) === id ? 'selected' : ''}>${escapeHtmlText(v.nome)}</option>`).join('')}</select></td></tr>`;
   }).join('');
   if (correspondencias) {
     correspondencias.hidden = nomesOriginais.length === 0;
     correspondencias.innerHTML = nomesOriginais.length
-      ? `<table class="adm-table"><thead><tr><th>Nome no relatório</th><th>Vendedor cadastrado</th></tr></thead><tbody>${selecoes}</tbody></table>`
+      ? `<table class="adm-table"><thead><tr><th>ID/nome no relatório</th><th>Vendedor vinculado</th></tr></thead><tbody>${selecoes}</tbody></table>`
       : '';
     correspondencias.querySelectorAll('select').forEach(el => el.addEventListener('change', atualizarPreviewRelatorioRenovacao));
   }
 
   const mapping = new Map([...document.querySelectorAll('#renov-relatorio-correspondencias select[data-renov-nome-index]')]
     .map(el => [Number(el.dataset.renovNomeIndex), el.value]));
-  const somaPorVendedor = new Map();
+  const registros = [];
   const vistos = new Set();
   let linhasInvalidas = 0;
   dados.rows.forEach(row => {
-    const nome = String(row[indiceNome] ?? '').trim();
+    const nome = normalizarIdIxcRenovacao(row[indiceNome]);
     const nomeIndex = nomesOriginais.indexOf(nome);
     const vendedorId = mapping.get(nomeIndex);
-    if (!vendedorId) { linhasInvalidas++; return; }
-    const quantidade = indiceQtd >= 0 ? valorInteiroRelatorio(row[indiceQtd]) : 1;
-    if (quantidade === null) { linhasInvalidas++; return; }
-    if (indiceContrato >= 0) {
-      const contrato = normalizarChaveRenovacao(row[indiceContrato]);
-      if (contrato) {
-        const chave = `${vendedorId}:${contrato}`;
-        if (vistos.has(chave)) return;
-        vistos.add(chave);
-      }
+    const contrato = normalizarIdIxcRenovacao(row[indices.contrato]);
+    const cliente = String(row[indices.cliente] ?? '').trim();
+    const plano = String(row[indices.plano] ?? '').trim();
+    let valor = indices.valor >= 0 ? valorMoedaRenovacao(row[indices.valor]) : null;
+    if (valor == null && indices.valor < 0 && typeof resolverPlanoIxc === 'function') {
+      const planoCatalogo = resolverPlanoIxc(plano, _cache.planos || []);
+      valor = (typeof obterValorExplicitoRelatorioIxc === 'function' ? obterValorExplicitoRelatorioIxc(plano) : null)
+        ?? (typeof obterValorPlanoIxc === 'function' ? obterValorPlanoIxc(planoCatalogo) : null);
     }
-    somaPorVendedor.set(vendedorId, (somaPorVendedor.get(vendedorId) || 0) + quantidade);
+    const data = dataIsoRenovacao(row[indices.data]);
+    if (!vendedorId || !contrato || !cliente || !plano || valor == null || !data) { linhasInvalidas++; return; }
+    const chave = normalizarChaveRenovacao(contrato);
+    if (vistos.has(chave)) { linhasInvalidas++; return; }
+    vistos.add(chave);
+    registros.push({ vendedor_id: Number(vendedorId), contrato, cliente, plano, valor, data });
   });
-  const total = [...somaPorVendedor.values()].reduce((s, n) => s + n, 0);
+  const total = registros.length;
   const mes = document.getElementById('renov-relatorio-mes')?.value;
   const mesOk = /^\d{4}-(0[1-9]|1[0-2])$/.test(mes || '');
-  preview.textContent = `${dados.filename}: ${dados.rows.length} linhas · ${somaPorVendedor.size} vendedores · ${total.toLocaleString('pt-BR')} renovações${linhasInvalidas ? ` · ${linhasInvalidas} linha(s) sem correspondência/quantidade válida` : ''}. ${indiceQtd < 0 ? 'Cada linha conta como 1 renovação.' : 'A quantidade será somada pela coluna escolhida.'}`;
-  btn.disabled = !mesOk || linhasInvalidas > 0 || somaPorVendedor.size === 0;
-  window._previewRenovacaoImport = { totals: somaPorVendedor, total, mes, invalidas: linhasInvalidas };
+  preview.textContent = `${dados.filename}: ${dados.rows.length} linhas · ${registros.length} registros válidos · ${new Set(registros.map(r => r.vendedor_id)).size} vendedores · ${total.toLocaleString('pt-BR')} renovações${linhasInvalidas ? ` · ${linhasInvalidas} linha(s) incompletas, duplicadas ou sem vínculo` : ''}.`;
+  btn.disabled = !mesOk || linhasInvalidas > 0 || !registros.length;
+  window._previewRenovacaoImport = { registros, total, mes, invalidas: linhasInvalidas };
 }
 
 async function prepararRelatorioRenovacao(file) {
@@ -1189,16 +1271,21 @@ async function prepararRelatorioRenovacao(file) {
   try {
     _relatorioRenovacao = await lerArquivoRelatorioRenovacao(file);
     const options = _relatorioRenovacao.headers.map((h, i) => `<option value="${i}">${escapeHtmlText(h)}</option>`).join('');
-    mapEl.innerHTML = `
-      <div class="adm-field"><label for="renov-col-vendedor">Coluna do vendedor *</label><select id="renov-col-vendedor"><option value="">Selecione</option>${options}</select></div>
-      <div class="adm-field"><label for="renov-col-quantidade">Coluna de quantidade (opcional)</label><select id="renov-col-quantidade"><option value="">Uma renovação por linha</option>${options}</select></div>
-      <div class="adm-field"><label for="renov-col-contrato">Coluna do contrato para eliminar duplicadas (opcional)</label><select id="renov-col-contrato"><option value="">Não deduplicar</option>${options}</select></div>`;
-    const vendedorCol = document.getElementById('renov-col-vendedor');
-    vendedorCol.value = guessColunaRenovacao(_relatorioRenovacao.headers, /vendedor|consultor|responsavel|responsavel pela venda/);
-    const qtdCol = document.getElementById('renov-col-quantidade');
-    qtdCol.value = guessColunaRenovacao(_relatorioRenovacao.headers, /quantidade|qtd|total de renov|renovacoes realizadas/);
-    const contratoCol = document.getElementById('renov-col-contrato');
-    contratoCol.value = guessColunaRenovacao(_relatorioRenovacao.headers, /contrato|assinatura|protocolo/);
+    const campo = (key, title, required = true) => `<div class="adm-field"><label for="renov-col-${key}">${title}${required ? ' *' : ''}</label><select id="renov-col-${key}"><option value="">${required ? 'Selecione' : 'Usar valor do catálogo de planos'}</option>${options}</select></div>`;
+    mapEl.innerHTML = [campo('vendedor', 'Coluna do ID IXC ou vendedor'), campo('contrato', 'Coluna do contrato'), campo('cliente', 'Coluna do cliente'), campo('plano', 'Coluna do plano renovado'), campo('valor', 'Coluna do valor do plano', false), campo('data', 'Data do evento de renovação')].join('');
+    const mapeamentos = {
+      vendedor: /vendedor|consultor|responsavel|responsavel pela venda/,
+      contrato: /contrato|assinatura/,
+      cliente: /cliente|assinante/,
+      plano: /plano|descricao|produto/,
+      data: /data (da )?renova|data do evento|data da troca/,
+    };
+    Object.entries(mapeamentos).forEach(([key, regex]) => {
+      const select = document.getElementById(`renov-col-${key}`);
+      select.value = guessColunaRenovacao(_relatorioRenovacao.headers, regex);
+    });
+    document.getElementById('renov-col-valor').value = guessColunaRenovacao(_relatorioRenovacao.headers, /valor|mensalidade|preco/);
+    document.getElementById('renov-col-valor').addEventListener('change', atualizarPreviewRelatorioRenovacao);
     mapEl.hidden = false;
     mapEl.querySelectorAll('select').forEach(el => el.addEventListener('change', atualizarPreviewRelatorioRenovacao));
     const mesEl = document.getElementById('renov-relatorio-mes');
@@ -1215,27 +1302,27 @@ async function prepararRelatorioRenovacao(file) {
 
 async function importarRelatorioRenovacoes() {
   const resumo = window._previewRenovacaoImport;
-  if (!resumo || !resumo.mes || resumo.invalidas || !resumo.totals.size) {
+  if (!resumo || !resumo.mes || resumo.invalidas || !resumo.registros.length) {
     showToast('Revise o mês e as correspondências de vendedores antes de importar.', 'warning'); return;
   }
   const [ano, mes] = resumo.mes.split('-').map(Number);
-  const linhas = [...resumo.totals].map(([vendedor_id, quantidade]) => ({ vendedor_id: Number(vendedor_id), quantidade }));
   const filialNome = window.FILIAL_ATUAL?.nome || 'filial atual';
-  if (!confirm(`Importar ${resumo.total.toLocaleString('pt-BR')} renovações de ${mes}/${ano} para ${filialNome}? Os dados já importados para esta filial e mês serão substituídos pelo relatório selecionado.`)) return;
+  if (!confirm(`Importar ${resumo.total.toLocaleString('pt-BR')} renovações detalhadas de ${mes}/${ano} para ${filialNome}? Os registros deste mês/filial serão substituídos pelo relatório selecionado.`)) return;
   try {
     const { data: sessao } = await window._supabase.auth.getSession();
     if (!sessao?.session) throw new Error('Entre no painel administrativo para importar relatórios.');
-    const { error } = await window._supabase.rpc('substituir_renovacoes_mensais', {
+    const { error } = await window._supabase.rpc('substituir_registros_renovacao', {
       p_filial_id: window.FILIAL_ATUAL_ID, p_mes: mes, p_ano: ano,
-      p_arquivo: _relatorioRenovacao.filename, p_linhas: linhas,
+      p_arquivo: _relatorioRenovacao.filename, p_linhas: resumo.registros,
     });
     if (error) throw error;
     await carregarDados();
-    showToast(`Relatório importado: ${resumo.total.toLocaleString('pt-BR')} renovações.`, 'success');
+    await carregarRelatorioResumoRenovacoes();
+    showToast(`Relatório importado: ${resumo.total.toLocaleString('pt-BR')} renovações detalhadas.`, 'success');
   } catch (err) {
     console.error('[importarRelatorioRenovacoes]', err);
     const msg = String((err && err.message) || err);
-    showToast(/substituir_renovacoes_mensais|schema cache|does not exist/i.test(msg)
+    showToast(/substituir_registros_renovacao|schema cache|does not exist/i.test(msg)
       ? 'A estrutura de importação ainda não existe no Supabase. Execute supabase/renovacoes-mensais.sql no SQL Editor.'
       : 'Não foi possível importar: ' + msg, 'error', 9000);
   }
@@ -3472,6 +3559,7 @@ function adm_navigateTo(sectionId) {
   if (sectionId === 'filiais-admin') carregarFiliaisGerenciadas();
   if (sectionId === 'rede') carregarDashboardRede();
   if (sectionId === 'nova-venda' && typeof carregarPendenciasIxc === 'function') carregarPendenciasIxc();
+  if (sectionId === 'renovacoes') carregarRelatorioResumoRenovacoes();
   // A área rolável é o conteúdo interno no mobile e o overlay no desktop.
   document.querySelector('#adm-panel .adm-panel-inner')?.scrollTo({ top: 0, behavior: 'auto' });
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
@@ -5218,7 +5306,11 @@ document.addEventListener('DOMContentLoaded', function() {
 const renovArquivoInput = document.getElementById('renov-relatorio-arquivo');
 if (renovArquivoInput) renovArquivoInput.addEventListener('change', event => prepararRelatorioRenovacao(event.target.files?.[0]));
 const renovMesInput = document.getElementById('renov-relatorio-mes');
-if (renovMesInput) renovMesInput.addEventListener('change', atualizarPreviewRelatorioRenovacao);
+if (renovMesInput && !renovMesInput.value) {
+  const agora = new Date();
+  renovMesInput.value = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+}
+if (renovMesInput) renovMesInput.addEventListener('change', () => { atualizarPreviewRelatorioRenovacao(); carregarRelatorioResumoRenovacoes(); });
 
 document.getElementById('adm-trigger').addEventListener('click', adm_showLogin);
 

@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-renovacoes-1">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-renovacoes-2">
 </head>
 <body>
 
@@ -322,8 +322,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261022-renovacoes-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261022-renovacoes-1"></script>
+  <script src="assets/js/dashboard.js?v=20261022-renovacoes-2"></script>
+  <script src="assets/js/supabase-admin.js?v=20261022-renovacoes-2"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1134,15 +1134,17 @@
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Gestão de Renovações</div>
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Importar relatório mensal</div>
-            <p class="adm-description">Envie aqui o relatório específico de renovações exportado do sistema. A importação será vinculada à filial selecionada e ao mês informado; os dados serão usados nos indicadores gerais e nas metas individuais, sem criar ranking de renovações.</p>
+            <p class="adm-description">Importe o relatório de eventos de renovação. Cada linha será salva com cliente, contrato, plano renovado, valor, data e vendedor vinculado ao cadastro pelo ID IXC. O relatório alimenta os indicadores e metas individuais, sem criar ranking público de renovações.</p>
             <div class="adm-form-grid">
               <div class="adm-field"><label for="renov-relatorio-mes">Mês do relatório</label><input type="month" id="renov-relatorio-mes"></div>
-              <div class="adm-field"><label for="renov-relatorio-arquivo">Relatório específico de renovações</label><input type="file" id="renov-relatorio-arquivo" accept=".csv,.xlsx"></div>
+              <div class="adm-field"><label for="renov-relatorio-arquivo">Relatório de renovações</label><input type="file" id="renov-relatorio-arquivo" accept=".csv,.xlsx"></div>
             </div>
             <div id="renov-relatorio-preview" class="adm-muted-copy" aria-live="polite">Selecione o mês e o arquivo. Você poderá conferir as colunas e associar os vendedores antes de importar.</div>
             <div id="renov-relatorio-mapeamento" class="adm-form-grid" hidden></div>
             <div id="renov-relatorio-correspondencias" class="adm-table-wrap" hidden></div>
-            <button type="button" id="renov-relatorio-importar" class="adm-btn adm-btn-primary adm-btn-inline" onclick="importarRelatorioRenovacoes()" disabled><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Importar e substituir mês</button>
+            <button type="button" id="renov-relatorio-importar" class="adm-btn adm-btn-primary adm-btn-inline" onclick="importarRelatorioRenovacoes()" disabled><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Importar detalhamento</button>
+            <div class="adm-table-wrap" id="renov-relatorio-resumo-vendedores" aria-live="polite"></div>
+            <button type="button" class="adm-btn adm-btn-inline" id="renov-relatorio-exportar" onclick="exportarResumoRenovacoes()" hidden>Exportar relatório por vendedor (CSV)</button>
           </div>
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Metas gerais — <span id="cfg-renov-periodo">mês/ano atual</span></div>
