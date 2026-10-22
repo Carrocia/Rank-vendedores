@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261021-ixc-pending-scope-1">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261022-ixc-variable-plan-review-1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -333,7 +333,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261020-theme-bootstrap-1"></script>
   <script src="assets/js/supabase-admin.js?v=20261020-resumo-filial-4"></script>
-  <script src="assets/js/ixc-import.js?v=20261021-ixc-pending-scope-1"></script>
+  <script src="assets/js/ixc-import.js?v=20261022-ixc-variable-plan-review-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -683,7 +683,7 @@
               </div>
               <button type="button" class="adm-btn adm-btn-secondary adm-btn-small ixc-pending-clear" id="ixc-pending-clear" hidden disabled>Limpar pendências</button>
             </div>
-            <p class="adm-vendedor-cadastro-hint">Vendas que não apareceram na última lista completa de contratos ativos ficam aqui até você confirmar se continuam válidas, foram canceladas ou precisam ser vinculadas a outro número do IXC. Após conferir um relatório, o sistema pode sugerir contratos ativos com cliente, vendedor e plano parecidos. A comparação roda no navegador, sem API de IA paga; data e valores aparecem como contexto e não decidem o vínculo. As sugestões só vinculam depois da sua confirmação. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores.</p>
+            <p class="adm-vendedor-cadastro-hint">Vendas que não apareceram na lista completa de contratos ativos e vendas de planos sem preço fixo ficam aqui para revisão. Em Telefonia NBS, Padrão UNI e Serviço, edite o valor do plano e os adicionais; R$ 0,00 também é válido. Depois, clique em “Manter válida”. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores. Para contratos ausentes, o sistema também pode sugerir vínculos com base em cliente, vendedor e plano; a comparação roda no navegador e só vincula após sua confirmação.</p>
             <div class="adm-table-wrap">
               <table class="adm-table">
                 <thead><tr><th>Data</th><th>Contrato</th><th>Cliente</th><th>Vendedor</th><th>Filial</th><th>Valor</th><th>Ações</th></tr></thead>

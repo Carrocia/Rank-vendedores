@@ -82,6 +82,7 @@ begin
   from public.vendas v
   where c.venda_id = v.id
     and c.situacao = 'pendente'
+    and c.motivo <> 'revisar_valor_variavel_ixc'
     and v.filial_destino_id = any(v_filiais)
     and btrim(coalesce(v.numero_venda, '')) = any(v_contratos);
 
@@ -97,7 +98,8 @@ begin
         numero_venda = excluded.numero_venda,
         relatorio_em = now(),
         motivo = 'Contrato não encontrado na lista de contratos ativos do IXC.'
-    where public.vendas_conferencia_ixc.situacao in ('pendente', 'regularizada');
+    where public.vendas_conferencia_ixc.situacao in ('pendente', 'regularizada')
+      and public.vendas_conferencia_ixc.motivo <> 'revisar_valor_variavel_ixc';
 
   get diagnostics v_afetadas = row_count;
   return v_afetadas;
