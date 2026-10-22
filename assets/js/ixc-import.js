@@ -855,8 +855,10 @@ async function salvarEdicaoVendaIxc(vincular) {
   } catch (error) {
     console.error('[salvarEdicaoVendaIxc]', error);
     const mensagem = error.code === 'PGRST202'
-      ? 'A função de edição ainda não existe no Supabase. Execute supabase/editar-venda-pendente-ixc.sql no SQL Editor.'
-      : error.message || 'Não foi possível salvar as correções da venda.';
+      ? 'O Supabase não encontrou a função no cache da API. Execute o arquivo supabase/editar-venda-pendente-ixc.sql por completo no projeto correto e atualize a página.'
+      : error.code === '42501'
+        ? 'O banco negou a permissão para editar esta venda. Confirme que você está autenticado como administrador e execute o GRANT do arquivo supabase/editar-venda-pendente-ixc.sql.'
+        : error.message || 'Não foi possível salvar as correções da venda.';
     showToast(mensagem, 'error');
   } finally {
     botoes.forEach(botao => { botao.disabled = false; });

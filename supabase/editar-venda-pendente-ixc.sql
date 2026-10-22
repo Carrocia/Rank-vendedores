@@ -146,4 +146,7 @@ $function$;
 revoke all on function public.editar_venda_pendente_ixc(bigint, jsonb, jsonb, boolean) from public, anon;
 grant execute on function public.editar_venda_pendente_ixc(bigint, jsonb, jsonb, boolean) to authenticated;
 
+-- Atualiza o cache do PostgREST para a função aparecer imediatamente no RPC.
+notify pgrst, 'reload schema';
+
 commit;
