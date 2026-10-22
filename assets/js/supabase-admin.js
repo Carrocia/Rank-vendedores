@@ -4270,7 +4270,17 @@ function renderAdmVendedoresTable(d) {
     } else {
       rankTd.textContent = 'Sem base';
       rankTd.className = 'adm-rank-no-base';
-      rankTd.title = 'O rank depende de meta cadastrada e de referência de ticket disponível para este mês.';
+      if (!rankResumo) {
+        rankTd.title = 'O cálculo não retornou este vendedor. Confira se o vendedor participa dos ranks e se a migração progressao-ranks-carreira.sql está aplicada.';
+      } else {
+        const motivos = [];
+        if (Number(rankResumo.meta_vendas) <= 0) motivos.push('meta de vendas M1 não cadastrada');
+        if (rankResumo.tipo !== 'externo' && Number(rankResumo.meta_renovacoes) <= 0) motivos.push('meta individual M1 de renovações não cadastrada para o mês');
+        if (Number(rankResumo.ticket_referencia) <= 0) motivos.push('sem referência de ticket regional com os dados de vendas do mês');
+        rankTd.title = motivos.length
+          ? `Sem base para classificar: ${motivos.join('; ')}.`
+          : 'O cálculo não encontrou os critérios necessários para classificar este vendedor.';
+      }
     }
 
     const statusTd = document.createElement('td');
