@@ -46,6 +46,7 @@ declare
   v_filiais bigint[];
   v_contratos text[];
   v_afetadas integer := 0;
+  v_revisoes_zero integer := 0;
 begin
   if auth.uid() is null then
     raise exception 'É necessário entrar no painel administrativo.';
@@ -86,12 +87,32 @@ begin
     and v.filial_destino_id = any(v_filiais)
     and btrim(coalesce(v.numero_venda, '')) = any(v_contratos);
 
+  -- Vendas antigas com valor de plano zero não tinham pendência própria.
+  -- Coloca-as na fila de revisão, mesmo se o contrato estiver ativo no IXC.
+  insert into public.vendas_conferencia_ixc
+    (venda_id, filial_id, numero_venda, situacao, motivo, relatorio_em)
+  select v.id, v.filial_destino_id, btrim(v.numero_venda), 'pendente',
+         'revisar_valor_zero_legado', now()
+  from public.vendas v
+  where v.filial_destino_id = any(v_filiais)
+    and coalesce(v.valor, 0) = 0
+    and nullif(btrim(coalesce(v.numero_venda, '')), '') is not null
+  on conflict (venda_id) do update
+    set situacao = 'pendente',
+        numero_venda = excluded.numero_venda,
+        relatorio_em = now(),
+        motivo = 'revisar_valor_zero_legado'
+    where public.vendas_conferencia_ixc.situacao in ('pendente', 'regularizada')
+      and public.vendas_conferencia_ixc.motivo <> 'revisar_valor_variavel_ixc';
+  get diagnostics v_revisoes_zero = row_count;
+
   insert into public.vendas_conferencia_ixc
     (venda_id, filial_id, numero_venda, situacao, relatorio_em)
   select v.id, v.filial_destino_id, btrim(v.numero_venda), 'pendente', now()
   from public.vendas v
   where v.filial_destino_id = any(v_filiais)
     and nullif(btrim(v.numero_venda), '') is not null
+    and coalesce(v.valor, 0) <> 0
     and not (btrim(v.numero_venda) = any(v_contratos))
   on conflict (venda_id) do update
     set situacao = 'pendente',
@@ -102,7 +123,7 @@ begin
       and public.vendas_conferencia_ixc.motivo <> 'revisar_valor_variavel_ixc';
 
   get diagnostics v_afetadas = row_count;
-  return v_afetadas;
+  return v_afetadas + v_revisoes_zero;
 end;
 $function$;
 
