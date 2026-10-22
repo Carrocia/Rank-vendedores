@@ -1155,6 +1155,8 @@ async function loadRenovacoesMensais(mes, ano) {
   return data || [];
 }
 
+let _rankMensalErro = null;
+
 async function loadRankMensalFilial(mes, ano) {
   if (!window.ADMIN_AUTENTICADO || !window._supabase) return [];
   const { data, error } = await window._supabase.rpc('calcular_rank_mensal_filial', {
@@ -1163,11 +1165,11 @@ async function loadRankMensalFilial(mes, ano) {
     p_ano: Number(ano),
   });
   if (error) {
-    if (!/calcular_rank_mensal_filial|schema cache|does not exist/i.test(error.message || '')) {
-      console.warn('[loadRankMensalFilial]', error.message);
-    }
+    _rankMensalErro = error.message || 'Erro desconhecido ao calcular o rank.';
+    console.error('[loadRankMensalFilial]', _rankMensalErro);
     return [];
   }
+  _rankMensalErro = null;
   return data || [];
 }
 
@@ -4268,15 +4270,26 @@ function renderAdmVendedoresTable(d) {
       ].join('\n');
       rankTd.appendChild(seloRank);
     } else {
-      rankTd.textContent = 'Sem base';
-      rankTd.className = 'adm-rank-no-base';
-      if (!rankResumo) {
-        rankTd.title = 'O cálculo não retornou este vendedor. Confira se o vendedor participa dos ranks e se a migração progressao-ranks-carreira.sql está aplicada.';
-      } else {
-        const motivos = [];
+      const motivos = [];
+      if (rankResumo) {
         if (Number(rankResumo.meta_vendas) <= 0) motivos.push('meta de vendas M1 não cadastrada');
         if (rankResumo.tipo !== 'externo' && Number(rankResumo.meta_renovacoes) <= 0) motivos.push('meta individual M1 de renovações não cadastrada para o mês');
         if (Number(rankResumo.ticket_referencia) <= 0) motivos.push('sem referência de ticket regional com os dados de vendas do mês');
+      }
+      rankTd.textContent = !rankResumo
+        ? (v.participa_ranking === false ? 'Fora do rank' : _rankMensalErro ? 'Erro no cálculo' : 'Sem retorno')
+        : motivos[0]?.includes('renovações') ? 'Meta renov.'
+          : motivos[0]?.includes('vendas') ? 'Meta vendas'
+            : motivos[0]?.includes('ticket') ? 'Ticket base'
+              : 'Sem base';
+      rankTd.className = 'adm-rank-no-base';
+      if (!rankResumo) {
+        rankTd.title = v.participa_ranking === false
+          ? 'Este vendedor está configurado para aparecer somente em relatórios, sem participar dos ranks.'
+          : _rankMensalErro
+          ? `Falha ao consultar o rank: ${_rankMensalErro}`
+          : 'O cálculo não retornou este vendedor. Confira se participa do ranking e se o RPC foi criado no Supabase.';
+      } else {
         rankTd.title = motivos.length
           ? `Sem base para classificar: ${motivos.join('; ')}.`
           : 'O cálculo não encontrou os critérios necessários para classificar este vendedor.';
