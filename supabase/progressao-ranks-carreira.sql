@@ -108,7 +108,7 @@ begin
 
   return query
   with vendedores_alvo as (
-    select v.id, v.carreira_pessoa_id, v.nome, v.tipo, v.filial_id
+    select v.id, v.carreira_pessoa_id, v.nome, v.tipo, v.filial_id, v.ativo
     from public.vendedores v
     where v.filial_id = p_filial_id
       and v.ativo is true
