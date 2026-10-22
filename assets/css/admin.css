@@ -936,6 +936,108 @@ body.adm-modal-open { overflow: hidden; }
   .ixc-edit-actions .adm-btn { width: 100%; }
 }
 
+/* Gestão de renovações: prévias delimitadas, controles temáticos e tabelas
+   roláveis para relatórios longos sem aumentar a altura do painel. */
+#sec-renovacoes #renov-relatorio-preview {
+  margin: 8px 0 14px;
+  line-height: 1.55;
+}
+#sec-renovacoes .renov-table-scroll {
+  max-width: 100%;
+  max-height: 350px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  background: rgba(12,15,23,.36);
+}
+#sec-renovacoes .renov-table-scroll .adm-table {
+  min-width: 790px;
+}
+#sec-renovacoes .renov-conferencia-scroll {
+  max-height: 360px;
+}
+#sec-renovacoes .renov-conferencia-scroll .adm-table {
+  min-width: 1080px;
+}
+#sec-renovacoes .renov-table-scroll .adm-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #1a1d29;
+  box-shadow: 0 1px 0 rgba(var(--accent-rgb),.2);
+}
+#sec-renovacoes .renov-relatorio-actions {
+  justify-content: flex-start;
+  margin: 16px 0 4px;
+}
+#sec-renovacoes #renov-relatorio-resumo-vendedores {
+  margin-top: 18px;
+}
+#sec-renovacoes #renov-relatorio-resumo-vendedores .adm-table {
+  min-width: 520px;
+}
+#sec-renovacoes #renov-relatorio-exportar {
+  margin-top: 12px;
+}
+#sec-renovacoes .renov-table-scroll select,
+#sec-renovacoes .renov-table-scroll input[type="number"] {
+  min-width: 150px;
+  min-height: 42px;
+  padding: 9px 38px 9px 12px;
+  border: 1px solid rgba(var(--accent-rgb),.32);
+  border-radius: 10px;
+  outline: 0;
+  background-color: rgba(255,255,255,.055);
+  color: var(--text, #f3f4f6);
+  font: 600 .8rem 'Poppins', sans-serif;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+#sec-renovacoes .renov-table-scroll select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3 5.5L7 9.5L11 5.5' stroke='%2321d9ff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+}
+#sec-renovacoes .renov-table-scroll select option {
+  background: #171a24;
+  color: #f3f4f6;
+}
+#sec-renovacoes .renov-table-scroll input[type="number"] {
+  padding-right: 10px;
+  font-variant-numeric: tabular-nums;
+}
+#sec-renovacoes .renov-table-scroll select:hover,
+#sec-renovacoes .renov-table-scroll input[type="number"]:hover {
+  border-color: rgba(var(--accent-rgb),.55);
+  background-color: rgba(var(--accent-rgb),.07);
+}
+#sec-renovacoes .renov-table-scroll select:focus,
+#sec-renovacoes .renov-table-scroll input[type="number"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.16);
+}
+#sec-renovacoes #renov-relatorio-importar:disabled,
+#sec-renovacoes #renov-relatorio-limpar:disabled {
+  opacity: .46;
+  cursor: not-allowed;
+  filter: saturate(.55);
+  box-shadow: none;
+}
+@media (max-width: 700px) {
+  #sec-renovacoes .renov-table-scroll { max-height: 290px; }
+  #sec-renovacoes .renov-conferencia-scroll { max-height: 320px; }
+  #sec-renovacoes .renov-relatorio-actions {
+    justify-content: flex-start;
+  }
+  #sec-renovacoes .renov-relatorio-actions .adm-btn-inline {
+    flex: 0 1 auto;
+  }
+}
+
 @media (max-width: 700px) {
   .ixc-pending-heading {
     align-items: flex-start;

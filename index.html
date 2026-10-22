@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261022-ixc-variable-plan-review-1">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261022-renewal-layout-1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -1134,19 +1134,19 @@
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Gestão de Renovações</div>
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Importar relatório mensal</div>
-            <p class="adm-description">Envie o relatório específico de renovações. O sistema reconhece contratos, clientes, planos e vendedores do cadastro de qualquer filial. Planos sem correspondência ou sem valor seguem para a conferência de renovações; a renovação já entra na contagem enquanto aguarda revisão.</p>
+            <p class="adm-description">Envie o relatório de renovações para registrar as quantidades por vendedor. Planos sem correspondência ou preço seguem para conferência e continuam contando enquanto aguardam revisão.</p>
             <div class="adm-form-grid">
               <div class="adm-field"><label for="renov-relatorio-mes">Mês do relatório</label><input type="month" id="renov-relatorio-mes"></div>
               <div class="adm-field"><label for="renov-relatorio-arquivo">Relatório de renovações</label><input type="file" id="renov-relatorio-arquivo" accept=".csv,.xlsx"></div>
             </div>
             <div id="renov-relatorio-preview" class="adm-muted-copy" aria-live="polite">Selecione o mês e o arquivo para analisar as renovações e conferir o vendedor, plano e valor reconhecidos.</div>
-            <div class="adm-table-wrap" id="renov-relatorio-preview-wrap" hidden>
+            <div class="adm-table-wrap renov-table-scroll" id="renov-relatorio-preview-wrap" hidden>
               <table class="adm-table">
                 <thead><tr><th>Contrato</th><th>Cliente</th><th>Plano renovado</th><th>Valor</th><th>Vendedor</th><th>Data da renovação</th><th>Situação</th></tr></thead>
                 <tbody id="renov-relatorio-preview-body"></tbody>
               </table>
             </div>
-            <div class="adm-form-actions">
+            <div class="adm-form-actions renov-relatorio-actions">
               <button type="button" id="renov-relatorio-importar" class="adm-btn adm-btn-primary adm-btn-inline" onclick="importarRelatorioRenovacoes()" disabled><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Importar renovações selecionadas</button>
               <button type="button" id="renov-relatorio-limpar" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="limparRelatorioRenovacoes()" disabled>Limpar relatório</button>
             </div>
@@ -1156,7 +1156,7 @@
           <div class="adm-form-card" id="renov-conferencia-card">
             <div class="adm-section-title adm-subsection-title">Renovações pendentes de conferência</div>
             <p class="adm-description">Vincule o plano correto e informe o valor. Você pode manter R$ 0,00. Essas renovações já são contabilizadas nos indicadores.</p>
-            <div class="adm-table-wrap"><table class="adm-table">
+            <div class="adm-table-wrap renov-table-scroll renov-conferencia-scroll"><table class="adm-table">
               <thead><tr><th>Data</th><th>Contrato</th><th>Cliente</th><th>Vendedor</th><th>Plano do relatório</th><th>Plano cadastrado</th><th>Valor (R$)</th><th>Ação</th></tr></thead>
               <tbody id="renov-conferencia-body"><tr><td colspan="8">Carregando pendências…</td></tr></tbody>
             </table></div>
