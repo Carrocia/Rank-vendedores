@@ -1446,7 +1446,7 @@ function popularFiltrosRelatorio() {
   if (selP) {
     const atual = selP.value;
     selP.innerHTML = '<option value="">Todos</option>' +
-      (_cache.planos || []).map(p => `<option value="${p.id}">${p.nome} ${p.velocidade_mb} Mbps</option>`).join('');
+      (_cache.planos || []).map(p => `<option value="${p.id}">${escapeHtmlText(rotuloPlanoComVelocidade(p))}</option>`).join('');
     selP.value = atual;
   }
   const dataIni = document.getElementById('rel-data-ini');

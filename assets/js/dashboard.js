@@ -1431,10 +1431,15 @@ function renderSelectPlanos(selectId, grupos) {
   select.innerHTML = '<option value="">Selecione o plano</option>' +
     Object.entries(grupos).map(([grupo, planos]) =>
       `<optgroup label="${escapeHtmlText(grupo)}">${planos.map(plano =>
-        `<option value="${escapeHtmlText(plano.id)}|${escapeHtmlText(plano.valor)}">${escapeHtmlText(plano.nome)} ${escapeHtmlText(plano.velocidade_mb)} Mbps${plano.vendasNoMes ? ` — ${plano.vendasNoMes} venda${plano.vendasNoMes === 1 ? '' : 's'} no mês` : ''} — R$ ${Number(plano.valor).toFixed(2).replace('.', ',')}</option>`
+        `<option value="${escapeHtmlText(plano.id)}|${escapeHtmlText(plano.valor)}">${escapeHtmlText(rotuloPlanoComVelocidade(plano))}${plano.vendasNoMes ? ` — ${plano.vendasNoMes} venda${plano.vendasNoMes === 1 ? '' : 's'} no mês` : ''} — R$ ${Number(plano.valor).toFixed(2).replace('.', ',')}</option>`
       ).join('')}</optgroup>`
     ).join('');
   buildCustomSelectPanel(selectId, grupos);
+}
+
+function rotuloPlanoComVelocidade(plano) {
+  const velocidade = plano?.eh_servico ? '' : (plano?.velocidade_mb ? ` ${plano.velocidade_mb} Mbps` : '');
+  return `${plano?.nome || 'Plano'}${velocidade}`;
 }
 
 function popularSelectPlanos(planos, categorias = _cache.categoriasPlanos || []) {
@@ -1519,7 +1524,7 @@ function renderTabelaPlanos(planos, categorias = _cache.categoriasPlanos || []) 
     const ativo = plano.ativo !== false;
     const valores = [
       plano.nome || '—',
-      plano.velocidade_mb != null ? `${plano.velocidade_mb} Mbps` : '—',
+      plano.eh_servico ? 'Serviço' : (plano.velocidade_mb != null ? `${plano.velocidade_mb} Mbps` : '—'),
       moeda(plano.valor),
       categoriasPorId.get(String(plano.categoria_id)) || 'Sem categoria',
     ];
@@ -1718,10 +1723,22 @@ function cancelarEdicaoPlano() {
   form.reset();
   document.getElementById('adm-plano-id').value = '';
   document.getElementById('adm-plano-ativo').checked = true;
+  document.getElementById('adm-plano-servico').checked = false;
+  atualizarCampoVelocidadePlano();
   popularSelectCategoriasPlanos(_cache.categoriasPlanos || []);
   document.getElementById('adm-plano-form-title').textContent = 'Cadastrar plano';
   document.getElementById('adm-plano-submit').textContent = 'Cadastrar plano';
   document.getElementById('adm-plano-cancelar').hidden = true;
+}
+
+function atualizarCampoVelocidadePlano() {
+  const servico = document.getElementById('adm-plano-servico');
+  const velocidade = document.getElementById('adm-plano-velocidade');
+  if (!servico || !velocidade) return;
+  velocidade.disabled = servico.checked;
+  velocidade.required = !servico.checked;
+  velocidade.placeholder = servico.checked ? 'Dispensada para plano de serviço' : 'Ex.: 500';
+  if (servico.checked) velocidade.value = '';
 }
 
 function editarPlanoCatalogo(id) {
@@ -1738,6 +1755,8 @@ function editarPlanoCatalogo(id) {
   document.getElementById('adm-plano-id').value = String(plano.id);
   document.getElementById('adm-plano-nome').value = plano.nome || '';
   document.getElementById('adm-plano-velocidade').value = plano.velocidade_mb ?? '';
+  document.getElementById('adm-plano-servico').checked = plano.eh_servico === true;
+  atualizarCampoVelocidadePlano();
   document.getElementById('adm-plano-valor').value = plano.valor ?? '';
   document.getElementById('adm-plano-ativo').checked = plano.ativo !== false;
   popularSelectCategoriasPlanos(_cache.categoriasPlanos || [], plano.categoria_id);
@@ -1756,15 +1775,17 @@ async function salvarPlanoCatalogo(event) {
 
   const id = document.getElementById('adm-plano-id').value.trim();
   const nome = document.getElementById('adm-plano-nome').value.trim();
-  const velocidade = Number(document.getElementById('adm-plano-velocidade').value);
+  const ehServico = document.getElementById('adm-plano-servico').checked;
+  const velocidadeRaw = document.getElementById('adm-plano-velocidade').value;
+  const velocidade = ehServico ? null : Number(velocidadeRaw);
   const valor = Number(document.getElementById('adm-plano-valor').value);
   const categoriaId = document.getElementById('adm-plano-categoria').value;
   const ativo = document.getElementById('adm-plano-ativo').checked;
   const submit = document.getElementById('adm-plano-submit');
 
   const categoria = (_cache.categoriasPlanos || []).find(c => String(c.id) === String(categoriaId));
-  if (!nome || !Number.isInteger(velocidade) || velocidade < 1 || !Number.isFinite(valor) || valor < 0 || !categoria) {
-    showToast('Informe nome, velocidade, um valor mensal igual ou maior que zero e uma categoria válida.', 'warning');
+  if (!nome || (!ehServico && (!Number.isInteger(velocidade) || velocidade < 1)) || !Number.isFinite(valor) || valor < 0 || !categoria) {
+    showToast(`Informe nome, ${ehServico ? '' : 'velocidade, '}um valor mensal igual ou maior que zero e uma categoria válida.`, 'warning');
     return;
   }
   if (categoria.ativo === false && String((_cache.planos || []).find(p => String(p.id) === id)?.categoria_id) !== String(categoria.id)) {
@@ -1776,19 +1797,19 @@ async function salvarPlanoCatalogo(event) {
   const duplicado = (_cache.planos || []).find(plano =>
     String(plano.id) !== id &&
     normalizarNomePlano(plano.nome) === nomeNormalizado &&
-    Number(plano.velocidade_mb) === velocidade
+    Boolean(plano.eh_servico) === ehServico && (ehServico || Number(plano.velocidade_mb) === velocidade)
   );
   if (duplicado) {
     showToast(
       duplicado.ativo === false
-        ? 'Já existe um plano inativo com esse nome e velocidade. Edite-o e reative-o para evitar duplicidade.'
-        : 'Já existe um plano com esse nome e velocidade no catálogo.',
+        ? 'Já existe um plano inativo com esse nome e tipo. Edite-o e reative-o para evitar duplicidade.'
+        : 'Já existe um plano com esse nome e tipo no catálogo.',
       'warning'
     );
     return;
   }
 
-  const payload = { nome, velocidade_mb: velocidade, valor, ativo, categoria_id: Number(categoriaId) };
+  const payload = { nome, velocidade_mb: velocidade, eh_servico: ehServico, valor, ativo, categoria_id: Number(categoriaId) };
   const textoOriginal = submit.textContent;
   submit.disabled = true;
   submit.textContent = id ? 'Salvando…' : 'Cadastrando…';
@@ -1827,7 +1848,7 @@ async function alternarAtivoPlano(id) {
   }
   const novoAtivo = plano.ativo === false;
   const acao = novoAtivo ? 'reativar' : 'inativar';
-  if (!window.confirm(`Deseja ${acao} “${plano.nome} ${plano.velocidade_mb} Mbps”? ${novoAtivo ? 'Ele voltará a aparecer nas novas vendas.' : 'Ele deixará de aparecer nas novas vendas, e as vendas antigas serão preservadas.'}`)) return;
+  if (!window.confirm(`Deseja ${acao} “${rotuloPlanoComVelocidade(plano)}”? ${novoAtivo ? 'Ele voltará a aparecer nas novas vendas.' : 'Ele deixará de aparecer nas novas vendas, e as vendas antigas serão preservadas.'}`)) return;
 
   try {
     const { error } = await window._supabase
@@ -1923,9 +1944,9 @@ function buildCustomSelectPanel(selectId, grupos) {
         <div class="custom-select-group-label">${escapeHtmlText(g)}</div>
         ${ps.map(p => {
       const value = `${p.id}|${p.valor}`;
-      const label = `${p.nome} ${p.velocidade_mb} Mbps${p.vendasNoMes ? ` — ${p.vendasNoMes} venda${p.vendasNoMes === 1 ? '' : 's'} no mês` : ''}`;
+      const label = `${rotuloPlanoComVelocidade(p)}${p.vendasNoMes ? ` — ${p.vendasNoMes} venda${p.vendasNoMes === 1 ? '' : 's'} no mês` : ''}`;
       const priceLabel = 'R$ ' + Number(p.valor).toFixed(2).replace('.', ',');
-      const busca = `${g} ${p.nome} ${p.velocidade_mb} Mbps ${p.valor} ${priceLabel}`;
+      const busca = `${g} ${rotuloPlanoComVelocidade(p)} ${p.valor} ${priceLabel}`;
       return `<div class="custom-select-option" data-value="${escapeHtmlText(value)}" data-label="${escapeHtmlText(`${label} — ${priceLabel}`)}" data-search="${escapeHtmlText(busca)}">
         <span>${escapeHtmlText(label)}</span><span class="csopt-price">${escapeHtmlText(priceLabel)}</span>
       </div>`;
