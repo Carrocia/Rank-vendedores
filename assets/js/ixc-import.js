@@ -425,16 +425,23 @@ async function carregarContratosExistentesIxc(contratos) {
   return encontrados;
 }
 
+function linhasAtivasFilialAtualIxc() {
+  const filialAtualId = Number(window.FILIAL_ATUAL_ID);
+  if (!Number.isInteger(filialAtualId) || filialAtualId <= 0) return [];
+  return _linhasImportacaoIxc.filter(linha =>
+    normalizarTextoIxc(linha.status) === 'ativo' &&
+    Number(linha.filialDestinoId) === filialAtualId &&
+    /^\d+$/.test(String(linha.contrato || '').trim())
+  );
+}
+
 function atualizarBotaoConferenciaIxc() {
   const controles = document.getElementById('ixc-reconciliation-controls');
   const resumoFiliais = document.getElementById('ixc-reconciliation-summary');
   const confirmacao = document.getElementById('ixc-reconciliation-complete');
   const botao = document.getElementById('ixc-reconciliation-submit');
   if (!controles || !confirmacao || !botao) return;
-  const linhasComparaveis = _linhasImportacaoIxc.filter(linha =>
-    normalizarTextoIxc(linha.status) === 'ativo' &&
-    linha.filialDestinoId && /^\d+$/.test(String(linha.contrato || '').trim())
-  );
+  const linhasComparaveis = linhasAtivasFilialAtualIxc();
   const contagens = new Map();
   linhasComparaveis.forEach(linha => {
     const filialId = String(linha.filialDestinoId);
@@ -446,9 +453,9 @@ function atualizarBotaoConferenciaIxc() {
   });
   const totalContratos = [...contagens.values()].reduce((total, filial) => total + filial.contratos.size, 0);
   if (resumoFiliais) {
-    const filiaisOrdenadas = [...contagens.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    resumoFiliais.innerHTML = filiaisOrdenadas.length
-      ? `<strong>${totalContratos} contrato(s) ativo(s) em ${filiaisOrdenadas.length} filial(is)</strong><div class="ixc-reconciliation-branch-counts">${filiaisOrdenadas.map(filial => `<span>${escapeHtmlText(filial.nome)}: <b>${filial.contratos.size}</b></span>`).join('')}</div>`
+    const filialAtualNome = window.FILIAL_ATUAL?.nome || [...contagens.values()][0]?.nome || 'filial aberta';
+    resumoFiliais.innerHTML = totalContratos
+      ? `<strong>${totalContratos} contrato(s) ativo(s) na filial ${escapeHtmlText(filialAtualNome)}</strong>`
       : '';
   }
   const temDadosComparaveis = totalContratos > 0;
@@ -547,14 +554,12 @@ async function reconciliarRelatorioIxc() {
     showToast('Confirme que o arquivo contém a lista completa de contratos ativos.', 'warning');
     return;
   }
-  const linhasAtivas = _linhasImportacaoIxc.filter(linha =>
-    normalizarTextoIxc(linha.status) === 'ativo' &&
-    linha.filialDestinoId && /^\d+$/.test(String(linha.contrato || '').trim())
-  );
-  const filiais = [...new Set(linhasAtivas.map(linha => Number(linha.filialDestinoId)))];
+  const filialAtualId = Number(window.FILIAL_ATUAL_ID);
+  const linhasAtivas = linhasAtivasFilialAtualIxc();
+  const filiais = linhasAtivas.length && Number.isInteger(filialAtualId) ? [filialAtualId] : [];
   const contratos = [...new Set(linhasAtivas.map(linha => String(linha.contrato).trim()))];
   if (!filiais.length || !contratos.length) {
-    showToast('Não encontrei filiais e contratos ativos válidos para conferir.', 'warning');
+    showToast(`Não encontrei contratos ativos da filial aberta (${window.FILIAL_ATUAL?.nome || filialAtualId}) neste relatório. Confira o código de filial no arquivo IXC.`, 'warning');
     return;
   }
   _conferenciaIxcEmAndamento = true;
@@ -569,11 +574,8 @@ async function reconciliarRelatorioIxc() {
     });
     if (error) throw error;
     const total = Number(data || 0);
-    const nomesFiliais = new Map(linhasAtivas.map(linha => [
-      String(linha.filialDestinoId),
-      linha.filialDestinoNome || `Filial ${linha.filialDestinoId}`,
-    ]));
-    _filiaisFiltroPendenciasIxc = filiais.map(id => ({ id, nome: nomesFiliais.get(String(id)) || `Filial ${id}` }));
+    const nomeFilialAtual = window.FILIAL_ATUAL?.nome || linhasAtivas[0]?.filialDestinoNome || `Filial ${filialAtualId}`;
+    _filiaisFiltroPendenciasIxc = [{ id: filialAtualId, nome: nomeFilialAtual }];
     if (status) status.textContent = `Conferência concluída. ${total} venda(s) pendente(s) nova(s) ou revisitada(s).`;
     showToast(`Conferência concluída: ${total} venda(s) aguardando revisão.`, 'success');
     _relatorioIxcParaSugestoes = [..._linhasImportacaoIxc];
@@ -599,14 +601,19 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
   if (!corpo || !window.ADMIN_AUTENTICADO || !window._supabase) return;
   corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Carregando vendas pendentes…</td></tr>';
   if (botaoLimpar) botaoLimpar.disabled = true;
+  const filialAtualId = Number(window.FILIAL_ATUAL_ID);
+  if (!Number.isInteger(filialAtualId) || filialAtualId <= 0) {
+    _pendenciasIxcCarregadas = [];
+    corpo.innerHTML = '<tr><td colspan="7" class="adm-empty-state">Não foi possível identificar a filial aberta. Atualize a página para carregar as pendências com segurança.</td></tr>';
+    if (botaoLimpar) botaoLimpar.hidden = true;
+    return;
+  }
   const consultaPendencias = window._supabase
     .from('vendas_conferencia_ixc')
     .select('id, venda_id, filial_id, numero_venda, situacao, motivo, relatorio_em')
     .eq('situacao', 'pendente')
     .order('relatorio_em', { ascending: false });
-  if (_filiaisFiltroPendenciasIxc?.length) {
-    consultaPendencias.in('filial_id', _filiaisFiltroPendenciasIxc.map(filial => filial.id));
-  }
+  consultaPendencias.eq('filial_id', filialAtualId);
   const { data: pendencias, error } = await consultaPendencias;
   if (error) {
     _pendenciasIxcCarregadas = [];
@@ -621,9 +628,9 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
   _pendenciasIxcCarregadas = pendencias || [];
   const escopo = document.getElementById('ixc-pending-scope');
   if (escopo) {
-    escopo.textContent = _filiaisFiltroPendenciasIxc?.length
-      ? `Filiais em foco: ${_filiaisFiltroPendenciasIxc.map(filial => filial.nome).join(', ')}`
-      : 'Exibindo pendências de todas as filiais às quais sua conta tem acesso.';
+    escopo.textContent = Number.isInteger(filialAtualId) && filialAtualId > 0
+      ? `Filial em foco: ${window.FILIAL_ATUAL?.nome || `Filial ${filialAtualId}`}`
+      : 'Filial atual não identificada; atualize a página antes de conferir.';
   }
   if (botaoLimpar) {
     botaoLimpar.hidden = !_pendenciasIxcCarregadas.length;
@@ -869,9 +876,7 @@ async function limparPendenciasIxc() {
   if (!window.ADMIN_AUTENTICADO || !window._supabase || _limpezaPendenciasIxcEmAndamento) return;
   const ids = _pendenciasIxcCarregadas.map(item => Number(item.id)).filter(Number.isFinite);
   if (!ids.length) return;
-  const escopoTexto = _filiaisFiltroPendenciasIxc?.length
-    ? ` das filiais ${_filiaisFiltroPendenciasIxc.map(filial => filial.nome).join(', ')}`
-    : ' de todas as filiais às quais sua conta tem acesso';
+  const escopoTexto = ` da filial ${window.FILIAL_ATUAL?.nome || window.FILIAL_ATUAL_ID}`;
   const confirmacao = confirm(
     `Limpar ${ids.length} pendência(s)${escopoTexto}? Elas serão marcadas como válidas. As vendas permanecerão cadastradas e continuarão contando nos indicadores.`
   );

@@ -333,7 +333,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261022-service-plan-catalog-1"></script>
   <script src="assets/js/supabase-admin.js?v=20261022-service-plan-catalog-1"></script>
-  <script src="assets/js/ixc-import.js?v=20261022-ixc-edit-rpc-cache-1"></script>
+  <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -665,10 +665,10 @@
               </div>
               <div class="adm-form-full ixc-reconciliation-controls" id="ixc-reconciliation-controls" hidden>
                 <div class="ixc-reconciliation-summary" id="ixc-reconciliation-summary" aria-live="polite"></div>
-                <p class="adm-vendedor-cadastro-hint ixc-reconciliation-warning">Confira se os totais correspondem ao relatório completo do IXC. Arquivos filtrados por cliente, vendedor ou filial podem fazer vendas válidas aparecerem como pendentes.</p>
+                <p class="adm-vendedor-cadastro-hint ixc-reconciliation-warning">A conferência compara somente a filial aberta, mesmo que o CSV tenha várias filiais. Confira se o relatório contém todos os contratos ativos dessa filial; arquivos filtrados por cliente, vendedor ou filial podem gerar pendências incorretas.</p>
                 <label class="tema-check ixc-reconciliation-confirm">
                   <input type="checkbox" id="ixc-reconciliation-complete" onchange="atualizarBotaoConferenciaIxc()">
-                  Confirmo que este arquivo contém todos os contratos ativos das filiais listadas e que os totais acima estão corretos.
+                  Confirmo que este arquivo contém todos os contratos ativos da filial aberta e que o total exibido está correto.
                 </label>
                 <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="ixc-reconciliation-submit" onclick="reconciliarRelatorioIxc()" disabled>Conferir vendas já cadastradas</button>
                 <span class="adm-vendedor-cadastro-hint" id="ixc-reconciliation-status" aria-live="polite"></span>
@@ -679,7 +679,7 @@
             <div class="ixc-pending-heading">
               <div class="ixc-pending-title-group">
                 <div class="adm-section-title adm-subsection-title">Vendas pendentes de conferência</div>
-                <span class="ixc-pending-scope adm-vendedor-cadastro-hint" id="ixc-pending-scope" aria-live="polite">Exibindo pendências de todas as filiais às quais sua conta tem acesso.</span>
+                <span class="ixc-pending-scope adm-vendedor-cadastro-hint" id="ixc-pending-scope" aria-live="polite">Exibindo pendências da filial aberta.</span>
               </div>
               <button type="button" class="adm-btn adm-btn-secondary adm-btn-small ixc-pending-clear" id="ixc-pending-clear" hidden disabled>Limpar pendências</button>
             </div>
