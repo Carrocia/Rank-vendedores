@@ -58,7 +58,10 @@ $function$;
 revoke all on function public.destaques_externos_globais() from public;
 grant execute on function public.destaques_externos_globais() to anon, authenticated;
 
-create or replace function public.conquistas_mensais_globais()
+-- Esta RPC pode ter assinatura anterior diferente. Recria dentro da transação,
+-- como no script original de conquistas, e restaura as permissões logo abaixo.
+drop function if exists public.conquistas_mensais_globais();
+create function public.conquistas_mensais_globais()
 returns table (
   filial_id bigint, filial_nome text, vendedor_id bigint,
   vendedor_nome text, tipo text, conquista text

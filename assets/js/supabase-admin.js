@@ -238,6 +238,10 @@ function buscarVendedorGerenciado(id) {
   if (!numeroId) return null;
   return _vendedoresGerenciamento.find(v => Number(v.id) === numeroId)
     || _vendedoresVisaoGlobal.find(v => Number(v.id) === numeroId)
+    // A tabela de desempenho usa os vendedores já carregados no dashboard.
+    // As listas de gerenciamento são carregadas sob demanda e podem ainda
+    // estar vazias quando o superadministrador clica em "Editar" nessa tabela.
+    || (typeof _cache !== 'undefined' ? (_cache.vendedores || []).find(v => Number(v.id) === numeroId) : null)
     || null;
 }
 
