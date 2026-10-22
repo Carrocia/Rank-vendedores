@@ -15,6 +15,7 @@ window.ADMIN_AUTENTICADO = false;
 let _vendedoresTodasFiliais = [];
 let _vendedoresVisaoGlobal = [];
 let _vendedoresVisaoGlobalPagina = 1;
+let _carreiraRanksSchemaDisponivel = false;
 const VENDEDORES_GLOBAIS_POR_PAGINA = 15;
 let _vendedorFotoPreviewUrl = null;
 let _vendedoresGerenciamento = [];
@@ -377,7 +378,7 @@ function renderizarVendedoresVisaoGlobal() {
   if (!vendedores.length) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 5;
+    td.colSpan = 6;
     td.className = 'adm-empty-state';
     td.textContent = 'Nenhum vendedor cadastrado para esta seleção.';
     tr.appendChild(td);
@@ -385,6 +386,11 @@ function renderizarVendedoresVisaoGlobal() {
     if (paginacao) paginacao.replaceChildren();
     return;
   }
+  const quantidadePorIdentidade = new Map();
+  _vendedoresVisaoGlobal.forEach(item => {
+    const chave = String(item.carreira_pessoa_id || item.id);
+    quantidadePorIdentidade.set(chave, (quantidadePorIdentidade.get(chave) || 0) + 1);
+  });
   vendedoresPagina.forEach(v => {
     const tr = document.createElement('tr');
     const nome = document.createElement('td');
@@ -395,6 +401,10 @@ function renderizarVendedoresVisaoGlobal() {
     filial.textContent = filialPorId.get(String(v.filial_id)) || 'Regional não identificada';
     const status = document.createElement('td');
     status.textContent = `${v.ativo ? 'Ativo' : 'Desativado'}${v.participa_ranking === false ? ' · Somente relatórios' : ''}`;
+    const identidade = document.createElement('td');
+    identidade.className = 'adm-carreira-identidade';
+    const membros = quantidadePorIdentidade.get(String(v.carreira_pessoa_id || v.id)) || 1;
+    identidade.textContent = membros > 1 ? `Vinculada · ${membros} cadastros` : 'Cadastro individual';
     const acoes = document.createElement('td');
     acoes.className = 'adm-vendedor-actions';
     const criarBotao = (texto, classe, acao) => {
@@ -408,7 +418,7 @@ function renderizarVendedoresVisaoGlobal() {
     if (v.ativo) acoes.appendChild(criarBotao('Editar', '', () => iniciarEdicaoVendedor(v.id)));
     acoes.appendChild(criarBotao(v.ativo ? 'Desativar' : 'Reativar', v.ativo ? 'adm-btn-danger' : '', () => alterarStatusVendedor(v.id, !v.ativo)));
     acoes.appendChild(criarBotao('Excluir', 'adm-btn-danger', () => excluirVendedorGlobal(v.id)));
-    tr.append(nome, tipo, filial, status, acoes);
+    tr.append(nome, tipo, filial, status, identidade, acoes);
     tbody.appendChild(tr);
   });
   if (paginacao) {
@@ -441,20 +451,121 @@ function mudarPaginaVendedoresVisaoGlobal(delta) {
 async function carregarVendedoresVisaoGlobal() {
   const tbody = document.getElementById('adm-vendedores-global-tbody');
   if (!ehSuperAdminAtual() || !window._supabase || !tbody) return;
-  tbody.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Carregando vendedores de todas as regionais…</td></tr>';
-  const { data, error } = await window._supabase
+  tbody.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Carregando vendedores de todas as regionais…</td></tr>';
+  let { data, error } = await window._supabase
     .from('vendedores')
-    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id, participa_ranking')
+    .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id, participa_ranking, carreira_pessoa_id')
     .order('filial_id')
     .order('nome');
   if (error) {
+    if (/carreira_pessoa_id|schema cache|column/i.test(error.message || '')) {
+      _carreiraRanksSchemaDisponivel = false;
+      const status = document.getElementById('adm-carreira-vinculo-status');
+      if (status) status.textContent = 'Aplique uma vez supabase/progressao-ranks-carreira.sql no Supabase para ativar os vínculos.';
+      ({ data, error } = await window._supabase
+        .from('vendedores')
+        .select('id, nome, tipo, slug, filial_id, ativo, foto_url, ixc_vendedor_id, participa_ranking')
+        .order('filial_id')
+        .order('nome'));
+    } else {
+      console.error('[carregarVendedoresVisaoGlobal]', error);
+      tbody.innerHTML = '<tr><td colspan="6" class="adm-empty-state">Não foi possível carregar os vendedores de todas as regionais.</td></tr>';
+      return;
+    }
+  } else {
+    _carreiraRanksSchemaDisponivel = true;
+    const status = document.getElementById('adm-carreira-vinculo-status');
+    if (status) status.textContent = 'A identidade só precisa ser vinculada uma vez quando houver transferência. Os resultados mensais virão das importações habituais.';
+  }
+  if (error) {
     console.error('[carregarVendedoresVisaoGlobal]', error);
-    tbody.innerHTML = '<tr><td colspan="5" class="adm-empty-state">Não foi possível carregar os vendedores de todas as regionais.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="adm-empty-state">Não foi possível carregar os vendedores de todas as regionais.</td></tr>';
     return;
   }
   _vendedoresVisaoGlobal = data || [];
   _vendedoresVisaoGlobalPagina = 1;
+  popularSeletoresVinculoCarreira();
   renderizarVendedoresVisaoGlobal();
+}
+
+function popularSeletoresVinculoCarreira() {
+  const novoSelect = document.getElementById('adm-carreira-vendedor-novo');
+  const referenciaSelect = document.getElementById('adm-carreira-vendedor-referencia');
+  if (!novoSelect || !referenciaSelect) return;
+  novoSelect.disabled = !_carreiraRanksSchemaDisponivel;
+  referenciaSelect.disabled = !_carreiraRanksSchemaDisponivel;
+  const identidadePorId = new Map(_vendedoresVisaoGlobal.map(v => [String(v.id), String(v.carreira_pessoa_id || v.id)]));
+  const formatar = v => {
+    const filial = (_cache.filiais || []).find(f => Number(f.id) === Number(v.filial_id))?.nome || `Regional ${v.filial_id}`;
+    return `${v.nome} · ${filial} · cadastro ${v.id}${v.ativo ? '' : ' · desativado'}`;
+  };
+  const preencher = (select, placeholder, valorAtual) => {
+    select.replaceChildren(new Option(placeholder, ''));
+    _vendedoresVisaoGlobal.forEach(v => select.add(new Option(formatar(v), String(v.id))));
+    if (valorAtual && _vendedoresVisaoGlobal.some(v => String(v.id) === valorAtual)) select.value = valorAtual;
+  };
+  preencher(novoSelect, 'Selecione o cadastro novo', novoSelect.value);
+  preencher(referenciaSelect, 'Selecione o cadastro anterior', referenciaSelect.value);
+  if (!novoSelect.dataset.listenerRegistrado) {
+    novoSelect.addEventListener('change', () => {
+      const novoId = novoSelect.value;
+      Array.from(referenciaSelect.options).forEach(option => {
+        if (!option.value) return;
+        option.disabled = option.value === novoId
+          || identidadePorId.get(option.value) === identidadePorId.get(novoId);
+      });
+    });
+    novoSelect.dataset.listenerRegistrado = 'true';
+  }
+  if (!referenciaSelect.dataset.listenerRegistrado) {
+    referenciaSelect.addEventListener('change', () => {
+    });
+    referenciaSelect.dataset.listenerRegistrado = 'true';
+  }
+  const botao = document.getElementById('adm-carreira-vincular-btn');
+  if (botao) {
+    botao.disabled = !_carreiraRanksSchemaDisponivel;
+    if (!botao.dataset.listenerRegistrado) {
+      botao.addEventListener('click', vincularIdentidadeCarreira);
+      botao.dataset.listenerRegistrado = 'true';
+    }
+  }
+}
+
+async function vincularIdentidadeCarreira() {
+  const novoSelect = document.getElementById('adm-carreira-vendedor-novo');
+  const referenciaSelect = document.getElementById('adm-carreira-vendedor-referencia');
+  const botao = document.getElementById('adm-carreira-vincular-btn');
+  const novoId = Number(novoSelect?.value || 0);
+  const referenciaId = Number(referenciaSelect?.value || 0);
+  if (!_carreiraRanksSchemaDisponivel || !ehSuperAdminAtual() || !novoId || !referenciaId || novoId === referenciaId) {
+    showToast('Selecione o cadastro novo e o cadastro anterior da mesma pessoa.', 'warning');
+    return;
+  }
+  const novo = _vendedoresVisaoGlobal.find(v => Number(v.id) === novoId);
+  const referencia = _vendedoresVisaoGlobal.find(v => Number(v.id) === referenciaId);
+  if (!novo || !referencia) {
+    showToast('Confira os cadastros selecionados.', 'warning');
+    return;
+  }
+  if (!confirm(`Vincular “${novo.nome}” (${(_cache.filiais || []).find(f => Number(f.id) === Number(novo.filial_id))?.nome || 'nova regional'}) ao histórico de “${referencia.nome}” (${(_cache.filiais || []).find(f => Number(f.id) === Number(referencia.filial_id))?.nome || 'regional anterior'})?`)) return;
+  if (botao) { botao.disabled = true; botao.textContent = 'Vinculando…'; }
+  try {
+    const { error } = await window._supabase.rpc('vincular_identidade_carreira', {
+      p_vendedor_novo: novoId,
+      p_vendedor_referencia: referenciaId,
+    });
+    if (error) throw error;
+    showToast('Identidade vinculada. A carreira continuará pelo cadastro anterior.', 'success');
+    if (novoSelect) novoSelect.value = '';
+    if (referenciaSelect) referenciaSelect.value = '';
+    await carregarVendedoresVisaoGlobal();
+  } catch (error) {
+    console.error('[vincularIdentidadeCarreira]', error);
+    showToast(error.message || 'Não foi possível vincular os cadastros.', 'error');
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = 'Vincular identidade'; }
+  }
 }
 
 async function alterarStatusVendedor(id, ativo) {

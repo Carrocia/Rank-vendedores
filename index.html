@@ -856,10 +856,28 @@
                   <select id="adm-vendedores-global-filial"><option value="todas">Todas as regionais</option></select>
                 </div>
               </div>
+              <div class="adm-carreira-vinculo">
+                <div>
+                  <strong>Vincular transferência de filial</strong>
+                  <p>Use uma vez quando a pessoa tiver um novo cadastro, antes do primeiro fechamento mensal. O histórico de carreira passa a acompanhar a identidade vinculada.</p>
+                  <p id="adm-carreira-vinculo-status" class="adm-carreira-vinculo-status" role="status"></p>
+                </div>
+                <div class="adm-carreira-vinculo-campos">
+                  <div class="adm-field">
+                    <label for="adm-carreira-vendedor-novo">Novo cadastro</label>
+                    <select id="adm-carreira-vendedor-novo"><option value="">Selecione o cadastro novo</option></select>
+                  </div>
+                  <div class="adm-field">
+                    <label for="adm-carreira-vendedor-referencia">Cadastro anterior da mesma pessoa</label>
+                    <select id="adm-carreira-vendedor-referencia"><option value="">Selecione o cadastro anterior</option></select>
+                  </div>
+                  <button type="button" class="adm-btn adm-btn-primary" id="adm-carreira-vincular-btn">Vincular identidade</button>
+                </div>
+              </div>
               <div class="adm-table-wrap">
                 <table class="adm-table">
-                  <thead><tr><th>Nome</th><th>Tipo</th><th>Regional</th><th>Status</th><th>Ações</th></tr></thead>
-                  <tbody id="adm-vendedores-global-tbody"><tr><td colspan="5" class="adm-inline-status">Carregando vendedores…</td></tr></tbody>
+                  <thead><tr><th>Nome</th><th>Tipo</th><th>Regional</th><th>Status</th><th>Identidade de carreira</th><th>Ações</th></tr></thead>
+                  <tbody id="adm-vendedores-global-tbody"><tr><td colspan="6" class="adm-inline-status">Carregando vendedores…</td></tr></tbody>
                 </table>
               </div>
               <div class="adm-pagination" id="adm-vendedores-global-paginacao"></div>

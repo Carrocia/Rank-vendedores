@@ -148,9 +148,17 @@ body.adm-modal-open { overflow: hidden; }
 .adm-vendedores-global-filtros { display: grid; grid-template-columns: minmax(220px, 1.5fr) minmax(220px, 1fr); gap: 16px; }
 .adm-vendedores-global-filtros .adm-field { margin-bottom: 12px; }
 .adm-vendedores-global .adm-vendedor-actions { flex-wrap: wrap; }
+.adm-carreira-vinculo { display: grid; gap: 12px; margin: 10px 0 18px; padding: 16px; border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--accent) 5%, var(--surface, #121722)); }
+.adm-carreira-vinculo > div:first-child strong { color: var(--text, #f4f7fb); }
+.adm-carreira-vinculo p { margin: 5px 0 0; color: var(--text-muted, #9ca7b8); font-size: .88rem; }
+.adm-carreira-vinculo .adm-carreira-vinculo-status { min-height: 1.2em; color: var(--accent, #21d9ff); }
+.adm-carreira-vinculo-campos { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }
+.adm-carreira-vinculo-campos .adm-field { margin: 0; }
+.adm-carreira-identidade { color: var(--text-muted, #9ca7b8); font-size: .86rem; white-space: nowrap; }
 .adm-vendedores-global .adm-pagination { justify-content: center; gap: 12px; margin: 16px 0 0; }
 @media (max-width: 720px) {
   .adm-vendedores-global-filtros { grid-template-columns: 1fr; gap: 0; }
+  .adm-carreira-vinculo-campos { grid-template-columns: 1fr; }
   .adm-vendedores-global-content { padding: 12px; }
 }
 .adm-field label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
