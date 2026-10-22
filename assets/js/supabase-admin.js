@@ -1042,11 +1042,22 @@ async function loadRenovacoesMensais(mes, ano) {
 async function carregarRelatorioResumoRenovacoes() {
   const wrap = document.getElementById('renov-relatorio-resumo-vendedores');
   const exportar = document.getElementById('renov-relatorio-exportar');
-  const periodo = document.getElementById('renov-relatorio-mes')?.value || '';
-  if (!wrap || !periodo) return;
+  const periodoInput = document.getElementById('renov-relatorio-mes');
+  if (!wrap) return;
+  if (periodoInput && !periodoInput.value) {
+    const hoje = new Date();
+    periodoInput.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  }
+  const periodo = periodoInput?.value || '';
+  if (!periodo) return;
   const [ano, mes] = periodo.split('-').map(Number);
   wrap.innerHTML = '<p class="adm-muted-copy">Carregando relatório por vendedor…</p>';
   if (!window.ADMIN_AUTENTICADO || !window._supabase) { wrap.innerHTML = ''; if (exportar) exportar.hidden = true; return; }
+  if (!window._vendedoresRenovacaoGlobal) {
+    const { data: vendedoresGlobais } = await window._supabase.from('vendedores')
+      .select('id,nome,tipo,filial_id,ixc_vendedor_id,ativo').eq('ativo', true).order('filial_id').order('nome');
+    window._vendedoresRenovacaoGlobal = vendedoresGlobais || _cache.vendedores || [];
+  }
   const { data, error } = await window._supabase.from('renovacoes_registros')
     .select('vendedor_id,contrato,cliente,plano,valor,data_renovacao')
     .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano);
@@ -1055,7 +1066,7 @@ async function carregarRelatorioResumoRenovacoes() {
     if (exportar) exportar.hidden = true;
     return;
   }
-  const vendedores = _cache.vendedores || [];
+  const vendedores = window._vendedoresRenovacaoGlobal || _cache.vendedores || [];
   const grupos = new Map();
   (data || []).forEach(registro => {
     const id = String(registro.vendedor_id);
@@ -1068,6 +1079,66 @@ async function carregarRelatorioResumoRenovacoes() {
   wrap.innerHTML = linhas.length
     ? `<table class="adm-table"><thead><tr><th>Vendedor</th><th>Renovações</th><th>Valor total</th></tr></thead><tbody>${linhas.map(l => `<tr><td>${escapeHtmlText(l.vendedor)}</td><td>${l.quantidade}</td><td>R$ ${l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('')}</tbody></table>`
     : '<p class="adm-muted-copy">Ainda não há registros detalhados importados para este mês.</p>';
+  await carregarPendenciasRenovacao();
+}
+
+async function carregarPendenciasRenovacao() {
+  const corpo = document.getElementById('renov-conferencia-body');
+  const periodo = document.getElementById('renov-relatorio-mes')?.value || '';
+  if (!corpo || !window.ADMIN_AUTENTICADO || !window._supabase) return;
+  if (!_cache.planos?.length) _cache.planos = await loadPlanos();
+  const [ano, mes] = /^\d{4}-\d{2}$/.test(periodo)
+    ? periodo.split('-').map(Number)
+    : [new Date().getFullYear(), new Date().getMonth() + 1];
+  corpo.innerHTML = '<tr><td colspan="8">Carregando pendências…</td></tr>';
+  const { data, error } = await window._supabase.from('renovacoes_registros')
+    .select('id,vendedor_id,contrato,cliente,plano,plano_id,valor,data_renovacao,vendedores(nome)')
+    .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano)
+    .eq('conferencia_pendente', true).order('data_renovacao', { ascending: false });
+  if (error) {
+    corpo.innerHTML = `<tr><td colspan="8">Não foi possível carregar a conferência. Aplique a versão atualizada de supabase/renovacoes-mensais.sql. ${escapeHtmlText(error.message)}</td></tr>`;
+    return;
+  }
+  if (!data?.length) {
+    corpo.innerHTML = '<tr><td colspan="8" class="adm-empty-state">Nenhuma renovação pendente de conferência neste mês.</td></tr>';
+    return;
+  }
+  const escapar = valor => escapeHtmlText(String(valor ?? ''));
+  corpo.innerHTML = data.map(item => `<tr data-renov-id="${Number(item.id)}">
+    <td>${escapar(dataLocalStr(item.data_renovacao) || item.data_renovacao)}</td>
+    <td>${escapar(item.contrato)}</td><td>${escapar(item.cliente)}</td>
+    <td>${escapar(item.vendedores?.nome || window._vendedoresRenovacaoGlobal?.find(v => String(v.id) === String(item.vendedor_id))?.nome || '—')}</td>
+    <td>${escapar(item.plano)}</td>
+    <td><select data-renov-plano aria-label="Plano correspondente"><option value="">Selecione o plano</option>${(_cache.planos || []).map(p => `<option value="${Number(p.id)}" ${String(p.id) === String(item.plano_id || '') ? 'selected' : ''}>${escapar(p.nome)}${p.velocidade_mb ? ` · ${escapar(p.velocidade_mb)} Mbps` : ''}</option>`).join('')}</select></td>
+    <td><input data-renov-valor type="number" min="0" step="0.01" value="${Number(item.valor || 0).toFixed(2)}" aria-label="Valor da renovação"></td>
+    <td><button type="button" class="adm-btn adm-btn-primary adm-btn-small" data-renov-salvar>Salvar conferência</button></td>
+  </tr>`).join('');
+  corpo.querySelectorAll('[data-renov-salvar]').forEach(button => button.addEventListener('click', () => resolverConferenciaRenovacao(button)));
+}
+
+async function resolverConferenciaRenovacao(button) {
+  const row = button?.closest('[data-renov-id]');
+  if (!row || !window._supabase) return;
+  const planoId = Number(row.querySelector('[data-renov-plano]')?.value);
+  const valor = Number(row.querySelector('[data-renov-valor]')?.value);
+  const plano = (_cache.planos || []).find(item => Number(item.id) === planoId);
+  if (!plano) { showToast('Selecione o plano correspondente no catálogo.', 'warning'); return; }
+  if (!Number.isFinite(valor) || valor < 0) { showToast('Informe um valor válido. R$ 0,00 também é permitido.', 'warning'); return; }
+  button.disabled = true;
+  try {
+    const { error } = await window._supabase.rpc('resolver_conferencia_renovacao', {
+      p_registro_id: Number(row.dataset.renovId), p_plano_id: planoId, p_plano: plano.nome, p_valor: valor,
+    });
+    if (error) throw error;
+    showToast('Renovação conferida; a contagem foi mantida.', 'success');
+    await carregarPendenciasRenovacao();
+    await carregarRelatorioResumoRenovacoes();
+  } catch (error) {
+    console.error('[resolverConferenciaRenovacao]', error);
+    showToast(error.code === 'PGRST202'
+      ? 'A função de conferência ainda não está no Supabase. Execute a versão atualizada de supabase/renovacoes-mensais.sql.'
+      : error.message || 'Não foi possível salvar a conferência.', 'error');
+  } finally { button.disabled = false; }
 }
 
 function exportarResumoRenovacoes() {
@@ -1175,7 +1246,7 @@ function analisarCamposRelatorioRenovacao(dados) {
   };
 }
 
-function analisarLinhasRelatorioRenovacao() {
+async function analisarLinhasRelatorioRenovacao() {
   const dados = _relatorioRenovacao;
   const preview = document.getElementById('renov-relatorio-preview');
   const wrapper = document.getElementById('renov-relatorio-preview-wrap');
@@ -1204,19 +1275,36 @@ function analisarLinhasRelatorioRenovacao() {
   const mes = document.getElementById('renov-relatorio-mes')?.value || '';
   const mesOk = /^\d{4}-(0[1-9]|1[0-2])$/.test(mes);
   const [anoRel, mesRel] = mes.split('-').map(Number);
-  const vendedores = _cache.vendedores || [];
+  let vendedores = [];
+  try {
+    const { data, error } = await window._supabase.from('vendedores')
+      .select('id,nome,tipo,filial_id,ixc_vendedor_id,ativo').eq('ativo', true)
+      .order('filial_id').order('nome');
+    if (error) throw error;
+    vendedores = data || [];
+  } catch (error) {
+    console.warn('[analisarLinhasRelatorioRenovacao] usando vendedores da filial atual:', error.message);
+    vendedores = _cache.vendedores || [];
+  }
+  window._vendedoresRenovacaoGlobal = vendedores;
   const idsIxc = new Map();
   vendedores.forEach(v => {
     const id = normalizarIdIxcRenovacao(v.ixc_vendedor_id);
     if (!id) return;
     const arr = idsIxc.get(id) || []; arr.push(v); idsIxc.set(id, arr);
   });
-  const vendedoresPorNome = new Map(vendedores.map(v => [normalizarChaveRenovacao(v.nome), v]));
+  const vendedoresPorNome = new Map();
+  vendedores.forEach(v => {
+    const chave = normalizarChaveRenovacao(v.nome);
+    const encontrados = vendedoresPorNome.get(chave) || [];
+    encontrados.push(v); vendedoresPorNome.set(chave, encontrados);
+  });
   const vistos = new Set();
   const linhas = dados.rows.map((row, n) => {
     const vendedorCampo = normalizarIdIxcRenovacao(row[idx.vendedor]);
     const candidatos = idsIxc.get(vendedorCampo) || [];
-    const vendedor = candidatos.length === 1 ? candidatos[0] : (candidatos.length === 0 ? vendedoresPorNome.get(normalizarChaveRenovacao(vendedorCampo)) : null);
+    const porNome = vendedoresPorNome.get(normalizarChaveRenovacao(vendedorCampo)) || [];
+    const vendedor = candidatos.length === 1 ? candidatos[0] : (candidatos.length === 0 && porNome.length === 1 ? porNome[0] : null);
     const contrato = normalizarIdIxcRenovacao(row[idx.contrato]);
     const cliente = String(row[idx.cliente] ?? '').trim();
     const descricaoPlano = String(row[idx.plano] ?? '').trim();
@@ -1226,22 +1314,25 @@ function analisarLinhasRelatorioRenovacao() {
     const planoCatalogo = descricaoPlano && typeof resolverPlanoIxc === 'function'
       ? resolverPlanoIxc(descricaoPlano, _cache.planos || []) : null;
     const valorInformado = idx.valor >= 0 ? valorMoedaRenovacao(row[idx.valor]) : null;
-    const valor = valorInformado ?? (typeof obterValorExplicitoRelatorioIxc === 'function' ? obterValorExplicitoRelatorioIxc(descricaoPlano) : null)
+    const valorEncontrado = valorInformado ?? (typeof obterValorExplicitoRelatorioIxc === 'function' ? obterValorExplicitoRelatorioIxc(descricaoPlano) : null)
       ?? (typeof obterValorPlanoIxc === 'function' ? obterValorPlanoIxc(planoCatalogo) : null);
+    const planoVariavel = typeof tipoPlanoValorVariavelIxc === 'function' && Boolean(tipoPlanoValorVariavelIxc(descricaoPlano, planoCatalogo));
+    const requerConferencia = !planoCatalogo || valorEncontrado == null || valorEncontrado === 0 || planoVariavel;
+    const valor = valorEncontrado ?? 0;
     const erro = !contrato ? 'Contrato não identificado'
       : !cliente ? 'Cliente não identificado'
       : !descricaoPlano ? 'Plano não identificado'
-      : !vendedor ? (candidatos.length > 1 ? 'ID IXC associado a mais de um vendedor' : `ID/nome de vendedor sem cadastro correspondente: ${vendedorCampo || 'vazio'}`)
+      : !vendedor ? (candidatos.length > 1 || porNome.length > 1 ? 'Vendedor associado a mais de um cadastro' : `ID/nome de vendedor sem cadastro correspondente: ${vendedorCampo || 'vazio'}`)
       : !data ? 'Data da renovação inválida'
       : !dataDoMes ? 'Data fora do mês selecionado'
-      : valor == null ? 'Plano sem valor reconhecido no relatório ou catálogo'
       : '';
     const chave = normalizarChaveRenovacao(contrato);
     const duplicada = Boolean(chave && vistos.has(chave));
     if (chave) vistos.add(chave);
     return {
       linha: n + 2, vendedor_id: vendedor?.id || null, vendedor_nome: vendedor?.nome || '',
-      contrato, cliente, plano: planoCatalogo?.nome || descricaoPlano, valor, data,
+      contrato, cliente, plano: planoCatalogo?.nome || descricaoPlano, plano_id: planoCatalogo?.id || null, valor, data,
+      conferencia_pendente: requerConferencia,
       duplicada, erro: duplicada ? 'Contrato repetido no relatório; duplicado ignorado' : erro,
       podeImportar: !erro && !duplicada, incluir: !erro && !duplicada,
     };
@@ -1262,24 +1353,35 @@ function renderizarPreviaRenovacao() {
   const invalidas = linhas.filter(l => !l.podeImportar && !l.duplicada);
   const duplicadas = linhas.filter(l => l.duplicada);
   const selecionadas = validas.filter(l => l.incluir);
-  preview.textContent = `${selecionadas.length} renovação(ões) selecionada(s) para importar · ${duplicadas.length} duplicada(s) ignorada(s) · ${invalidas.length} linha(s) precisam de correção. Vendedores reconhecidos pelo cadastro IXC; valores lidos do relatório ou catálogo.`;
+  const encaminhadas = validas.filter(l => l.incluir && l.conferencia_pendente).length;
+  preview.textContent = `${selecionadas.length} renovação(ões) selecionada(s) para importar · ${encaminhadas} irão para conferência de plano/valor · ${duplicadas.length} duplicada(s) ignorada(s) · ${invalidas.length} linha(s) precisam de correção. Vendedores reconhecidos em todas as filiais pelo ID IXC ou nome único.`;
   corpo.innerHTML = linhas.map((l, i) => {
     const valor = l.valor == null ? '—' : `R$ ${Number(l.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const status = l.duplicada ? l.erro : l.erro || 'Pronta para importar';
+    const status = l.duplicada ? l.erro : l.erro || (l.conferencia_pendente ? 'Importar e revisar plano/valor' : 'Pronta para importar');
     const controle = l.podeImportar
       ? `<label><input type="checkbox" data-renov-linha="${i}" ${l.incluir ? 'checked' : ''}> ${escapeHtmlText(status)}</label>`
-      : escapeHtmlText(status);
+      : l.erro?.startsWith('ID/nome de vendedor sem cadastro') || l.erro === 'Vendedor associado a mais de um cadastro'
+        ? `<select data-renov-vendedor="${i}" aria-label="Vincular vendedor"><option value="">Vincular vendedor cadastrado…</option>${(window._vendedoresRenovacaoGlobal || []).map(v => `<option value="${Number(v.id)}">${escapeHtmlText(v.nome)} · ${escapeHtmlText(v.ixc_vendedor_id || `Filial ${v.filial_id}`)}</option>`).join('')}</select><div>${escapeHtmlText(status)}</div>`
+        : escapeHtmlText(status);
     return `<tr><td>${escapeHtmlText(l.contrato || '—')}</td><td>${escapeHtmlText(l.cliente || '—')}</td><td>${escapeHtmlText(l.plano || '—')}</td><td>${valor}</td><td>${escapeHtmlText(l.vendedor_nome || '—')}</td><td>${escapeHtmlText(dataLocalStr(l.data) || '—')}</td><td>${controle}</td></tr>`;
   }).join('');
   corpo.querySelectorAll('[data-renov-linha]').forEach(input => input.addEventListener('change', () => {
     linhas[Number(input.dataset.renovLinha)].incluir = input.checked;
     renderizarPreviaRenovacao();
   }));
+  corpo.querySelectorAll('[data-renov-vendedor]').forEach(select => select.addEventListener('change', () => {
+    const linha = linhas[Number(select.dataset.renovVendedor)];
+    const vendedor = (window._vendedoresRenovacaoGlobal || []).find(item => String(item.id) === select.value);
+    if (!linha || !vendedor) return;
+    linha.vendedor_id = vendedor.id; linha.vendedor_nome = vendedor.nome;
+    linha.erro = ''; linha.podeImportar = true; linha.incluir = true;
+    renderizarPreviaRenovacao();
+  }));
   wrapper.hidden = false;
   const mes = document.getElementById('renov-relatorio-mes')?.value || '';
   botao.disabled = !selecionadas.length || invalidas.length > 0 || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes);
   window._previewRenovacaoImport = {
-    registros: selecionadas.map(({ vendedor_id, contrato, cliente, plano, valor, data }) => ({ vendedor_id: Number(vendedor_id), contrato, cliente, plano, valor, data })),
+    registros: selecionadas.map(({ vendedor_id, contrato, cliente, plano, plano_id, valor, data, conferencia_pendente }) => ({ vendedor_id: Number(vendedor_id), contrato, cliente, plano, plano_id, valor, data, conferencia_pendente })),
     total: selecionadas.length, mes, invalidas: invalidas.length,
   };
 }
@@ -1303,7 +1405,7 @@ async function prepararRelatorioRenovacao(file) {
     }
     if (!_cache.planos?.length) _cache.planos = await loadPlanos();
     if (!_cache.vendedores?.length) _cache.vendedores = await loadVendedores();
-    analisarLinhasRelatorioRenovacao();
+    await analisarLinhasRelatorioRenovacao();
   } catch (err) {
     _relatorioRenovacao = null;
     preview.textContent = err.message || 'Não foi possível ler este relatório.';
@@ -1346,7 +1448,7 @@ async function importarRelatorioRenovacoes() {
     if (error) throw error;
     await carregarDados();
     await carregarRelatorioResumoRenovacoes();
-    showToast(`Relatório importado: ${resumo.total.toLocaleString('pt-BR')} renovações.`, 'success');
+    showToast(`Relatório importado: ${resumo.total.toLocaleString('pt-BR')} renovações. Os itens sem plano ou preço reconhecido foram enviados à conferência.`, 'success');
   } catch (err) {
     console.error('[importarRelatorioRenovacoes]', err);
     const msg = String((err && err.message) || err);
