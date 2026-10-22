@@ -1230,6 +1230,7 @@ async function carregarDados() {
     popularAdicionaisFormulario(adicionais);
 
     renderAll(_cache);
+    if (typeof atualizarAcaoFechamentoRank === 'function') atualizarAcaoFechamentoRank();
     _dadosCarregados = true;
   } catch (err) {
     console.error('[carregarDados] Erro ao carregar dados do Supabase:', err);

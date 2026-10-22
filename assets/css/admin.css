@@ -163,8 +163,15 @@ body.adm-modal-open { overflow: hidden; }
 .adm-rank-tag--s { color: #ffc75e; background: #ffc75e1a; }
 .adm-rank-tag--ss { color: #ff7f9f; background: #ff7f9f1a; }
 .adm-rank-no-base { color: var(--text-muted, #9ca7b8); font-size: .82rem; }
+.adm-rank-fechamento { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; padding: 14px 16px; border: 1px solid var(--border-color, #303645); border-radius: 12px; background: linear-gradient(110deg, #121824, #171b2a); }
+.adm-rank-fechamento > div { display: grid; gap: 4px; }
+.adm-rank-fechamento strong { color: var(--text-primary, #f4f6fb); font-size: .92rem; }
+.adm-rank-fechamento span { color: var(--text-muted, #9ca7b8); font-size: .82rem; }
+.adm-rank-fechamento button:disabled { opacity: .55; cursor: not-allowed; }
 .adm-vendedores-global .adm-pagination { justify-content: center; gap: 12px; margin: 16px 0 0; }
 @media (max-width: 720px) {
+  .adm-rank-fechamento { align-items: stretch; flex-direction: column; }
+  .adm-rank-fechamento button { width: 100%; }
   .adm-vendedores-global-filtros { grid-template-columns: 1fr; gap: 0; }
   .adm-carreira-vinculo-campos { grid-template-columns: 1fr; }
   .adm-vendedores-global-content { padding: 12px; }

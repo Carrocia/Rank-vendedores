@@ -322,8 +322,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261022-ranking-elegibilidade-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261022-ranking-elegibilidade-3"></script>
+  <script src="assets/js/dashboard.js?v=20261022-ranking-elegibilidade-2"></script>
+  <script src="assets/js/supabase-admin.js?v=20261022-ranking-fechamento-1"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -832,6 +832,13 @@
                 <tr><td colspan="9" class="adm-inline-status">Carregando vendedores da regional…</td></tr>
               </tbody>
             </table>
+          </div>
+          <div class="adm-rank-fechamento" id="adm-rank-fechamento" hidden>
+            <div>
+              <strong>Fechamento do rank mensal</strong>
+              <span id="adm-rank-fechamento-info">Depois de importar os relatórios finais, consolide os totais do mês anterior.</span>
+            </div>
+            <button type="button" class="adm-btn adm-btn-secondary" id="adm-rank-fechamento-btn" onclick="fecharRankMesAnteriorFilial()">Consolidar mês anterior</button>
           </div>
           <details class="adm-vendedores-inativos" id="adm-vendedores-inativos">
             <summary>Vendedores desativados da filial</summary>

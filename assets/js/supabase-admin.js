@@ -1173,6 +1173,57 @@ async function loadRankMensalFilial(mes, ano) {
   return data || [];
 }
 
+function atualizarAcaoFechamentoRank() {
+  const area = document.getElementById('adm-rank-fechamento');
+  const botao = document.getElementById('adm-rank-fechamento-btn');
+  const info = document.getElementById('adm-rank-fechamento-info');
+  if (!area || !botao || !info) return;
+  const hoje = new Date();
+  const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const inicioProjeto = new Date(2026, 9, 1);
+  const disponivel = hoje.getDate() >= 8;
+  area.hidden = !window.ADMIN_AUTENTICADO || !window.FILIAL_ATUAL_ID || mesAnterior < inicioProjeto;
+  const mes = mesAnterior.getMonth() + 1;
+  const ano = mesAnterior.getFullYear();
+  const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(mesAnterior);
+  botao.dataset.mes = String(mes);
+  botao.dataset.ano = String(ano);
+  botao.disabled = !disponivel;
+  botao.textContent = `Consolidar ${nomeMes}`;
+  info.textContent = disponivel
+    ? `Confira se as últimas importações de vendas e renovações foram concluídas. O fechamento guarda somente totais agregados de ${nomeMes}.`
+    : `O fechamento de ${nomeMes} ficará disponível no dia 8, depois da primeira semana para receber os relatórios finais.`;
+}
+
+async function fecharRankMesAnteriorFilial() {
+  const botao = document.getElementById('adm-rank-fechamento-btn');
+  if (!botao || botao.disabled || !window.ADMIN_AUTENTICADO || !window.FILIAL_ATUAL_ID) return;
+  const mes = Number(botao.dataset.mes);
+  const ano = Number(botao.dataset.ano);
+  const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
+    .format(new Date(ano, mes - 1, 1));
+  if (!confirm(`Consolidar o rank de ${nomeMes}? Confira antes se as importações finais de vendas e renovações foram feitas. Depois do fechamento, alterações nos lançamentos não mudam esse mês até que o superadministrador o reabra.`)) return;
+  botao.disabled = true;
+  const textoOriginal = botao.textContent;
+  botao.textContent = 'Consolidando…';
+  try {
+    const { data, error } = await window._supabase.rpc('consolidar_rank_mensal_filial', {
+      p_filial_id: Number(window.FILIAL_ATUAL_ID),
+      p_mes: mes,
+      p_ano: ano,
+    });
+    if (error) throw error;
+    showToast(`Rank de ${nomeMes} consolidado com ${Number(data || 0)} vendedores.`, 'success');
+    await carregarDados();
+  } catch (error) {
+    console.error('[fecharRankMesAnteriorFilial]', error);
+    showToast(error.message || 'Não foi possível consolidar o mês.', 'error');
+  } finally {
+    atualizarAcaoFechamentoRank();
+    botao.textContent = textoOriginal;
+  }
+}
+
 async function carregarRelatorioResumoRenovacoes() {
   const wrap = document.getElementById('renov-relatorio-resumo-vendedores');
   const exportar = document.getElementById('renov-relatorio-exportar');
