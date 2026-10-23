@@ -6006,6 +6006,21 @@ document.querySelectorAll('.adm-nav-item[data-section]').forEach(btn => {
   });
 });
 
+const admSidebarToggle = document.getElementById('adm-sidebar-toggle');
+const admPanel = document.getElementById('adm-panel');
+if (admSidebarToggle && admPanel) {
+  try {
+    if (localStorage.getItem('adm-sidebar-collapsed') === '1') admPanel.classList.add('adm-sidebar-collapsed');
+  } catch (_) {}
+  admSidebarToggle.addEventListener('click', () => {
+    const collapsed = admPanel.classList.toggle('adm-sidebar-collapsed');
+    admSidebarToggle.setAttribute('aria-pressed', String(collapsed));
+    admSidebarToggle.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+    admSidebarToggle.title = collapsed ? 'Expandir menu' : 'Recolher menu';
+    try { localStorage.setItem('adm-sidebar-collapsed', collapsed ? '1' : '0'); } catch (_) {}
+  });
+}
+
 document.getElementById('adm-rede-atualizar')?.addEventListener('click', carregarDashboardRede);
 document.getElementById('adm-rede-filial')?.addEventListener('change', () => renderDashboardRede());
 document.getElementById('adm-rede-exportar')?.addEventListener('click', exportarComparativoRede);

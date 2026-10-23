@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-analitica-ranks-1">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-layout-1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -323,7 +323,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261023-analitica-ranks-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261023-analitica-ranks-2"></script>
+  <script src="assets/js/supabase-admin.js?v=20261023-adm-layout-1"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -375,26 +375,38 @@
       <nav class="adm-sidebar">
         <div class="adm-sidebar-logo">
           <span>Menu</span>
+          <button class="adm-sidebar-toggle" id="adm-sidebar-toggle" type="button" aria-label="Recolher menu" title="Recolher menu" aria-pressed="false">‹</button>
         </div>
-        <button class="adm-nav-item active" data-section="dashboard"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-dashboard"/></svg></span>Dashboard da Filial</button>
-        <button class="adm-nav-item" data-section="nova-venda"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plus"/></svg></span>Nova Venda</button>
-        <button class="adm-nav-item" data-section="adicionais"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plug"/></svg></span>Vendas Adicionais</button>
-        <button class="adm-nav-item" data-section="vendedores"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-users"/></svg></span>Vendedores</button>
-        <button class="adm-nav-item" data-section="analitica"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Analítica</button>
-        <button class="adm-nav-item" data-section="metas" id="adm-nav-metas" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-target"/></svg></span>Metas</button>
-        <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg></span>Metas da Filial e Equipe</button>
-        <button class="adm-nav-item" data-section="relatorios"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Relatórios</button>
-        <button class="adm-nav-item" data-section="ranking-adm"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg></span>Ranking da Filial</button>
-        <button class="adm-nav-item" data-section="outras-filiais"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-building"/></svg></span>Vendas Recebidas</button>
-        <button class="adm-nav-item" data-section="renovacoes"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Renovações</button>
-        <button class="adm-nav-item" data-section="celebracoes"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>Celebrações</button>
-        <div class="adm-sidebar-group-label" id="adm-nav-global-label" style="display:none;">GESTÃO DA REDE</div>
-        <button class="adm-nav-item" data-section="rede" id="adm-nav-rede" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-network"/></svg></span>Visão da Rede</button>
-        <button class="adm-nav-item" data-section="planos" id="adm-nav-planos" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg></span>Planos</button>
-        <button class="adm-nav-item" data-section="tema" id="adm-nav-tema" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-palette"/></svg></span>Tema do Site</button>
-        <button class="adm-nav-item" data-section="admins" id="adm-nav-admins" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-lock"/></svg></span>Contas Regionais</button>
-        <button class="adm-nav-item" data-section="filiais-admin" id="adm-nav-filiais" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-building"/></svg></span>Filiais e Regionais</button>
-        <button class="adm-nav-item danger" id="adm-logout-btn"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-logout"/></svg></span>Sair</button>
+        <div class="adm-sidebar-group">
+          <div class="adm-sidebar-group-label">INÍCIO</div>
+          <button class="adm-nav-item active" data-section="dashboard" title="Dashboard da Filial" aria-label="Dashboard da Filial"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-dashboard"/></svg></span><span class="nav-label">Dashboard da Filial</span></button>
+        </div>
+        <div class="adm-sidebar-group">
+          <div class="adm-sidebar-group-label">OPERAÇÃO</div>
+          <button class="adm-nav-item" data-section="nova-venda" title="Nova Venda" aria-label="Nova Venda"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plus"/></svg></span><span class="nav-label">Nova Venda</span></button>
+          <button class="adm-nav-item" data-section="adicionais" title="Vendas Adicionais" aria-label="Vendas Adicionais"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plug"/></svg></span><span class="nav-label">Vendas Adicionais</span></button>
+          <button class="adm-nav-item" data-section="outras-filiais" title="Vendas Recebidas" aria-label="Vendas Recebidas"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-building"/></svg></span><span class="nav-label">Vendas Recebidas</span></button>
+          <button class="adm-nav-item" data-section="renovacoes" title="Renovações" aria-label="Renovações"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span><span class="nav-label">Renovações</span></button>
+        </div>
+        <div class="adm-sidebar-group">
+          <div class="adm-sidebar-group-label">EQUIPE E RESULTADOS</div>
+          <button class="adm-nav-item" data-section="vendedores" title="Vendedores" aria-label="Vendedores"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-users"/></svg></span><span class="nav-label">Vendedores</span></button>
+          <button class="adm-nav-item" data-section="analitica" title="Analítica" aria-label="Analítica"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span><span class="nav-label">Analítica</span></button>
+          <button class="adm-nav-item" data-section="metas" id="adm-nav-metas" title="Metas" aria-label="Metas" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-target"/></svg></span><span class="nav-label">Metas</span></button>
+          <button class="adm-nav-item" data-section="config-metas" title="Metas da Filial e Equipe" aria-label="Metas da Filial e Equipe"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg></span><span class="nav-label">Metas da Filial e Equipe</span></button>
+          <button class="adm-nav-item" data-section="ranking-adm" title="Ranking da Filial" aria-label="Ranking da Filial"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg></span><span class="nav-label">Ranking da Filial</span></button>
+          <button class="adm-nav-item" data-section="celebracoes" title="Celebrações" aria-label="Celebrações"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span><span class="nav-label">Celebrações</span></button>
+          <button class="adm-nav-item" data-section="relatorios" title="Relatórios" aria-label="Relatórios"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span><span class="nav-label">Relatórios</span></button>
+        </div>
+        <div class="adm-sidebar-group adm-sidebar-group-global">
+          <div class="adm-sidebar-group-label" id="adm-nav-global-label" style="display:none;">GESTÃO DA REDE</div>
+          <button class="adm-nav-item" data-section="rede" id="adm-nav-rede" title="Visão da Rede" aria-label="Visão da Rede" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-network"/></svg></span><span class="nav-label">Visão da Rede</span></button>
+          <button class="adm-nav-item" data-section="planos" id="adm-nav-planos" title="Planos" aria-label="Planos" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg></span><span class="nav-label">Planos</span></button>
+          <button class="adm-nav-item" data-section="tema" id="adm-nav-tema" title="Tema do Site" aria-label="Tema do Site" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-palette"/></svg></span><span class="nav-label">Tema do Site</span></button>
+          <button class="adm-nav-item" data-section="admins" id="adm-nav-admins" title="Contas Regionais" aria-label="Contas Regionais" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-lock"/></svg></span><span class="nav-label">Contas Regionais</span></button>
+          <button class="adm-nav-item" data-section="filiais-admin" id="adm-nav-filiais" title="Filiais e Regionais" aria-label="Filiais e Regionais" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-building"/></svg></span><span class="nav-label">Filiais e Regionais</span></button>
+        </div>
+        <button class="adm-nav-item danger" id="adm-logout-btn" title="Sair" aria-label="Sair"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-logout"/></svg></span><span class="nav-label">Sair</span></button>
       </nav>
 
       <!-- CONTEÚDO -->
