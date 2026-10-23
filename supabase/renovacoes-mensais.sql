@@ -150,6 +150,7 @@ begin
   if p_mes < 1 or p_mes > 12 or p_ano < 2000 or p_ano > 2200 or p_linhas is null or jsonb_typeof(p_linhas) <> 'array' then
     raise exception 'Mês, ano ou linhas do relatório inválidos.' using errcode = '22023';
   end if;
+  perform pg_advisory_xact_lock(p_filial_id, (p_ano * 12 + p_mes)::bigint);
   if exists (
     select 1
     from jsonb_to_recordset(p_linhas) as r(vendedor_id bigint, quantidade integer)
@@ -204,14 +205,13 @@ begin
     raise exception 'O relatório contém dados inválidos ou data fora do mês.' using errcode = '22023';
   end if;
 
-  delete from public.renovacoes_registros where filial_id = p_filial_id and mes = p_mes and ano = p_ano;
-  delete from public.renovacoes_mensais where filial_id = p_filial_id and mes = p_mes and ano = p_ano;
-
   insert into public.renovacoes_registros (filial_id, vendedor_id, mes, ano, contrato, cliente, plano, plano_id, valor, data_renovacao, conferencia_pendente, arquivo_origem)
-  select p_filial_id, r.vendedor_id, p_mes, p_ano, trim(r.contrato), trim(r.cliente), trim(r.plano), r.plano_id, r.valor, r.data, r.conferencia_pendente, left(p_arquivo, 255)
-  from jsonb_to_recordset(p_linhas) as r(vendedor_id bigint, contrato text, cliente text, plano text, plano_id bigint, valor numeric, data date, conferencia_pendente boolean);
+  select p_filial_id, r.vendedor_id, p_mes, p_ano, regexp_replace(trim(r.contrato), '\s+', '', 'g'), trim(r.cliente), trim(r.plano), r.plano_id, r.valor, r.data, r.conferencia_pendente, left(p_arquivo, 255)
+  from jsonb_to_recordset(p_linhas) as r(vendedor_id bigint, contrato text, cliente text, plano text, plano_id bigint, valor numeric, data date, conferencia_pendente boolean)
+  on conflict (filial_id, mes, ano, contrato) do nothing;
   get diagnostics linhas_inseridas = row_count;
 
+  delete from public.renovacoes_mensais where filial_id = p_filial_id and mes = p_mes and ano = p_ano;
   insert into public.renovacoes_mensais (filial_id, vendedor_id, mes, ano, quantidade, arquivo_origem)
   select p_filial_id, vendedor_id, p_mes, p_ano, count(*)::integer, left(p_arquivo, 255)
   from public.renovacoes_registros

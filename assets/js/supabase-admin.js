@@ -1395,6 +1395,10 @@ function normalizarIdIxcRenovacao(valor) {
   return String(valor ?? '').trim().replace(/^=\s*"?/, '').replace(/"?$/, '').replace(/^"|"$/g, '').trim();
 }
 
+function normalizarContratoRenovacao(valor) {
+  return normalizarIdIxcRenovacao(valor).replace(/\s+/g, '');
+}
+
 function valorMoedaRenovacao(valor) {
   if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
   let raw = String(valor ?? '').trim().replace(/R\$|\s/gi, '');
@@ -1460,6 +1464,23 @@ async function analisarLinhasRelatorioRenovacao() {
   const mes = document.getElementById('renov-relatorio-mes')?.value || '';
   const mesOk = /^\d{4}-(0[1-9]|1[0-2])$/.test(mes);
   const [anoRel, mesRel] = mes.split('-').map(Number);
+  const filialId = Number(window.FILIAL_ATUAL_ID);
+  let contratosJaImportados = new Set();
+  if (mesOk && Number.isInteger(filialId) && filialId > 0) {
+    let existentes;
+    try {
+      existentes = await carregarTodasPaginas(() => window._supabase.from('renovacoes_registros')
+        .select('contrato')
+        .eq('filial_id', filialId)
+        .eq('mes', mesRel)
+        .eq('ano', anoRel), 'renovações já importadas');
+    } catch (error) {
+      wrapper.hidden = true;
+      preview.textContent = `Não foi possível conferir as renovações já importadas: ${error.message}`;
+      return;
+    }
+    contratosJaImportados = new Set((existentes || []).map(item => normalizarContratoRenovacao(item.contrato)).filter(Boolean));
+  }
   let vendedores = [];
   try {
     const { data, error } = await window._supabase.from('vendedores')
@@ -1490,7 +1511,7 @@ async function analisarLinhasRelatorioRenovacao() {
     const candidatos = idsIxc.get(vendedorCampo) || [];
     const porNome = vendedoresPorNome.get(normalizarChaveRenovacao(vendedorCampo)) || [];
     const vendedor = candidatos.length === 1 ? candidatos[0] : (candidatos.length === 0 && porNome.length === 1 ? porNome[0] : null);
-    const contrato = normalizarIdIxcRenovacao(row[idx.contrato]);
+    const contrato = normalizarContratoRenovacao(row[idx.contrato]);
     const cliente = String(row[idx.cliente] ?? '').trim();
     const descricaoPlano = String(row[idx.plano] ?? '').trim();
     const data = dataIsoRenovacao(row[idx.data]);
@@ -1511,14 +1532,19 @@ async function analisarLinhasRelatorioRenovacao() {
       : !data ? 'Data da renovação inválida'
       : !dataDoMes ? 'Data fora do mês selecionado'
       : '';
-    const chave = normalizarChaveRenovacao(contrato);
-    const duplicada = Boolean(chave && vistos.has(chave));
+    const chave = contrato;
+    const jaImportada = Boolean(chave && contratosJaImportados.has(chave));
+    const repetidaNoArquivo = Boolean(chave && vistos.has(chave));
+    const duplicada = jaImportada || repetidaNoArquivo;
     if (chave) vistos.add(chave);
+    const motivoDuplicada = jaImportada
+      ? 'Esta renovação já foi importada para a filial e o mês; duplicado ignorado'
+      : 'Contrato repetido no relatório; duplicado ignorado';
     return {
       linha: n + 2, vendedor_id: vendedor?.id || null, vendedor_nome: vendedor?.nome || '',
       contrato, cliente, plano: planoCatalogo?.nome || descricaoPlano, plano_id: planoCatalogo?.id || null, valor, data,
       conferencia_pendente: requerConferencia,
-      duplicada, erro: duplicada ? 'Contrato repetido no relatório; duplicado ignorado' : erro,
+      duplicada, erro: duplicada ? motivoDuplicada : erro,
       podeImportar: !erro && !duplicada, incluir: !erro && !duplicada,
     };
   });
@@ -1567,7 +1593,7 @@ function renderizarPreviaRenovacao() {
   botao.disabled = !selecionadas.length || invalidas.length > 0 || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes);
   window._previewRenovacaoImport = {
     registros: selecionadas.map(({ vendedor_id, contrato, cliente, plano, plano_id, valor, data, conferencia_pendente }) => ({ vendedor_id: Number(vendedor_id), contrato, cliente, plano, plano_id, valor, data, conferencia_pendente })),
-    total: selecionadas.length, mes, invalidas: invalidas.length,
+    total: selecionadas.length, mes, invalidas: invalidas.length, duplicadas: duplicadas.length,
   };
 }
 
@@ -1622,18 +1648,20 @@ async function importarRelatorioRenovacoes() {
   }
   const [ano, mes] = resumo.mes.split('-').map(Number);
   const filialNome = window.FILIAL_ATUAL?.nome || 'filial atual';
-  if (!confirm(`Importar ${resumo.total.toLocaleString('pt-BR')} renovações de ${mes}/${ano} para ${filialNome}? O relatório substituirá os registros já importados para esta filial e mês.`)) return;
+  if (!confirm(`Importar ${resumo.total.toLocaleString('pt-BR')} renovações novas de ${mes}/${ano} para ${filialNome}? As que já existem serão ignoradas, e os registros anteriores serão preservados.`)) return;
   try {
     const { data: sessao } = await window._supabase.auth.getSession();
     if (!sessao?.session) throw new Error('Entre no painel administrativo para importar relatórios.');
-    const { error } = await window._supabase.rpc('substituir_registros_renovacao', {
+    const { data, error } = await window._supabase.rpc('substituir_registros_renovacao', {
       p_filial_id: window.FILIAL_ATUAL_ID, p_mes: mes, p_ano: ano,
       p_arquivo: _relatorioRenovacao.filename, p_linhas: resumo.registros,
     });
     if (error) throw error;
     await carregarDados();
     await carregarRelatorioResumoRenovacoes();
-    showToast(`Relatório importado: ${resumo.total.toLocaleString('pt-BR')} renovações. Os itens sem plano ou preço reconhecido foram enviados à conferência.`, 'success');
+    const importadas = Number(data || 0);
+    const ignoradas = Number(resumo.duplicadas || 0) + Math.max(0, Number(resumo.total || 0) - importadas);
+    showToast(`Importação concluída: ${importadas} renovação(ões) nova(s)${ignoradas ? `; ${ignoradas} já existente(s)/duplicada(s) ignorada(s)` : ''}. Os itens sem plano ou preço reconhecido foram enviados à conferência.`, 'success');
   } catch (err) {
     console.error('[importarRelatorioRenovacoes]', err);
     const msg = String((err && err.message) || err);
