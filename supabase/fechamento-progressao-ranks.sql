@@ -197,10 +197,10 @@ begin
          e.ticket_referencia,
          case
            when not e.pode_classificar then null
-           when e.pct_vendas >= 1.15 and (e.somente_externo or e.pct_renovacoes >= 1.20) and e.ticket_medio_valido >= 130 then 'S'
-           when e.pct_vendas >= 1.00 and (e.somente_externo or e.pct_renovacoes >= 1.10) and e.ticket_medio_valido >= 120 then 'A'
-           when e.pct_vendas >= 0.85 and (e.somente_externo or e.pct_renovacoes >= 1.00) and e.ticket_medio_valido >= 115 then 'B'
-           when e.pct_vendas >= 0.70 and (e.somente_externo or e.pct_renovacoes >= 0.80) and e.ticket_medio_valido >= 110 then 'C'
+           when e.pct_vendas >= 1.15 and (e.somente_externo or e.pct_renovacoes >= 1.00) and e.ticket_medio_valido >= 130 then 'S'
+           when e.pct_vendas >= 1.00 and (e.somente_externo or e.pct_renovacoes >= 0.85) and e.ticket_medio_valido >= 120 then 'A'
+           when e.pct_vendas >= 0.85 and (e.somente_externo or e.pct_renovacoes >= 0.65) and e.ticket_medio_valido >= 115 then 'B'
+           when e.pct_vendas >= 0.70 and (e.somente_externo or e.pct_renovacoes >= 0.50) and e.ticket_medio_valido >= 110 then 'C'
            when e.pct_vendas >= 0.50 and e.ticket_medio_valido >= 105 then 'D'
            else null
          end::text as rank_mensal,

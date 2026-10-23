@@ -14,10 +14,10 @@ const sqlFiles = [
 ].map(path => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 
 const rules = [
-  { rank: 'S', sales: 1.15, ticket: 130, renewals: 1.20 },
-  { rank: 'A', sales: 1.00, ticket: 120, renewals: 1.10 },
-  { rank: 'B', sales: 0.85, ticket: 115, renewals: 1.00 },
-  { rank: 'C', sales: 0.70, ticket: 110, renewals: 0.80 },
+  { rank: 'S', sales: 1.15, ticket: 130, renewals: 1.00 },
+  { rank: 'A', sales: 1.00, ticket: 120, renewals: 0.85 },
+  { rank: 'B', sales: 0.85, ticket: 115, renewals: 0.65 },
+  { rank: 'C', sales: 0.70, ticket: 110, renewals: 0.50 },
   { rank: 'D', sales: 0.50, ticket: 105, renewals: 0 },
 ];
 
@@ -61,12 +61,14 @@ runTest('the highest qualifying rank wins while SS stays unavailable', () => {
 
 runTest('internal renewal criteria remain additional while external roles bypass them', () => {
   assert.equal(classify({ salesPct: 0.50, ticket: 105, renewalPct: 0 }), 'D');
-  assert.equal(classify({ salesPct: 0.70, ticket: 110, renewalPct: 0.80 }), 'C');
-  assert.equal(classify({ salesPct: 0.85, ticket: 115, renewalPct: 0.9999 }), 'C');
-  assert.equal(classify({ salesPct: 0.85, ticket: 115, renewalPct: 1.00 }), 'B');
-  assert.equal(classify({ salesPct: 1.00, ticket: 120, renewalPct: 1.10 }), 'A');
-  assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 1.1999 }), 'A');
-  assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 1.20 }), 'S');
+  assert.equal(classify({ salesPct: 0.70, ticket: 110, renewalPct: 0.4999 }), 'D');
+  assert.equal(classify({ salesPct: 0.70, ticket: 110, renewalPct: 0.50 }), 'C');
+  assert.equal(classify({ salesPct: 0.85, ticket: 115, renewalPct: 0.6499 }), 'C');
+  assert.equal(classify({ salesPct: 0.85, ticket: 115, renewalPct: 0.65 }), 'B');
+  assert.equal(classify({ salesPct: 1.00, ticket: 120, renewalPct: 0.8499 }), 'B');
+  assert.equal(classify({ salesPct: 1.00, ticket: 120, renewalPct: 0.85 }), 'A');
+  assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 0.9999 }), 'A');
+  assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 1.00 }), 'S');
   assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 0, external: true }), 'S');
   assert.equal(classify({ salesPct: 1.15, ticket: 130, external: true, renewalMetaValid: false }), 'S');
 });

@@ -4320,7 +4320,7 @@ function renderAdmVendedoresTable(d) {
         rankResumo.tipo === 'externo' ? 'Renovações: não são critério para externos' : `Renovações: ${rankResumo.renovacoes} / ${rankResumo.meta_renovacoes} (${fmtPct(rankResumo.renovacoes, rankResumo.meta_renovacoes)})`,
         `Ticket médio individual: R$ ${Number(rankResumo.ticket_medio || 0).toFixed(2).replace('.', ',')}`,
         `Critérios: D 50% / R$ 105 · C 70% / R$ 110 · B 85% / R$ 115 · A 100% / R$ 120 · S 115% / R$ 130`,
-        rankResumo.tipo === 'externo' ? 'Renovação não exigida.' : 'Renovação mínima: C 80%, B 100%, A 110%, S 120% da meta M1; D exige meta cadastrada.',
+        rankResumo.tipo === 'externo' ? 'Renovação não exigida.' : 'Renovação mínima: C 50%, B 65%, A 85%, S 100% da meta M1; D exige meta cadastrada.',
       ].join('\n');
       rankTd.appendChild(seloRank);
     } else {
@@ -4814,7 +4814,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-rank-mensal-status').textContent = rankMensal
-    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · faixas: D 50%/R$ 105, C 70%/R$ 110, B 85%/R$ 115, A 100%/R$ 120, S 115%/R$ 130${tipo === 'externo' ? '' : ' · renovação C 80%, B 100%, A 110%, S 120%'}`
+    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · faixas: D 50%/R$ 105, C 70%/R$ 110, B 85%/R$ 115, A 100%/R$ 120, S 115%/R$ 130${tipo === 'externo' ? '' : ' · renovação C 50%, B 65%, A 85%, S 100%'}`
     : rank?.elegivel ? 'Sem rank: D exige ao menos 50% da meta e ticket médio de R$ 105,00.' : 'Confira a meta individual e a meta de renovação aplicável.';
   const status = document.getElementById('an-status');
   if (status) status.textContent = 'Carregando histórico de carreira…';
