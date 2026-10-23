@@ -710,6 +710,11 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
     const filialNome = filialPorId.get(String(pendencia.filial_id)) || '—';
     const valor = venda?.valor_total == null ? '—' : `R$ ${Number(venda.valor_total).toFixed(2).replace('.', ',')}`;
     const revisaoDeValor = String(pendencia.motivo || '').startsWith('revisar_valor_');
+    const motivoPendente = pendencia.motivo === 'revisar_valor_variavel_ixc'
+      ? '<div class="ixc-pending-reason">Plano sem valor fixo: confira o valor e os adicionais.</div>'
+      : pendencia.motivo === 'revisar_valor_zero_legado'
+        ? '<div class="ixc-pending-reason">Valor do plano cadastrado como zero: confira o valor e os adicionais.</div>'
+        : '<div class="ixc-pending-reason">Contrato ausente no relatório completo do IXC. Confira se foi cancelado.</div>';
     const sugestoes = venda && !revisaoDeValor
       ? sugerirContratosIxc(venda, relatorioAtivo)
       : [];
@@ -728,7 +733,7 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
     return `<tr>
       <td>${escapar(formatarData(venda?.data_venda))}</td>
       <td>${escapar(venda?.numero_venda || pendencia.numero_venda)}</td>
-      <td>${escapar(venda?.cliente || 'Cliente sem nome')}${pendencia.motivo === 'revisar_valor_variavel_ixc' ? '<div class="ixc-pending-reason">Plano sem valor fixo: confira o valor e os adicionais.</div>' : pendencia.motivo === 'revisar_valor_zero_legado' ? '<div class="ixc-pending-reason">Valor do plano cadastrado como zero: confira o valor e os adicionais.</div>' : ''}</td>
+      <td>${escapar(venda?.cliente || 'Cliente sem nome')}${motivoPendente}</td>
       <td>${escapar(venda?.vendedor_nome || '—')}</td>
       <td>${escapar(filialNome)}</td>
       <td>${escapar(valor)}</td>

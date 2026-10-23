@@ -167,6 +167,7 @@ begin
   where v.filial_destino_id = any(v_filiais)
     and coalesce(v.valor, 0) = 0
     and nullif(btrim(coalesce(v.numero_venda, '')), '') is not null
+    and btrim(v.numero_venda) = any(v_contratos)
   on conflict (venda_id) do update
     set situacao = 'pendente',
         numero_venda = excluded.numero_venda,
@@ -182,15 +183,13 @@ begin
   from public.vendas v
   where v.filial_destino_id = any(v_filiais)
     and nullif(btrim(v.numero_venda), '') is not null
-    and coalesce(v.valor, 0) <> 0
     and not (btrim(v.numero_venda) = any(v_contratos))
   on conflict (venda_id) do update
     set situacao = 'pendente',
         numero_venda = excluded.numero_venda,
         relatorio_em = now(),
         motivo = 'Contrato não encontrado na lista de contratos ativos do IXC.'
-    where public.vendas_conferencia_ixc.situacao in ('pendente', 'regularizada')
-      and public.vendas_conferencia_ixc.motivo <> 'revisar_valor_variavel_ixc';
+    where public.vendas_conferencia_ixc.situacao in ('pendente', 'regularizada', 'validada', 'vinculada');
 
   get diagnostics v_afetadas = row_count;
   return v_afetadas + v_revisoes_zero;
