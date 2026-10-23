@@ -4779,13 +4779,16 @@ function calcularProgressoCarreira(historico, tipo) {
   return { rankCarreira, streakAtual: Math.min(4, streakAtual), ssConquistado, mesesFechados: ordenado.length };
 }
 
+let _analiticaVendedores = [];
+
 function obterPerfilAnaliticoSelecionado() {
   const id = document.getElementById('an-vendedor-select')?.value;
   if (!id || !_ultimoProcessado) return null;
-  const vendedor = [...(_ultimoProcessado.intMes || []), ...(_ultimoProcessado.extMes || [])]
-    .find(item => String(item.id) === String(id));
-  if (!vendedor) return null;
   const cadastro = (_cache.vendedores || []).find(item => String(item.id) === String(id));
+  const vendedorRegistrado = [...(_ultimoProcessado.intMes || []), ...(_ultimoProcessado.extMes || [])]
+    .find(item => String(item.id) === String(id));
+  const vendedor = vendedorRegistrado || (cadastro ? { ...cadastro, vendas: 0, valor: 0, valor_total: 0, meta: Number(cadastro.meta || 0) } : null);
+  if (!vendedor) return null;
   const rank = (_cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(id)) || null;
   const renovacao = (_cache.renovacoesMes || [])?.find(item => String(item.vendedor_id) === String(id));
   const metasVendas = (_cache.metas || []).find(item => String(item.vendedor_id) === String(id)) || {};
@@ -4811,25 +4814,89 @@ function resumirMarcosMeta(atual, metas, metaM1Fallback = 0) {
   return `${lista} · M1 alcançada`;
 }
 
+function renderizarGradeAnalitica(vendedores = _analiticaVendedores) {
+  const grade = document.getElementById('an-roster-grid');
+  const resumo = document.getElementById('an-roster-summary');
+  if (!grade) return;
+  const busca = String(document.getElementById('an-busca')?.value || '').trim().toLocaleLowerCase('pt-BR');
+  const filtrados = vendedores.filter(item => !busca || String(item.nome || '').toLocaleLowerCase('pt-BR').includes(busca));
+  const ordemRanks = ['SS', 'S', 'A', 'B', 'C', 'D'];
+  filtrados.sort((a, b) => {
+    const ra = (_cache.ranksMensais || []).find(r => String(r.vendedor_id) === String(a.id))?.rank_mensal || '';
+    const rb = (_cache.ranksMensais || []).find(r => String(r.vendedor_id) === String(b.id))?.rank_mensal || '';
+    const ia = ra ? ordemRanks.indexOf(ra) : ordemRanks.length;
+    const ib = rb ? ordemRanks.indexOf(rb) : ordemRanks.length;
+    return ia - ib || String(a.nome).localeCompare(String(b.nome), 'pt-BR');
+  });
+  const comRank = vendedores.filter(item => (_cache.ranksMensais || []).some(r => String(r.vendedor_id) === String(item.id) && r.elegivel && r.rank_mensal)).length;
+  if (resumo) resumo.textContent = `${vendedores.length} colaboradores · ${comRank} com rank neste mês`;
+  if (!filtrados.length) {
+    grade.innerHTML = `<div class="an-roster-empty">${busca ? 'Nenhum colaborador encontrado com esse nome.' : 'Nenhum colaborador participante do ranking foi encontrado nesta filial.'}</div>`;
+    return;
+  }
+  grade.innerHTML = filtrados.map(item => {
+    const cadastro = (_cache.vendedores || []).find(v => String(v.id) === String(item.id));
+    const rank = (_cache.ranksMensais || []).find(r => String(r.vendedor_id) === String(item.id));
+    const rankLabel = rank?.elegivel ? rank.rank_mensal : null;
+    const vendas = Number(rank?.vendas ?? item.vendas ?? 0);
+    const meta = Number(rank?.meta_vendas ?? item.meta ?? 0);
+    const pct = meta > 0 ? Math.min(100, Math.round(vendas / meta * 100)) : 0;
+    const foto = cadastro?.foto_url || item.foto_url || PHOTOS[item.slug] || '';
+    const inicial = escapeHtmlText(String(item.nome || '?').trim().charAt(0).toUpperCase());
+    const avatar = foto
+      ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy" crossorigin="anonymous" data-an-avatar data-fallback="${inicial}">`
+      : `<span>${inicial}</span>`;
+    const emblema = rankLabel
+      ? `<img src="${escapeHtmlText(RANK_CARREIRA_IMAGENS[rankLabel])}" alt="Rank ${escapeHtmlText(rankLabel)}" loading="lazy">`
+      : `<span class="an-rank-placeholder" aria-label="Sem rank">—</span>`;
+    const tipo = item.tipo === 'externo' ? 'Externo' : 'Interno';
+    return `<button type="button" class="an-roster-card" data-an-select="${Number(item.id)}" aria-label="Abrir perfil de ${escapeHtmlText(item.nome)}">
+      <span class="an-roster-card-top"><span class="an-roster-avatar">${avatar}</span><span class="an-roster-rank">${emblema}<small>${rankLabel ? `RANK ${escapeHtmlText(rankLabel)}` : 'EM PROGRESSO'}</small></span></span>
+      <span class="an-roster-name">${escapeHtmlText(item.nome)}</span><span class="an-roster-role">${tipo} · ${vendas} venda${vendas === 1 ? '' : 's'} no mês</span>
+      <span class="an-roster-progress-label"><span>JORNADA DO MÊS</span><b>${meta > 0 ? `${pct}%` : '—'}</b></span>
+      <span class="an-roster-progress" role="progressbar" aria-label="Progresso das vendas na meta mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>
+      <span class="an-roster-open">Abrir perfil <span aria-hidden="true">↗</span></span>
+    </button>`;
+  }).join('');
+}
+
 async function renderizarAnaliticaPerfis() {
   const select = document.getElementById('an-vendedor-select');
   const periodo = document.getElementById('an-periodo');
-  const vazio = document.getElementById('an-empty');
   const profile = document.getElementById('an-profile');
-  if (!select || !profile || !vazio) return;
+  const modal = document.getElementById('an-profile-modal');
+  const grade = document.getElementById('an-roster-grid');
+  if (!select || !profile || !modal || !grade) return;
   const token = ++_analiticaRenderToken;
   const selecionadoAntes = select.value;
+  const perfilAberto = !modal.hidden;
   const d = _ultimoProcessado;
   if (!d) {
     select.replaceChildren(new Option('Aguardando dados da equipe…', ''));
-    vazio.hidden = false;
-    vazio.textContent = 'Os dados do painel ainda estão carregando.';
+    grade.innerHTML = '<div class="an-roster-empty">Carregando dados da equipe…</div>';
     profile.hidden = true;
+    modal.hidden = true;
+    document.body.classList.remove('an-modal-open');
     return;
   }
-  const vendedores = [...(d.intMes || []), ...(d.extMes || [])]
-    .filter(item => (_cache.vendedores || []).find(v => String(v.id) === String(item.id))?.participa_ranking !== false)
+  const vendedoresMes = [...(d.intMes || []), ...(d.extMes || [])];
+  const vendedores = (_cache.vendedores || [])
+    .filter(cadastro => cadastro.ativo !== false && cadastro.participa_ranking !== false)
+    .map(cadastro => {
+      const doMes = vendedoresMes.find(item => String(item.id) === String(cadastro.id));
+      return {
+        ...cadastro,
+        ...(doMes || {}),
+        id: cadastro.id,
+        nome: cadastro.nome || doMes?.nome || 'Colaborador',
+        tipo: cadastro.tipo || doMes?.tipo || 'interno',
+        vendas: Number(doMes?.vendas || 0),
+        valor: Number(doMes?.valor ?? doMes?.valor_total ?? 0),
+        meta: Number(doMes?.meta ?? cadastro.meta ?? 0),
+      };
+    })
     .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  _analiticaVendedores = vendedores;
   select.replaceChildren(new Option('Selecione um colaborador', ''));
   vendedores.forEach(item => {
     const cadastro = (_cache.vendedores || []).find(v => String(v.id) === String(item.id));
@@ -4841,25 +4908,22 @@ async function renderizarAnaliticaPerfis() {
     const mesNome = d.mes?.mesNome || CONFIG.mesReferencia || '';
     periodo.textContent = `${String(mesNome).trim()} ${d.mes?.ano || new Date().getFullYear()}`;
   }
+  renderizarGradeAnalitica(vendedores);
   if (!vendedores.length) {
-    vazio.hidden = false;
-    vazio.textContent = 'Nenhum colaborador participante do ranking foi encontrado nesta filial.';
     profile.hidden = true;
+    modal.hidden = true;
+    document.body.classList.remove('an-modal-open');
     return;
   }
-  if (select.value) await renderizarPerfilAnalitico(token);
-  else {
-    profile.hidden = true;
-    vazio.hidden = false;
-    vazio.textContent = 'Selecione um colaborador para ver o perfil de desempenho.';
-  }
+  if (perfilAberto && vendedores.some(item => String(item.id) === selecionadoAntes)) await renderizarPerfilAnalitico(token);
+  else { profile.hidden = true; modal.hidden = true; document.body.classList.remove('an-modal-open'); }
 }
 
 async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const selecionado = obterPerfilAnaliticoSelecionado();
   const profile = document.getElementById('an-profile');
-  const vazio = document.getElementById('an-empty');
-  if (!selecionado || !profile || !vazio) return;
+  const modal = document.getElementById('an-profile-modal');
+  if (!selecionado || !profile || !modal) return;
   const { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo } = selecionado;
   const externo = tipo === 'externo';
   const vendas = Number(rank?.vendas ?? vendedor.vendas ?? 0);
@@ -4925,7 +4989,9 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
   await preencherFichaAnalitica(selecionado, carreira);
   profile.hidden = false;
-  vazio.hidden = true;
+  modal.hidden = false;
+  document.body.classList.add('an-modal-open');
+  modal.querySelector('[data-an-close]:not(.an-modal-backdrop)')?.focus({ preventScroll: true });
 }
 
 async function preencherFichaAnalitica(selecionado, carreira) {
@@ -5014,6 +5080,43 @@ async function gerarFichaAnalitica(evt) {
 // ainda não existia no momento em que o arquivo foi executado.
 document.addEventListener('change', event => {
   if (event.target?.id === 'an-vendedor-select') renderizarPerfilAnalitico();
+});
+let _anRetornoFocus = null;
+function fecharPerfilAnalitico() {
+  const modal = document.getElementById('an-profile-modal');
+  const profile = document.getElementById('an-profile');
+  if (!modal) return;
+  modal.hidden = true;
+  if (profile) profile.hidden = true;
+  document.body.classList.remove('an-modal-open');
+  _anRetornoFocus?.focus?.();
+  _anRetornoFocus = null;
+}
+document.addEventListener('click', event => {
+  const selecionar = event.target?.closest?.('[data-an-select]');
+  if (selecionar) {
+    const select = document.getElementById('an-vendedor-select');
+    if (!select) return;
+    _anRetornoFocus = selecionar;
+    select.value = selecionar.dataset.anSelect;
+    renderizarPerfilAnalitico();
+    return;
+  }
+  if (event.target?.closest?.('[data-an-close]')) fecharPerfilAnalitico();
+});
+document.addEventListener('error', event => {
+  const img = event.target;
+  if (img?.matches?.('img[data-an-avatar]')) {
+    const parent = img.parentElement;
+    img.remove();
+    if (parent) parent.textContent = img.dataset.fallback || '?';
+  }
+}, true);
+document.addEventListener('input', event => {
+  if (event.target?.id === 'an-busca') renderizarGradeAnalitica();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !document.getElementById('an-profile-modal')?.hidden) fecharPerfilAnalitico();
 });
 document.addEventListener('adm:dashboarddataready', () => {
   if (document.getElementById('sec-analitica')?.classList.contains('active')) renderizarAnaliticaPerfis();
