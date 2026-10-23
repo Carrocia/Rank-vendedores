@@ -324,7 +324,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261023-analitica-ranks-1"></script>
   <script src="assets/js/supabase-admin.js?v=20261023-rank-rules-2"></script>
-  <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-1"></script>
+  <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -688,6 +688,7 @@
                 </label>
                 <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="ixc-reconciliation-submit" onclick="reconciliarRelatorioIxc()" disabled>Conferir vendas já cadastradas</button>
                 <span class="adm-vendedor-cadastro-hint" id="ixc-reconciliation-status" aria-live="polite"></span>
+                <div class="ixc-reconciliation-diff" id="ixc-reconciliation-diff" aria-live="polite" hidden></div>
               </div>
             </div>
           </div>

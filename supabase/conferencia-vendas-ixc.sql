@@ -61,7 +61,7 @@ begin
   from unnest(coalesce(p_filial_ids, array[]::bigint[])) x
   where x is not null;
 
-  select coalesce(array_agg(distinct btrim(x)), array[]::text[])
+  select coalesce(array_agg(distinct regexp_replace(btrim(x), '\s+', '', 'g')), array[]::text[])
     into v_contratos
   from unnest(coalesce(p_contratos_ativos, array[]::text[])) x
   where nullif(btrim(x), '') is not null;
@@ -98,7 +98,7 @@ begin
     and v.filial_destino_id = any(v_filiais)
     and (v.data_venda::timestamptz at time zone 'America/Manaus')::date >= p_periodo_inicio
     and (v.data_venda::timestamptz at time zone 'America/Manaus')::date < p_periodo_fim
-    and btrim(coalesce(v.numero_venda, '')) = any(v_contratos);
+    and regexp_replace(btrim(coalesce(v.numero_venda, '')), '\s+', '', 'g') = any(v_contratos);
 
   -- Vendas antigas com valor zero e contrato ainda ativo vão para revisão de preço.
   -- Se estiverem ausentes, a fila abaixo registra a ausência como prioridade.
@@ -112,7 +112,7 @@ begin
     and (v.data_venda::timestamptz at time zone 'America/Manaus')::date < p_periodo_fim
     and coalesce(v.valor, 0) = 0
     and nullif(btrim(coalesce(v.numero_venda, '')), '') is not null
-    and btrim(v.numero_venda) = any(v_contratos)
+    and regexp_replace(btrim(v.numero_venda), '\s+', '', 'g') = any(v_contratos)
   on conflict (venda_id) do update
     set situacao = 'pendente',
         numero_venda = excluded.numero_venda,
@@ -130,7 +130,7 @@ begin
     and (v.data_venda::timestamptz at time zone 'America/Manaus')::date >= p_periodo_inicio
     and (v.data_venda::timestamptz at time zone 'America/Manaus')::date < p_periodo_fim
     and nullif(btrim(v.numero_venda), '') is not null
-    and not (btrim(v.numero_venda) = any(v_contratos))
+    and not (regexp_replace(btrim(v.numero_venda), '\s+', '', 'g') = any(v_contratos))
   on conflict (venda_id) do update
     set situacao = 'pendente',
         numero_venda = excluded.numero_venda,

@@ -1047,6 +1047,23 @@ html::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.34); }
   text-align: right;
 }
 
+.ixc-reconciliation-diff {
+  flex-basis: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 105, 147, .38);
+  border-radius: 10px;
+  background: rgba(255, 105, 147, .08);
+  color: var(--text-primary, #e8edf5);
+  font-size: .84rem;
+  line-height: 1.5;
+  text-align: left;
+}
+.ixc-reconciliation-diff[hidden] { display:none !important; }
+.ixc-reconciliation-diff ul { margin:8px 0; padding-left:20px; }
+.ixc-reconciliation-diff li + li { margin-top:4px; }
+.ixc-reconciliation-diff p { margin:8px 0 0; color:var(--text-muted, #aab3c2); }
+.ixc-reconciliation-diff code { color:var(--text-primary, #e8edf5); }
+
 .ixc-pending-card .adm-table-wrap {
   margin-top: 14px;
 }

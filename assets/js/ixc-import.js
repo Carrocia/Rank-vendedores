@@ -39,6 +39,7 @@ function limparImportacaoIxc() {
   const botaoImportar = document.getElementById('ixc-import-submit');
   const confirmacao = document.getElementById('ixc-reconciliation-complete');
   const status = document.getElementById('ixc-reconciliation-status');
+  const diferencas = document.getElementById('ixc-reconciliation-diff');
   if (input) input.value = '';
   if (resumo) resumo.textContent = '';
   if (preview) preview.replaceChildren();
@@ -49,6 +50,7 @@ function limparImportacaoIxc() {
   }
   if (confirmacao) confirmacao.checked = false;
   if (status) status.textContent = '';
+  if (diferencas) { diferencas.hidden = true; diferencas.replaceChildren(); }
   atualizarBotaoConferenciaIxc();
   atualizarBotaoLimparImportacaoIxc();
   carregarPendenciasIxc([]);
@@ -597,7 +599,10 @@ async function reconciliarRelatorioIxc() {
   const contexto = obterContextoConferenciaIxc();
   const linhasAtivas = contexto.mes ? contexto.linhas.filter(linha => obterMesAtivacaoIxc(linha) === contexto.mes) : [];
   const filiais = linhasAtivas.length && Number.isInteger(filialAtualId) ? [filialAtualId] : [];
-  const contratos = [...new Set(linhasAtivas.map(linha => String(linha.contrato).trim()))];
+  const normalizarContrato = valor => String(valor ?? '').replace(/\s+/g, '');
+  const contratos = [...new Set(linhasAtivas.map(linha => normalizarContrato(linha.contrato)).filter(Boolean))];
+  const diffEl = document.getElementById('ixc-reconciliation-diff');
+  if (diffEl) { diffEl.hidden = true; diffEl.replaceChildren(); }
   if (!contexto.mes) {
     showToast('A conferência precisa de um único mês e de datas de ativação válidas no relatório. Confira o arquivo mensal.', 'warning');
     return;
@@ -612,6 +617,27 @@ async function reconciliarRelatorioIxc() {
   if (status) status.textContent = 'Comparando os contratos do arquivo com as vendas cadastradas…';
   atualizarBotaoConferenciaIxc();
   try {
+    // Faz a comparação no navegador também para que a tela possa mostrar
+    // exatamente quais registros do banco não aparecem no CSV, mesmo que a
+    // função SQL esteja desatualizada ou não consiga criar a pendência.
+    const [ano, numeroMes] = contexto.mes.split('-').map(Number);
+    const inicioLocal = `${contexto.mes}-01T00:00:00-04:00`;
+    const proximoMes = numeroMes === 12
+      ? `${ano + 1}-01-01T00:00:00-04:00`
+      : `${ano}-${String(numeroMes + 1).padStart(2, '0')}-01T00:00:00-04:00`;
+    const vendasDoMes = await carregarTodasPaginas(() => window._supabase
+      .from('vendas_admin')
+      .select('id, numero_venda, cliente, data_venda, filial_destino_id')
+      .eq('filial_destino_id', filialAtualId)
+      .gte('data_venda', inicioLocal)
+      .lt('data_venda', proximoMes)
+      .order('id', { ascending: true }), 'vendas para conferência do IXC');
+    const contratosAtivos = new Set(contratos);
+    const ausentesDoRelatorio = vendasDoMes.filter(venda => {
+      const contrato = normalizarContrato(venda.numero_venda);
+      return !contrato || !contratosAtivos.has(contrato);
+    });
+
     const { data, error } = await window._supabase.rpc('conferir_vendas_ausentes_ixc', {
       p_filial_ids: filiais,
       p_contratos_ativos: contratos,
@@ -624,7 +650,25 @@ async function reconciliarRelatorioIxc() {
     _filiaisFiltroPendenciasIxc = [{ id: filialAtualId, nome: nomeFilialAtual }];
     const mesLabel = new Date(`${contexto.mes}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     if (status) status.textContent = `Conferência de ${mesLabel} concluída. ${total} venda(s) pendente(s) nova(s) ou revisitada(s).`;
-    showToast(`Conferência de ${mesLabel} concluída: ${total} venda(s) aguardando revisão.`, 'success');
+    if (diffEl && ausentesDoRelatorio.length) {
+      const linhas = ausentesDoRelatorio.map(venda => {
+        const contrato = normalizarContrato(venda.numero_venda);
+        const cliente = escapeHtmlText(venda.cliente || 'Cliente sem nome');
+        return `<li><strong>${cliente}</strong> · ${contrato ? `contrato ${escapeHtmlText(contrato)}` : 'sem número de contrato cadastrado'}</li>`;
+      }).join('');
+      diffEl.innerHTML = `<strong>${ausentesDoRelatorio.length} venda(s) cadastrada(s) não aparecem no CSV:</strong><ul>${linhas}</ul>${total === 0 ? '<p>A função do Supabase não criou as pendências. Atualize-a executando <code>supabase/atualizar-deteccao-vendas-ausentes-ixc.sql</code> no SQL Editor e confira novamente.</p>' : ''}`;
+      diffEl.hidden = false;
+      if (total === 0 && status) status.textContent = `A comparação direta encontrou ${ausentesDoRelatorio.length} venda(s) ausente(s), mas o Supabase não registrou as pendências.`;
+    } else if (diffEl) {
+      diffEl.innerHTML = '<strong>Conferência direta: todas as vendas cadastradas da filial e do mês aparecem no CSV.</strong>';
+      diffEl.hidden = false;
+    }
+    showToast(
+      ausentesDoRelatorio.length && total === 0
+        ? `Encontrei ${ausentesDoRelatorio.length} venda(s) ausente(s), mas não consegui criar as pendências no Supabase.`
+        : `Conferência de ${mesLabel} concluída: ${total} venda(s) aguardando revisão.`,
+      ausentesDoRelatorio.length && total === 0 ? 'warning' : 'success'
+    );
     _relatorioIxcParaSugestoes = [..._linhasImportacaoIxc];
     await carregarPendenciasIxc(_relatorioIxcParaSugestoes);
   } catch (error) {
@@ -995,10 +1039,12 @@ async function analisarImportacaoIxc(event) {
   const botao = document.getElementById('ixc-import-submit');
   const checkboxConferencia = document.getElementById('ixc-reconciliation-complete');
   const statusConferencia = document.getElementById('ixc-reconciliation-status');
+  const diferencasConferencia = document.getElementById('ixc-reconciliation-diff');
   _linhasImportacaoIxc = [];
   _relatorioIxcParaSugestoes = [];
   if (checkboxConferencia) checkboxConferencia.checked = false;
   if (statusConferencia) statusConferencia.textContent = '';
+  if (diferencasConferencia) { diferencasConferencia.hidden = true; diferencasConferencia.replaceChildren(); }
   atualizarBotaoConferenciaIxc();
   if (resumo) resumo.textContent = '';
   if (wrapper) wrapper.hidden = true;
