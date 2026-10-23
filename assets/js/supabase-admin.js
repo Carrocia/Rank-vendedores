@@ -4318,7 +4318,9 @@ function renderAdmVendedoresTable(d) {
       seloRank.title = [
         `Vendas: ${rankResumo.vendas} / ${rankResumo.meta_vendas} (${fmtPct(rankResumo.vendas, rankResumo.meta_vendas)})`,
         rankResumo.tipo === 'externo' ? 'Renovações: não são critério para externos' : `Renovações: ${rankResumo.renovacoes} / ${rankResumo.meta_renovacoes} (${fmtPct(rankResumo.renovacoes, rankResumo.meta_renovacoes)})`,
-        `Ticket: R$ ${Number(rankResumo.ticket_medio || 0).toFixed(2).replace('.', ',')} · referência regional R$ ${Number(rankResumo.ticket_referencia || 0).toFixed(2).replace('.', ',')}`,
+        `Ticket médio individual: R$ ${Number(rankResumo.ticket_medio || 0).toFixed(2).replace('.', ',')}`,
+        `Critérios: D 50% / R$ 105 · C 70% / R$ 110 · B 85% / R$ 115 · A 100% / R$ 120 · S 115% / R$ 130`,
+        rankResumo.tipo === 'externo' ? 'Renovação não exigida.' : 'Renovação mínima: C 80%, B 100%, A 110%, S 120% da meta M1; D exige meta cadastrada.',
       ].join('\n');
       rankTd.appendChild(seloRank);
     } else {
@@ -4333,7 +4335,7 @@ function renderAdmVendedoresTable(d) {
         : motivos[0]?.includes('renovações') ? 'Meta renov.'
           : motivos[0]?.includes('vendas') ? 'Meta vendas'
             : motivos[0]?.includes('ticket') ? 'Ticket base'
-              : 'Sem base';
+              : 'Sem rank';
       rankTd.className = 'adm-rank-no-base';
       if (!rankResumo) {
         rankTd.title = v.participa_ranking === false
@@ -4344,7 +4346,7 @@ function renderAdmVendedoresTable(d) {
       } else {
         rankTd.title = motivos.length
           ? `Sem base para classificar: ${motivos.join('; ')}.`
-          : 'O cálculo não encontrou os critérios necessários para classificar este vendedor.';
+          : `Sem rank: precisa atingir ao menos 50% da meta individual e ticket médio de R$ 105,00 para D. Faixas superiores: C 70% / R$ 110; B 85% / R$ 115; A 100% / R$ 120; S 115% / R$ 130. Internos também precisam cumprir a meta de renovação aplicável.`;
       }
     }
 
@@ -4807,11 +4809,13 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   } else fileira.textContent = String(vendedor.nome || '?').trim().charAt(0).toUpperCase();
   document.getElementById('an-nome').textContent = vendedor.nome;
   document.getElementById('an-filial-tipo').textContent = `${window.FILIAL_ATUAL?.nome || 'Filial selecionada'} · ${externo ? 'Vendedor externo' : 'Vendedor interno'}`;
-  document.getElementById('an-rank-mensal').textContent = rankMensal || 'Sem base';
+  document.getElementById('an-rank-mensal').textContent = rankMensal || 'Sem rank';
   const rankMensalImg = document.getElementById('an-rank-mensal-img');
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
-  document.getElementById('an-rank-mensal-status').textContent = rank?.elegivel ? `${rank.vendas} vendas · ${rank.renovacoes} renovações` : 'Confira as metas e o ticket de referência';
+  document.getElementById('an-rank-mensal-status').textContent = rankMensal
+    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · faixas: D 50%/R$ 105, C 70%/R$ 110, B 85%/R$ 115, A 100%/R$ 120, S 115%/R$ 130${tipo === 'externo' ? '' : ' · renovação C 80%, B 100%, A 110%, S 120%'}`
+    : rank?.elegivel ? 'Sem rank: D exige ao menos 50% da meta e ticket médio de R$ 105,00.' : 'Confira a meta individual e a meta de renovação aplicável.';
   const status = document.getElementById('an-status');
   if (status) status.textContent = 'Carregando histórico de carreira…';
   let historico = [];
@@ -4876,8 +4880,10 @@ async function preencherFichaAnalitica(selecionado, carreira) {
   const rankMensalImg = document.getElementById('an-card-month-rank-img');
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
-  document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem base';
-  document.getElementById('an-card-month-note').textContent = rank?.elegivel ? 'classificação atual' : 'dados insuficientes para classificar';
+  document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem rank';
+  document.getElementById('an-card-month-note').textContent = rankMensal
+    ? 'classificação atual · D começa em 50% da meta e R$ 105 de ticket'
+    : rank?.elegivel ? 'sem rank · D exige 50% da meta e ticket de R$ 105' : 'dados insuficientes para classificar';
   document.getElementById('an-card-career-rank-img').src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira;
   document.getElementById('an-card-career-note').textContent = carreira.mesesFechados ? 'melhor nível nos meses fechados' : 'início da trajetória';
