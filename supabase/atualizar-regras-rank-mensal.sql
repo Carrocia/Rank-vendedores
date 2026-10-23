@@ -121,8 +121,7 @@ begin
      and mr.mes = p_mes and mr.ano = p_ano
   ), elegibilidade as (
     select m.*,
-      (coalesce(m.meta_vendas, 0) > 0
-       and (m.somente_externo or coalesce(m.meta_renovacoes, 0) > 0)) as pode_classificar,
+      (coalesce(m.meta_vendas, 0) > 0) as pode_classificar,
       case when m.meta_vendas > 0 then m.vendas::numeric / m.meta_vendas else 0 end as pct_vendas,
       case when m.meta_renovacoes > 0 then m.renovacoes_reais::numeric / m.meta_renovacoes else 0 end as pct_renovacoes,
       coalesce(m.ticket_medio, 0)::numeric as ticket_medio_valido
@@ -141,10 +140,10 @@ begin
          e.ticket_referencia,
          case
            when not e.pode_classificar then null
-           when e.pct_vendas >= 1.15 and (e.somente_externo or e.pct_renovacoes >= 1.00) and e.ticket_medio_valido >= 130 then 'S'
-           when e.pct_vendas >= 1.00 and (e.somente_externo or e.pct_renovacoes >= 0.85) and e.ticket_medio_valido >= 120 then 'A'
-           when e.pct_vendas >= 0.85 and (e.somente_externo or e.pct_renovacoes >= 0.65) and e.ticket_medio_valido >= 115 then 'B'
-           when e.pct_vendas >= 0.70 and (e.somente_externo or e.pct_renovacoes >= 0.50) and e.ticket_medio_valido >= 110 then 'C'
+           when e.pct_vendas >= 1.15 and (e.somente_externo or e.pct_renovacoes >= 0.80) and e.ticket_medio_valido >= 130 then 'S'
+           when e.pct_vendas >= 1.00 and (e.somente_externo or e.pct_renovacoes >= 0.65) and e.ticket_medio_valido >= 120 then 'A'
+           when e.pct_vendas >= 0.85 and (e.somente_externo or e.pct_renovacoes >= 0.45) and e.ticket_medio_valido >= 115 then 'B'
+           when e.pct_vendas >= 0.70 and (e.somente_externo or e.pct_renovacoes >= 0.30) and e.ticket_medio_valido >= 110 then 'C'
            when e.pct_vendas >= 0.50 and e.ticket_medio_valido >= 105 then 'D'
            else null
          end::text as rank_mensal,

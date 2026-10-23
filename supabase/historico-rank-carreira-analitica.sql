@@ -4,6 +4,9 @@
 
 begin;
 
+-- RETURNS TABLE não permite trocar colunas com CREATE OR REPLACE.
+drop function if exists public.historico_rank_carreira_analitica(uuid, bigint);
+
 do $check$
 begin
   if to_regprocedure('private.admin_tem_acesso_filial(bigint)') is null then
@@ -22,7 +25,13 @@ create or replace function public.historico_rank_carreira_analitica(
 returns table (
   ano integer,
   mes integer,
+  tipo text,
   rank_mensal text,
+  vendas integer,
+  meta_vendas integer,
+  renovacoes integer,
+  meta_renovacoes integer,
+  ticket_medio numeric,
   m1_vendas boolean,
   m1_renovacoes boolean
 )
@@ -46,7 +55,9 @@ begin
   end if;
 
   return query
-  select r.ano, r.mes, r.rank_mensal, r.m1_vendas, r.m1_renovacoes
+  select r.ano, r.mes, r.tipo, r.rank_mensal, r.vendas, r.meta_vendas,
+         r.renovacoes, r.meta_renovacoes, r.ticket_medio,
+         r.m1_vendas, r.m1_renovacoes
   from public.ranks_carreira_mensais r
   where r.carreira_pessoa_id = p_carreira_pessoa_id
   order by r.ano, r.mes, r.filial_id;

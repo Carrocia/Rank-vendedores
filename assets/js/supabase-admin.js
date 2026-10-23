@@ -4348,7 +4348,7 @@ function renderAdmVendedoresTable(d) {
         rankResumo.tipo === 'externo' ? 'Renovações: não são critério para externos' : `Renovações: ${rankResumo.renovacoes} / ${rankResumo.meta_renovacoes} (${fmtPct(rankResumo.renovacoes, rankResumo.meta_renovacoes)})`,
         `Ticket médio individual: R$ ${Number(rankResumo.ticket_medio || 0).toFixed(2).replace('.', ',')}`,
         `Critérios: D 50% / R$ 105 · C 70% / R$ 110 · B 85% / R$ 115 · A 100% / R$ 120 · S 115% / R$ 130`,
-        rankResumo.tipo === 'externo' ? 'Renovação não exigida.' : 'Renovação mínima: C 50%, B 65%, A 85%, S 100% da meta M1; D exige meta cadastrada.',
+        rankResumo.tipo === 'externo' ? 'Renovação não exigida.' : 'Renovação mínima mensal: C 30%, B 45%, A 65%, S 80%; D não exige renovação.',
       ].join('\n');
       rankTd.appendChild(seloRank);
     } else {
@@ -4721,14 +4721,36 @@ function formatarValorAnalitica(valor) {
   return Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function classificarRankCarreiraFechado(item, tipoFallback = 'interno') {
+  const metaVendas = Number(item.meta_vendas || 0);
+  const vendas = Number(item.vendas || 0);
+  const renovacoes = Number(item.renovacoes || 0);
+  const metaRenovacoes = Number(item.meta_renovacoes || 0);
+  const ticket = Number(item.ticket_medio || 0);
+  const tipo = item.tipo || tipoFallback;
+  if (metaVendas <= 0 || ticket <= 0) return null;
+  const pctVendas = vendas / metaVendas;
+  const pctRenovacoes = metaRenovacoes > 0 ? renovacoes / metaRenovacoes : 0;
+  const externo = tipo === 'externo';
+  if (pctVendas >= 1.15 && (externo || pctRenovacoes >= 1.00) && ticket >= 130) return 'S';
+  if (pctVendas >= 1.00 && (externo || pctRenovacoes >= 0.85) && ticket >= 120) return 'A';
+  if (pctVendas >= 0.85 && (externo || pctRenovacoes >= 0.65) && ticket >= 115) return 'B';
+  if (pctVendas >= 0.70 && (externo || pctRenovacoes >= 0.50) && ticket >= 110) return 'C';
+  if (pctVendas >= 0.50 && ticket >= 105) return 'D';
+  return null;
+}
+
 function calcularProgressoCarreira(historico, tipo) {
   const meses = new Map();
   (historico || []).forEach(item => {
     const chave = `${Number(item.ano)}-${String(Number(item.mes)).padStart(2, '0')}`;
     const atual = meses.get(chave);
+    const rankCarreiraMes = classificarRankCarreiraFechado(item, tipo);
     // Se houve mais de um cadastro/regional para a mesma identidade no mês,
-    // preserva o melhor marco fechado desse período.
-    if (!atual || RANK_CARREIRA_ORDEM.indexOf(item.rank_mensal) > RANK_CARREIRA_ORDEM.indexOf(atual.rank_mensal)) meses.set(chave, item);
+    // preserva o melhor rank de carreira calculado para esse período.
+    if (!atual || RANK_CARREIRA_ORDEM.indexOf(rankCarreiraMes) > RANK_CARREIRA_ORDEM.indexOf(atual.rankCarreiraMes)) {
+      meses.set(chave, { ...item, rankCarreiraMes });
+    }
   });
   const ordenado = [...meses.values()].sort((a, b) => Number(a.ano) - Number(b.ano) || Number(a.mes) - Number(b.mes));
   let streakAtual = 0;
@@ -4752,7 +4774,7 @@ function calcularProgressoCarreira(historico, tipo) {
       break;
     }
   }
-  const melhoresRanks = ordenado.map(item => item.rank_mensal).filter(rank => RANK_CARREIRA_ORDEM.includes(rank));
+  const melhoresRanks = ordenado.map(item => item.rankCarreiraMes).filter(rank => RANK_CARREIRA_ORDEM.includes(rank));
   const rankCarreira = ssConquistado ? 'SS' : melhoresRanks.reduce((melhor, rank) => RANK_CARREIRA_ORDEM.indexOf(rank) > RANK_CARREIRA_ORDEM.indexOf(melhor) ? rank : melhor, 'D');
   return { rankCarreira, streakAtual: Math.min(4, streakAtual), ssConquistado, mesesFechados: ordenado.length };
 }
@@ -4842,8 +4864,8 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-rank-mensal-status').textContent = rankMensal
-    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · faixas: D 50%/R$ 105, C 70%/R$ 110, B 85%/R$ 115, A 100%/R$ 120, S 115%/R$ 130${tipo === 'externo' ? '' : ' · renovação C 50%, B 65%, A 85%, S 100%'}`
-    : rank?.elegivel ? 'Sem rank: D exige ao menos 50% da meta e ticket médio de R$ 105,00.' : 'Confira a meta individual e a meta de renovação aplicável.';
+    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · faixas: D 50%/R$ 105, C 70%/R$ 110, B 85%/R$ 115, A 100%/R$ 120, S 115%/R$ 130${externo ? '' : ' · renovação mensal: C 30%, B 45%, A 65%, S 80%'}`
+    : rank?.elegivel ? 'Sem rank: D exige ao menos 50% da meta e ticket médio de R$ 105,00.' : 'Confira a meta individual de vendas e o ticket médio.';
   const status = document.getElementById('an-status');
   if (status) status.textContent = 'Carregando histórico de carreira…';
   let historico = [];
@@ -4863,7 +4885,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   document.getElementById('an-rank-carreira').textContent = carreira.rankCarreira;
   rankCarreiraImg.src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   document.getElementById('an-rank-carreira-status').textContent = carreira.mesesFechados
-    ? `${carreira.mesesFechados} mês(es) fechado(s) no histórico`
+    ? `${carreira.mesesFechados} mês(es) fechado(s) · renovação da carreira: C 50%, B 65%, A 85%, S 100%`
     : 'Base inicial · o ciclo começa em outubro de 2026';
   document.getElementById('an-ss-progresso').textContent = `${carreira.streakAtual}/4 meses M1`;
   document.getElementById('an-ss-barra').style.width = `${carreira.streakAtual * 25}%`;
@@ -4914,7 +4936,7 @@ async function preencherFichaAnalitica(selecionado, carreira) {
     : rank?.elegivel ? 'sem rank · D exige 50% da meta e ticket de R$ 105' : 'dados insuficientes para classificar';
   document.getElementById('an-card-career-rank-img').src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira;
-  document.getElementById('an-card-career-note').textContent = carreira.mesesFechados ? 'melhor nível nos meses fechados' : 'início da trajetória';
+  document.getElementById('an-card-career-note').textContent = carreira.mesesFechados ? 'maior rank fechado · critérios de renovação mais altos' : 'início da trajetória';
   document.getElementById('an-card-ss-count').textContent = `${carreira.streakAtual}/4`;
   document.getElementById('an-card-ss-bar').style.width = `${carreira.streakAtual * 25}%`;
   document.getElementById('an-card-ss-note').textContent = carreira.ssConquistado
