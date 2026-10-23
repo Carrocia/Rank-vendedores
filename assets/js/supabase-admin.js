@@ -4788,7 +4788,27 @@ function obterPerfilAnaliticoSelecionado() {
   const cadastro = (_cache.vendedores || []).find(item => String(item.id) === String(id));
   const rank = (_cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(id)) || null;
   const renovacao = (_cache.renovacoesMes || [])?.find(item => String(item.vendedor_id) === String(id));
-  return { vendedor, cadastro, rank, renovacao, tipo: vendedor.tipo || cadastro?.tipo || 'interno' };
+  const metasVendas = (_cache.metas || []).find(item => String(item.vendedor_id) === String(id)) || {};
+  const metasRenovacao = (_cache.metasRenovacaoIndividual || []).find(item => String(item.vendedor_id) === String(id)) || {};
+  return { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo: vendedor.tipo || cadastro?.tipo || 'interno' };
+}
+
+function resumirMarcosMeta(atual, metas, metaM1Fallback = 0) {
+  const valorAtual = Number(atual || 0);
+  const marcos = ['m3', 'm2', 'm1'].map((chave, indice) => ({
+    nome: `M${3 - indice}`,
+    valor: Number(metas?.[`meta_${chave}`] || 0),
+  })).filter(item => item.valor > 0);
+  if (!marcos.some(item => item.nome === 'M1') && Number(metaM1Fallback) > 0) {
+    marcos.push({ nome: 'M1', valor: Number(metaM1Fallback) });
+  }
+  if (!marcos.length) return 'Metas M3/M2/M1 não cadastradas';
+  const atingida = [...marcos].reverse().find(item => valorAtual >= item.valor);
+  const proxima = marcos.find(item => valorAtual < item.valor);
+  const lista = marcos.map(item => `${item.nome} ${item.valor}`).join(' · ');
+  const nivel = atingida ? `${atingida.nome} alcançada` : `abaixo da ${marcos[0].nome}`;
+  if (proxima) return `${lista} · ${nivel} · próxima ${proxima.nome}: faltam ${Math.max(0, proxima.valor - valorAtual)}`;
+  return `${lista} · M1 alcançada`;
 }
 
 async function renderizarAnaliticaPerfis() {
@@ -4840,7 +4860,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const profile = document.getElementById('an-profile');
   const vazio = document.getElementById('an-empty');
   if (!selecionado || !profile || !vazio) return;
-  const { vendedor, cadastro, rank, renovacao, tipo } = selecionado;
+  const { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo } = selecionado;
   const externo = tipo === 'externo';
   const vendas = Number(rank?.vendas ?? vendedor.vendas ?? 0);
   const metaVendas = Number(rank?.meta_vendas ?? vendedor.meta ?? 0);
@@ -4897,8 +4917,8 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const pctRenovacoes = metaRenovacoes > 0 ? Math.round(renovacoes / metaRenovacoes * 100) : null;
   const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;
   const cards = [
-    ['Vendas no mês', vendas.toLocaleString('pt-BR'), metaVendas > 0 ? `${pctVendas}% da meta M1 · meta ${metaVendas}` : 'Meta M1 não cadastrada'],
-    ['Renovações', renovacoes.toLocaleString('pt-BR'), externo ? 'Sem meta para vendedor externo' : metaRenovacoes > 0 ? `${pctRenovacoes}% da meta M1 · meta ${metaRenovacoes}` : 'Meta individual não cadastrada'],
+    ['Vendas no mês', vendas.toLocaleString('pt-BR'), externo ? (metaVendas > 0 ? `${pctVendas}% da meta mensal · meta ${metaVendas}` : 'Meta mensal não cadastrada') : resumirMarcosMeta(vendas, metasVendas, metaVendas)],
+    ['Renovações', renovacoes.toLocaleString('pt-BR'), externo ? 'Renovações registradas · sem meta no rank' : resumirMarcosMeta(renovacoes, metasRenovacao, metaRenovacoes)],
     ['Ticket médio', `R$ ${formatarValorAnalitica(ticket)}`, referencia > 0 ? `${pctTicket}% da referência regional (R$ ${formatarValorAnalitica(referencia)})` : 'Referência indisponível'],
   ];
   document.getElementById('an-metrics').innerHTML = cards.map(([label, value, sub]) => `<article class="an-metric"><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`).join('');
@@ -4948,9 +4968,13 @@ async function preencherFichaAnalitica(selecionado, carreira) {
   document.getElementById('an-card-name').textContent = vendedor.nome;
   document.getElementById('an-card-role').textContent = externo ? 'Vendedor externo' : 'Vendedor interno';
   document.getElementById('an-card-sales').textContent = vendas.toLocaleString('pt-BR');
-  document.getElementById('an-card-sales-note').textContent = metaVendas > 0 ? `${Math.round(vendas / metaVendas * 100)}% da meta M1 · ${metaVendas} vendas` : 'Meta M1 não cadastrada';
+  document.getElementById('an-card-sales-note').textContent = externo
+    ? (metaVendas > 0 ? `${Math.round(vendas / metaVendas * 100)}% da meta mensal · ${metaVendas} vendas` : 'Meta mensal não cadastrada')
+    : resumirMarcosMeta(vendas, selecionado.metasVendas, metaVendas);
   document.getElementById('an-card-renewals').textContent = renovacoes.toLocaleString('pt-BR');
-  document.getElementById('an-card-renewals-note').textContent = externo ? 'renovações registradas · sem meta' : metaRenovacoes > 0 ? `${Math.round(renovacoes / metaRenovacoes * 100)}% da meta M1 · ${metaRenovacoes}` : 'meta individual não cadastrada';
+  document.getElementById('an-card-renewals-note').textContent = externo
+    ? 'renovações registradas · sem meta no rank'
+    : resumirMarcosMeta(renovacoes, selecionado.metasRenovacao, metaRenovacoes);
   document.getElementById('an-card-ticket').textContent = `R$ ${formatarValorAnalitica(ticket)}`;
   document.getElementById('an-card-ticket-note').textContent = referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível';
   document.getElementById('an-card-generated').textContent = new Date().toLocaleDateString('pt-BR');
