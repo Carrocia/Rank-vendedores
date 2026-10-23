@@ -4929,7 +4929,12 @@ async function gerarFichaAnalitica(evt) {
   } finally { if (btn) { btn.disabled = false; btn.innerHTML = original; } }
 }
 
-document.getElementById('an-vendedor-select')?.addEventListener('change', () => renderizarPerfilAnalitico());
+// Este script é carregado antes do HTML da área administrativa. Use delegação
+// no document para que a troca do colaborador funcione mesmo quando o select
+// ainda não existia no momento em que o arquivo foi executado.
+document.addEventListener('change', event => {
+  if (event.target?.id === 'an-vendedor-select') renderizarPerfilAnalitico();
+});
 document.addEventListener('adm:dashboarddataready', () => {
   if (document.getElementById('sec-analitica')?.classList.contains('active')) renderizarAnaliticaPerfis();
 });
