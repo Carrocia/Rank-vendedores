@@ -1010,6 +1010,7 @@ html::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.34); }
   padding-top: 16px;
   border-top: 1px solid var(--adm-border, rgba(255,255,255,.1));
 }
+.ixc-reconciliation-controls[hidden] { display:none !important; }
 
 .ixc-reconciliation-confirm {
   margin-right: auto;
@@ -1024,6 +1025,7 @@ html::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.34); }
   color: var(--text-primary, #e8edf5);
   font-size: .82rem;
 }
+.ixc-reconciliation-period-error { display:block; margin-top:6px; color:#f2c879; font-size:.78rem; line-height:1.45; }
 
 .ixc-reconciliation-branch-counts {
   display: flex;

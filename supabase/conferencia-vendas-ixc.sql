@@ -33,9 +33,13 @@ create policy vendas_conferencia_ixc_select on public.vendas_conferencia_ixc
 revoke all on table public.vendas_conferencia_ixc from anon, authenticated;
 grant select on table public.vendas_conferencia_ixc to authenticated;
 
+drop function if exists public.conferir_vendas_ausentes_ixc(bigint[], text[]);
+
 create or replace function public.conferir_vendas_ausentes_ixc(
   p_filial_ids bigint[],
-  p_contratos_ativos text[]
+  p_contratos_ativos text[],
+  p_periodo_inicio date,
+  p_periodo_fim date
 )
 returns integer
 language plpgsql
@@ -66,6 +70,13 @@ begin
     raise exception 'O relatório precisa conter filial reconhecida e contratos ativos.';
   end if;
 
+  if p_periodo_inicio is null
+     or p_periodo_fim is null
+     or p_periodo_inicio <> date_trunc('month', p_periodo_inicio)::date
+     or p_periodo_fim <> (p_periodo_inicio + interval '1 month')::date then
+    raise exception 'Informe o primeiro dia e o fim exclusivo de um único mês.';
+  end if;
+
   if exists (
     select 1 from unnest(v_filiais) f
     where not private.admin_tem_acesso_filial(f)
@@ -85,6 +96,8 @@ begin
     and c.situacao = 'pendente'
     and c.motivo <> 'revisar_valor_variavel_ixc'
     and v.filial_destino_id = any(v_filiais)
+    and (v.data_venda::timestamptz at time zone 'America/Manaus')::date >= p_periodo_inicio
+    and (v.data_venda::timestamptz at time zone 'America/Manaus')::date < p_periodo_fim
     and btrim(coalesce(v.numero_venda, '')) = any(v_contratos);
 
   -- Vendas antigas com valor de plano zero não tinham pendência própria.
@@ -95,6 +108,8 @@ begin
          'revisar_valor_zero_legado', now()
   from public.vendas v
   where v.filial_destino_id = any(v_filiais)
+    and (v.data_venda::timestamptz at time zone 'America/Manaus')::date >= p_periodo_inicio
+    and (v.data_venda::timestamptz at time zone 'America/Manaus')::date < p_periodo_fim
     and coalesce(v.valor, 0) = 0
     and nullif(btrim(coalesce(v.numero_venda, '')), '') is not null
   on conflict (venda_id) do update
@@ -111,6 +126,8 @@ begin
   select v.id, v.filial_destino_id, btrim(v.numero_venda), 'pendente', now()
   from public.vendas v
   where v.filial_destino_id = any(v_filiais)
+    and (v.data_venda::timestamptz at time zone 'America/Manaus')::date >= p_periodo_inicio
+    and (v.data_venda::timestamptz at time zone 'America/Manaus')::date < p_periodo_fim
     and nullif(btrim(v.numero_venda), '') is not null
     and coalesce(v.valor, 0) <> 0
     and not (btrim(v.numero_venda) = any(v_contratos))
@@ -216,9 +233,9 @@ begin
 end;
 $function$;
 
-revoke all on function public.conferir_vendas_ausentes_ixc(bigint[], text[]) from public, anon;
+revoke all on function public.conferir_vendas_ausentes_ixc(bigint[], text[], date, date) from public, anon;
 revoke all on function public.resolver_conferencia_venda_ixc(bigint, text, text) from public, anon;
-grant execute on function public.conferir_vendas_ausentes_ixc(bigint[], text[]) to authenticated;
+grant execute on function public.conferir_vendas_ausentes_ixc(bigint[], text[], date, date) to authenticated;
 grant execute on function public.resolver_conferencia_venda_ixc(bigint, text, text) to authenticated;
 
 commit;

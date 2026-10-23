@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-all-5">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-all-6">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -324,7 +324,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261023-analitica-ranks-1"></script>
   <script src="assets/js/supabase-admin.js?v=20261023-adm-layout-1"></script>
-  <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
+  <script src="assets/js/ixc-import.js?v=20261023-ixc-monthly-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -681,10 +681,10 @@
               </div>
               <div class="adm-form-full ixc-reconciliation-controls" id="ixc-reconciliation-controls" hidden>
                 <div class="ixc-reconciliation-summary" id="ixc-reconciliation-summary" aria-live="polite"></div>
-                <details class="adm-help-details ixc-reconciliation-warning"><summary>Antes de conferir vendas já cadastradas</summary><p>A conferência compara somente a filial aberta, mesmo que o CSV tenha várias filiais. Confira se o relatório contém todos os contratos ativos dessa filial; arquivos filtrados por cliente, vendedor ou filial podem gerar pendências incorretas.</p></details>
+                <details class="adm-help-details ixc-reconciliation-warning"><summary>Antes de conferir vendas já cadastradas</summary><p>A conferência compara as vendas cadastradas na filial aberta somente com as vendas do mês identificado pela Data ativação no CSV. Use o arquivo mensal completo, sem filtros por cliente, vendedor ou filial, para que os contratos ausentes sejam sinalizados corretamente.</p></details>
                 <label class="tema-check ixc-reconciliation-confirm">
                   <input type="checkbox" id="ixc-reconciliation-complete" onchange="atualizarBotaoConferenciaIxc()">
-                  Confirmo que este arquivo contém todos os contratos ativos da filial aberta e que o total exibido está correto.
+                  Confirmo que este arquivo contém todas as vendas do mês indicado para a filial aberta e que o total exibido está correto.
                 </label>
                 <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="ixc-reconciliation-submit" onclick="reconciliarRelatorioIxc()" disabled>Conferir vendas já cadastradas</button>
                 <span class="adm-vendedor-cadastro-hint" id="ixc-reconciliation-status" aria-live="polite"></span>
@@ -701,7 +701,7 @@
             </div>
             <details class="adm-help-details">
               <summary>Como tratar uma venda pendente</summary>
-              <p>Vendas que não apareceram na lista completa de contratos ativos e vendas de planos sem preço fixo ficam aqui para revisão. Em Telefonia NBS, Padrão UNI e Serviço, edite o valor do plano e os adicionais; R$ 0,00 também é válido. Depois, clique em “Manter válida”. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores. Para contratos ausentes, o sistema também pode sugerir vínculos com base em cliente, vendedor e plano; a comparação roda no navegador e só vincula após sua confirmação.</p>
+              <p>Vendas que não aparecem no relatório mensal da filial e vendas de planos sem preço fixo ficam aqui para revisão. Em Telefonia NBS, Padrão UNI e Serviço, edite o valor do plano e os adicionais; R$ 0,00 também é válido. Depois, clique em “Manter válida”. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores. Para contratos ausentes, o sistema também pode sugerir vínculos com base em cliente, vendedor e plano; a comparação roda no navegador e só vincula após sua confirmação.</p>
             </details>
             <div class="adm-table-wrap">
               <table class="adm-table">

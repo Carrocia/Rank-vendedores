@@ -435,13 +435,44 @@ function linhasAtivasFilialAtualIxc() {
   );
 }
 
+function obterMesAtivacaoIxc(linha) {
+  for (const valor of [linha?.dataAtivacao, linha?.ultimaAtualizacao]) {
+    const correspondencia = String(valor || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!correspondencia) continue;
+    const dia = Number(correspondencia[1]);
+    const mes = Number(correspondencia[2]);
+    const ano = Number(correspondencia[3]);
+    const data = new Date(Date.UTC(ano, mes - 1, dia));
+    if (data.getUTCFullYear() !== ano || data.getUTCMonth() !== mes - 1 || data.getUTCDate() !== dia) continue;
+    return `${ano}-${String(mes).padStart(2, '0')}`;
+  }
+  return '';
+}
+
+function obterContextoConferenciaIxc() {
+  const linhas = linhasAtivasFilialAtualIxc();
+  const meses = new Set(linhas.map(obterMesAtivacaoIxc).filter(Boolean));
+  const datasInvalidas = linhas.some(linha => !obterMesAtivacaoIxc(linha));
+  const mes = meses.size === 1 && !datasInvalidas ? [...meses][0] : '';
+  return { linhas, mes, meses: [...meses].sort(), datasInvalidas };
+}
+
+function primeiroDiaMesSeguinteIxc(mes) {
+  const [ano, numeroMes] = String(mes || '').split('-').map(Number);
+  if (!Number.isInteger(ano) || !Number.isInteger(numeroMes) || numeroMes < 1 || numeroMes > 12) return '';
+  const proximoAno = numeroMes === 12 ? ano + 1 : ano;
+  const proximoMes = numeroMes === 12 ? 1 : numeroMes + 1;
+  return `${proximoAno}-${String(proximoMes).padStart(2, '0')}-01`;
+}
+
 function atualizarBotaoConferenciaIxc() {
   const controles = document.getElementById('ixc-reconciliation-controls');
   const resumoFiliais = document.getElementById('ixc-reconciliation-summary');
   const confirmacao = document.getElementById('ixc-reconciliation-complete');
   const botao = document.getElementById('ixc-reconciliation-submit');
   if (!controles || !confirmacao || !botao) return;
-  const linhasComparaveis = linhasAtivasFilialAtualIxc();
+  const contexto = obterContextoConferenciaIxc();
+  const linhasComparaveis = contexto.linhas;
   const contagens = new Map();
   linhasComparaveis.forEach(linha => {
     const filialId = String(linha.filialDestinoId);
@@ -454,13 +485,21 @@ function atualizarBotaoConferenciaIxc() {
   const totalContratos = [...contagens.values()].reduce((total, filial) => total + filial.contratos.size, 0);
   if (resumoFiliais) {
     const filialAtualNome = window.FILIAL_ATUAL?.nome || [...contagens.values()][0]?.nome || 'filial aberta';
+    const periodo = contexto.mes
+      ? ` no mês ${escapeHtmlText(new Date(`${contexto.mes}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))}`
+      : '';
+    const problemaPeriodo = contexto.meses.length > 1
+      ? 'O arquivo contém mais de um mês de ativação nesta filial. Use um relatório mensal.'
+      : contexto.datasInvalidas
+        ? 'Há contratos sem data de ativação válida nesta filial; confira o arquivo antes de comparar.'
+        : 'Não foi possível identificar o mês do relatório pelas datas de ativação.';
     resumoFiliais.innerHTML = totalContratos
-      ? `<strong>${totalContratos} contrato(s) ativo(s) na filial ${escapeHtmlText(filialAtualNome)}</strong>`
+      ? `<strong>${totalContratos} contrato(s) ativo(s)${periodo} na filial ${escapeHtmlText(filialAtualNome)}</strong>${contexto.mes ? '' : `<span class="ixc-reconciliation-period-error">${escapeHtmlText(problemaPeriodo)}</span>`}`
       : '';
   }
-  const temDadosComparaveis = totalContratos > 0;
-  controles.hidden = !temDadosComparaveis;
-  botao.disabled = _conferenciaIxcEmAndamento || !confirmacao.checked || !temDadosComparaveis;
+  const temDados = totalContratos > 0;
+  controles.hidden = !temDados;
+  botao.disabled = _conferenciaIxcEmAndamento || !confirmacao.checked || !temDados || !contexto.mes;
   atualizarBotaoLimparImportacaoIxc();
 }
 
@@ -555,9 +594,14 @@ async function reconciliarRelatorioIxc() {
     return;
   }
   const filialAtualId = Number(window.FILIAL_ATUAL_ID);
-  const linhasAtivas = linhasAtivasFilialAtualIxc();
+  const contexto = obterContextoConferenciaIxc();
+  const linhasAtivas = contexto.mes ? contexto.linhas.filter(linha => obterMesAtivacaoIxc(linha) === contexto.mes) : [];
   const filiais = linhasAtivas.length && Number.isInteger(filialAtualId) ? [filialAtualId] : [];
   const contratos = [...new Set(linhasAtivas.map(linha => String(linha.contrato).trim()))];
+  if (!contexto.mes) {
+    showToast('A conferência precisa de um único mês e de datas de ativação válidas no relatório. Confira o arquivo mensal.', 'warning');
+    return;
+  }
   if (!filiais.length || !contratos.length) {
     showToast(`Não encontrei contratos ativos da filial aberta (${window.FILIAL_ATUAL?.nome || filialAtualId}) neste relatório. Confira o código de filial no arquivo IXC.`, 'warning');
     return;
@@ -571,13 +615,16 @@ async function reconciliarRelatorioIxc() {
     const { data, error } = await window._supabase.rpc('conferir_vendas_ausentes_ixc', {
       p_filial_ids: filiais,
       p_contratos_ativos: contratos,
+      p_periodo_inicio: `${contexto.mes}-01`,
+      p_periodo_fim: primeiroDiaMesSeguinteIxc(contexto.mes),
     });
     if (error) throw error;
     const total = Number(data || 0);
     const nomeFilialAtual = window.FILIAL_ATUAL?.nome || linhasAtivas[0]?.filialDestinoNome || `Filial ${filialAtualId}`;
     _filiaisFiltroPendenciasIxc = [{ id: filialAtualId, nome: nomeFilialAtual }];
-    if (status) status.textContent = `Conferência concluída. ${total} venda(s) pendente(s) nova(s) ou revisitada(s).`;
-    showToast(`Conferência concluída: ${total} venda(s) aguardando revisão.`, 'success');
+    const mesLabel = new Date(`${contexto.mes}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    if (status) status.textContent = `Conferência de ${mesLabel} concluída. ${total} venda(s) pendente(s) nova(s) ou revisitada(s).`;
+    showToast(`Conferência de ${mesLabel} concluída: ${total} venda(s) aguardando revisão.`, 'success');
     _relatorioIxcParaSugestoes = [..._linhasImportacaoIxc];
     await carregarPendenciasIxc(_relatorioIxcParaSugestoes);
   } catch (error) {
