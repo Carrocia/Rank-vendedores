@@ -2460,6 +2460,7 @@ function renderAll(cache) {
   renderAdmMetasConfig(cache);
   renderConfigMetas(cache);
   renderAdmDashboard(d);
+  document.dispatchEvent(new CustomEvent('adm:dashboarddataready'));
 }
 
 // toggleTheme continua sendo a ÚNICA função responsável pela troca de

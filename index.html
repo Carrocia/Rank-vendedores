@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261022-renewal-layout-1">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-analitica-ranks-1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261022-renovacoes-fluxo-4">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261023-analitica-ranks-1">
 </head>
 <body>
 
@@ -322,8 +322,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261022-ranking-elegibilidade-2"></script>
-  <script src="assets/js/supabase-admin.js?v=20261022-ranking-fechamento-1"></script>
+  <script src="assets/js/dashboard.js?v=20261023-analitica-ranks-1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261023-analitica-ranks-1"></script>
   <script src="assets/js/ixc-import.js?v=20261022-ixc-branch-scoped-reconciliation-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -380,6 +380,7 @@
         <button class="adm-nav-item" data-section="nova-venda"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plus"/></svg></span>Nova Venda</button>
         <button class="adm-nav-item" data-section="adicionais"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plug"/></svg></span>Vendas Adicionais</button>
         <button class="adm-nav-item" data-section="vendedores"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-users"/></svg></span>Vendedores</button>
+        <button class="adm-nav-item" data-section="analitica"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Analítica</button>
         <button class="adm-nav-item" data-section="metas" id="adm-nav-metas" style="display:none;"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-target"/></svg></span>Metas</button>
         <button class="adm-nav-item" data-section="config-metas"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg></span>Metas da Filial e Equipe</button>
         <button class="adm-nav-item" data-section="relatorios"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Relatórios</button>
@@ -890,6 +891,38 @@
               <div class="adm-pagination" id="adm-vendedores-global-paginacao"></div>
             </div>
           </details>
+        </section>
+
+        <!-- ── ANALÍTICA INDIVIDUAL ──────────────────────────── -->
+        <section class="adm-section" id="sec-analitica">
+          <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Analítica de desempenho</div>
+          <p class="adm-description">Consulte o perfil individual e gere uma ficha de desempenho para compartilhar com o colaborador.</p>
+          <div class="an-controls adm-form-card">
+            <div class="adm-field">
+              <label for="an-vendedor-select">Colaborador</label>
+              <select id="an-vendedor-select"><option value="">Carregando equipe…</option></select>
+            </div>
+            <div class="an-period" id="an-periodo">—</div>
+          </div>
+          <div class="an-profile" id="an-profile" hidden>
+            <header class="an-profile-header">
+              <div class="an-profile-person">
+                <div class="an-avatar" id="an-avatar">—</div>
+                <div><h2 id="an-nome">—</h2><p id="an-filial-tipo">—</p></div>
+              </div>
+              <button type="button" class="adm-btn adm-btn-primary" id="an-gerar-btn" onclick="gerarFichaAnalitica(event)">
+                <svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg>Gerar ficha PNG
+              </button>
+            </header>
+            <div class="an-ranks">
+              <article class="an-rank-card"><span>RANK DO MÊS</span><div><img id="an-rank-mensal-img" alt=""><strong id="an-rank-mensal">—</strong></div><small id="an-rank-mensal-status">—</small></article>
+              <article class="an-rank-card"><span>RANK DE CARREIRA</span><div><img id="an-rank-carreira-img" alt=""><strong id="an-rank-carreira">—</strong></div><small id="an-rank-carreira-status">—</small></article>
+              <article class="an-rank-card an-rank-progress"><span>CAMINHO ATÉ SS</span><strong id="an-ss-progresso">0/4 meses M1</strong><div class="an-progress"><i id="an-ss-barra"></i></div><small id="an-ss-nota">A sequência começa após o primeiro fechamento mensal.</small></article>
+            </div>
+            <div class="an-metrics" id="an-metrics"></div>
+            <p class="an-status" id="an-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="adm-empty-state an-empty" id="an-empty">Selecione um colaborador para ver o perfil de desempenho.</div>
         </section>
 
         <!-- ── METAS ───────────────────────────────────────────── -->
@@ -1645,6 +1678,30 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Ficha individual de desempenho e progressão, exportada pela área Analítica. -->
+<div id="an-offscreen" aria-hidden="true">
+  <article id="an-card">
+    <div class="an-card-glow"></div>
+    <div class="an-card-inner">
+      <header class="an-card-brand"><img data-logo="dark" alt="UNI Internet"><span>FICHA DE DESEMPENHO</span></header>
+      <div class="an-card-divider"></div>
+      <div class="an-card-period"><span id="an-card-period">—</span><span id="an-card-filial">—</span></div>
+      <section class="an-card-person"><div id="an-card-avatar" class="an-card-avatar">—</div><div><h1 id="an-card-name">—</h1><p id="an-card-role">—</p></div></section>
+      <section class="an-card-ranks">
+        <article><span>RANK MENSAL</span><img id="an-card-month-rank-img" alt=""><strong id="an-card-month-rank">—</strong><small id="an-card-month-note">—</small></article>
+        <article><span>RANK DE CARREIRA</span><img id="an-card-career-rank-img" alt=""><strong id="an-card-career-rank">—</strong><small id="an-card-career-note">—</small></article>
+      </section>
+      <section class="an-card-progress"><div><span>PROGRESSO PARA SS</span><strong id="an-card-ss-count">0/4</strong></div><div class="an-card-progress-bar"><i id="an-card-ss-bar"></i></div><small id="an-card-ss-note">—</small></section>
+      <section class="an-card-stats">
+        <article><span>VENDAS</span><strong id="an-card-sales">—</strong><small id="an-card-sales-note">—</small></article>
+        <article><span>RENOVAÇÕES</span><strong id="an-card-renewals">—</strong><small id="an-card-renewals-note">—</small></article>
+        <article><span>TICKET MÉDIO</span><strong id="an-card-ticket">—</strong><small id="an-card-ticket-note">—</small></article>
+      </section>
+      <footer class="an-card-footer"><span>UNI INTERNET · EVOLUÇÃO COMERCIAL</span><span id="an-card-generated">—</span></footer>
+    </div>
+  </article>
 </div>
 
 <!-- Card mensal consolidado da filial: baixado pelo administrador para compartilhar. -->

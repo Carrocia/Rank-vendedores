@@ -3875,6 +3875,7 @@ function adm_navigateTo(sectionId) {
   if (sectionId === 'rede') carregarDashboardRede();
   if (sectionId === 'nova-venda' && typeof carregarPendenciasIxc === 'function') carregarPendenciasIxc();
   if (sectionId === 'renovacoes') carregarRelatorioResumoRenovacoes();
+  if (sectionId === 'analitica') renderizarAnaliticaPerfis();
   // A área rolável é o conteúdo interno no mobile e o overlay no desktop.
   document.querySelector('#adm-panel .adm-panel-inner')?.scrollTo({ top: 0, behavior: 'auto' });
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
@@ -4676,6 +4677,262 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
     if (btn) { btn.disabled = false; btn.textContent = textoOriginalBtn; }
   }
 }
+
+// ── Analítica individual e ficha de progressão ───────────────────
+let _analiticaRenderToken = 0;
+const RANK_CARREIRA_ORDEM = ['D', 'C', 'B', 'A', 'S', 'SS'];
+const RANK_CARREIRA_IMAGENS = {
+  D: 'assets/images/ranks/rank-d.png', C: 'assets/images/ranks/rank-c.png',
+  B: 'assets/images/ranks/rank-b.png', A: 'assets/images/ranks/rank-a.png',
+  S: 'assets/images/ranks/rank-s.png', SS: 'assets/images/ranks/rank-ss.png',
+};
+
+function formatarValorAnalitica(valor) {
+  return Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function calcularProgressoCarreira(historico, tipo) {
+  const meses = new Map();
+  (historico || []).forEach(item => {
+    const chave = `${Number(item.ano)}-${String(Number(item.mes)).padStart(2, '0')}`;
+    const atual = meses.get(chave);
+    // Se houve mais de um cadastro/regional para a mesma identidade no mês,
+    // preserva o melhor marco fechado desse período.
+    if (!atual || RANK_CARREIRA_ORDEM.indexOf(item.rank_mensal) > RANK_CARREIRA_ORDEM.indexOf(atual.rank_mensal)) meses.set(chave, item);
+  });
+  const ordenado = [...meses.values()].sort((a, b) => Number(a.ano) - Number(b.ano) || Number(a.mes) - Number(b.mes));
+  let streakAtual = 0;
+  for (let i = ordenado.length - 1; i >= 0; i--) {
+    const item = ordenado[i];
+    if (item.m1_vendas !== true) break;
+    if (i < ordenado.length - 1) {
+      const anterior = ordenado[i + 1];
+      const mesAnterior = Number(item.ano) * 12 + Number(item.mes);
+      const mesSeguinte = Number(anterior.ano) * 12 + Number(anterior.mes);
+      if (mesSeguinte - mesAnterior !== 1) break;
+    }
+    streakAtual++;
+  }
+  let ssConquistado = false;
+  for (let i = 0; i <= ordenado.length - 4; i++) {
+    const janela = ordenado.slice(i, i + 4);
+    const consecutivos = janela.every((item, index) => index === 0 || (Number(item.ano) * 12 + Number(item.mes)) - (Number(janela[index - 1].ano) * 12 + Number(janela[index - 1].mes)) === 1);
+    if (consecutivos && janela.every(item => item.m1_vendas === true) && (tipo === 'externo' || janela[3].m1_renovacoes === true)) {
+      ssConquistado = true;
+      break;
+    }
+  }
+  const melhoresRanks = ordenado.map(item => item.rank_mensal).filter(rank => RANK_CARREIRA_ORDEM.includes(rank));
+  const rankCarreira = ssConquistado ? 'SS' : melhoresRanks.reduce((melhor, rank) => RANK_CARREIRA_ORDEM.indexOf(rank) > RANK_CARREIRA_ORDEM.indexOf(melhor) ? rank : melhor, 'D');
+  return { rankCarreira, streakAtual: Math.min(4, streakAtual), ssConquistado, mesesFechados: ordenado.length };
+}
+
+function obterPerfilAnaliticoSelecionado() {
+  const id = document.getElementById('an-vendedor-select')?.value;
+  if (!id || !_ultimoProcessado) return null;
+  const vendedor = [...(_ultimoProcessado.intMes || []), ...(_ultimoProcessado.extMes || [])]
+    .find(item => String(item.id) === String(id));
+  if (!vendedor) return null;
+  const cadastro = (_cache.vendedores || []).find(item => String(item.id) === String(id));
+  const rank = (_cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(id)) || null;
+  const renovacao = (_cache.renovacoesMes || [])?.find(item => String(item.vendedor_id) === String(id));
+  return { vendedor, cadastro, rank, renovacao, tipo: vendedor.tipo || cadastro?.tipo || 'interno' };
+}
+
+async function renderizarAnaliticaPerfis() {
+  const select = document.getElementById('an-vendedor-select');
+  const periodo = document.getElementById('an-periodo');
+  const vazio = document.getElementById('an-empty');
+  const profile = document.getElementById('an-profile');
+  if (!select || !profile || !vazio) return;
+  const token = ++_analiticaRenderToken;
+  const selecionadoAntes = select.value;
+  const d = _ultimoProcessado;
+  if (!d) {
+    select.replaceChildren(new Option('Aguardando dados da equipe…', ''));
+    vazio.hidden = false;
+    vazio.textContent = 'Os dados do painel ainda estão carregando.';
+    profile.hidden = true;
+    return;
+  }
+  const vendedores = [...(d.intMes || []), ...(d.extMes || [])]
+    .filter(item => (_cache.vendedores || []).find(v => String(v.id) === String(item.id))?.participa_ranking !== false)
+    .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  select.replaceChildren(new Option('Selecione um colaborador', ''));
+  vendedores.forEach(item => {
+    const cadastro = (_cache.vendedores || []).find(v => String(v.id) === String(item.id));
+    const tipo = item.tipo === 'externo' ? 'Externo' : 'Interno';
+    select.add(new Option(`${item.nome} · ${tipo}`, String(item.id)));
+  });
+  if (vendedores.some(item => String(item.id) === selecionadoAntes)) select.value = selecionadoAntes;
+  if (periodo) {
+    const mesNome = d.mes?.mesNome || CONFIG.mesReferencia || '';
+    periodo.textContent = `${String(mesNome).trim()} ${d.mes?.ano || new Date().getFullYear()}`;
+  }
+  if (!vendedores.length) {
+    vazio.hidden = false;
+    vazio.textContent = 'Nenhum colaborador participante do ranking foi encontrado nesta filial.';
+    profile.hidden = true;
+    return;
+  }
+  if (select.value) await renderizarPerfilAnalitico(token);
+  else {
+    profile.hidden = true;
+    vazio.hidden = false;
+    vazio.textContent = 'Selecione um colaborador para ver o perfil de desempenho.';
+  }
+}
+
+async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
+  const selecionado = obterPerfilAnaliticoSelecionado();
+  const profile = document.getElementById('an-profile');
+  const vazio = document.getElementById('an-empty');
+  if (!selecionado || !profile || !vazio) return;
+  const { vendedor, cadastro, rank, renovacao, tipo } = selecionado;
+  const externo = tipo === 'externo';
+  const vendas = Number(rank?.vendas ?? vendedor.vendas ?? 0);
+  const metaVendas = Number(rank?.meta_vendas ?? vendedor.meta ?? 0);
+  const renovacoes = Number(renovacao?.quantidade ?? rank?.renovacoes ?? 0);
+  const metaRenovacoes = Number(rank?.meta_renovacoes || 0);
+  const ticket = Number(rank?.ticket_medio ?? (vendedor.vendas ? Number(vendedor.valor || 0) / Number(vendedor.vendas) : 0));
+  const referencia = Number(rank?.ticket_referencia || 0);
+  const rankMensal = rank?.elegivel ? rank.rank_mensal : null;
+  const fileira = document.getElementById('an-avatar');
+  const foto = cadastro?.foto_url || vendedor.foto_url || PHOTOS[vendedor.slug] || '';
+  fileira.replaceChildren();
+  if (foto) {
+    const img = new Image(); img.alt = ''; img.crossOrigin = 'anonymous'; img.src = foto;
+    img.onerror = () => { fileira.textContent = String(vendedor.nome || '?').trim().charAt(0).toUpperCase(); };
+    fileira.appendChild(img);
+  } else fileira.textContent = String(vendedor.nome || '?').trim().charAt(0).toUpperCase();
+  document.getElementById('an-nome').textContent = vendedor.nome;
+  document.getElementById('an-filial-tipo').textContent = `${window.FILIAL_ATUAL?.nome || 'Filial selecionada'} · ${externo ? 'Vendedor externo' : 'Vendedor interno'}`;
+  document.getElementById('an-rank-mensal').textContent = rankMensal || 'Sem base';
+  const rankMensalImg = document.getElementById('an-rank-mensal-img');
+  rankMensalImg.hidden = !rankMensal;
+  if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
+  document.getElementById('an-rank-mensal-status').textContent = rank?.elegivel ? `${rank.vendas} vendas · ${rank.renovacoes} renovações` : 'Confira as metas e o ticket de referência';
+  const status = document.getElementById('an-status');
+  if (status) status.textContent = 'Carregando histórico de carreira…';
+  let historico = [];
+  if (window._supabase && cadastro?.carreira_pessoa_id) {
+    const { data, error } = await window._supabase.rpc('historico_rank_carreira_analitica', {
+      p_carreira_pessoa_id: cadastro.carreira_pessoa_id,
+      p_filial_id: Number(window.FILIAL_ATUAL_ID),
+    });
+    if (token !== _analiticaRenderToken) return;
+    if (error) {
+      console.warn('[renderizarPerfilAnalitico] falha ao carregar histórico de carreira:', error.message);
+      if (status) status.textContent = 'Aplique supabase/historico-rank-carreira-analitica.sql para consultar o histórico seguro da carreira.';
+    } else historico = data || [];
+  }
+  const carreira = calcularProgressoCarreira(historico, tipo);
+  const rankCarreiraImg = document.getElementById('an-rank-carreira-img');
+  document.getElementById('an-rank-carreira').textContent = carreira.rankCarreira;
+  rankCarreiraImg.src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
+  document.getElementById('an-rank-carreira-status').textContent = carreira.mesesFechados
+    ? `${carreira.mesesFechados} mês(es) fechado(s) no histórico`
+    : 'Base inicial · o ciclo começa em outubro de 2026';
+  document.getElementById('an-ss-progresso').textContent = `${carreira.streakAtual}/4 meses M1`;
+  document.getElementById('an-ss-barra').style.width = `${carreira.streakAtual * 25}%`;
+  document.getElementById('an-ss-nota').textContent = carreira.ssConquistado
+    ? 'SS conquistado pela sequência de meses fechados.'
+    : externo ? 'Externo: quatro meses consecutivos com M1 em vendas.'
+      : 'Interno: quatro M1 de vendas; no quarto mês, também M1 em renovações.';
+  const pctVendas = metaVendas > 0 ? Math.round(vendas / metaVendas * 100) : null;
+  const pctRenovacoes = metaRenovacoes > 0 ? Math.round(renovacoes / metaRenovacoes * 100) : null;
+  const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;
+  const cards = [
+    ['Vendas no mês', vendas.toLocaleString('pt-BR'), metaVendas > 0 ? `${pctVendas}% da meta M1 · meta ${metaVendas}` : 'Meta M1 não cadastrada'],
+    ['Renovações', renovacoes.toLocaleString('pt-BR'), externo ? 'Sem meta para vendedor externo' : metaRenovacoes > 0 ? `${pctRenovacoes}% da meta M1 · meta ${metaRenovacoes}` : 'Meta individual não cadastrada'],
+    ['Ticket médio', `R$ ${formatarValorAnalitica(ticket)}`, referencia > 0 ? `${pctTicket}% da referência regional (R$ ${formatarValorAnalitica(referencia)})` : 'Referência indisponível'],
+  ];
+  document.getElementById('an-metrics').innerHTML = cards.map(([label, value, sub]) => `<article class="an-metric"><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`).join('');
+  if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
+  await preencherFichaAnalitica(selecionado, carreira);
+  profile.hidden = false;
+  vazio.hidden = true;
+}
+
+async function preencherFichaAnalitica(selecionado, carreira) {
+  const { vendedor, cadastro, rank, renovacao, tipo } = selecionado;
+  const externo = tipo === 'externo';
+  const rankMensal = rank?.elegivel ? rank.rank_mensal : null;
+  const vendas = Number(rank?.vendas ?? vendedor.vendas ?? 0);
+  const metaVendas = Number(rank?.meta_vendas ?? vendedor.meta ?? 0);
+  const renovacoes = Number(renovacao?.quantidade ?? rank?.renovacoes ?? 0);
+  const metaRenovacoes = Number(rank?.meta_renovacoes || 0);
+  const ticket = Number(rank?.ticket_medio ?? (vendedor.vendas ? Number(vendedor.valor || 0) / Number(vendedor.vendas) : 0));
+  const referencia = Number(rank?.ticket_referencia || 0);
+  const card = document.getElementById('an-card');
+  const foto = cadastro?.foto_url || vendedor.foto_url || PHOTOS[vendedor.slug] || '';
+  const avatar = document.getElementById('an-card-avatar');
+  avatar.replaceChildren();
+  if (foto) {
+    const img = new Image(); img.alt = ''; img.crossOrigin = 'anonymous'; img.src = foto;
+    img.onerror = () => { avatar.textContent = String(vendedor.nome || '?').trim().charAt(0).toUpperCase(); };
+    avatar.appendChild(img);
+  } else avatar.textContent = String(vendedor.nome || '?').trim().charAt(0).toUpperCase();
+  const rankMensalImg = document.getElementById('an-card-month-rank-img');
+  rankMensalImg.hidden = !rankMensal;
+  if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
+  document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem base';
+  document.getElementById('an-card-month-note').textContent = rank?.elegivel ? 'classificação atual' : 'dados insuficientes para classificar';
+  document.getElementById('an-card-career-rank-img').src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
+  document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira;
+  document.getElementById('an-card-career-note').textContent = carreira.mesesFechados ? 'melhor nível nos meses fechados' : 'início da trajetória';
+  document.getElementById('an-card-ss-count').textContent = `${carreira.streakAtual}/4`;
+  document.getElementById('an-card-ss-bar').style.width = `${carreira.streakAtual * 25}%`;
+  document.getElementById('an-card-ss-note').textContent = carreira.ssConquistado
+    ? 'Marco SS conquistado.' : externo ? 'Quatro meses M1 consecutivos em vendas.' : 'Quatro meses M1 em vendas; renovação M1 no quarto mês.';
+  const d = _ultimoProcessado;
+  const periodo = d?.mes?.mesNome ? `${d.mes.mesNome} ${d.mes.ano || ''}` : CONFIG.mesReferencia || '';
+  document.getElementById('an-card-period').textContent = periodo;
+  document.getElementById('an-card-filial').textContent = window.FILIAL_ATUAL?.nome || 'UNI Internet';
+  document.getElementById('an-card-name').textContent = vendedor.nome;
+  document.getElementById('an-card-role').textContent = externo ? 'Vendedor externo' : 'Vendedor interno';
+  document.getElementById('an-card-sales').textContent = vendas.toLocaleString('pt-BR');
+  document.getElementById('an-card-sales-note').textContent = metaVendas > 0 ? `${Math.round(vendas / metaVendas * 100)}% da meta M1 · ${metaVendas} vendas` : 'Meta M1 não cadastrada';
+  document.getElementById('an-card-renewals').textContent = renovacoes.toLocaleString('pt-BR');
+  document.getElementById('an-card-renewals-note').textContent = externo ? 'renovações registradas · sem meta' : metaRenovacoes > 0 ? `${Math.round(renovacoes / metaRenovacoes * 100)}% da meta M1 · ${metaRenovacoes}` : 'meta individual não cadastrada';
+  document.getElementById('an-card-ticket').textContent = `R$ ${formatarValorAnalitica(ticket)}`;
+  document.getElementById('an-card-ticket-note').textContent = referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível';
+  document.getElementById('an-card-generated').textContent = new Date().toLocaleDateString('pt-BR');
+  if (rankMensal) card.dataset.rank = String(rankMensal).toLowerCase(); else delete card.dataset.rank;
+}
+
+async function gerarFichaAnalitica(evt) {
+  const selecionado = obterPerfilAnaliticoSelecionado();
+  if (!selecionado) { showToast('Selecione um colaborador antes de gerar a ficha.', 'warning'); return; }
+  const btn = evt?.currentTarget || document.getElementById('an-gerar-btn');
+  const original = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.textContent = 'Gerando ficha…'; }
+  try {
+    await renderizarPerfilAnalitico();
+    if (typeof html2canvas === 'undefined') await carregarLibsAdmin();
+    if (typeof html2canvas === 'undefined') throw new Error('A biblioteca de imagem não carregou.');
+    if (document.fonts?.ready) await document.fonts.ready;
+    await Promise.all([...document.querySelectorAll('#an-card img')].map(img => img.decode?.().catch(() => {}) || Promise.resolve()));
+    const canvas = await html2canvas(document.getElementById('an-card'), { backgroundColor:null, scale:2, useCORS:true, allowTaint:false, imageTimeout:10000 });
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Não foi possível converter a ficha em PNG.');
+    const link = document.createElement('a');
+    const seguro = String(selecionado.vendedor.nome || 'colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Ficha_Desempenho_${seguro}_${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 30000);
+    showToast('Ficha analítica gerada.', 'success');
+  } catch (error) {
+    console.error('[gerarFichaAnalitica]', error);
+    showToast(error.message || 'Não foi possível gerar a ficha.', 'error');
+  } finally { if (btn) { btn.disabled = false; btn.innerHTML = original; } }
+}
+
+document.getElementById('an-vendedor-select')?.addEventListener('change', () => renderizarPerfilAnalitico());
+document.addEventListener('adm:dashboarddataready', () => {
+  if (document.getElementById('sec-analitica')?.classList.contains('active')) renderizarAnaliticaPerfis();
+});
 
 function contarDiasUteisResumo(inicio, fim) {
   let total = 0;
