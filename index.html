@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-all-4">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-all-5">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -501,7 +501,7 @@
             <div class="adm-form-grid adm-form-grid-align-end">
               <div class="adm-field"><label for="adm-rede-mes">Mês de referência</label><input type="month" id="adm-rede-mes"></div>
               <div class="adm-field"><label for="adm-rede-filial">Filial</label><select id="adm-rede-filial"><option value="">Todas as filiais</option></select></div>
-              <div class="adm-field adm-form-actions">
+              <div class="adm-form-full adm-form-actions">
                 <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="adm-rede-atualizar">Atualizar visão</button>
                 <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="adm-rede-exportar" disabled>Exportar comparativo</button>
               </div>
@@ -1257,7 +1257,7 @@
               <button type="button" id="renov-relatorio-limpar" class="adm-btn adm-btn-secondary adm-btn-inline" onclick="limparRelatorioRenovacoes()" disabled>Limpar relatório</button>
             </div>
             <div class="adm-table-wrap" id="renov-relatorio-resumo-vendedores" aria-live="polite"></div>
-            <button type="button" class="adm-btn adm-btn-inline" id="renov-relatorio-exportar" onclick="exportarResumoRenovacoes()" hidden>Exportar relatório por vendedor (CSV)</button>
+            <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="renov-relatorio-exportar" onclick="exportarResumoRenovacoes()" hidden>Exportar relatório por vendedor (CSV)</button>
           </div>
           <div class="adm-form-card" id="renov-conferencia-card">
             <div class="adm-card-heading">
