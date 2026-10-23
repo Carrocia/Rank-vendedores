@@ -169,8 +169,13 @@ begin
              when va.ativo is true or m.id is not null then coalesce(m.meta_vendas, 0)
              else 0
            end::numeric as meta_vendas,
+           case when va.tipo = 'interno' then coalesce(m.meta_m3, 0) else 0 end::numeric as meta_vendas_m3,
+           case when va.tipo = 'interno' then coalesce(m.meta_m2, 0) else 0 end::numeric as meta_vendas_m2,
            case when va.tipo = 'externo' then 0 else coalesce(rp.quantidade, 0) end::bigint as renovacoes,
            case when va.tipo = 'externo' then null else coalesce(mr.meta_m1, 0) end::numeric as meta_renovacoes,
+           case when va.tipo = 'externo' then 0 else coalesce(mr.meta_m3, 0) end::numeric as meta_renovacoes_m3,
+           case when va.tipo = 'externo' then 0 else coalesce(mr.meta_m2, 0) end::numeric as meta_renovacoes_m2,
+           case when va.tipo = 'externo' then 0 else coalesce(mr.meta_m1, 0) end::numeric as meta_renovacoes_m1,
            case when coalesce(vp.quantidade, 0) > 0 then vp.valor / vp.quantidade else 0 end::numeric as ticket_medio,
            tr.ticket as ticket_referencia,
            (va.tipo = 'externo') as somente_externo,
@@ -188,7 +193,36 @@ begin
     select m.*,
       (coalesce(m.meta_vendas, 0) > 0) as pode_classificar,
       case when m.meta_vendas > 0 then m.vendas::numeric / m.meta_vendas else 0 end as pct_vendas,
+      case
+        when m.meta_vendas_m3 > 0
+         and m.meta_vendas_m3 <= m.meta_vendas_m2
+         and m.meta_vendas_m2 <= m.meta_vendas then
+          case
+            when m.vendas < m.meta_vendas_m3 then m.vendas::numeric / m.meta_vendas_m3 * 50
+            when m.vendas < m.meta_vendas_m2 and m.meta_vendas_m2 > m.meta_vendas_m3
+              then 50 + (m.vendas - m.meta_vendas_m3)::numeric / (m.meta_vendas_m2 - m.meta_vendas_m3) * 20
+            when m.vendas < m.meta_vendas and m.meta_vendas > m.meta_vendas_m2
+              then 70 + (m.vendas - m.meta_vendas_m2)::numeric / (m.meta_vendas - m.meta_vendas_m2) * 30
+            else m.vendas::numeric / m.meta_vendas * 100
+          end
+        else m.vendas::numeric / nullif(m.meta_vendas, 0) * 100
+      end as pontos_vendas,
       case when m.meta_renovacoes > 0 then m.renovacoes_reais::numeric / m.meta_renovacoes else 0 end as pct_renovacoes,
+      case
+        when m.somente_externo or coalesce(m.meta_renovacoes_m1, 0) <= 0 then 0::numeric
+        when m.meta_renovacoes_m3 > 0
+         and m.meta_renovacoes_m3 <= m.meta_renovacoes_m2
+         and m.meta_renovacoes_m2 <= m.meta_renovacoes_m1 then
+          case
+            when m.renovacoes_reais < m.meta_renovacoes_m3 then 0::numeric
+            when m.renovacoes_reais < m.meta_renovacoes_m2 and m.meta_renovacoes_m2 > m.meta_renovacoes_m3
+              then 5 + (m.renovacoes_reais - m.meta_renovacoes_m3)::numeric / (m.meta_renovacoes_m2 - m.meta_renovacoes_m3) * 5
+            when m.renovacoes_reais < m.meta_renovacoes_m1 and m.meta_renovacoes_m1 > m.meta_renovacoes_m2
+              then 10 + (m.renovacoes_reais - m.meta_renovacoes_m2)::numeric / (m.meta_renovacoes_m1 - m.meta_renovacoes_m2) * 5
+            else 15::numeric
+          end
+        else least(15::numeric, greatest(0::numeric, m.renovacoes_reais::numeric / m.meta_renovacoes_m1 * 15))
+      end as bonus_renovacoes,
       coalesce(m.ticket_medio, 0)::numeric as ticket_medio_valido
     from metricas m
   )
@@ -205,11 +239,11 @@ begin
          e.ticket_referencia,
          case
            when not e.pode_classificar then null
-           when e.pct_vendas >= 1.15 and (e.somente_externo or e.pct_renovacoes >= 0.80) and e.ticket_medio_valido >= 130 then 'S'
-           when e.pct_vendas >= 1.00 and (e.somente_externo or e.pct_renovacoes >= 0.65) and e.ticket_medio_valido >= 120 then 'A'
-           when e.pct_vendas >= 0.85 and (e.somente_externo or e.pct_renovacoes >= 0.45) and e.ticket_medio_valido >= 115 then 'B'
-           when e.pct_vendas >= 0.70 and (e.somente_externo or e.pct_renovacoes >= 0.30) and e.ticket_medio_valido >= 110 then 'C'
-           when e.pct_vendas >= 0.50 and e.ticket_medio_valido >= 105 then 'D'
+           when e.pontos_vendas + e.bonus_renovacoes >= 115 and e.ticket_medio_valido >= 130 then 'S'
+           when e.pontos_vendas + e.bonus_renovacoes >= 100 and e.ticket_medio_valido >= 120 then 'A'
+           when e.pontos_vendas + e.bonus_renovacoes >= 85 and e.ticket_medio_valido >= 115 then 'B'
+           when e.pontos_vendas + e.bonus_renovacoes >= 70 and e.ticket_medio_valido >= 110 then 'C'
+           when e.pontos_vendas + e.bonus_renovacoes >= 50 and e.ticket_medio_valido >= 105 then 'D'
            else null
          end::text as rank_mensal,
          e.pode_classificar as elegivel,

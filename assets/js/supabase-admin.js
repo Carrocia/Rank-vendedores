@@ -4347,15 +4347,15 @@ function renderAdmVendedoresTable(d) {
         `Vendas: ${rankResumo.vendas} / ${rankResumo.meta_vendas} (${fmtPct(rankResumo.vendas, rankResumo.meta_vendas)})`,
         rankResumo.tipo === 'externo' ? 'Renovações: não são critério para externos' : `Renovações: ${rankResumo.renovacoes} / ${rankResumo.meta_renovacoes} (${fmtPct(rankResumo.renovacoes, rankResumo.meta_renovacoes)})`,
         `Ticket médio individual: R$ ${Number(rankResumo.ticket_medio || 0).toFixed(2).replace('.', ',')}`,
-        `Critérios: D 50% / R$ 105 · C 70% / R$ 110 · B 85% / R$ 115 · A 100% / R$ 120 · S 115% / R$ 130`,
-        rankResumo.tipo === 'externo' ? 'Renovação não exigida.' : 'Renovação mínima mensal: C 30%, B 45%, A 65%, S 80%; D não exige renovação.',
+        'Pontuação mensal: vendas percorrem M3 (50), M2 (70) e M1 (100); renovação soma até 15 pontos gradualmente entre M3, M2 e M1.',
+        'Faixas: D 50, C 70, B 85, A 100, S 115 pontos; ticket mínimo: D R$ 105, C R$ 110, B R$ 115, A R$ 120, S R$ 130.',
+        rankResumo.tipo === 'externo' ? 'Externo: pontuação baseada em vendas; renovação não tem peso nem meta.' : 'Renovação é bônus, não bloqueia o rank quando não há meta cadastrada.',
       ].join('\n');
       rankTd.appendChild(seloRank);
     } else {
       const motivos = [];
       if (rankResumo) {
         if (Number(rankResumo.meta_vendas) <= 0) motivos.push('meta de vendas M1 não cadastrada');
-        if (rankResumo.tipo !== 'externo' && Number(rankResumo.meta_renovacoes) <= 0) motivos.push('meta individual M1 de renovações não cadastrada para o mês');
         if (Number(rankResumo.ticket_referencia) <= 0) motivos.push('sem referência de ticket regional com os dados de vendas do mês');
       }
       rankTd.textContent = !rankResumo
@@ -4374,7 +4374,7 @@ function renderAdmVendedoresTable(d) {
       } else {
         rankTd.title = motivos.length
           ? `Sem base para classificar: ${motivos.join('; ')}.`
-          : `Sem rank: precisa atingir ao menos 50% da meta individual e ticket médio de R$ 105,00 para D. Faixas superiores: C 70% / R$ 110; B 85% / R$ 115; A 100% / R$ 120; S 115% / R$ 130. Internos também precisam cumprir a meta de renovação aplicável.`;
+          : `Sem rank: precisa de 50 pontos e ticket mínimo de R$ 105 para D. Vendas avançam por M3 (50), M2 (70) e M1 (100); renovações podem somar até 15 pontos, sem bloquear o rank.`;
       }
     }
 
@@ -4864,8 +4864,8 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-rank-mensal-status').textContent = rankMensal
-    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · faixas: D 50%/R$ 105, C 70%/R$ 110, B 85%/R$ 115, A 100%/R$ 120, S 115%/R$ 130${externo ? '' : ' · renovação mensal: C 30%, B 45%, A 65%, S 80%'}`
-    : rank?.elegivel ? 'Sem rank: D exige ao menos 50% da meta e ticket médio de R$ 105,00.' : 'Confira a meta individual de vendas e o ticket médio.';
+    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · M3/M2/M1 guiam os pontos de vendas; renovação ${externo ? 'sem peso para externos' : 'vale até +15 pontos'} · pisos de ticket: D 105, C 110, B 115, A 120, S 130`
+    : rank?.elegivel ? 'Sem rank: D começa em 50 pontos e exige ticket médio de R$ 105,00.' : 'Confira a meta individual de vendas e o ticket médio.';
   const status = document.getElementById('an-status');
   if (status) status.textContent = 'Carregando histórico de carreira…';
   let historico = [];
@@ -4932,8 +4932,8 @@ async function preencherFichaAnalitica(selecionado, carreira) {
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem rank';
   document.getElementById('an-card-month-note').textContent = rankMensal
-    ? 'classificação atual · D começa em 50% da meta e R$ 105 de ticket'
-    : rank?.elegivel ? 'sem rank · D exige 50% da meta e ticket de R$ 105' : 'dados insuficientes para classificar';
+    ? `classificação atual · trilha M3/M2/M1${externo ? '' : ' · renovação até +15 pts'}`
+    : rank?.elegivel ? 'sem rank · D exige 50 pontos e ticket de R$ 105' : 'dados insuficientes para classificar';
   document.getElementById('an-card-career-rank-img').src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira;
   document.getElementById('an-card-career-note').textContent = carreira.mesesFechados ? 'maior rank fechado · critérios de renovação mais altos' : 'início da trajetória';
