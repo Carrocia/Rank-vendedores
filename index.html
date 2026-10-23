@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-team-3">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-all-4">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -496,8 +496,8 @@
 
         <section class="adm-section" id="sec-rede">
           <div class="adm-section-title">Visão da Rede</div>
-          <p class="adm-vendedor-cadastro-hint">Acompanhe as bases em conjunto. Os dados de vendas consideram a filial de destino no mês selecionado.</p>
-          <div class="adm-form-card">
+          <p class="adm-page-lead">Compare o desempenho das filiais, identifique pontos que precisam de atenção e exporte o panorama do período.</p>
+          <div class="adm-form-card adm-rede-filters">
             <div class="adm-form-grid adm-form-grid-align-end">
               <div class="adm-field"><label for="adm-rede-mes">Mês de referência</label><input type="month" id="adm-rede-mes"></div>
               <div class="adm-field"><label for="adm-rede-filial">Filial</label><select id="adm-rede-filial"><option value="">Todas as filiais</option></select></div>
@@ -515,7 +515,7 @@
             <div class="adm-stat-card"><div class="label">Filiais sem meta</div><div class="value" id="rede-sem-meta">—</div><div class="sub">meta mensal M1 não configurada</div></div>
             <div class="adm-stat-card"><div class="label">Filiais sem acesso</div><div class="value" id="rede-sem-acesso">—</div><div class="sub">sem conta regional ativa</div></div>
           </div>
-          <div class="adm-form-card">
+          <div class="adm-form-card adm-rede-alert-card">
             <div class="adm-section-title adm-subsection-title">Pontos que precisam de atenção</div>
             <ul id="adm-rede-alertas" class="adm-rede-alertas"><li class="adm-empty-state">Selecione “Atualizar visão” para carregar os dados.</li></ul>
           </div>
@@ -748,6 +748,7 @@
         <!-- ── ADICIONAIS ──────────────────────────────────────── -->
         <section class="adm-section" id="sec-adicionais">
           <div class="adm-section-title">Adicionais</div>
+          <p class="adm-page-lead">Consulte os produtos adicionais cadastrados e registre lançamentos avulsos vinculados ao vendedor.</p>
           <div class="adm-table-wrap">
             <table class="adm-table">
               <thead>
@@ -960,6 +961,7 @@
         <!-- ── METAS ───────────────────────────────────────────── -->
         <section class="adm-section" id="sec-metas">
           <div class="adm-section-title">Metas Configuradas</div>
+          <p class="adm-page-lead">Consulte as referências de vendas por perfil e filial. Para ajustar os valores do período, use Configuração de Metas.</p>
           <div class="adm-metas-grid">
             <div class="adm-meta-group">
               <h3>👤 Vendedores Internos</h3>
@@ -993,6 +995,7 @@
         <!-- ── PLANOS ──────────────────────────────────────────── -->
         <section class="adm-section" id="sec-planos">
           <div class="adm-section-title">Planos Disponíveis</div>
+          <p class="adm-page-lead">Gerencie o catálogo compartilhado de planos e categorias usado nos lançamentos de venda e renovação.</p>
           <div class="adm-form-card">
             <div class="adm-section-heading-row">
               <div>
@@ -1055,9 +1058,10 @@
         <!-- ── RELATÓRIOS ──────────────────────────────────────── -->
         <section class="adm-section" id="sec-relatorios">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Relatório de Vendas</div>
+          <p class="adm-page-lead">Filtre os registros, confira os indicadores e exporte os dados. A limpeza de vendas fica separada ao final da página.</p>
 
           <!-- Filtros -->
-          <div class="adm-form-card">
+          <div class="adm-form-card adm-report-filters">
             <div class="adm-form-grid">
               <div class="adm-field"><label>Data Inicial</label><input type="date" id="rel-data-ini"></div>
               <div class="adm-field"><label>Data Final</label><input type="date" id="rel-data-fim"></div>
@@ -1104,7 +1108,7 @@
           <div class="adm-stats-row" id="rel-indicadores"></div>
 
           <!-- Tabela + exportação -->
-          <div class="adm-form-card">
+          <div class="adm-form-card adm-report-results">
             <div class="adm-section-heading-row">
               <span id="rel-contagem" class="adm-inline-status is-left">—</span>
               <div class="adm-form-actions">
@@ -1184,6 +1188,7 @@
         <!-- ── CELEBRAÇÕES ─────────────────────────────────────── -->
         <section class="adm-section" id="sec-celebracoes">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>Celebrações — Marcos Individuais</div>
+          <p class="adm-page-lead">Gere artes individuais para reconhecer metas alcançadas e destacar o resultado do mês.</p>
           <div class="adm-card adm-compact-card">
             <p class="adm-description">
               Escolha um vendedor e um marco individual já alcançado neste mês. Gere uma imagem
@@ -1294,6 +1299,7 @@
         <!-- ── TEMA DO SITE ────────────────────────────────────── -->
         <section class="adm-section" id="sec-tema">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-palette"/></svg></span>Tema do Site</div>
+          <p class="adm-page-lead">Visualize e controle o tema sazonal aplicado ao site. A prévia só afeta sua sessão até você salvar.</p>
           <div class="adm-form-card">
             <p class="adm-description is-compact">
               O site já troca de tema sozinho conforme a data (Outubro Rosa, Natal, Black Friday etc.).
@@ -1327,6 +1333,7 @@
         <!-- ── VENDAS DE OUTRAS FILIAIS ───────────────────────── -->
         <section class="adm-section" id="sec-outras-filiais">
           <div class="adm-section-title">Vendas de Outras Filiais</div>
+          <p class="adm-page-lead">Registre contratos recebidos de outras bases e acompanhe como eles entram no total global da meta.</p>
 
           <!-- card explicativo -->
           <div class="adm-callout">
@@ -1515,6 +1522,7 @@
         <!-- ── CONFIGURAÇÃO DE METAS ────────────────────────────── -->
         <section class="adm-section" id="sec-config-metas">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg></span>Configuração de Metas</div>
+          <p class="adm-page-lead">Defina metas da filial, metas individuais e limites de cancelamento para o período indicado.</p>
 
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Meta da Filial — <span id="cfg-fil-periodo">mês/ano atual</span></div>
@@ -1562,6 +1570,7 @@
 
         <section class="adm-section" id="sec-admins">
           <div class="adm-section-title">Contas Administrativas Regionais</div>
+          <p class="adm-page-lead">Crie e acompanhe acessos com permissão limitada à regional correspondente.</p>
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Criar acesso regional</div>
             <p class="adm-vendedor-cadastro-hint">Crie uma conta com acesso somente à regional selecionada. A senha inicial é definida aqui e não é exibida novamente.</p>
@@ -1601,6 +1610,7 @@
         <!-- ── CADASTRO DE FILIAIS ─────────────────────────────── -->
         <section class="adm-section" id="sec-filiais-admin">
           <div class="adm-section-title">Filiais e Regionais</div>
+          <p class="adm-page-lead">Cadastre bases, controle o status de atividade e configure a disponibilidade do ranking público.</p>
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title has-bottom-space" id="adm-filial-form-title">Cadastrar nova filial</div>
             <p class="adm-vendedor-cadastro-hint">Cadastre uma base e controle se ela está ativa e se o ranking público pode ser acessado. Desativar preserva o histórico e os vínculos existentes.</p>
