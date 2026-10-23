@@ -448,6 +448,23 @@ body.adm-modal-open { overflow: hidden; }
   font-size: 1.28rem; font-weight: 800; color: var(--heading-color);
   padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.07);
 }
+.adm-page-lead { max-width:820px; margin:-10px 0 0; color:var(--text-muted); font-size:.86rem; line-height:1.6; }
+.adm-card-heading { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:17px; border-bottom:1px solid rgba(255,255,255,.07); }
+.adm-card-heading-icon { display:grid; place-items:center; width:44px; height:44px; flex:0 0 44px; border:1px solid rgba(var(--accent-rgb),.22); border-radius:13px; background:rgba(var(--accent-rgb),.09); color:var(--accent); }
+.adm-card-heading-icon .adm-icon { width:20px; height:20px; }
+.adm-card-heading-icon.is-review { color:var(--accent2); border-color:rgba(var(--accent2-rgb),.22); background:rgba(var(--accent2-rgb),.09); }
+.adm-card-heading-icon.is-target { color:var(--accent); }
+.adm-card-eyebrow { display:block; margin-bottom:3px; color:var(--accent); font-size:.64rem; font-weight:800; letter-spacing:.1em; }
+.adm-card-heading h2 { margin:0; color:var(--heading-color); font-size:1.04rem; font-weight:800; line-height:1.4; }
+.adm-card-heading p { margin:4px 0 0; color:var(--text-muted); font-size:.79rem; line-height:1.5; }
+.adm-card-heading-compact { margin-bottom:16px; padding-bottom:13px; }
+.adm-card-heading-compact h2 { font-size:.98rem; }
+.adm-help-details { margin:0 0 18px; padding:0 14px; border:1px solid rgba(255,255,255,.075); border-radius:11px; background:rgba(255,255,255,.022); color:var(--text-muted); }
+.adm-help-details summary { padding:11px 0; color:var(--text); font-size:.78rem; font-weight:700; cursor:pointer; }
+.adm-help-details summary::marker { color:var(--accent); }
+.adm-help-details p { margin:0; padding:0 0 12px; font-size:.77rem; line-height:1.6; }
+.adm-help-details[open] { border-color:rgba(var(--accent-rgb),.2); background:rgba(var(--accent-rgb),.035); }
+.adm-help-details.ixc-reconciliation-warning { margin:0; }
 
 /* ── cards de estatística do dashboard ─────────────────────── */
 .adm-dashboard-intro {
@@ -507,7 +524,7 @@ body.adm-modal-open { overflow: hidden; }
 .adm-dashboard-panel-heading h3 { margin: 4px 0 0; color: var(--heading-color); font-size: 0.96rem; font-weight: 800; }
 .adm-dashboard-meta-value { color: var(--accent); font-size: 1.7rem; font-weight: 900; line-height: 1; }
 .adm-dashboard-progress { height: 10px; margin: 24px 0 12px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,0.08); }
-.adm-dashboard-progress > span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), #34d399); transition: width .55s ease; }
+.adm-dashboard-progress > span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .55s ease; }
 .adm-dashboard-meta-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-muted); font-size: 0.78rem; }
 .adm-dashboard-text-action { padding: 4px 0; border: 0; background: transparent; color: var(--accent); font: 700 0.76rem 'Poppins', sans-serif; cursor: pointer; white-space: nowrap; }
 .adm-dashboard-text-action:hover { color: var(--heading-color); }
@@ -617,7 +634,7 @@ body.adm-modal-open { overflow: hidden; }
   transition: border-color 0.2s ease;
 }
 .adm-form-card:focus-within { border-color: rgba(var(--accent-rgb),0.25); }
-.adm-section #ixc-import-card { margin-top: 24px; }
+.adm-section #ixc-import-card { margin-top: 0; }
 #ixc-import-preview-wrap { max-height: 460px; overflow: auto; }
 #ixc-import-preview input[type="checkbox"] { accent-color: var(--accent); vertical-align: middle; }
 .adm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -796,6 +813,10 @@ body.adm-modal-open { overflow: hidden; }
   .adm-dashboard-lower-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
+  .adm-card-heading { align-items:flex-start; gap:11px; margin-bottom:16px; padding-bottom:14px; }
+  .adm-card-heading-icon { width:38px; height:38px; flex-basis:38px; border-radius:11px; }
+  .adm-page-lead { margin-top:-8px; font-size:.8rem; }
+  .adm-help-details { padding-inline:11px; }
   .adm-dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .adm-dashboard-kpis .adm-stat-card { padding: 16px 14px; }
   .adm-dashboard-intro { padding: 17px; }

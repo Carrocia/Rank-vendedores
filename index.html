@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-layout-1">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-flows-2">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -415,10 +415,11 @@
         <!-- ── DASHBOARD ──────────────────────────────────────── -->
         <section class="adm-section active" id="sec-dashboard">
           <div class="adm-section-title">Visão Geral</div>
+          <p class="adm-page-lead">Veja o resultado da filial, o ritmo da semana e o progresso da meta mensal.</p>
           <div class="adm-dashboard-intro">
             <div class="adm-dashboard-intro-copy">
               <span class="adm-dashboard-eyebrow">RESUMO DA FILIAL</span>
-              <p>Acompanhe o ritmo das vendas e acesse as tarefas mais usadas.</p>
+              <p>Acesse rapidamente as tarefas mais usadas.</p>
             </div>
             <div class="adm-dashboard-actions" aria-label="Ações rápidas">
               <button type="button" class="adm-dashboard-action primary" onclick="adm_navigateTo('nova-venda')"><svg class="adm-icon adm-inline-icon" aria-hidden="true"><use href="#adm-icon-plus"/></svg>Registrar venda</button>
@@ -529,8 +530,13 @@
 
         <!-- ── NOVA VENDA ──────────────────────────────────────── -->
         <section class="adm-section" id="sec-nova-venda">
-          <div class="adm-section-title">Registrar Nova Venda</div>
+          <div class="adm-section-title">Vendas</div>
+          <p class="adm-page-lead">Registre uma venda individual ou importe o relatório do IXC para lançar várias de uma vez.</p>
           <div class="adm-form-card">
+            <div class="adm-card-heading">
+              <span class="adm-card-heading-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plus"/></svg></span>
+              <div><span class="adm-card-eyebrow">LANÇAMENTO INDIVIDUAL</span><h2>Registrar uma venda</h2><p>Preencha os dados do contrato e confira o valor total antes de salvar.</p></div>
+            </div>
             <form id="adm-venda-form" onsubmit="handleNovaVenda(event)">
               <div class="adm-form-grid">
 
@@ -649,8 +655,14 @@
             </form>
           </div>
           <div class="adm-form-card" id="ixc-import-card">
-            <div class="adm-section-title adm-subsection-title">Importar vendas do IXC</div>
-            <p class="adm-vendedor-cadastro-hint">A prévia do CSV fica temporariamente nesta tela e só grava vendas quando você confirma a importação. Quando o CSV inclui a coluna Filial, o código IXC define a filial de destino e o cadastro do vendedor define a origem. Confira origem e destino na prévia; códigos ainda não mapeados ficam bloqueados para revisão. Se o CSV não incluir essa coluna, a filial atualmente aberta será usada como destino. A data usa Data ativação e a hora vem de Última atualização. Contratos já registrados não serão alterados nem duplicados.</p>
+            <div class="adm-card-heading">
+              <span class="adm-card-heading-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg></span>
+              <div><span class="adm-card-eyebrow">IMPORTAÇÃO EM LOTE</span><h2>Importar vendas do IXC</h2><p>Carregue o CSV, revise a prévia e confirme somente quando os dados estiverem corretos.</p></div>
+            </div>
+            <details class="adm-help-details">
+              <summary>Regras da importação e conferência</summary>
+              <p>A prévia do CSV fica temporariamente nesta tela e só grava vendas quando você confirma a importação. Quando o CSV inclui a coluna Filial, o código IXC define a filial de destino e o cadastro do vendedor define a origem. Confira origem e destino na prévia; códigos ainda não mapeados ficam bloqueados para revisão. Se o CSV não incluir essa coluna, a filial atualmente aberta será usada como destino. A data usa Data ativação e a hora vem de Última atualização. Contratos já registrados não serão alterados nem duplicados.</p>
+            </details>
             <div class="adm-form-grid">
               <div class="adm-field adm-form-full">
                 <label for="ixc-csv-file">Relatório CSV</label>
@@ -669,7 +681,7 @@
               </div>
               <div class="adm-form-full ixc-reconciliation-controls" id="ixc-reconciliation-controls" hidden>
                 <div class="ixc-reconciliation-summary" id="ixc-reconciliation-summary" aria-live="polite"></div>
-                <p class="adm-vendedor-cadastro-hint ixc-reconciliation-warning">A conferência compara somente a filial aberta, mesmo que o CSV tenha várias filiais. Confira se o relatório contém todos os contratos ativos dessa filial; arquivos filtrados por cliente, vendedor ou filial podem gerar pendências incorretas.</p>
+                <details class="adm-help-details ixc-reconciliation-warning"><summary>Antes de conferir vendas já cadastradas</summary><p>A conferência compara somente a filial aberta, mesmo que o CSV tenha várias filiais. Confira se o relatório contém todos os contratos ativos dessa filial; arquivos filtrados por cliente, vendedor ou filial podem gerar pendências incorretas.</p></details>
                 <label class="tema-check ixc-reconciliation-confirm">
                   <input type="checkbox" id="ixc-reconciliation-complete" onchange="atualizarBotaoConferenciaIxc()">
                   Confirmo que este arquivo contém todos os contratos ativos da filial aberta e que o total exibido está correto.
@@ -687,7 +699,10 @@
               </div>
               <button type="button" class="adm-btn adm-btn-secondary adm-btn-small ixc-pending-clear" id="ixc-pending-clear" hidden disabled>Limpar pendências</button>
             </div>
-            <p class="adm-vendedor-cadastro-hint">Vendas que não apareceram na lista completa de contratos ativos e vendas de planos sem preço fixo ficam aqui para revisão. Em Telefonia NBS, Padrão UNI e Serviço, edite o valor do plano e os adicionais; R$ 0,00 também é válido. Depois, clique em “Manter válida”. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores. Para contratos ausentes, o sistema também pode sugerir vínculos com base em cliente, vendedor e plano; a comparação roda no navegador e só vincula após sua confirmação.</p>
+            <details class="adm-help-details">
+              <summary>Como tratar uma venda pendente</summary>
+              <p>Vendas que não apareceram na lista completa de contratos ativos e vendas de planos sem preço fixo ficam aqui para revisão. Em Telefonia NBS, Padrão UNI e Serviço, edite o valor do plano e os adicionais; R$ 0,00 também é válido. Depois, clique em “Manter válida”. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores. Para contratos ausentes, o sistema também pode sugerir vínculos com base em cliente, vendedor e plano; a comparação roda no navegador e só vincula após sua confirmação.</p>
+            </details>
             <div class="adm-table-wrap">
               <table class="adm-table">
                 <thead><tr><th>Data</th><th>Contrato</th><th>Cliente</th><th>Vendedor</th><th>Filial</th><th>Valor</th><th>Ações</th></tr></thead>
@@ -1209,9 +1224,13 @@
         <!-- ── GESTÃO DE RENOVAÇÕES ───────────────────────────── -->
         <section class="adm-section" id="sec-renovacoes">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span>Gestão de Renovações</div>
+          <p class="adm-page-lead">Importe o relatório de renovações, revise os itens sem correspondência e acompanhe as metas do mês.</p>
           <div class="adm-form-card">
-            <div class="adm-section-title adm-subsection-title">Importar relatório mensal</div>
-            <p class="adm-description">Envie o relatório de renovações para registrar as quantidades por vendedor. Planos sem correspondência ou preço seguem para conferência e continuam contando enquanto aguardam revisão.</p>
+            <div class="adm-card-heading">
+              <span class="adm-card-heading-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg></span>
+              <div><span class="adm-card-eyebrow">IMPORTAÇÃO EM LOTE</span><h2>Importar relatório mensal</h2><p>Confira mês e arquivo; depois revise vendedores, planos e valores reconhecidos antes de importar.</p></div>
+            </div>
+            <p class="adm-description">Os dados reconhecidos serão agrupados por vendedor após a confirmação. Planos sem correspondência ou preço seguem para conferência.</p>
             <div class="adm-form-grid">
               <div class="adm-field"><label for="renov-relatorio-mes">Mês do relatório</label><input type="month" id="renov-relatorio-mes"></div>
               <div class="adm-field"><label for="renov-relatorio-arquivo">Relatório de renovações</label><input type="file" id="renov-relatorio-arquivo" accept=".csv,.xlsx"></div>
@@ -1231,15 +1250,21 @@
             <button type="button" class="adm-btn adm-btn-inline" id="renov-relatorio-exportar" onclick="exportarResumoRenovacoes()" hidden>Exportar relatório por vendedor (CSV)</button>
           </div>
           <div class="adm-form-card" id="renov-conferencia-card">
-            <div class="adm-section-title adm-subsection-title">Renovações pendentes de conferência</div>
-            <p class="adm-description">Vincule o plano correto e informe o valor. Você pode manter R$ 0,00. Essas renovações já são contabilizadas nos indicadores.</p>
+            <div class="adm-card-heading">
+              <span class="adm-card-heading-icon is-review"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-check"/></svg></span>
+              <div><span class="adm-card-eyebrow">REVISÃO</span><h2>Renovações pendentes de conferência</h2><p>Vincule o plano correto e informe o valor; R$ 0,00 também é permitido.</p></div>
+            </div>
+            <p class="adm-description">Essas renovações já são contabilizadas nos indicadores enquanto aguardam revisão.</p>
             <div class="adm-table-wrap renov-table-scroll renov-conferencia-scroll"><table class="adm-table">
               <thead><tr><th>Data</th><th>Contrato</th><th>Cliente</th><th>Vendedor</th><th>Plano do relatório</th><th>Plano cadastrado</th><th>Valor (R$)</th><th>Ação</th></tr></thead>
               <tbody id="renov-conferencia-body"><tr><td colspan="8">Carregando pendências…</td></tr></tbody>
             </table></div>
           </div>
           <div class="adm-form-card">
-            <div class="adm-section-title adm-subsection-title">Metas gerais — <span id="cfg-renov-periodo">mês/ano atual</span></div>
+            <div class="adm-card-heading adm-card-heading-compact">
+              <span class="adm-card-heading-icon is-target"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-target"/></svg></span>
+              <div><span class="adm-card-eyebrow">ACOMPANHAMENTO</span><h2>Metas gerais — <span id="cfg-renov-periodo">mês/ano atual</span></h2></div>
+            </div>
             <div class="adm-form-grid">
               <div class="adm-field"><label>Meta M3</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
@@ -1248,7 +1273,10 @@
             <button type="button" class="adm-btn adm-btn-inline" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas de renovação</button>
           </div>
           <div class="adm-form-card">
-            <div class="adm-section-title adm-subsection-title">Metas individuais — <span id="cfg-renov-ind-periodo">mês/ano atual</span></div>
+            <div class="adm-card-heading adm-card-heading-compact">
+              <span class="adm-card-heading-icon is-target"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-users"/></svg></span>
+              <div><span class="adm-card-eyebrow">EQUIPE</span><h2>Metas individuais — <span id="cfg-renov-ind-periodo">mês/ano atual</span></h2></div>
+            </div>
             <p class="adm-description">Defina metas M3, M2 e M1 de renovações para vendedores internos. Vendedores externos podem ser registrados no relatório quando fizerem uma renovação, mas não recebem meta individual de renovação.</p>
             <div class="adm-table-wrap"><table class="adm-table">
               <thead><tr><th>Vendedor</th><th>Tipo</th><th>M3</th><th>M2</th><th>M1</th></tr></thead>
