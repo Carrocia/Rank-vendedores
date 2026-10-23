@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-flows-2">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-team-3">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -792,8 +792,12 @@
         <!-- ── VENDEDORES ──────────────────────────────────────── -->
         <section class="adm-section" id="sec-vendedores">
           <div class="adm-section-title">Equipe de Vendas</div>
+          <p class="adm-page-lead">Cadastre os colaboradores da filial, acompanhe os resultados do mês e gere cards para compartilhar com a equipe.</p>
           <div class="adm-form-card adm-vendedor-cadastro-card">
-            <div class="adm-section-title adm-subsection-title" id="adm-vendedor-form-title">Cadastrar vendedor</div>
+            <div class="adm-card-heading adm-card-heading-compact">
+              <span class="adm-card-heading-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-users"/></svg></span>
+              <div><span class="adm-card-eyebrow">CADASTRO DA EQUIPE</span><h2 id="adm-vendedor-form-title">Cadastrar vendedor</h2></div>
+            </div>
             <p class="adm-vendedor-cadastro-hint" id="adm-vendedor-escopo-hint">O vendedor será vinculado à filial selecionada.</p>
             <form id="adm-vendedor-form" onsubmit="cadastrarVendedor(event)">
               <input id="adm-vendedor-edit-id" type="hidden" value="">
@@ -841,6 +845,7 @@
             </form>
           </div>
           <div class="adm-vendedores-bulk-export">
+            <span class="adm-card-heading-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>
             <div class="adm-vendedores-bulk-copy">
               <strong>Cards de desempenho</strong>
               <span>Gere uma imagem para cada vendedor ativo desta tabela e baixe tudo em um ZIP.</span>
@@ -851,7 +856,7 @@
               <span>Gerar todos e baixar ZIP</span>
             </button>
           </div>
-          <div class="adm-table-wrap">
+          <div class="adm-table-wrap adm-vendedores-table-wrap">
             <table class="adm-table" id="adm-vendedores-table">
               <thead>
                 <tr><th>Foto</th><th>Nome</th><th>Tipo</th><th>Meta mensal</th><th>Vendas (mês)</th><th>% Meta</th><th>Rank mensal</th><th>Status</th><th>Ações</th></tr>
@@ -923,13 +928,13 @@
         <!-- ── ANALÍTICA INDIVIDUAL ──────────────────────────── -->
         <section class="adm-section" id="sec-analitica">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span>Analítica de desempenho</div>
-          <p class="adm-description">Consulte o perfil individual e gere uma ficha de desempenho para compartilhar com o colaborador.</p>
+          <p class="adm-page-lead">Consulte o desempenho mensal e a trajetória de carreira de cada colaborador. Gere uma ficha PNG para compartilhar no fechamento do mês.</p>
           <div class="an-controls adm-form-card">
             <div class="adm-field">
               <label for="an-vendedor-select">Colaborador</label>
               <select id="an-vendedor-select"><option value="">Carregando equipe…</option></select>
             </div>
-            <div class="an-period" id="an-periodo">—</div>
+            <div class="an-period-block"><span class="adm-card-eyebrow">PERÍODO ANALISADO</span><div class="an-period" id="an-periodo">—</div></div>
           </div>
           <div class="an-profile" id="an-profile" hidden>
             <header class="an-profile-header">
@@ -1304,8 +1309,10 @@
         <!-- ── RANKING ADM ─────────────────────────────────────── -->
         <section class="adm-section" id="sec-ranking-adm">
           <div class="adm-section-title">Ranking da Filial</div>
+          <p class="adm-page-lead">Acompanhe a posição da equipe no mês atual, conforme as vendas registradas nesta filial.</p>
           <div class="adm-ranking-note">
-            Ordenação: 1º critério — quantidade de vendas principais; 2º critério — maior valor total vendido no período.
+            <span class="adm-card-heading-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg></span>
+            <span><strong>Critério de ordenação</strong><br>Primeiro, quantidade de vendas principais; em caso de empate, maior valor total vendido no período.</span>
           </div>
           <div class="adm-ranking-list" id="adm-ranking-list">
             <!-- populado pela função renderAdmRanking() após integração com Supabase -->
