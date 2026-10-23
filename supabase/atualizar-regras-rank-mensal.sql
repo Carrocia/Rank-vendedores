@@ -54,12 +54,19 @@ begin
     select v.id, v.carreira_pessoa_id, v.tipo, v.filial_id, v.ativo
     from public.vendedores v
     join pessoas_alvo pa on pa.carreira_pessoa_id = v.carreira_pessoa_id
-  ), vendas_pessoa as (
+  ), periodo_xp as (
+    select make_date(p_ano, p_mes, 1) as inicio,
+           least(
+             (make_date(p_ano, p_mes, 1) + interval '1 month' - interval '1 day')::date,
+             timezone('America/Manaus', now())::date
+           ) as data_corte
+  ), vendas_diarias as (
     select vp.carreira_pessoa_id,
+           sa.data_venda::date as dia,
            count(sa.vendedor_id)::bigint as quantidade,
            coalesce(sum(sa.valor_total), 0)::numeric as valor
     from vendedores_pessoa vp
-    left join public.vendas_admin sa
+    join public.vendas_admin sa
       on sa.vendedor_id = vp.id
      and sa.data_venda >= make_date(p_ano, p_mes, 1)
      and sa.data_venda < (make_date(p_ano, p_mes, 1) + interval '1 month')
@@ -71,7 +78,18 @@ begin
          and sa.filial_destino_id = vp.filial_id
        )
      )
-    group by vp.carreira_pessoa_id
+    group by vp.carreira_pessoa_id, sa.data_venda::date
+  ), vendas_pessoa as (
+    select vd.carreira_pessoa_id,
+           coalesce(sum(vd.quantidade), 0)::bigint as quantidade,
+           coalesce(sum(vd.valor), 0)::numeric as valor,
+           count(*)::numeric as dias_ativos,
+           count(*) filter (where vd.quantidade >= 3)::numeric as dias_alto_volume,
+           coalesce(sum(vd.quantidade) filter (where vd.dia > px.data_corte - 7 and vd.dia <= px.data_corte), 0)::numeric as vendas_semana_atual,
+           coalesce(sum(vd.quantidade) filter (where vd.dia > px.data_corte - 14 and vd.dia <= px.data_corte - 7), 0)::numeric as vendas_semana_anterior
+    from vendas_diarias vd
+    cross join periodo_xp px
+    group by vd.carreira_pessoa_id, px.data_corte
   ), renovacoes_pessoa as (
     select vp.carreira_pessoa_id, coalesce(sum(rm.quantidade), 0)::bigint as quantidade
     from vendedores_pessoa vp
@@ -114,7 +132,11 @@ begin
            case when coalesce(vp.quantidade, 0) > 0 then vp.valor / vp.quantidade else 0 end::numeric as ticket_medio,
            tr.ticket as ticket_referencia,
            (va.tipo = 'externo') as somente_externo,
-           coalesce(rp.quantidade, 0)::bigint as renovacoes_reais
+           coalesce(rp.quantidade, 0)::bigint as renovacoes_reais,
+           coalesce(vp.dias_ativos, 0)::numeric as dias_ativos,
+           coalesce(vp.dias_alto_volume, 0)::numeric as dias_alto_volume,
+           coalesce(vp.vendas_semana_atual, 0)::numeric as vendas_semana_atual,
+           coalesce(vp.vendas_semana_anterior, 0)::numeric as vendas_semana_anterior
     from vendedores_alvo va
     left join vendas_pessoa vp on vp.carreira_pessoa_id = va.carreira_pessoa_id
     left join renovacoes_pessoa rp on rp.carreira_pessoa_id = va.carreira_pessoa_id
@@ -128,36 +150,21 @@ begin
     select m.*,
       (coalesce(m.meta_vendas, 0) > 0) as pode_classificar,
       case when m.meta_vendas > 0 then m.vendas::numeric / m.meta_vendas else 0 end as pct_vendas,
-      case
-        when m.meta_vendas_m3 > 0
-         and m.meta_vendas_m3 <= m.meta_vendas_m2
-         and m.meta_vendas_m2 <= m.meta_vendas then
-          case
-            when m.vendas < m.meta_vendas_m3 then m.vendas::numeric / m.meta_vendas_m3 * 50
-            when m.vendas < m.meta_vendas_m2 and m.meta_vendas_m2 > m.meta_vendas_m3
-              then 50 + (m.vendas - m.meta_vendas_m3)::numeric / (m.meta_vendas_m2 - m.meta_vendas_m3) * 20
-            when m.vendas < m.meta_vendas and m.meta_vendas > m.meta_vendas_m2
-              then 70 + (m.vendas - m.meta_vendas_m2)::numeric / (m.meta_vendas - m.meta_vendas_m2) * 30
-            else m.vendas::numeric / m.meta_vendas * 100
-          end
-        else m.vendas::numeric / nullif(m.meta_vendas, 0) * 100
-      end as pontos_vendas,
+      least(35::numeric, greatest(0::numeric,
+        m.vendas::numeric / nullif(m.meta_vendas, 0) * 35
+      )) as xp_vendas,
       case when m.meta_renovacoes > 0 then m.renovacoes_reais::numeric / m.meta_renovacoes else 0 end as pct_renovacoes,
-      case
-        when m.somente_externo or coalesce(m.meta_renovacoes_m1, 0) <= 0 then 0::numeric
-        when m.meta_renovacoes_m3 > 0
-         and m.meta_renovacoes_m3 <= m.meta_renovacoes_m2
-         and m.meta_renovacoes_m2 <= m.meta_renovacoes_m1 then
-          case
-            when m.renovacoes_reais < m.meta_renovacoes_m3 then 0::numeric
-            when m.renovacoes_reais < m.meta_renovacoes_m2 and m.meta_renovacoes_m2 > m.meta_renovacoes_m3
-              then 5 + (m.renovacoes_reais - m.meta_renovacoes_m3)::numeric / (m.meta_renovacoes_m2 - m.meta_renovacoes_m3) * 5
-            when m.renovacoes_reais < m.meta_renovacoes_m1 and m.meta_renovacoes_m1 > m.meta_renovacoes_m2
-              then 10 + (m.renovacoes_reais - m.meta_renovacoes_m2)::numeric / (m.meta_renovacoes_m1 - m.meta_renovacoes_m2) * 5
-            else 15::numeric
-          end
-        else least(15::numeric, greatest(0::numeric, m.renovacoes_reais::numeric / m.meta_renovacoes_m1 * 15))
-      end as bonus_renovacoes,
+      case when m.somente_externo then 0::numeric
+        else least(5::numeric, m.renovacoes_reais * 0.25)
+      end as xp_renovacoes,
+      least(100::numeric, greatest(0::numeric,
+        least(35::numeric, greatest(0::numeric, m.vendas::numeric / nullif(m.meta_vendas, 0) * 35))
+        + case when coalesce(m.ticket_referencia, 0) > 0 then least(20::numeric, greatest(0::numeric, (m.ticket_medio / m.ticket_referencia - 0.80) * 66.6666667)) else 0::numeric end
+        + least(20::numeric, m.dias_ativos / 10 * 20)
+        + least(10::numeric, m.dias_alto_volume * 2)
+        + case when m.vendas_semana_anterior > 0 then least(10::numeric, greatest(0::numeric, (m.vendas_semana_atual - m.vendas_semana_anterior) / m.vendas_semana_anterior * 20)) when m.vendas_semana_atual > 0 then 4::numeric else 0::numeric end
+        + case when m.somente_externo then 0::numeric else least(5::numeric, m.renovacoes_reais * 0.25) end
+      )) as xp_total,
       coalesce(m.ticket_medio, 0)::numeric as ticket_medio_valido
     from metricas m
   )
@@ -174,11 +181,11 @@ begin
          e.ticket_referencia,
          case
            when not e.pode_classificar then null
-           when e.pontos_vendas + e.bonus_renovacoes >= 115 and e.ticket_medio_valido >= 130 then 'S'
-           when e.pontos_vendas + e.bonus_renovacoes >= 100 and e.ticket_medio_valido >= 120 then 'A'
-           when e.pontos_vendas + e.bonus_renovacoes >= 85 and e.ticket_medio_valido >= 115 then 'B'
-           when e.pontos_vendas + e.bonus_renovacoes >= 70 and e.ticket_medio_valido >= 110 then 'C'
-           when e.pontos_vendas + e.bonus_renovacoes >= 50 and e.ticket_medio_valido >= 105 then 'D'
+           when e.xp_total >= 80 then 'S'
+           when e.xp_total >= 65 then 'A'
+           when e.xp_total >= 50 then 'B'
+           when e.xp_total >= 35 then 'C'
+           when e.xp_total >= 20 then 'D'
            else null
          end::text as rank_mensal,
          e.pode_classificar as elegivel,

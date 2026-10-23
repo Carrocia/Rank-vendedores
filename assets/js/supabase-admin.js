@@ -4884,8 +4884,8 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-rank-mensal-status').textContent = rankMensal
-    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · M3/M2/M1 guiam os pontos de vendas; renovação ${externo ? 'sem peso para externos' : 'vale até +15 pontos'} · pisos de ticket: D 105, C 110, B 115, A 120, S 130`
-    : rank?.elegivel ? 'Sem rank: D começa em 50 pontos e exige ticket médio de R$ 105,00.' : 'Confira a meta individual de vendas e o ticket médio.';
+    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · XP considera vendas, valor, constância e evolução semanal${externo ? '' : ' e renovações'}`
+    : rank?.elegivel ? 'Ainda não atingiu 20 XP. Vendas, ticket, constância, volume diário e evolução semanal acumulam pontos ao longo do mês.' : 'Confira a meta individual de vendas para habilitar o cálculo.';
   const status = document.getElementById('an-status');
   if (status) status.textContent = 'Carregando histórico de carreira…';
   let historico = [];
@@ -4952,8 +4952,8 @@ async function preencherFichaAnalitica(selecionado, carreira) {
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem rank';
   document.getElementById('an-card-month-note').textContent = rankMensal
-    ? `classificação atual · trilha M3/M2/M1${externo ? '' : ' · renovação até +15 pts'}`
-    : rank?.elegivel ? 'sem rank · D exige 50 pontos e ticket de R$ 105' : 'dados insuficientes para classificar';
+    ? `classificação atual por XP${externo ? '' : ' · renovações somam bônus'}`
+    : rank?.elegivel ? '20 XP para o rank D · pontos acumulam por desempenho ao longo do mês' : 'dados insuficientes para classificar';
   document.getElementById('an-card-career-rank-img').src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira;
   document.getElementById('an-card-career-note').textContent = carreira.mesesFechados ? 'maior rank fechado · critérios de renovação mais altos' : 'início da trajetória';
