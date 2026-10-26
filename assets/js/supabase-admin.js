@@ -4833,6 +4833,79 @@ function resumirMarcosMeta(atual, metas, metaM1Fallback = 0) {
   return `${lista} · M1 alcançada`;
 }
 
+function renderizarAtributosComerciais(selecionado, dados, contexto) {
+  const chart = document.getElementById('an-radar-chart');
+  const legend = document.getElementById('an-attributes-legend');
+  const note = document.getElementById('an-attributes-note');
+  if (!chart || !legend) return;
+  const { vendas, metaVendas, ticket, referencia, renovacoes, metaRenovacoes, diasNoMes, ano, mesNum } = contexto;
+  const { vendasDiretas = [], vendasOrigem = [] } = dados || {};
+  const externo = selecionado.tipo === 'externo';
+  const fim = new Date(ano, mesNum, 0).getDate();
+  const hoje = new Date();
+  const mesmoMes = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mesNum;
+  const diaCorte = mesmoMes ? Math.min(hoje.getDate(), fim) : fim;
+  const diasAtivos = new Set();
+  const vendasPorDia = new Map();
+  const registrar = (item, quantidade = 1) => {
+    const data = String(item.data_venda || item.dia || '').slice(0, 10);
+    const dia = Number(data.slice(8, 10));
+    if (!data || !dia || dia > diasNoMes) return;
+    diasAtivos.add(data);
+    vendasPorDia.set(data, (vendasPorDia.get(data) || 0) + quantidade);
+  };
+  vendasDiretas.forEach(item => registrar(item, 1));
+  vendasOrigem.forEach(item => registrar(item, Number(item.vendas || 0)));
+  const diasObservados = Math.max(1, diaCorte);
+  const diasComVenda = [...diasAtivos].filter(data => Number(data.slice(8, 10)) <= diaCorte).length;
+  const consistencia = Math.round(diasComVenda / diasObservados * 100);
+  const fimAtual = new Date(ano, mesNum - 1, diaCorte);
+  const inicioAtual = new Date(fimAtual); inicioAtual.setDate(inicioAtual.getDate() - 6);
+  const inicioAnterior = new Date(inicioAtual); inicioAnterior.setDate(inicioAnterior.getDate() - 7);
+  const fimAnterior = new Date(inicioAtual); fimAnterior.setDate(fimAnterior.getDate() - 1);
+  const dataChave = data => `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
+  const somarPeriodo = (inicio, fim) => [...vendasPorDia.entries()].reduce((total, [data, qtd]) => total + (data >= dataChave(inicio) && data <= dataChave(fim) ? qtd : 0), 0);
+  const semanaAtual = somarPeriodo(inicioAtual, fimAtual);
+  const semanaAnterior = somarPeriodo(inicioAnterior, fimAnterior);
+  const evolucao = semanaAnterior > 0 ? Math.round((semanaAtual - semanaAnterior) / semanaAnterior * 100) : null;
+  const indicadores = [
+    { nome: 'Meta de vendas', curto: 'Vendas', valor: metaVendas > 0 ? vendas / metaVendas * 100 : null, detalhe: metaVendas > 0 ? `${Math.round(vendas / metaVendas * 100)}% da meta mensal` : 'Meta não cadastrada' },
+    { nome: 'Ticket médio', curto: 'Ticket', valor: referencia > 0 ? ticket / referencia * 100 : null, detalhe: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível' },
+    { nome: 'Constância', curto: 'Constância', valor: Math.min(150, consistencia), detalhe: `${diasComVenda} de ${diaCorte} dias com venda` },
+    { nome: 'Evolução semanal', curto: 'Evolução', valor: evolucao == null ? null : Math.max(0, Math.min(150, 100 + evolucao)), detalhe: evolucao == null ? 'Sem semana anterior para comparar' : `${evolucao > 0 ? '+' : ''}${evolucao}% em relação à semana anterior`, exibicao: evolucao == null ? 'Sem base' : `${evolucao > 0 ? '+' : ''}${evolucao}%` },
+  ];
+  if (!externo) indicadores.push({
+    nome: 'Renovações', curto: 'Renovações',
+    valor: metaRenovacoes > 0 ? renovacoes / metaRenovacoes * 100 : null,
+    detalhe: metaRenovacoes > 0 ? `${Math.round(renovacoes / metaRenovacoes * 100)}% da meta M1` : 'Meta de renovação não cadastrada',
+  });
+  const quantidade = indicadores.length;
+  const centroX = 210, centroY = 150, raio = 102, maximo = 150;
+  const ponto = (indice, nivel) => {
+    const angulo = (-90 + indice * 360 / quantidade) * Math.PI / 180;
+    const distancia = raio * nivel / maximo;
+    return [centroX + Math.cos(angulo) * distancia, centroY + Math.sin(angulo) * distancia];
+  };
+  const pontosPoligono = nivel => indicadores.map((_, i) => ponto(i, nivel).map(n => n.toFixed(1)).join(',')).join(' ');
+  const grades = [50, 100, 150].map(nivel => `<polygon class="an-radar-grid ${nivel === 100 ? 'is-reference' : ''}" points="${pontosPoligono(nivel)}"></polygon>`).join('');
+  const eixos = indicadores.map((item, i) => {
+    const [x, y] = ponto(i, maximo);
+    const [lx, ly] = ponto(i, 174);
+    const ancoragem = lx < centroX - 10 ? 'end' : lx > centroX + 10 ? 'start' : 'middle';
+    return `<line class="an-radar-axis" x1="${centroX}" y1="${centroY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"></line><text class="an-radar-label" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${ancoragem}">${escapeHtmlText(item.curto)}</text>`;
+  }).join('');
+  const preenchimento = indicadores.map((item, i) => ponto(i, item.valor == null ? 100 : Math.min(maximo, Math.max(0, item.valor))).map(n => n.toFixed(1)).join(',')).join(' ');
+  const dots = indicadores.map((item, i) => { const [x, y] = ponto(i, item.valor == null ? 100 : Math.min(maximo, Math.max(0, item.valor))); return `<circle class="an-radar-point" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"></circle>`; }).join('');
+  chart.innerHTML = `<svg viewBox="0 0 420 300" role="img" aria-label="Radar dos atributos comerciais. A linha de referência representa 100 por cento.">${grades}${eixos}<polygon class="an-radar-area" points="${preenchimento}"></polygon>${dots}</svg>`;
+  legend.innerHTML = indicadores.map(item => {
+    const exibicao = item.exibicao || (item.valor == null ? 'Sem base' : `${Math.round(item.valor)}%`);
+    return `<li><span><b>${escapeHtmlText(item.nome)}</b><small>${escapeHtmlText(item.detalhe)}</small></span><strong>${escapeHtmlText(exibicao)}</strong></li>`;
+  }).join('');
+  if (note) note.textContent = externo
+    ? '100% indica a meta ou referência atingida. Renovações não entram na avaliação de vendedores externos.'
+    : '100% indica a meta ou referência atingida. Evolução compara os últimos 7 dias com os 7 dias anteriores.';
+}
+
 function renderizarGraficosPerfilAnalitico(selecionado) {
   const id = String(selecionado.cadastro?.id ?? selecionado.vendedor?.id ?? '');
   const externo = selecionado.tipo === 'externo';
@@ -5084,6 +5157,14 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const pctRenovacoes = metaRenovacoes > 0 ? Math.round(renovacoes / metaRenovacoes * 100) : null;
   const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;
   const detalhesVendas = renderizarGraficosPerfilAnalitico(selecionado);
+  const mesAnalitico = _cache.mes || {};
+  renderizarAtributosComerciais(selecionado, detalhesVendas, {
+    vendas, metaVendas, ticket, referencia, renovacoes,
+    metaRenovacoes: Number(metasRenovacao.meta_m1 || metasRenovacao.m1 || metaRenovacoes),
+    diasNoMes: new Date(Number(mesAnalitico.ano || new Date().getFullYear()), Number(mesAnalitico.mesNum || new Date().getMonth() + 1), 0).getDate(),
+    ano: Number(mesAnalitico.ano || new Date().getFullYear()),
+    mesNum: Number(mesAnalitico.mesNum || new Date().getMonth() + 1),
+  });
   const valorVendasDiretas = detalhesVendas.vendasDiretas.reduce((total, item) => total + Number(item.valor_total ?? item.valor_plano ?? item.valor ?? 0), 0);
   const valorVendasOrigem = detalhesVendas.vendasOrigem.reduce((total, item) => total + Number(item.valor || 0), 0);
   const valorVendido = valorVendasDiretas + valorVendasOrigem;
