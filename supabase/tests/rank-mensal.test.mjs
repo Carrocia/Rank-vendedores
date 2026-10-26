@@ -1,83 +1,97 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+const currentSql = readFileSync(new URL('../atualizar-regras-rank-mensal.sql', import.meta.url), 'utf8');
+const closingSql = readFileSync(new URL('../fechamento-progressao-ranks.sql', import.meta.url), 'utf8');
+
 let failures = 0;
-function runTest(name, fn) {
+function run(name, fn) {
   try { fn(); process.stdout.write(`PASS ${name}\n`); }
   catch (error) { failures++; process.stderr.write(`FAIL ${name}: ${error.message}\n`); }
 }
 
-const sqlFiles = [
-  'supabase/progressao-ranks-carreira.sql',
-  'supabase/fechamento-progressao-ranks.sql',
-  'supabase/atualizar-regras-rank-mensal.sql',
-].map(path => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
-
-const rules = [
-  { rank: 'S', sales: 1.15, ticket: 130, renewals: 0.80 },
-  { rank: 'A', sales: 1.00, ticket: 120, renewals: 0.65 },
-  { rank: 'B', sales: 0.85, ticket: 115, renewals: 0.45 },
-  { rank: 'C', sales: 0.70, ticket: 110, renewals: 0.30 },
-  { rank: 'D', sales: 0.50, ticket: 105, renewals: 0 },
-];
-
-function classify({ salesPct, ticket, renewalPct = null, external = false, metaValid = true, renewalMetaValid = true }) {
-  if (!metaValid || ticket == null || !Number.isFinite(ticket) || ticket <= 0) return null;
-  return rules.find(rule => salesPct >= rule.sales && ticket >= rule.ticket
-    && (external || rule.renewals === 0 || (renewalMetaValid && Number(renewalPct || 0) >= rule.renewals)))?.rank ?? null;
+function score({ sales = 0, meta = 0, ticket = 0, reference = 0, activeDays = 0, highVolumeDays = 0, currentWeek = 0, previousWeek = 0, renewals = 0, external = false }) {
+  const salesXp = meta > 0 ? Math.min(35, Math.max(0, sales / meta * 35)) : 0;
+  const ticketXp = reference > 0 ? Math.min(20, Math.max(0, (ticket / reference - 0.8) * 66.6666667)) : 0;
+  const consistencyXp = Math.min(20, activeDays / 10 * 20);
+  const volumeXp = Math.min(10, highVolumeDays * 2);
+  const weeklyXp = previousWeek > 0
+    ? Math.min(10, Math.max(0, (currentWeek - previousWeek) / previousWeek * 20))
+    : currentWeek > 0 ? 4 : 0;
+  const renewalXp = external ? 0 : Math.min(5, renewals * 0.25);
+  const total = Math.min(100, salesXp + ticketXp + consistencyXp + volumeXp + weeklyXp + renewalXp);
+  const rank = rankFor(total, meta);
+  return { salesXp, ticketXp, consistencyXp, volumeXp, weeklyXp, renewalXp, total, rank };
 }
 
-runTest('database SQL contains the agreed thresholds and never auto-assigns SS', () => {
-  for (const sql of sqlFiles) {
-    for (const rule of rules) {
-      const expected = rule.renewals
-        ? `when e.pct_vendas >= ${rule.sales.toFixed(2)} and (e.somente_externo or e.pct_renovacoes >= ${rule.renewals.toFixed(2)}) and e.ticket_medio_valido >= ${rule.ticket} then '${rule.rank}'`
-        : `when e.pct_vendas >= ${rule.sales.toFixed(2)} and e.ticket_medio_valido >= ${rule.ticket} then '${rule.rank}'`;
-      assert.ok(sql.includes(expected), `Missing SQL rule: ${expected}`);
-    }
-    assert.match(sql, /else null\s+end::text as rank_mensal/);
-    assert.doesNotMatch(sql, /then 'SS'/);
+function rankFor(total, meta) {
+  return meta <= 0 ? null : total >= 80 ? 'S' : total >= 65 ? 'A' : total >= 50 ? 'B' : total >= 35 ? 'C' : total >= 20 ? 'D' : null;
+}
+
+run('current calculation assigns monthly ranks through the existing XP score', () => {
+  for (const [points, rank] of [[80, 'S'], [65, 'A'], [50, 'B'], [35, 'C'], [20, 'D']]) {
+    assert.ok(currentSql.includes(`when e.xp_total >= ${points} then '${rank}'`), `Missing rank ${rank} at ${points} XP`);
+    assert.equal(rankFor(points, 1), rank);
   }
+  assert.doesNotMatch(currentSql, /then 'SS'/);
+  assert.match(currentSql, /create or replace function public\.calcular_rank_mensal_filial_vivo/);
+  assert.match(closingSql, /calcular_rank_mensal_filial_vivo\(p_filial_id, p_mes, p_ano\)/);
 });
 
-runTest('each rank is awarded at its exact inclusive boundary', () => {
-  for (const rule of rules) {
-    assert.equal(classify({ salesPct: rule.sales, ticket: rule.ticket, renewalPct: rule.renewals, external: true }), rule.rank);
-  }
+run('monthly score can progress without hitting M1 and keeps ranks distinct from career XP', () => {
+  const profile = score({ sales: 5, meta: 20, ticket: 120, reference: 100, activeDays: 10, highVolumeDays: 3, currentWeek: 3, previousWeek: 2 });
+  assert.equal(profile.rank, 'B');
+  assert.ok(profile.total < 80);
 });
 
-runTest('exceeding one threshold cannot compensate for missing the other', () => {
-  assert.equal(classify({ salesPct: 1.50, ticket: 104.99, external: true }), null);
-  assert.equal(classify({ salesPct: 0.4999, ticket: 200, external: true }), null);
-  assert.equal(classify({ salesPct: 0.90, ticket: 114.99, external: true }), 'C');
-  assert.equal(classify({ salesPct: 0.9999, ticket: 125, external: true }), 'B');
-  assert.equal(classify({ salesPct: 1.15, ticket: 129.99, external: true }), 'A');
+run('rank thresholds are inclusive at exact score boundaries', () => {
+  const cases = [
+    [{ sales: 20, meta: 20, activeDays: 10, ticket: 110, reference: 100, renewals: 20 }, 'S'],
+    [{ sales: 20, meta: 20, activeDays: 10, ticket: 95, reference: 100 }, 'A'],
+    [{ sales: 20, meta: 20, activeDays: 7.5 }, 'B'],
+    [{ sales: 20, meta: 20 }, 'C'],
+    [{ sales: 0, meta: 1, activeDays: 10 }, 'D'],
+  ];
+  for (const [input, expected] of cases) assert.equal(score(input).rank, expected);
 });
 
-runTest('the highest qualifying rank wins while SS stays unavailable', () => {
-  assert.equal(classify({ salesPct: 1.50, ticket: 200, external: true }), 'S');
+run('ticket contributes gradually and is not an eliminatory requirement', () => {
+  assert.equal(score({ sales: 1, meta: 1, ticket: 80, reference: 100, activeDays: 10 }).ticketXp, 0);
+  assert.ok(Math.abs(score({ sales: 1, meta: 1, ticket: 95, reference: 100, activeDays: 10 }).ticketXp - 10) < 0.00001);
+  assert.equal(score({ sales: 1, meta: 1, ticket: 110, reference: 100, activeDays: 10 }).ticketXp, 20);
+  assert.equal(score({ sales: 1, meta: 1, ticket: 70, reference: 100 }).rank, 'C');
 });
 
-runTest('monthly renewal criteria are lighter and remain additional only above D', () => {
-  assert.equal(classify({ salesPct: 0.50, ticket: 105, renewalPct: 0 }), 'D');
-  assert.equal(classify({ salesPct: 0.70, ticket: 110, renewalPct: 0.2999 }), 'D');
-  assert.equal(classify({ salesPct: 0.70, ticket: 110, renewalPct: 0.30 }), 'C');
-  assert.equal(classify({ salesPct: 0.85, ticket: 115, renewalPct: 0.4499 }), 'C');
-  assert.equal(classify({ salesPct: 0.85, ticket: 115, renewalPct: 0.45 }), 'B');
-  assert.equal(classify({ salesPct: 1.00, ticket: 120, renewalPct: 0.6499 }), 'B');
-  assert.equal(classify({ salesPct: 1.00, ticket: 120, renewalPct: 0.65 }), 'A');
-  assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 0.7999 }), 'A');
-  assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 0.80 }), 'S');
-  assert.equal(classify({ salesPct: 1.15, ticket: 130, renewalPct: 0, external: true }), 'S');
-  assert.equal(classify({ salesPct: 1.15, ticket: 130, external: true, renewalMetaValid: false }), 'S');
+run('activity, constancy, high-volume days, and weekly evolution are capped', () => {
+  const result = score({ sales: 100, meta: 20, ticket: 130, reference: 100, activeDays: 20, highVolumeDays: 10, currentWeek: 100, previousWeek: 1, renewals: 100 });
+  assert.equal(result.salesXp, 35);
+  assert.equal(result.ticketXp, 20);
+  assert.equal(result.consistencyXp, 20);
+  assert.equal(result.volumeXp, 10);
+  assert.equal(result.weeklyXp, 10);
+  assert.equal(result.renewalXp, 5);
+  assert.equal(result.total, 100);
 });
 
-runTest('missing sales goal or usable ticket blocks a rank, but missing renewal meta still allows D', () => {
-  assert.equal(classify({ salesPct: 1.2, ticket: 150, metaValid: false, external: true }), null);
-  assert.equal(classify({ salesPct: 1.2, ticket: 150, renewalMetaValid: false }), 'D');
-  assert.equal(classify({ salesPct: 1.2, ticket: null, external: true }), null);
-  assert.equal(classify({ salesPct: 0.49, ticket: 104.99, external: true }), null);
+run('external sellers do not receive renewal XP or depend on renewal goals', () => {
+  const external = score({ sales: 1, meta: 1, activeDays: 10, renewals: 100, external: true });
+  assert.equal(external.renewalXp, 0);
+  assert.equal(external.rank, 'B');
+  assert.match(currentSql, /when m\.somente_externo then 0::numeric/);
+});
+
+run('insufficient sales metadata does not classify and XP alone cannot assign SS', () => {
+  assert.equal(score({ sales: 100, meta: 0, ticket: 200, reference: 100, activeDays: 20 }).rank, null);
+  assert.match(currentSql, /when not e\.pode_classificar then null/);
+  assert.doesNotMatch(currentSql, /then 'SS'/);
+});
+
+run('rank closing stores snapshots while monthly XP career migration remains separate', () => {
+  assert.match(closingSql, /insert into public\.ranks_carreira_mensais/);
+  assert.match(closingSql, /insert into public\.ranks_carreira_periodos_fechados/);
+  const xpSql = readFileSync(new URL('../xp-comercial-acumulado.sql', import.meta.url), 'utf8');
+  assert.doesNotMatch(xpSql, /rank_mensal\s*=/);
+  assert.match(xpSql, /xp_total_periodo/);
 });
 
 if (failures) process.exitCode = 1;
-

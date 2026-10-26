@@ -1,4 +1,6 @@
-# Modelo inicial de XP para o rank mensal
+# Pontuação do rank mensal (separada do XP de carreira)
+
+Os pontos desta regra classificam o desempenho do mês e são recalculados a partir das atividades do período. Eles não são o XP comercial permanente de carreira definido em `guia-xp-comercial-acumulado.md` e `xp-comercial-acumulado.sql`.
 
 Este modelo substitui a exigência de atingir M3/M2/M1 para receber um rank mensal. O XP é calculado novamente a partir dos registros do mês: inclusão, alteração ou cancelamento de venda atualiza a pontuação.
 

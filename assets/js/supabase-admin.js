@@ -1191,7 +1191,7 @@ function atualizarAcaoFechamentoRank() {
   botao.disabled = !disponivel;
   botao.textContent = `Consolidar ${nomeMes}`;
   info.textContent = disponivel
-    ? `Confira se as últimas importações de vendas e renovações foram concluídas. O fechamento guarda somente totais agregados de ${nomeMes}.`
+    ? `Confira as últimas importações de vendas e renovações. O fechamento registra os ranks e o XP do período de ${nomeMes}.`
     : `O fechamento de ${nomeMes} ficará disponível no dia 8, depois da primeira semana para receber os relatórios finais.`;
 }
 
@@ -1202,10 +1202,11 @@ async function fecharRankMesAnteriorFilial() {
   const ano = Number(botao.dataset.ano);
   const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
     .format(new Date(ano, mes - 1, 1));
-  if (!confirm(`Consolidar o rank de ${nomeMes}? Confira antes se as importações finais de vendas e renovações foram feitas. Depois do fechamento, alterações nos lançamentos não mudam esse mês até que o superadministrador o reabra.`)) return;
+  if (!confirm(`Consolidar o rank e o XP de ${nomeMes}? Confira antes se as importações finais de vendas e renovações foram feitas. Depois do fechamento, alterações não mudam os snapshots; a correção de XP exige motivo e ação do superadministrador.`)) return;
   botao.disabled = true;
   const textoOriginal = botao.textContent;
   botao.textContent = 'Consolidando…';
+  let rankConsolidado = false;
   try {
     const { data, error } = await window._supabase.rpc('consolidar_rank_mensal_filial', {
       p_filial_id: Number(window.FILIAL_ATUAL_ID),
@@ -1213,11 +1214,20 @@ async function fecharRankMesAnteriorFilial() {
       p_ano: ano,
     });
     if (error) throw error;
-    showToast(`Rank de ${nomeMes} consolidado com ${Number(data || 0)} vendedores.`, 'success');
+    rankConsolidado = true;
+    const { data: xpData, error: xpError } = await window._supabase.rpc('consolidar_xp_comercial_filial', {
+      p_filial_id: Number(window.FILIAL_ATUAL_ID),
+      p_mes: mes,
+      p_ano: ano,
+    });
+    if (xpError) throw xpError;
+    showToast(`Rank e XP de ${nomeMes} consolidados. ${Number(data || 0)} ranks e ${Number(xpData || 0)} períodos de XP.`, 'success');
     await carregarDados();
   } catch (error) {
     console.error('[fecharRankMesAnteriorFilial]', error);
-    showToast(error.message || 'Não foi possível consolidar o mês.', 'error');
+    showToast(rankConsolidado
+      ? `O rank foi consolidado, mas o XP não. Aplique a migração de XP e tente consolidar novamente: ${error.message || 'erro no fechamento de XP.'}`
+      : (error.message || 'Não foi possível consolidar o mês.'), 'error');
   } finally {
     atualizarAcaoFechamentoRank();
     botao.textContent = textoOriginal;
@@ -5081,6 +5091,51 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     ['Ticket médio', `R$ ${formatarValorAnalitica(ticket)}`, referencia > 0 ? `${pctTicket}% da referência regional (R$ ${formatarValorAnalitica(referencia)})` : 'Referência indisponível'],
   ];
   document.getElementById('an-metrics').innerHTML = cards.map(([label, value, sub]) => `<article class="an-metric"><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`).join('');
+  const xpStatus = document.getElementById('an-xp-period-status');
+  const xpTotal = document.getElementById('an-xp-total');
+  const xpBreakdown = document.getElementById('an-xp-breakdown');
+  const xpNote = document.getElementById('an-xp-note');
+  if (xpStatus) xpStatus.textContent = 'Calculando período…';
+  if (xpTotal) xpTotal.textContent = '—';
+  if (xpBreakdown) xpBreakdown.replaceChildren();
+  try {
+    const periodoXP = _ultimoProcessado?.mes || _cache.mes || {};
+    const { data: xpData, error: xpError } = await window._supabase.rpc('calcular_xp_comercial_vendedor', {
+      p_vendedor_id: Number(cadastro?.id || vendedor.id),
+      p_mes: Number(periodoXP.mesNum),
+      p_ano: Number(periodoXP.ano),
+    });
+    if (token !== _analiticaRenderToken) return;
+    if (xpError) throw xpError;
+    const xp = Array.isArray(xpData) ? xpData[0] : xpData;
+    if (!xp) throw new Error('O cálculo não retornou dados para este colaborador.');
+    const formatarXP = valor => `${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} XP`;
+    if (xpTotal) xpTotal.textContent = formatarXP(xp.xp_acumulado_carreira);
+    if (xpStatus) xpStatus.textContent = `${xp.status === 'fechado' ? 'Mês fechado' : 'Estimativa provisória'} · ${formatarXP(xp.xp_total_periodo)} no mês`;
+    const ajusteTicket = Number(xp.xp_bonus_ticket || 0);
+    const bonusMetas = Number(xp.xp_bonus_meta_vendas || 0) + Number(xp.xp_bonus_meta_renovacoes || 0);
+    const linhasXP = [
+      ['Base de vendas novas', formatarXP(xp.xp_base_vendas)],
+      ['Ajuste do ticket', `${ajusteTicket > 0 ? '+' : ''}${formatarXP(ajusteTicket)}`],
+      ['XP de renovações', formatarXP(xp.xp_renovacoes)],
+      ['Bônus de metas', formatarXP(bonusMetas)],
+    ];
+    if (xpBreakdown) xpBreakdown.innerHTML = linhasXP.map(([nome, valor], indice) => `<div class="an-xp-line${indice === 1 && ajusteTicket < 0 ? ' is-negative' : ''}"><span>${nome}</span><strong>${valor}</strong></div>`).join('');
+    if (xpNote) {
+      const ticketInfo = xp.multiplicador_ticket == null
+        ? 'Ticket sem base válida; vendas recebem o XP-base, sem ajuste.'
+        : `Ticket médio R$ ${formatarValorAnalitica(xp.ticket_medio)} · multiplicador ${Number(xp.multiplicador_ticket).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×.`;
+      const campanhaInfo = xp.campanha_id ? ` Campanha configurada #${xp.campanha_id}.` : '';
+      const metasInfo = xp.bonus_metas_ativo ? '' : ' Bônus de metas desativado até os valores serem definidos.';
+      xpNote.textContent = `${ticketInfo}${campanhaInfo}${metasInfo} XP de carreira não altera o rank mensal nem promove automaticamente enquanto os limites de carreira não forem definidos.`;
+    }
+  } catch (xpError) {
+    console.warn('[renderizarPerfilAnalitico] não foi possível carregar XP comercial:', xpError.message);
+    if (xpStatus) xpStatus.textContent = 'XP ainda não disponível';
+    if (xpTotal) xpTotal.textContent = '—';
+    if (xpBreakdown) xpBreakdown.innerHTML = '<p class="an-chart-empty">Aplique supabase/xp-comercial-acumulado.sql para habilitar o XP acumulado.</p>';
+    if (xpNote) xpNote.textContent = 'O rank mensal continua usando a regra atual até a configuração do XP comercial.';
+  }
   if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
   await preencherFichaAnalitica(selecionado, carreira);
   profile.hidden = false;
