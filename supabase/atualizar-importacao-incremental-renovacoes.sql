@@ -69,3 +69,4 @@ revoke all on function public.substituir_registros_renovacao(bigint, integer, in
 grant execute on function public.substituir_registros_renovacao(bigint, integer, integer, text, jsonb) to authenticated;
 
 commit;
+notify pgrst, 'reload schema';

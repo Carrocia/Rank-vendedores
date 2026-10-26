@@ -1684,9 +1684,10 @@ async function importarRelatorioRenovacoes() {
   } catch (err) {
     console.error('[importarRelatorioRenovacoes]', err);
     const msg = String((err && err.message) || err);
-    showToast(/substituir_registros_renovacao|schema cache|does not exist/i.test(msg)
-      ? 'A estrutura de importação ainda não existe no Supabase. Execute supabase/renovacoes-mensais.sql no SQL Editor.'
-      : 'Não foi possível importar: ' + msg, 'error', 9000);
+    const erroSchema = /schema cache|could not find the function|function .* does not exist/i.test(msg);
+    showToast(erroSchema
+      ? `O Supabase ainda não reconheceu a função de importação. Como o SQL já foi executado, atualize o schema da API com NOTIFY pgrst, 'reload schema'; e recarregue a página. Detalhe: ${msg}`
+      : `Não foi possível importar: ${msg}`, 'error', 12000);
   }
 }
 
