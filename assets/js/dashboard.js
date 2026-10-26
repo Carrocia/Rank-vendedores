@@ -377,10 +377,10 @@ function renderHistorico() {
         ${h.emAndamento ? '<span class="mural-month-status">Em andamento</span>' : ''}
       </div>
       <div class="mural-winners${h.renovacao || h.emAndamento ? '' : ' mural-winners-two'}">
-        ${renderMuralPerson(h.interno, 'Vendas · interno')}
-        ${renderMuralPerson(h.externo, 'Vendas · externo')}
+        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno')}
+        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo')}
         ${h.renovacao || h.emAndamento
-          ? renderMuralPerson(h.renovacao, 'Renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
+          ? renderMuralPerson(h.renovacao, 'Destaque em renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
           : ''}
       </div>
     </div>
