@@ -231,12 +231,17 @@ begin
   on conflict (filial_id, mes, ano, contrato) do nothing;
   get diagnostics linhas_inseridas = row_count;
 
-  delete from public.renovacoes_mensais where filial_id = p_filial_id and mes = p_mes and ano = p_ano;
+  -- Preserva agregados antigos sem detalhamento enquanto contratos do
+  -- relatório completo são incorporados à tabela de registros.
   insert into public.renovacoes_mensais (filial_id, vendedor_id, mes, ano, quantidade, arquivo_origem)
   select p_filial_id, vendedor_id, p_mes, p_ano, count(*)::integer, left(p_arquivo, 255)
   from public.renovacoes_registros
   where filial_id = p_filial_id and mes = p_mes and ano = p_ano
-  group by vendedor_id;
+  group by vendedor_id
+  on conflict (filial_id, vendedor_id, mes, ano) do update
+    set quantidade = greatest(public.renovacoes_mensais.quantidade, excluded.quantidade),
+        arquivo_origem = excluded.arquivo_origem,
+        importado_em = now();
   return linhas_inseridas;
 end;
 $function$;

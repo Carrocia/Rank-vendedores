@@ -1,6 +1,6 @@
 -- Evita somar renovações repetidas ao reenviar uma planilha do mês.
--- A importação acrescenta somente contratos ainda não registrados e recompõe
--- os totais mensais a partir de todo o detalhamento preservado.
+-- A importação acrescenta somente contratos ainda não registrados e atualiza
+-- os totais mensais sem descartar agregados legados que ainda não têm detalhe.
 begin;
 
 create or replace function public.substituir_registros_renovacao(
@@ -48,14 +48,18 @@ begin
   on conflict (filial_id, mes, ano, contrato) do nothing;
   get diagnostics linhas_inseridas = row_count;
 
-  -- Atualiza os totais agregados sem apagar o histórico detalhado.
-  delete from public.renovacoes_mensais
-  where filial_id = p_filial_id and mes = p_mes and ano = p_ano;
+  -- Mantém o maior entre o total legado e os contratos já detalhados.
+  -- Relatórios completos preenchem os detalhes progressivamente; ao alcançar
+  -- o total real, esse passa a ser o novo valor sem duplicar importações.
   insert into public.renovacoes_mensais (filial_id, vendedor_id, mes, ano, quantidade, arquivo_origem)
   select p_filial_id, vendedor_id, p_mes, p_ano, count(*)::integer, left(p_arquivo, 255)
   from public.renovacoes_registros
   where filial_id = p_filial_id and mes = p_mes and ano = p_ano
-  group by vendedor_id;
+  group by vendedor_id
+  on conflict (filial_id, vendedor_id, mes, ano) do update
+    set quantidade = greatest(public.renovacoes_mensais.quantidade, excluded.quantidade),
+        arquivo_origem = excluded.arquivo_origem,
+        importado_em = now();
 
   return linhas_inseridas;
 end;
