@@ -536,23 +536,26 @@
 
   /* ---------- mural de destaques (histórico — externo + interno) ---------- */
   .mural-section { margin-bottom: 40px; }
-  .mural-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+  .mural-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
   .mural-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-    padding: 16px 18px; position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 145px minmax(0, 1fr); align-items: stretch;
+    padding: 8px 14px; position: relative; overflow: hidden;
     transition: border-color 0.2s ease, transform 0.2s ease;
   }
   .mural-card:hover { transform: translateY(-2px); border-color: var(--accent); }
   .mural-month {
-    display: block; position: relative; padding-bottom: 10px;
-    font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--heading-color); margin-bottom: 2px;
-    border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    gap: 5px; padding: 8px 14px 8px 2px; border-right: 1px solid var(--border);
+    color: var(--heading-color); text-transform: uppercase; letter-spacing: 0.07em;
   }
-  .mural-winners { position: relative; }
-  .mural-winner { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 10px; padding: 9px 0; }
-  .mural-winner + .mural-winner { border-top: 1px solid var(--border); }
-  .mural-photo-wrap { position: relative; width: 40px; height: 40px; }
+  .mural-month strong { font-size: 0.76rem; font-weight: 800; }
+  .mural-month-status { color: var(--text-muted); text-transform: none; letter-spacing: 0; font-size: 0.68rem; font-weight: 600; }
+  .mural-winners { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }
+  .mural-winners-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mural-winner { min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 9px; padding: 8px 13px; }
+  .mural-winner + .mural-winner { border-top: 0; border-left: 1px solid var(--border); }
+  .mural-photo-wrap { position: relative; width: 38px; height: 38px; }
   .mural-photo {
     display: block; width: 100%; height: 100%; border-radius: 50%;
     object-fit: cover; border: 1px solid var(--border);
@@ -565,9 +568,26 @@
   .mural-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 24px; grid-column: 1 / -1; }
 
   /* Placeholder calmo para o mês ainda em andamento. */
-  .mural-winner-pending::before { content: ''; width: 32px; height: 32px; margin: 4px; border: 1px dashed var(--border); border-radius: 50%; background: var(--surface-hover); }
+  .mural-winner-pending::before { content: ''; width: 30px; height: 30px; margin: 4px; border: 1px dashed var(--border); border-radius: 50%; background: var(--surface-hover); }
   .mural-winner-pending .mural-role { grid-column: 2; }
   .mural-winner-pending .mural-name { grid-column: 2; color: var(--text-muted); font-weight: 600; }
+
+  @media (max-width: 760px) {
+    .mural-card { grid-template-columns: 112px minmax(0, 1fr); padding: 7px 9px; }
+    .mural-winner { grid-template-columns: 32px minmax(0, 1fr); gap: 7px; padding: 8px; }
+    .mural-photo-wrap { width: 32px; height: 32px; }
+    .mural-role { font-size: 0.56rem; }
+    .mural-name { font-size: 0.75rem; }
+    .mural-value { font-size: 0.66rem; }
+  }
+  @media (max-width: 560px) {
+    .mural-card { grid-template-columns: 1fr; }
+    .mural-month { padding: 5px 4px 9px; border-right: 0; }
+    .mural-winners { grid-template-columns: 1fr; }
+    .mural-winners-two { grid-template-columns: 1fr; }
+    .mural-winner { padding: 8px 4px; }
+    .mural-winner + .mural-winner { border-left: 0; border-top: 1px solid var(--border); }
+  }
 
   .dashboard-footer {
     display: flex; flex-direction: column; align-items: center; gap: 10px;

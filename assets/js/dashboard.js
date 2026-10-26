@@ -372,8 +372,11 @@ function renderHistorico() {
   }
   container.innerHTML = historico.map(h => `
     <div class="mural-card">
-      <span class="mural-month">${h.mes}</span>
-      <div class="mural-winners">
+      <div class="mural-month">
+        <strong>${escapeHtmlText(h.mes)}</strong>
+        ${h.emAndamento ? '<span class="mural-month-status">Em andamento</span>' : ''}
+      </div>
+      <div class="mural-winners${h.renovacao || h.emAndamento ? '' : ' mural-winners-two'}">
         ${renderMuralPerson(h.interno, 'Vendas · interno')}
         ${renderMuralPerson(h.externo, 'Vendas · externo')}
         ${h.renovacao || h.emAndamento
