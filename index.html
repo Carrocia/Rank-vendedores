@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261023-adm-all-7">
+<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261026-analitica-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -323,7 +323,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261023-analitica-ranks-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261023-rank-rules-7"></script>
+  <script src="assets/js/supabase-admin.js?v=20261026-analitica-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -963,6 +963,23 @@
                   <article class="an-rank-card an-rank-progress"><span>CAMINHO ATÉ SS</span><strong id="an-ss-progresso">0/4 meses M1</strong><div class="an-progress"><i id="an-ss-barra"></i></div><small id="an-ss-nota">A sequência começa após o primeiro fechamento mensal.</small></article>
                 </div>
                 <div class="an-metrics" id="an-metrics"></div>
+                <div class="an-insights-grid">
+                  <section class="an-insight-card">
+                    <header><div><span class="adm-card-eyebrow">RITMO DO MÊS</span><h3>Vendas por dia</h3></div><strong id="an-daily-total">—</strong></header>
+                    <p class="an-insight-note" id="an-daily-note">Distribuição das vendas registradas no mês.</p>
+                    <div class="an-daily-chart" id="an-daily-chart" role="img" aria-label="Vendas por dia do mês"></div>
+                    <div class="an-chart-scale"><span>1</span><span id="an-chart-last-day">—</span><span>dia do mês</span></div>
+                  </section>
+                  <section class="an-insight-card">
+                    <header><div><span class="adm-card-eyebrow">COMPOSIÇÃO</span><h3>Mix de planos</h3></div><strong id="an-plan-total">—</strong></header>
+                    <p class="an-insight-note" id="an-plan-note">Planos do catálogo vendidos por categoria e participação no total.</p>
+                    <div class="an-plan-mix" id="an-plan-mix"></div>
+                  </section>
+                </div>
+                <section class="an-insight-card an-top-plans-card">
+                  <header><div><span class="adm-card-eyebrow">DETALHAMENTO</span><h3>Planos mais vendidos</h3></div><span class="an-insight-note">Quantidade no período</span></header>
+                  <div class="an-top-plans" id="an-top-plans"></div>
+                </section>
                 <p class="an-status" id="an-status" role="status" aria-live="polite"></p>
               </div>
             </div>

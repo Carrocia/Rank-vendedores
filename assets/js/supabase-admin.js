@@ -4814,6 +4814,96 @@ function resumirMarcosMeta(atual, metas, metaM1Fallback = 0) {
   return `${lista} · M1 alcançada`;
 }
 
+function renderizarGraficosPerfilAnalitico(selecionado) {
+  const id = String(selecionado.cadastro?.id ?? selecionado.vendedor?.id ?? '');
+  const externo = selecionado.tipo === 'externo';
+  const vendasDiretas = (_cache.vendasMes || []).filter(v => {
+    if (String(v.vendedor_id) !== id) return false;
+    return !(externo && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v)));
+  });
+  const vendasOrigem = !externo ? (_cache.vendasOrigemMes || []).filter(v =>
+    String(v.vendedor_id) === id && v.tipo === 'interno'
+  ) : [];
+  const origemPorDia = new Map();
+  vendasOrigem.forEach(v => origemPorDia.set(v.dia, (origemPorDia.get(v.dia) || 0) + Number(v.vendas || 0)));
+  const mesRef = _cache.mes || {};
+  const ano = Number(mesRef.ano || _ultimoProcessado?.mes?.ano || new Date().getFullYear());
+  const mesNum = Number(mesRef.mesNum || _ultimoProcessado?.mes?.mesNum || new Date().getMonth() + 1);
+  const diasNoMes = new Date(ano, mesNum, 0).getDate();
+  const vendasPorDia = Array.from({ length: diasNoMes }, (_, i) => ({ dia: i + 1, quantidade: 0 }));
+  vendasDiretas.forEach(v => {
+    const dia = Number(String(v.data_venda || '').slice(8, 10));
+    if (dia > 0 && dia <= diasNoMes) vendasPorDia[dia - 1].quantidade++;
+  });
+  origemPorDia.forEach((quantidade, data) => {
+    const dia = Number(String(data || '').slice(8, 10));
+    if (dia > 0 && dia <= diasNoMes) vendasPorDia[dia - 1].quantidade += quantidade;
+  });
+  const totalDiario = vendasPorDia.reduce((total, item) => total + item.quantidade, 0);
+  const maxDia = Math.max(1, ...vendasPorDia.map(item => item.quantidade));
+  const chartDaily = document.getElementById('an-daily-chart');
+  const chartTotal = document.getElementById('an-daily-total');
+  const chartNote = document.getElementById('an-daily-note');
+  const lastDay = document.getElementById('an-chart-last-day');
+  if (chartDaily) {
+    chartDaily.innerHTML = vendasPorDia.map(item => {
+      const height = item.quantidade ? Math.max(5, Math.round(item.quantidade / maxDia * 100)) : 0;
+      return `<span class="an-day-column" title="Dia ${item.dia}: ${item.quantidade} venda${item.quantidade === 1 ? '' : 's'}" aria-label="Dia ${item.dia}: ${item.quantidade} venda(s)"><i style="height:${height}%"></i><small>${item.dia % 5 === 0 || item.dia === 1 ? item.dia : ''}</small></span>`;
+    }).join('');
+  }
+  if (chartTotal) chartTotal.textContent = `${totalDiario} vendas`;
+  if (chartNote) chartNote.textContent = vendasOrigem.length
+    ? `Inclui ${vendasOrigem.reduce((t, v) => t + Number(v.vendas || 0), 0)} venda(s) originada(s) em outras filiais.`
+    : 'Acompanhe em quais dias as vendas foram registradas.';
+  if (lastDay) lastDay.textContent = String(diasNoMes);
+
+  const planos = _cache.planos || [];
+  const categorias = _cache.categoriasPlanos || [];
+  const cores = ['#22d3ee', '#8b7cff', '#34d399', '#fbbf24', '#fb7185', '#60a5fa', '#f97316', '#c084fc'];
+  const porPlano = new Map();
+  const porCategoria = new Map();
+  vendasDiretas.forEach(v => {
+    const planoId = String(v.plano_id ?? v.planos?.id ?? '');
+    const plano = planos.find(p => String(p.id) === planoId);
+    const nome = plano?.nome || v.planos?.nome || 'Plano sem identificação';
+    const categoria = categorias.find(c => String(c.id) === String(plano?.categoria_id))?.nome || 'Sem categoria';
+    const qtd = v.quantidade == null ? 1 : Math.max(1, Number(v.quantidade) || 1);
+    porPlano.set(nome, (porPlano.get(nome) || 0) + qtd);
+    porCategoria.set(categoria, (porCategoria.get(categoria) || 0) + qtd);
+  });
+  const totalPlanos = [...porCategoria.values()].reduce((total, n) => total + n, 0);
+  const categoriasOrdenadas = [...porCategoria.entries()].sort((a, b) => b[1] - a[1]);
+  const totalPlanEl = document.getElementById('an-plan-total');
+  const mix = document.getElementById('an-plan-mix');
+  const planNote = document.getElementById('an-plan-note');
+  if (totalPlanEl) totalPlanEl.textContent = `${totalPlanos} planos`;
+  if (planNote) planNote.textContent = vendasOrigem.length
+    ? 'Mix dos planos detalhados; vendas originadas em outras filiais aparecem no ritmo do mês, sem detalhamento de plano.'
+    : 'Planos do catálogo vendidos por categoria e participação no total.';
+  if (mix) {
+    if (!totalPlanos) {
+      mix.innerHTML = '<p class="an-chart-empty">Ainda não há planos identificados para este colaborador neste mês.</p>';
+    } else {
+      let cursor = 0;
+      const stops = categoriasOrdenadas.map(([nome, quantidade], index) => {
+        const inicio = cursor;
+        cursor += quantidade / totalPlanos * 100;
+        return `${cores[index % cores.length]} ${inicio.toFixed(2)}% ${cursor.toFixed(2)}%`;
+      }).join(', ');
+      const fatias = categoriasOrdenadas.map(([nome, quantidade], index) => `<li><i style="--an-swatch:${cores[index % cores.length]}"></i><span>${escapeHtmlText(nome)}</span><b>${quantidade} <small>${Math.round(quantidade / totalPlanos * 100)}%</small></b></li>`).join('');
+      mix.innerHTML = `<div class="an-donut" style="--an-donut:${stops}" role="img" aria-label="Mix de ${totalPlanos} planos por categoria"><span><b>${totalPlanos}</b><small>planos</small></span></div><ul class="an-mix-legend">${fatias}</ul>`;
+    }
+  }
+  const top = document.getElementById('an-top-plans');
+  if (top) {
+    const ranking = [...porPlano.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+    top.innerHTML = ranking.length
+      ? ranking.map(([nome, quantidade], index) => `<div class="an-plan-row"><span class="an-plan-index">${index + 1}</span><span class="an-plan-name">${escapeHtmlText(nome)}</span><span class="an-plan-track"><i style="width:${Math.round(quantidade / ranking[0][1] * 100)}%"></i></span><b>${quantidade}</b></div>`).join('')
+      : '<p class="an-chart-empty">Sem vendas de planos detalhadas neste período.</p>';
+  }
+  return { vendasDiretas, vendasOrigem, totalDiario };
+}
+
 function renderizarGradeAnalitica(vendedores = _analiticaVendedores) {
   const grade = document.getElementById('an-roster-grid');
   const resumo = document.getElementById('an-roster-summary');
@@ -4980,8 +5070,13 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const pctVendas = metaVendas > 0 ? Math.round(vendas / metaVendas * 100) : null;
   const pctRenovacoes = metaRenovacoes > 0 ? Math.round(renovacoes / metaRenovacoes * 100) : null;
   const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;
+  const detalhesVendas = renderizarGraficosPerfilAnalitico(selecionado);
+  const valorVendasDiretas = detalhesVendas.vendasDiretas.reduce((total, item) => total + Number(item.valor_total ?? item.valor_plano ?? item.valor ?? 0), 0);
+  const valorVendasOrigem = detalhesVendas.vendasOrigem.reduce((total, item) => total + Number(item.valor || 0), 0);
+  const valorVendido = valorVendasDiretas + valorVendasOrigem;
   const cards = [
     ['Vendas no mês', vendas.toLocaleString('pt-BR'), externo ? (metaVendas > 0 ? `${pctVendas}% da meta mensal · meta ${metaVendas}` : 'Meta mensal não cadastrada') : resumirMarcosMeta(vendas, metasVendas, metaVendas)],
+    ['Valor vendido', `R$ ${formatarValorAnalitica(valorVendido)}`, 'Soma dos valores registrados nas vendas'],
     ['Renovações', renovacoes.toLocaleString('pt-BR'), externo ? 'Renovações registradas · sem meta no rank' : resumirMarcosMeta(renovacoes, metasRenovacao, metaRenovacoes)],
     ['Ticket médio', `R$ ${formatarValorAnalitica(ticket)}`, referencia > 0 ? `${pctTicket}% da referência regional (R$ ${formatarValorAnalitica(referencia)})` : 'Referência indisponível'],
   ];
