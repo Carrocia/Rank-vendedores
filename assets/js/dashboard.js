@@ -354,8 +354,11 @@ function historicoCompleto() {
 
   // card do mês em andamento, sempre no topo, "A definir"
   const nomeAtual = (() => { const n = calcularPeriodoMes().mesNome; return n.charAt(0).toUpperCase() + n.slice(1); })();
-  if (!lista.some(x => chave(x) === nomeAtual.toLowerCase())) {
-    lista.unshift({ mes: nomeAtual, interno: null, externo: null });
+  const itemAtual = lista.find(x => chave(x) === nomeAtual.toLowerCase());
+  if (!itemAtual) {
+    lista.unshift({ mes: nomeAtual, interno: null, externo: null, renovacao: null, emAndamento: true });
+  } else {
+    itemAtual.emAndamento = true;
   }
   return lista;
 }
@@ -373,7 +376,9 @@ function renderHistorico() {
       <div class="mural-winners">
         ${renderMuralPerson(h.interno, 'Vendas · interno')}
         ${renderMuralPerson(h.externo, 'Vendas · externo')}
-        ${renderMuralPerson(h.renovacao, 'Renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)}
+        ${h.renovacao || h.emAndamento
+          ? renderMuralPerson(h.renovacao, 'Renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
+          : ''}
       </div>
     </div>
   `).join('');
