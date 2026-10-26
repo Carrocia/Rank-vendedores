@@ -5071,12 +5071,6 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   document.getElementById('an-rank-carreira-status').textContent = carreira.mesesFechados
     ? `${carreira.mesesFechados} mês(es) fechado(s) · renovação da carreira: C 50%, B 65%, A 85%, S 100%`
     : 'Base inicial · o ciclo começa em outubro de 2026';
-  document.getElementById('an-ss-progresso').textContent = `${carreira.streakAtual}/4 meses M1`;
-  document.getElementById('an-ss-barra').style.width = `${carreira.streakAtual * 25}%`;
-  document.getElementById('an-ss-nota').textContent = carreira.ssConquistado
-    ? 'SS conquistado pela sequência de meses fechados.'
-    : externo ? 'Externo: quatro meses consecutivos com M1 em vendas.'
-      : 'Interno: quatro M1 de vendas; no quarto mês, também M1 em renovações.';
   const pctVendas = metaVendas > 0 ? Math.round(vendas / metaVendas * 100) : null;
   const pctRenovacoes = metaRenovacoes > 0 ? Math.round(renovacoes / metaRenovacoes * 100) : null;
   const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;

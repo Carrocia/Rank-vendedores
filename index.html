@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261020-motion-performance-1">
 
-<link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261026-xp-v1">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261026-xp-v2">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -323,7 +323,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261023-analitica-ranks-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261026-xp-v2"></script>
+  <script src="assets/js/supabase-admin.js?v=20261026-xp-v3"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -960,13 +960,31 @@
                 <div class="an-ranks">
                   <article class="an-rank-card"><span>RANK DO MÊS</span><div><img id="an-rank-mensal-img" alt=""><strong id="an-rank-mensal">—</strong></div><small id="an-rank-mensal-status">—</small></article>
                   <article class="an-rank-card"><span>RANK DE CARREIRA</span><div><img id="an-rank-carreira-img" alt=""><strong id="an-rank-carreira">—</strong></div><small id="an-rank-carreira-status">—</small></article>
-                  <article class="an-rank-card an-rank-progress"><span>CAMINHO ATÉ SS</span><strong id="an-ss-progresso">0/4 meses M1</strong><div class="an-progress"><i id="an-ss-barra"></i></div><small id="an-ss-nota">A sequência começa após o primeiro fechamento mensal.</small></article>
                 </div>
                 <div class="an-metrics" id="an-metrics"></div>
                 <section class="an-xp-panel" aria-labelledby="an-xp-title">
                   <header><div><span class="adm-card-eyebrow">PROGRESSÃO COMERCIAL</span><h3 id="an-xp-title">XP acumulado</h3></div><div class="an-xp-total"><strong id="an-xp-total">—</strong><span id="an-xp-period-status">Calculando período…</span></div></header>
                   <div class="an-xp-breakdown" id="an-xp-breakdown"></div>
                   <p id="an-xp-note">O XP acumulado acompanha a carreira. Ele não altera os ranks enquanto os limites de carreira não forem definidos.</p>
+                  <details class="an-xp-rules">
+                    <summary>Regras do XP: como ganhar e critérios de progressão</summary>
+                    <div class="an-xp-rules-content">
+                      <p>O XP soma pontos à trajetória do colaborador. O cálculo do mês é provisório enquanto o período está aberto e acompanha as vendas e renovações registradas.</p>
+                      <div class="an-xp-rule-cards">
+                        <article><strong>Venda nova</strong><b>100 XP base</b><span>O multiplicador de ticket ajusta apenas os pontos das vendas novas.</span></article>
+                        <article><strong>Renovação</strong><b>60 XP</b><span>Conta quando registrada. Vendedores externos não têm meta de renovação.</span></article>
+                        <article><strong>Metas</strong><b>Bônus desativado</b><span>Será ativado quando os valores de bônus forem definidos.</span></article>
+                      </div>
+                      <h4>Ajuste de ticket nas vendas novas</h4>
+                      <div class="an-xp-ticket-rules">
+                        <span>Abaixo de R$ 100 <b>0,80×</b></span><span>R$ 100 a R$ 100,99 <b>0,90×</b></span>
+                        <span>R$ 101 a R$ 104,99 <b>1,05×</b></span><span>R$ 105 a R$ 109,99 <b>1,10×</b></span>
+                        <span>R$ 110 a R$ 114,99 <b>1,20×</b></span><span>R$ 115 a R$ 119,99 <b>1,30×</b></span>
+                        <span>R$ 120 a R$ 129,99 <b>1,45×</b></span><span>R$ 130 ou mais <b>1,70×</b></span>
+                      </div>
+                      <p class="an-xp-level-note"><strong>Ranks por nível:</strong> os limites de XP para avançar entre D, C, B, A e S ainda serão definidos. Até lá, o XP acumula sem alterar o rank mensal ou o rank de carreira. As regras atuais desses ranks continuam valendo.</p>
+                    </div>
+                  </details>
                 </section>
                 <div class="an-insights-grid">
                   <section class="an-insight-card">
