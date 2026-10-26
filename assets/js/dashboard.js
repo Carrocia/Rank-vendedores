@@ -738,7 +738,7 @@ function renderEvolucaoChart(vendasPorDia) {
 // ---------- Vendas por Tipo de Plano (donut com dados reais) ----------
 function renderDonutChart(vendasPorPlano) {
   const CORES = [corTema('--accent', '#21d9ff'), corTema('--accent2', '#7c5cff'), '#ffc94d','#ff5f6e','#34d399','#f97316','#a78bfa','#fb7185'];
-  const planos = vendasPorPlano || [];
+  const planos = [...(vendasPorPlano || [])].sort((a, b) => Number(b.vendas || 0) - Number(a.vendas || 0));
   const total = planos.reduce((s, p) => s + p.vendas, 0);
   const divisor = total || 1; // evita divisão por zero no cálculo de %, nunca é exibido
   let acc = 0;
@@ -752,7 +752,7 @@ function renderDonutChart(vendasPorPlano) {
     : 'var(--surface-hover) 0% 100%';
   document.getElementById('donutChart').style.background = `conic-gradient(${stops})`;
   document.getElementById('donutTotal').textContent = total;
-  document.getElementById('donutLegend').innerHTML = planos.map((p, i) => {
+  const criarItemLegenda = (p, i) => {
     const cor = p.cor || CORES[i % CORES.length];
     const pct = Math.round((p.vendas / divisor) * 100);
     return `
@@ -761,7 +761,15 @@ function renderDonutChart(vendasPorPlano) {
       <span class="donut-legend-nome">${p.nome}</span>
       <span class="donut-legend-valor">${formatVendas(p.vendas)} · ${pct}%</span>
     </div>`;
-  }).join('') || '<div style="font-size:0.78rem;color:var(--text-muted);">Sem dados.</div>';
+  };
+  const limiteVisivel = 8;
+  const itensPrincipais = planos.slice(0, limiteVisivel).map(criarItemLegenda).join('');
+  const restantes = planos.slice(limiteVisivel);
+  const detalhesRestantes = restantes.length
+    ? `<details class="donut-legend-more"><summary>Ver outros ${restantes.length} planos</summary><div class="donut-legend-extra">${restantes.map((plano, indice) => criarItemLegenda(plano, indice + limiteVisivel)).join('')}</div></details>`
+    : '';
+  document.getElementById('donutLegend').innerHTML = itensPrincipais + detalhesRestantes
+    || '<div style="font-size:0.78rem;color:var(--text-muted);">Sem dados.</div>';
 }
 
 // ---------- Conquistas do mês de todas as filiais ----------

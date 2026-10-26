@@ -1017,7 +1017,7 @@
 
   /* ---------- Vendas por Tipo de Plano (donut) ---------- */
   .donut-card {
-    display: flex; align-items: center; gap: 36px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 36px; flex-wrap: nowrap;
     background: linear-gradient(135deg, var(--surface), var(--surface-hover));
     backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;
   }
@@ -1032,11 +1032,15 @@
   }
   .donut-total { font-size: 1.4rem; font-weight: 900; color: var(--heading-color); }
   .donut-total-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .donut-legend { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 200px; }
-  .donut-legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+  .donut-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+  .donut-legend-item { display: flex; align-items: center; gap: 10px; min-height: 23px; font-size: 0.8rem; }
   .donut-legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-  .donut-legend-nome { color: var(--heading-color); font-weight: 700; flex: 1; }
-  .donut-legend-valor { color: var(--text-muted); font-size: 0.78rem; }
+  .donut-legend-nome { color: var(--heading-color); font-weight: 700; flex: 1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .donut-legend-valor { color: var(--text-muted); font-size: 0.72rem; white-space:nowrap; }
+  .donut-legend-more { border-top:1px solid var(--border); padding-top:8px; }
+  .donut-legend-more summary { width:fit-content; color:var(--accent); cursor:pointer; font-size:.74rem; font-weight:800; }
+  .donut-legend-more summary:hover { color:var(--heading-color); }
+  .donut-legend-extra { display:flex; max-height:230px; flex-direction:column; gap:8px; overflow:auto; margin-top:8px; padding:2px 7px 2px 0; scrollbar-width:thin; }
 
   /* ---------- Conquistas mensais em carrossel ---------- */
   .conquistas-grid { min-width: 0; }
@@ -1083,7 +1087,7 @@
     .week-progress-card { padding: 22px; gap: 20px; }
     .week-ring-wrap { width: 108px; height: 108px; }
     .week-atual { font-size: 1.9rem; }
-    .donut-card { padding: 22px; gap: 24px; }
+    .donut-card { padding: 22px; gap: 24px; flex-wrap: wrap; }
     .evo-chart { height: 170px; }
   }
 
