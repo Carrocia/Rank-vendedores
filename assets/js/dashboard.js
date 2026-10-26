@@ -272,28 +272,26 @@ function renderMuralPerson(person, role, formatador = formatVendas) {
   if (!person) {
     return `
       <div class="mural-winner mural-winner-pending">
-        <div class="mural-photo-wrap">
-          <div class="mural-photo-pending"><span class="mural-question">?</span></div>
-        </div>
-        <span class="mural-role">${role}</span>
+        <span class="mural-role">${escapeHtmlText(role)}</span>
         <span class="mural-name">A definir</span>
       </div>`;
   }
-  const pessoa = PESSOAS[person.id] || {};
+  const pessoa = PESSOAS[person.id] || (_cache.vendedores || []).find(v => String(v.id) === String(person.id)) || {};
   const nome = person.nome || pessoa.nome || person.id || '';
   const nomeSeguro = escapeHtmlText(nome);
   const foto = person.foto_url || pessoa.foto || '';
   return `
     <div class="mural-winner">
       <div class="mural-photo-wrap">
-        <span class="mural-crown" aria-hidden="true">👑</span>
         ${foto
           ? `<img class="mural-photo" src="${foto}" alt="${nomeSeguro}">`
           : `<div class="mural-photo mural-photo-fallback" aria-label="${nomeSeguro}">${escapeHtmlText(String(nome || '?').trim().charAt(0).toUpperCase())}</div>`}
       </div>
-      <span class="mural-role">${role}</span>
-      <span class="mural-name">${nomeSeguro}</span>
-      <span class="mural-value">${formatador(person.vendas)}</span>
+      <div class="mural-person-info">
+        <span class="mural-role">${escapeHtmlText(role)}</span>
+        <span class="mural-name">${nomeSeguro}</span>
+        <span class="mural-value">${formatador(person.vendas)}</span>
+      </div>
     </div>`;
 }
 
@@ -304,7 +302,11 @@ function calcularPeriodoMesAnterior(n = 1) {
   const fim = new Date(ini.getFullYear(), ini.getMonth() + 1, 0);
   const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const nome = ini.toLocaleDateString('pt-BR', { month: 'long' });
-  return { de: fmt(ini), ate: fmt(fim), mesNome: nome.charAt(0).toUpperCase() + nome.slice(1) };
+  return {
+    de: fmt(ini), ate: fmt(fim),
+    mesNome: nome.charAt(0).toUpperCase() + nome.slice(1),
+    mesNum: ini.getMonth() + 1, ano: ini.getFullYear(),
+  };
 }
 
 // Mesma regra de contagem do painel: externo "fora da filial" não conta.
@@ -334,9 +336,8 @@ function calcularDestaqueMes(periodo, vendas, vendedores, vendasOrigemInternos =
   return { mes: periodo.mesNome, interno: vencedor('interno'), externo: vencedor('externo') };
 }
 
-// Mural = card "A definir" do mês atual (automático) + últimos meses
-// fechados calculados sozinhos + meses antigos digitados à mão em
-// HISTORICO_DESTAQUES. Se um mês existe nos dois, vale o digitado à mão.
+// Mural = mês atual em andamento + últimos meses fechados, com campeões
+// de vendas e renovações, mais os registros históricos informados à mão.
 function historicoCompleto() {
   const chave = h => String(h.mes).toLowerCase();
   const manuais = window.FILIAL_ATUAL_ID === 10
@@ -345,8 +346,9 @@ function historicoCompleto() {
   const autos = (_cache && _cache.destaquesAuto) || [];
   const lista = [];
   autos.forEach(a => {
-    if (!(a.interno || a.externo)) return;
-    lista.push(manuais.find(m => chave(m) === chave(a)) || a);
+    if (!(a.interno || a.externo || a.renovacao)) return;
+    const manual = manuais.find(m => chave(m) === chave(a));
+    lista.push(manual ? { ...a, ...manual, renovacao: a.renovacao || manual.renovacao } : a);
   });
   manuais.forEach(m => { if (!lista.some(x => chave(x) === chave(m))) lista.push(m); });
 
@@ -368,9 +370,10 @@ function renderHistorico() {
   container.innerHTML = historico.map(h => `
     <div class="mural-card">
       <span class="mural-month">${h.mes}</span>
-      <div class="mural-pair">
-        ${renderMuralPerson(h.interno, 'Interno')}
-        ${renderMuralPerson(h.externo, 'Externo')}
+      <div class="mural-winners">
+        ${renderMuralPerson(h.interno, 'Vendas · interno')}
+        ${renderMuralPerson(h.externo, 'Vendas · externo')}
+        ${renderMuralPerson(h.renovacao, 'Renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)}
       </div>
     </div>
   `).join('');
@@ -1093,12 +1096,18 @@ async function carregarDados() {
     const vendedorIds = vendedores.map(v => v.id);
     const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate)));
     const pFechadosOrigem = Promise.all(mesesFechados.map(m => loadVendasOrigem(m.de, m.ate)));
+    const pRenovacoesFechadas = Promise.all(mesesFechados.map(m =>
+      loadDestaquesRenovacoesPublico(m.mesNum, m.ano).catch(err => {
+        console.warn('[destaquesRenovacoesMural]', err);
+        return null;
+      })
+    ));
 
     // Carregar os dados da filial selecionada em paralelo.
     const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
-           conquistasGlobais, destaquesExternosGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem] = await Promise.all([
+           conquistasGlobais, destaquesExternosGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas] = await Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
       loadAdicionais(),
@@ -1128,6 +1137,7 @@ async function carregarDados() {
       }),
       pFechados,
       pFechadosOrigem,
+      pRenovacoesFechadas,
     ]);
 
     const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
@@ -1163,10 +1173,25 @@ async function carregarDados() {
     _cache.conquistasGlobais = conquistasGlobais;
     _cache.destaquesExternosGlobais = destaquesExternosGlobais;
     _cache.destaquesMensaisFechados = destaquesMensaisFechados;
-    _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(
-      m, vendasFechados[i], vendedores,
-      vendasFechadosOrigem[i].filter(v => v.tipo === 'interno')
-    ));
+    _cache.destaquesAuto = mesesFechados.map((m, i) => {
+      const destaqueMes = calcularDestaqueMes(
+        m, vendasFechados[i], vendedores,
+        vendasFechadosOrigem[i].filter(v => v.tipo === 'interno')
+      );
+      const renovacao = (renovacoesFechadas[i] || []).find(item => Number(item.posicao) === 1);
+      if (renovacao) {
+        const vendedor = vendedores.find(v => String(v.id) === String(renovacao.vendedor_id));
+        destaqueMes.renovacao = {
+          id: vendedor?.slug || renovacao.vendedor_id,
+          nome: renovacao.vendedor_nome,
+          foto_url: vendedor?.foto_url || null,
+          vendas: Number(renovacao.quantidade || 0),
+        };
+      } else {
+        destaqueMes.renovacao = null;
+      }
+      return destaqueMes;
+    });
     _cache.configSite = configSite;
     if (!_temaPreview) popularAdmTema();
 

@@ -146,6 +146,7 @@ as $function$
   select dense_rank() over (order by sum(r.quantidade) desc), v.id, v.nome, v.tipo::text, sum(r.quantidade)::bigint
   from public.renovacoes_mensais r
   join public.vendedores v on v.id = r.vendedor_id and v.filial_id = r.filial_id
+    and v.ativo is true and coalesce(v.participa_ranking, true) is true
   where r.filial_id = p_filial_id and r.mes = p_mes and r.ano = p_ano and r.quantidade > 0
   group by v.id, v.nome, v.tipo
   order by sum(r.quantidade) desc, v.nome asc
