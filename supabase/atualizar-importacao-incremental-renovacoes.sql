@@ -20,7 +20,7 @@ begin
   end if;
 
   -- Serializa importações simultâneas para a mesma filial e mês.
-  perform pg_advisory_xact_lock(p_filial_id, (p_ano * 12 + p_mes)::bigint);
+  perform pg_advisory_xact_lock(p_filial_id::integer, p_ano * 12 + p_mes);
 
   if exists (
     select 1

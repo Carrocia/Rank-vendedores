@@ -41,7 +41,7 @@ begin
   if p_mes < 1 or p_mes > 12 or p_ano < 2000 or p_ano > 2200 or p_linhas is null or jsonb_typeof(p_linhas) <> 'array' then
     raise exception 'Mês, ano ou linhas do relatório inválidos.' using errcode = '22023';
   end if;
-  perform pg_advisory_xact_lock(p_filial_id, (p_ano * 12 + p_mes)::bigint);
+  perform pg_advisory_xact_lock(p_filial_id::integer, p_ano * 12 + p_mes);
   if exists (
     select 1
     from jsonb_to_recordset(p_linhas) as r(vendedor_id bigint, contrato text, cliente text, plano text, plano_id bigint, valor numeric, data date, conferencia_pendente boolean)
