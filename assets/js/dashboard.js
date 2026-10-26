@@ -621,63 +621,6 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
   `).join('');
 }
 
-// ---------- Metas da Filial (M1 / M2 / M3) ----------
-function renderMetasFilial(periodo = 'semanal', d) {
-  if (!d || !d.metasFilial) {
-    document.getElementById('metasFilialTitle').textContent = periodo === 'semanal'
-      ? '🎯 Metas da Filial — Semana' : '🎯 Metas da Filial';
-    document.getElementById('metasFilialGrid').innerHTML = '<div class="sem-dados-msg">Sem dados disponíveis no momento.</div>';
-    return;
-  }
-  const mf = d.metasFilial;
-  const atual = Number(periodo === 'semanal' ? d.totalSemana : d.totalMes) || 0;
-  const prefixo = periodo === 'semanal' ? 'semanal' : 'mensal';
-  const metas = [
-    { label: 'M1', meta: Number(mf[prefixo + '_m1']) || 0 },
-    { label: 'M2', meta: Number(mf[prefixo + '_m2']) || 0 },
-    { label: 'M3', meta: Number(mf[prefixo + '_m3']) || 0 },
-  ].filter(m => m.meta > 0).sort((a, b) => a.meta - b.meta);
-  const titulo = periodo === 'semanal'
-    ? '🎯 Metas da Filial — Semana'
-    : '🎯 Metas da Filial — ' + (d.mes && d.mes.mesNome ? d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1) : CONFIG.mesReferencia);
-  document.getElementById('metasFilialTitle').textContent = titulo;
-
-  const proxima = metas.find(m => atual < m.meta);
-  const finalizada = metas.length > 0 && !proxima;
-  const alvo = proxima || metas[metas.length - 1];
-  const pct = alvo ? Math.min(100, Math.round((atual / alvo.meta) * 100)) : 0;
-  const pctGeral = metas.length ? Math.min(100, Math.round((atual / metas[metas.length - 1].meta) * 100)) : 0;
-  const nomeEtapa = proxima?.label || metas[metas.length - 1]?.label;
-  const textoStatus = !metas.length
-    ? 'Cadastre as metas M1, M2 ou M3 para acompanhar o progresso.'
-    : finalizada
-      ? `Todas as metas concluídas · ${pctGeral}% da meta máxima.`
-      : `${proxima.label} em andamento · faltam ${(alvo.meta - atual).toLocaleString('pt-BR')} vendas para concluir esta etapa.`;
-  const etapas = metas.map((m, indice) => {
-    const batida = atual >= m.meta;
-    const emAndamento = !batida && m === proxima;
-    const nivel = m.label === 'M3' ? 'Base' : (m.label === 'M2' ? 'Intermediária' : 'Avançada');
-    return `<span class="milestone-chip${batida ? ' is-done' : (emAndamento ? ' is-current' : '')}">${batida ? '✓' : (emAndamento ? '●' : '○')} <b>${m.label}</b><small>${nivel}</small></span>`;
-  }).join('');
-  const grid = document.getElementById('metasFilialGrid');
-  grid.innerHTML = `
-    <article class="meta-filial-card milestone-card${finalizada ? ' is-complete' : ''}">
-      <div class="milestone-main">
-        <div class="milestone-current"><span class="milestone-eyebrow">${periodo === 'semanal' ? 'VENDAS NESTA SEMANA' : 'VENDAS NESTE MÊS'}</span><strong class="meta-filial-atual" id="metaFilialAtual" data-target="${atual}">0</strong><span class="milestone-unit">vendas realizadas</span></div>
-        <div class="milestone-next"><span class="milestone-eyebrow">${finalizada ? 'META MÁXIMA' : 'PRÓXIMA META'}</span><strong>${nomeEtapa || 'Sem metas'}</strong><span>${alvo ? `${alvo.meta.toLocaleString('pt-BR')} vendas` : 'Configure uma meta'}</span></div>
-      </div>
-      <div class="milestone-track-wrap"><div class="meta-filial-bar-track milestone-track"><div class="meta-filial-bar-fill" id="metaFilialBar" style="width:0%"></div></div><span class="milestone-progress-label">${pct}%</span></div>
-      <div class="milestone-message${finalizada ? ' is-complete' : ''}" id="metaFilialPct">${textoStatus}</div>
-      <div class="milestone-steps" aria-label="Etapas da meta">${etapas || '<span class="milestone-empty">Nenhuma meta configurada</span>'}</div>
-    </article>`;
-  const atualEl = document.getElementById('metaFilialAtual');
-  if (atualEl) animateNumber(atualEl, atual, { duration: 1100 });
-  setTimeout(() => {
-    const barEl = document.getElementById('metaFilialBar');
-    if (barEl) barEl.style.width = pct + '%';
-  }, 50);
-}
-
 // ---------- Renovações e Risco de Churn do Mês (sempre mensal) ----------
 // Diferente das metas de vendas, aqui nada vem calculado a partir das
 // vendas lançadas: tanto as metas M1/M2/M3 quanto o "atual" são
@@ -1053,10 +996,6 @@ function renderEstadoSemDados() {
   // Destaques da semana
   const destaquesGrid = document.getElementById('destaquesGrid');
   if (destaquesGrid) destaquesGrid.innerHTML = '<div class="sem-dados-msg">Sem dados disponíveis no momento.</div>';
-
-  // Metas da filial
-  const metasGrid = document.getElementById('metasFilialGrid');
-  if (metasGrid) metasGrid.innerHTML = '<div class="sem-dados-msg">Sem dados disponíveis no momento.</div>';
 
   // Gráficos
   renderEvolucaoChart(null);
@@ -2407,7 +2346,6 @@ function renderAll(cache) {
   else renderWeekProgress(d);
   renderDestaquesSemana(d, periodoDestaques);
   renderDestaquesExternosGlobais(periodoDestaques);
-  renderMetasFilial(isMensal ? 'mensal' : 'semanal', d);
   renderRenovacaoCancelamento(d);
   renderEvolucaoChart(d.evolucaoSemana);
   renderDonutChart(d.vendasPorPlano);
@@ -2498,7 +2436,6 @@ document.querySelectorAll('.tab-button').forEach(btn => {
       } else {
         renderWeekProgress(d);
       }
-      renderMetasFilial(isMensal ? 'mensal' : 'semanal', d);
     } else {
       renderDestaquesExternosGlobais(tab);
     }
