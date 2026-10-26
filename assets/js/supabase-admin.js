@@ -5121,12 +5121,12 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     if (xpTotal) xpTotal.textContent = formatarXP(xp.xp_acumulado_carreira);
     if (xpStatus) xpStatus.textContent = `${xp.status === 'fechado' ? 'Mês fechado' : 'Estimativa provisória'} · ${formatarXP(xp.xp_total_periodo)} no mês`;
     const ajusteTicket = Number(xp.xp_bonus_ticket || 0);
-    const bonusMetas = Number(xp.xp_bonus_meta_vendas || 0) + Number(xp.xp_bonus_meta_renovacoes || 0);
     const linhasXP = [
       ['Base de vendas novas', formatarXP(xp.xp_base_vendas)],
       ['Ajuste do ticket', `${ajusteTicket > 0 ? '+' : ''}${formatarXP(ajusteTicket)}`],
       ['XP de renovações', formatarXP(xp.xp_renovacoes)],
-      ['Bônus de metas', formatarXP(bonusMetas)],
+      ['Bônus da meta de vendas', formatarXP(xp.xp_bonus_meta_vendas)],
+      ['Bônus da meta de renovações', formatarXP(xp.xp_bonus_meta_renovacoes)],
     ];
     if (xpBreakdown) xpBreakdown.innerHTML = linhasXP.map(([nome, valor], indice) => `<div class="an-xp-line${indice === 1 && ajusteTicket < 0 ? ' is-negative' : ''}"><span>${nome}</span><strong>${valor}</strong></div>`).join('');
     if (xpNote) {
@@ -5134,7 +5134,9 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
         ? 'Ticket sem base válida; vendas recebem o XP-base, sem ajuste.'
         : `Ticket médio R$ ${formatarValorAnalitica(xp.ticket_medio)} · multiplicador ${Number(xp.multiplicador_ticket).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×.`;
       const campanhaInfo = xp.campanha_id ? ` Campanha configurada #${xp.campanha_id}.` : '';
-      const metasInfo = xp.bonus_metas_ativo ? '' : ' Bônus de metas desativado até os valores serem definidos.';
+      const metasInfo = xp.bonus_metas_ativo
+        ? ' Os bônus de vendas e renovações usam as metas oficiais separadamente; o multiplicador de ticket não se aplica a eles.'
+        : ' Bônus de metas desativado na configuração central.';
       xpNote.textContent = `${ticketInfo}${campanhaInfo}${metasInfo} XP de carreira não altera o rank mensal nem promove automaticamente enquanto os limites de carreira não forem definidos.`;
     }
   } catch (xpError) {

@@ -7,6 +7,9 @@ const ui = readFileSync(new URL('../../assets/js/supabase-admin.js', import.meta
 const defaults = sql.match(/faixas_ticket jsonb not null default '(\[.*?\])'::jsonb/);
 assert.ok(defaults, 'Central ticket tiers exist in the migration');
 const tiers = JSON.parse(defaults[1]);
+const bonusDefaults = sql.match(/faixas_bonus_meta jsonb not null default '(\[.*?\])'::jsonb/);
+assert.ok(bonusDefaults, 'Central goal bonus tiers exist in the migration');
+const bonusTiers = JSON.parse(bonusDefaults[1]);
 
 let failures = 0;
 function run(name, fn) {
@@ -19,14 +22,21 @@ function multiplier(ticket) {
   return tiers.find(t => ticket >= t.min && (t.max == null || ticket < t.max))?.multiplicador ?? null;
 }
 
-function score({ sales = 0, renewals = 0, ticket = null, external = false, salesGoal = 0, renewalGoal = 0, bonusesEnabled = false, salesBonus = 0, renewalBonus = 0 }) {
+function bonusRate(pct) {
+  if (pct == null || !Number.isFinite(pct) || pct < 0) return 0;
+  return bonusTiers.find(t => pct >= t.min_pct && (t.max_pct == null || pct < t.max_pct))?.bonus_pct ?? 0;
+}
+
+function score({ sales = 0, renewals = 0, ticket = null, external = false, salesGoal = 0, renewalGoal = 0, validSalesGoal = true, validRenewalGoal = true, bonusesEnabled = true }) {
   const baseSales = sales * 100;
   const rate = multiplier(ticket);
   const salesTotal = rate == null ? baseSales : Math.round(baseSales * rate * 100) / 100;
   const ticketBonus = salesTotal - baseSales;
   const renewalXp = renewals * 60;
-  const goalSales = bonusesEnabled && salesGoal > 0 && sales >= salesGoal ? salesBonus : 0;
-  const goalRenewals = bonusesEnabled && !external && renewalGoal > 0 && renewals >= renewalGoal ? renewalBonus : 0;
+  const salesPct = validSalesGoal && salesGoal > 0 ? Number((sales / salesGoal * 100).toFixed(10)) : null;
+  const renewalPct = validRenewalGoal && renewalGoal > 0 ? Number((renewals / renewalGoal * 100).toFixed(10)) : null;
+  const goalSales = bonusesEnabled && salesPct != null ? Math.round(baseSales * bonusRate(salesPct) / 100 * 100) / 100 : 0;
+  const goalRenewals = bonusesEnabled && !external && renewalPct != null ? Math.round(renewalXp * bonusRate(renewalPct) / 100 * 100) / 100 : 0;
   return { baseSales, rate, salesTotal, ticketBonus, renewalXp, goalSales, goalRenewals, total: salesTotal + renewalXp + goalSales + goalRenewals };
 }
 
@@ -60,17 +70,60 @@ run('renewals receive 60 XP each without the sales ticket multiplier', () => {
 });
 
 run('renewal goal bonus is inapplicable to external sellers', () => {
-  const result = score({ renewals: 10, external: true, renewalGoal: 5, bonusesEnabled: true, renewalBonus: 50 });
+  const result = score({ renewals: 10, external: true, renewalGoal: 5 });
   assert.equal(result.renewalXp, 600);
   assert.equal(result.goalRenewals, 0);
-  assert.match(sql, /v_vendedor\.tipo <> 'externo' and v_meta_renovacoes/);
+  assert.match(sql, /v_vendedor\.tipo <> 'externo' and v_meta_renovacoes_valida/);
 });
 
-run('goal bonuses are prepared but disabled and zero by default', () => {
-  assert.match(sql, /bonus_metas_ativo boolean not null default false/);
-  assert.match(sql, /bonus_meta_vendas numeric\(10,2\) not null default 0/);
-  assert.match(sql, /bonus_meta_renovacoes numeric\(10,2\) not null default 0/);
-  assert.equal(score({ sales: 10, renewals: 10, salesGoal: 1, renewalGoal: 1 }).goalSales, 0);
+run('goal bonus bands are central, contiguous, and activate at exact boundaries', () => {
+  assert.match(sql, /bonus_metas_ativo boolean not null default true/);
+  assert.match(sql, /faixas_bonus_meta_xp_validas/);
+  assert.match(sql, /v_min <> v_anterior/);
+  assert.deepEqual(bonusTiers.map(({ min_pct, max_pct, bonus_pct }) => [min_pct, max_pct, bonus_pct]), [
+    [0, 70, 0], [70, 85, 5], [85, 100, 10], [100, 115, 15], [115, null, 20],
+  ]);
+  for (let i = 1; i < bonusTiers.length; i++) assert.equal(bonusTiers[i].min_pct, bonusTiers[i - 1].max_pct);
+  for (const [pct, expected] of [[69.99, 0], [70, 5], [84.99, 5], [85, 10], [99.99, 10], [100, 15], [114.99, 15], [115, 20]]) {
+    assert.equal(bonusRate(pct), expected, `${pct}% attainment`);
+  }
+  assert.equal(score({ sales: 6, salesGoal: 10 }).goalSales, 0);
+  assert.equal(score({ sales: 7, salesGoal: 10 }).goalSales, 35);
+  assert.equal(score({ sales: 17, salesGoal: 20 }).goalSales, 170);
+  assert.equal(score({ sales: 10, salesGoal: 10 }).goalSales, 150);
+  assert.equal(score({ sales: 23, salesGoal: 20 }).goalSales, 460);
+});
+
+run('each goal bonus applies to its own base XP and not to the ticket-adjusted total', () => {
+  const result = score({ sales: 10, renewals: 5, ticket: 130, salesGoal: 10, renewalGoal: 5 });
+  assert.equal(result.salesTotal, 1700);
+  assert.equal(result.goalSales, 150);
+  assert.equal(result.goalRenewals, 45);
+  assert.equal(result.total, result.salesTotal + result.renewalXp + result.goalSales + result.goalRenewals);
+  assert.match(sql, /v_xp_base_vendas \* \(v_faixa_bonus_vendas->>'bonus_pct'\)::numeric \/ 100/);
+  assert.match(sql, /v_xp_base_renovacoes \* \(v_faixa_bonus_renovacoes->>'bonus_pct'\)::numeric \/ 100/);
+});
+
+run('sales and renewal targets are independent and invalid goals grant no bonus', () => {
+  const salesOnly = score({ sales: 10, renewals: 1, salesGoal: 10, renewalGoal: 10 });
+  assert.equal(salesOnly.goalSales, 150);
+  assert.equal(salesOnly.goalRenewals, 0);
+  const renewalOnly = score({ sales: 1, renewals: 10, salesGoal: 10, renewalGoal: 10 });
+  assert.equal(renewalOnly.goalSales, 0);
+  assert.equal(renewalOnly.goalRenewals, 90);
+  assert.equal(score({ sales: 10, salesGoal: 10, validSalesGoal: false }).goalSales, 0);
+  assert.equal(score({ renewals: 10, renewalGoal: 10, validRenewalGoal: false }).goalRenewals, 0);
+  assert.equal(score({ sales: 10, salesGoal: 0 }).goalSales, 0);
+  assert.match(sql, /'meta_valida', v_meta_vendas_valida/);
+  assert.match(sql, /'meta_valida', v_meta_renovacoes_valida/);
+});
+
+run('bonus audit snapshot records attainment, applied band, XP base, and bonus', () => {
+  assert.match(sql, /'atingimento_pct', v_pct_atingimento_vendas/);
+  assert.match(sql, /'faixa_aplicada', v_faixa_bonus_vendas/);
+  assert.match(sql, /'xp_base', v_xp_base_vendas/);
+  assert.match(sql, /'bonus_xp', v_bonus_vendas/);
+  assert.match(sql, /'faixas_bonus_meta', v_config\.faixas_bonus_meta/);
 });
 
 run('missing ticket preserves activity base without inventing a multiplier', () => {
@@ -78,7 +131,8 @@ run('missing ticket preserves activity base without inventing a multiplier', () 
   assert.equal(result.rate, null);
   assert.equal(result.salesTotal, 200);
   assert.equal(result.ticketBonus, 0);
-  assert.match(sql, /Dado de ticket ausente: mantém apenas o XP-base, sem bônus ou redutor/);
+  assert.equal(score({ sales: 7, salesGoal: 10, ticket: null }).goalSales, 35);
+  assert.match(sql, /Sem ticket válido, mantém XP-base; o bônus de meta continua independente/);
 });
 
 run('repeat calculation upserts one period per career identity and month', () => {
