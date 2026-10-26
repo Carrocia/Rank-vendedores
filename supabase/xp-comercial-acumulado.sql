@@ -485,7 +485,7 @@ begin
         'referencia_ticket_campanha', v_referencia
       ), now()
     )
-    on conflict (carreira_pessoa_id, ano, mes) do update set
+    on conflict on constraint xp_comercial_periodos_pessoa_mes_key do update set
       vendedor_id = excluded.vendedor_id,
       filial_id = excluded.filial_id,
       tipo = excluded.tipo,

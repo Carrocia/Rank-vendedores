@@ -689,40 +689,16 @@ function renderRenovacaoCancelamento(d) {
   if (!gridRenov || !gridCancel) return;
   const rc = (d && d.metasRenovCancel) || {};
 
-  // Renovações: quanto mais alto melhor, igual às metas de vendas —
-  // M3 é a faixa mais fácil, M1 a mais difícil. Sem estado de alerta
-  // aqui (não é uma métrica de risco).
   const renovAtual = _cache.renovacoesTotal != null && Number.isFinite(Number(_cache.renovacoesTotal)) ? Number(_cache.renovacoesTotal) : null;
-  const metasRenovacaoFilial = _cache.metasRenovacaoFilial || {
-    meta_m1: rc.renovacoes_m1, meta_m2: rc.renovacoes_m2, meta_m3: rc.renovacoes_m3,
-  };
-  const renovMetas = [
-    { label: 'M1', meta: metasRenovacaoFilial.meta_m1 },
-    { label: 'M2', meta: metasRenovacaoFilial.meta_m2 },
-    { label: 'M3', meta: metasRenovacaoFilial.meta_m3 },
-  ];
   const fmt = valor => Number(valor || 0).toLocaleString('pt-BR');
-  const renovMetasOrdenadas = renovMetas.filter(m => Number(m.meta) > 0).sort((a, b) => Number(a.meta) - Number(b.meta));
-  const metaRenovMaisProxima = renovAtual === null ? null : renovMetasOrdenadas.find(m => renovAtual < Number(m.meta));
-  const temMetaRenovacao = renovMetas.some(m => Number(m.meta) > 0);
-  const renovFinalizada = renovAtual !== null && temMetaRenovacao && !metaRenovMaisProxima;
-  const alvoRenovacao = metaRenovMaisProxima || renovMetasOrdenadas[renovMetasOrdenadas.length - 1];
-  const renovPct = alvoRenovacao && renovAtual !== null ? Math.min(100, Math.round((renovAtual / Number(alvoRenovacao.meta)) * 100)) : 0;
-  const renovEtapas = renovMetasOrdenadas.map(m => {
-    const batida = renovAtual !== null && renovAtual >= Number(m.meta);
-    const nivel = m.label === 'M3' ? 'Base' : (m.label === 'M2' ? 'Intermediária' : 'Avançada');
-    return `<span class="milestone-chip${batida ? ' is-done' : (m === metaRenovMaisProxima ? ' is-current' : '')}">${batida ? '✓' : (m === metaRenovMaisProxima ? '●' : '○')} <b>${m.label}</b><small>${nivel}</small></span>`;
-  }).join('');
-  gridRenov.innerHTML = `<article class="churn-card churn-card-renov milestone-card${renovFinalizada ? ' is-complete' : ''}">
-    <div class="milestone-main">
-      <div class="milestone-current"><span class="milestone-eyebrow">RENOVAÇÕES NO MÊS</span><strong class="churn-card-atual">${renovAtual === null ? '—' : fmt(renovAtual)}</strong><span class="milestone-unit">${renovAtual === null ? 'importe o relatório' : 'realizadas'}</span></div>
-      <div class="milestone-next"><span class="milestone-eyebrow">${renovFinalizada ? 'META MÁXIMA' : 'PRÓXIMA META'}</span><strong>${alvoRenovacao?.label || 'Sem metas'}</strong><span>${alvoRenovacao ? `${fmt(alvoRenovacao.meta)} renovações` : 'Configure uma meta'}</span></div>
-    </div>
-    <div class="milestone-track-wrap"><div class="churn-bar-track milestone-track"><div class="churn-bar-fill" style="width:0%" data-width="${renovPct}"></div></div><span class="milestone-progress-label">${renovPct}%</span></div>
-    <div class="milestone-message${renovFinalizada ? ' is-complete' : ''}">${renovAtual === null ? 'Importe o relatório mensal de renovações na área administrativa.' : !temMetaRenovacao ? 'Cadastre as metas M1, M2 ou M3 para acompanhar o progresso.' : renovFinalizada ? 'Todas as metas de renovação foram concluídas.' : `Faltam ${fmt(Number(alvoRenovacao.meta) - renovAtual)} renovações para concluir ${alvoRenovacao.label}.`}</div>
-    <div class="milestone-steps" aria-label="Etapas das metas de renovação">${renovEtapas || '<span class="milestone-empty">Nenhuma meta configurada</span>'}</div>
+  const lideresRenovacao = Array.isArray(_cache.destaquesRenovacoes) ? _cache.destaquesRenovacoes : null;
+  const listaLideresRenovacao = lideresRenovacao?.length
+    ? `<ol class="renewal-leaders-list">${lideresRenovacao.map((item, indice) => `<li><span class="renewal-leader-rank">${indice + 1}</span><span class="renewal-leader-name">${item.vendedor_nome || 'Vendedor'}</span><span class="renewal-leader-type">${item.tipo === 'externo' ? 'Externo' : 'Interno'}</span><strong>${fmt(item.quantidade)} <small>${Number(item.quantidade) === 1 ? 'renovação' : 'renovações'}</small></strong></li>`).join('')}</ol>`
+    : lideresRenovacao ? '<p class="renewal-leaders-empty">Nenhuma renovação registrada neste mês.</p>' : '<p class="renewal-leaders-empty">Quadro de destaques indisponível.</p>';
+  gridRenov.innerHTML = `<article class="churn-card churn-card-renov renewal-summary-card">
+    <div class="renewal-total"><span class="milestone-eyebrow">TOTAL DE RENOVAÇÕES NO MÊS</span><strong class="churn-card-atual">${renovAtual === null ? '—' : fmt(renovAtual)}</strong><span class="milestone-unit">${renovAtual === null ? 'sem dados disponíveis' : 'na filial selecionada'}</span></div>
+    <section class="renewal-leaders" aria-labelledby="renewal-leaders-title"><h3 id="renewal-leaders-title">🏆 Quem mais renovou no mês</h3>${listaLideresRenovacao}</section>
   </article>`;
-  setTimeout(() => { const fill = gridRenov.querySelector('.churn-bar-fill'); if (fill) fill.style.width = `${fill.dataset.width}%`; }, 50);
   if (!d?.metasRenovCancel) {
     gridCancel.className = 'churn-grid is-churn';
     gridCancel.innerHTML = '<div class="sem-dados-msg">Sem dados de cancelamento configurados ainda.</div>';
@@ -1008,7 +984,7 @@ function showToast(message, type = 'success', duration = 4500) {
 const _maisVendidosCache = new Map();
 let _cache = {
   vendedores: [], planos: [], categoriasPlanos: [], adicionais: [], filiais: [],
-  metasFilial: null, metas: [], metasRenovCancel: null, metasRenovacaoFilial: null, metasRenovacaoIndividual: [], renovacoesMes: null, renovacoesTotal: null,
+  metasFilial: null, metas: [], metasRenovCancel: null, metasRenovacaoFilial: null, metasRenovacaoIndividual: [], renovacoesMes: null, renovacoesTotal: null, destaquesRenovacoes: null,
   ranksMensais: [],
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
   vendasOrigemSemana: [], vendasOrigemSemanaAnterior: [], vendasOrigemMes: [],
@@ -1184,11 +1160,12 @@ async function carregarDados() {
       pFechadosOrigem,
     ]);
 
-    const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal, ranksMensais] = await Promise.all([
+    const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
       loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
       loadMetasRenovacaoIndividual(_cache.mes.mesNum, _cache.mes.ano),
       loadRenovacoesMensais(_cache.mes.mesNum, _cache.mes.ano),
       loadTotalRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
+      loadDestaquesRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
       loadRankMensalFilial(_cache.mes.mesNum, _cache.mes.ano),
     ]);
 
@@ -1203,6 +1180,7 @@ async function carregarDados() {
     _cache.metasRenovacaoIndividual = metasRenovacaoIndividual;
     _cache.renovacoesMes = renovacoesMes;
     _cache.renovacoesTotal = renovacoesTotal;
+    _cache.destaquesRenovacoes = destaquesRenovacoes;
     _cache.ranksMensais = ranksMensais || [];
     _cache.vendasSemana = vendasSemana;
     _cache.vendasMes = vendasMes;

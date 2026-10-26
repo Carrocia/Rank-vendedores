@@ -875,6 +875,19 @@
   .churn-card:hover { transform: translateY(-2px); }
   .churn-card-renov { --churn-accent: var(--accent); --churn-accent-rgb: var(--accent-rgb); }
   .churn-card-cancel { --churn-accent: var(--accent2); --churn-accent-rgb: var(--accent2-rgb); }
+  .renewal-summary-card { display:grid; flex:1; grid-template-columns:minmax(135px,.55fr) minmax(0,1.45fr); align-items:center; gap:24px; padding:22px 24px; border-top:3px solid var(--accent); }
+  .renewal-total { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+  .renewal-total .churn-card-atual { font-size:2.2rem; line-height:1.05; }
+  .renewal-leaders { min-width:0; border-left:1px solid var(--border); padding-left:22px; }
+  .renewal-leaders h3 { margin:0 0 10px; color:var(--heading-color); font-size:.86rem; }
+  .renewal-leaders-list { display:grid; gap:6px; margin:0; padding:0; list-style:none; }
+  .renewal-leaders-list li { display:grid; grid-template-columns:28px minmax(0,1fr) auto auto; align-items:center; gap:9px; min-width:0; padding:7px 9px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.025); }
+  .renewal-leader-rank { display:grid; width:25px; height:25px; place-items:center; border-radius:50%; background:rgba(var(--accent-rgb),.12); color:var(--accent); font-size:.72rem; font-weight:800; }
+  .renewal-leader-name { overflow:hidden; color:var(--heading-color); font-size:.74rem; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+  .renewal-leader-type { color:var(--text-muted); font-size:.65rem; }
+  .renewal-leaders-list li > strong { color:var(--heading-color); font-size:.74rem; white-space:nowrap; }
+  .renewal-leaders-list li > strong small { color:var(--text-muted); font-size:.65rem; font-weight:500; }
+  .renewal-leaders-empty { margin:0; color:var(--text-muted); font-size:.76rem; }
 
   .churn-card-label {
     font-size:0.72rem; font-weight: 700; text-transform: uppercase;
@@ -965,6 +978,10 @@
     .milestone-main { gap: 16px; }
   }
   @media (max-width: 560px) {
+    .renewal-summary-card { grid-template-columns:1fr; gap:15px; padding:20px 17px; }
+    .renewal-leaders { border-left:0; border-top:1px solid var(--border); padding:13px 0 0; }
+    .renewal-leaders-list li { grid-template-columns:27px minmax(0,1fr) auto; }
+    .renewal-leader-type { display:none; }
     .milestone-main { align-items: flex-start; flex-direction: column; gap: 16px; }
     .milestone-next { margin-left: 0; }
     .milestone-current { min-width: 0; }

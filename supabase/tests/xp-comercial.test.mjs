@@ -83,7 +83,7 @@ run('missing ticket preserves activity base without inventing a multiplier', () 
 
 run('repeat calculation upserts one period per career identity and month', () => {
   assert.match(sql, /unique \(carreira_pessoa_id, ano, mes\)/);
-  assert.match(sql, /on conflict \(carreira_pessoa_id, ano, mes\) do update/);
+  assert.match(sql, /on conflict on constraint xp_comercial_periodos_pessoa_mes_key do update/);
   assert.match(sql, /status = 'provisorio'/);
 });
 

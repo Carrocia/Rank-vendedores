@@ -1355,6 +1355,15 @@ async function loadTotalRenovacoesPublico(mes, ano) {
   return data == null ? null : Number(data);
 }
 
+async function loadDestaquesRenovacoesPublico(mes, ano) {
+  if (!window.FILIAL_ATUAL_ID) return null;
+  const { data, error } = await window._supabase.rpc('destaques_renovacoes_mensais', {
+    p_filial_id: Number(window.FILIAL_ATUAL_ID), p_mes: Number(mes), p_ano: Number(ano),
+  });
+  if (error) { console.warn('[loadDestaquesRenovacoesPublico] aplique supabase/destaques-renovacoes-publico.sql:', error.message); return null; }
+  return data || [];
+}
+
 let _relatorioRenovacao = null;
 function normalizarChaveRenovacao(valor) {
   return String(valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
