@@ -4837,6 +4837,7 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   const chart = document.getElementById('an-radar-chart');
   const legend = document.getElementById('an-attributes-legend');
   const note = document.getElementById('an-attributes-note');
+  const insights = document.getElementById('an-attributes-insights');
   if (!chart || !legend) return;
   const { vendas, metaVendas, ticket, referencia, renovacoes, metaRenovacoes, diasNoMes, ano, mesNum } = contexto;
   const { vendasDiretas = [], vendasOrigem = [] } = dados || {};
@@ -4856,9 +4857,14 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   };
   vendasDiretas.forEach(item => registrar(item, 1));
   vendasOrigem.forEach(item => registrar(item, Number(item.vendas || 0)));
-  const diasObservados = Math.max(1, diaCorte);
-  const diasComVenda = [...diasAtivos].filter(data => Number(data.slice(8, 10)) <= diaCorte).length;
-  const consistencia = Math.round(diasComVenda / diasObservados * 100);
+  const ehDiaUtil = data => { const dia = data.getDay(); return dia !== 0 && dia !== 6; };
+  let diasUteisObservados = 0;
+  for (let dia = 1; dia <= diaCorte; dia++) if (ehDiaUtil(new Date(ano, mesNum - 1, dia))) diasUteisObservados++;
+  const diasUteisComVenda = [...diasAtivos].filter(data => {
+    const dia = Number(data.slice(8, 10));
+    return dia <= diaCorte && ehDiaUtil(new Date(ano, mesNum - 1, dia));
+  }).length;
+  const consistencia = diasUteisObservados > 0 ? diasUteisComVenda / diasUteisObservados * 100 : null;
   const fimAtual = new Date(ano, mesNum - 1, diaCorte);
   const inicioAtual = new Date(fimAtual); inicioAtual.setDate(inicioAtual.getDate() - 6);
   const inicioAnterior = new Date(inicioAtual); inicioAnterior.setDate(inicioAnterior.getDate() - 7);
@@ -4867,12 +4873,18 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   const somarPeriodo = (inicio, fim) => [...vendasPorDia.entries()].reduce((total, [data, qtd]) => total + (data >= dataChave(inicio) && data <= dataChave(fim) ? qtd : 0), 0);
   const semanaAtual = somarPeriodo(inicioAtual, fimAtual);
   const semanaAnterior = somarPeriodo(inicioAnterior, fimAnterior);
-  const evolucao = semanaAnterior > 0 ? Math.round((semanaAtual - semanaAnterior) / semanaAnterior * 100) : null;
+  const janelaAnteriorCompleta = inicioAnterior >= new Date(ano, mesNum - 1, 1);
+  const evolucao = janelaAnteriorCompleta && semanaAnterior > 0 ? Math.round((semanaAtual - semanaAnterior) / semanaAnterior * 100) : null;
+  const detalheSemanal = !janelaAnteriorCompleta
+    ? 'Sem 7 dias anteriores no mês para comparar'
+    : semanaAnterior > 0
+      ? `${semanaAtual} venda(s) nos últimos 7 dias; ${semanaAnterior} na semana anterior (${evolucao > 0 ? '+' : ''}${evolucao}%)`
+      : `${semanaAtual} venda(s) nos últimos 7 dias; ${semanaAnterior} na semana anterior (sem base percentual)`;
   const indicadores = [
     { nome: 'Meta de vendas', curto: 'Vendas', valor: metaVendas > 0 ? vendas / metaVendas * 100 : null, detalhe: metaVendas > 0 ? `${Math.round(vendas / metaVendas * 100)}% da meta mensal` : 'Meta não cadastrada' },
     { nome: 'Ticket médio', curto: 'Ticket', valor: referencia > 0 ? ticket / referencia * 100 : null, detalhe: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível' },
-    { nome: 'Constância', curto: 'Constância', valor: Math.min(150, consistencia), detalhe: `${diasComVenda} de ${diaCorte} dias com venda` },
-    { nome: 'Evolução semanal', curto: 'Evolução', valor: evolucao == null ? null : Math.max(0, Math.min(150, 100 + evolucao)), detalhe: evolucao == null ? 'Sem semana anterior para comparar' : `${evolucao > 0 ? '+' : ''}${evolucao}% em relação à semana anterior`, exibicao: evolucao == null ? 'Sem base' : `${evolucao > 0 ? '+' : ''}${evolucao}%` },
+    { nome: 'Constância', curto: 'Constância', valor: consistencia == null ? null : Math.min(150, consistencia), detalhe: `${diasUteisComVenda} de ${diasUteisObservados} dias úteis com venda` },
+    { nome: 'Evolução semanal', curto: 'Evolução', valor: evolucao == null ? null : Math.max(0, Math.min(150, 100 + evolucao)), detalhe: detalheSemanal, exibicao: evolucao == null ? `${semanaAtual} × ${semanaAnterior}` : `${evolucao > 0 ? '+' : ''}${evolucao}%` },
   ];
   if (!externo) indicadores.push({
     nome: 'Renovações', curto: 'Renovações',
@@ -4902,8 +4914,23 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
     return `<li><span><b>${escapeHtmlText(item.nome)}</b><small>${escapeHtmlText(item.detalhe)}</small></span><strong>${escapeHtmlText(exibicao)}</strong></li>`;
   }).join('');
   if (note) note.textContent = externo
-    ? '100% indica a meta ou referência atingida. Renovações não entram na avaliação de vendedores externos.'
-    : '100% indica a meta ou referência atingida. Evolução compara os últimos 7 dias com os 7 dias anteriores.';
+    ? '100% indica a meta ou referência atingida. Constância considera dias úteis (segunda a sexta); renovações não entram na avaliação de externos.'
+    : '100% indica a meta ou referência atingida. Constância considera dias úteis (segunda a sexta); a evolução compara duas janelas de 7 dias.';
+  if (insights) {
+    const comparaveis = indicadores.filter(item => item.valor != null);
+    const maisForte = [...comparaveis].sort((a, b) => b.valor - a.valor)[0];
+    const abaixo = [...comparaveis].filter(item => item.valor < 100).sort((a, b) => a.valor - b.valor)[0];
+    const textoDestaque = maisForte
+      ? `${maisForte.nome}: ${maisForte.detalhe}.`
+      : 'Ainda faltam metas ou referências para identificar um destaque neste período.';
+    let textoAtencao = 'Nenhum indicador comparável está abaixo da referência. Continue acompanhando o ritmo.';
+    if (abaixo?.nome === 'Meta de vendas') textoAtencao = `Faltam ${Math.max(0, metaVendas - vendas)} venda(s) para atingir a meta mensal.`;
+    else if (abaixo?.nome === 'Ticket médio') textoAtencao = `O ticket está em ${Math.round(abaixo.valor)}% da referência regional; acompanhe o valor médio das novas vendas.`;
+    else if (abaixo?.nome === 'Constância') textoAtencao = `Houve venda em ${diasUteisComVenda} de ${diasUteisObservados} dias úteis transcorridos. Tente distribuir os fechamentos ao longo da semana.`;
+    else if (abaixo?.nome === 'Evolução semanal') textoAtencao = `${semanaAtual} venda(s) nos últimos 7 dias, contra ${semanaAnterior} na semana anterior. Observe se a redução continua na próxima semana.`;
+    else if (abaixo?.nome === 'Renovações') textoAtencao = `Renovações em ${Math.round(abaixo.valor)}% da meta M1${metaRenovacoes > 0 ? `; faltam ${Math.max(0, metaRenovacoes - renovacoes)} para a meta` : ''}.`;
+    insights.innerHTML = `<article class="an-attribute-insight is-positive"><span>DESTAQUE</span><p>${escapeHtmlText(textoDestaque)}</p></article><article class="an-attribute-insight is-focus"><span>PONTO DE ATENÇÃO</span><p>${escapeHtmlText(textoAtencao)}</p></article>`;
+  }
 }
 
 function renderizarGraficosPerfilAnalitico(selecionado) {
