@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261026-mural-faixas-1">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261026-xp-v2">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261026-dashboard-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -315,8 +315,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261026-mural-faixas-1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261026-atributos-radar-4"></script>
+  <script src="assets/js/dashboard.js?v=20261026-admin-dashboard-v1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261026-admin-dashboard-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -408,7 +408,7 @@
         <!-- ── DASHBOARD ──────────────────────────────────────── -->
         <section class="adm-section active" id="sec-dashboard">
           <div class="adm-section-title">Visão Geral</div>
-          <p class="adm-page-lead">Veja o resultado da filial, o ritmo da semana e o progresso da meta mensal.</p>
+          <p class="adm-page-lead">Acompanhe vendas, renovações, metas e itens que precisam de conferência nesta filial.</p>
           <div class="adm-dashboard-intro">
             <div class="adm-dashboard-intro-copy">
               <span class="adm-dashboard-eyebrow">RESUMO DA FILIAL</span>
@@ -416,10 +416,25 @@
             </div>
             <div class="adm-dashboard-actions" aria-label="Ações rápidas">
               <button type="button" class="adm-dashboard-action primary" onclick="adm_navigateTo('nova-venda')"><svg class="adm-icon adm-inline-icon" aria-hidden="true"><use href="#adm-icon-plus"/></svg>Registrar venda</button>
+              <button type="button" class="adm-dashboard-action" onclick="adm_navigateTo('renovacoes')"><svg class="adm-icon adm-inline-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg>Importar renovações</button>
               <button type="button" class="adm-dashboard-action" onclick="adm_navigateTo('vendedores')"><svg class="adm-icon adm-inline-icon" aria-hidden="true"><use href="#adm-icon-users"/></svg>Ver vendedores</button>
               <button type="button" class="adm-dashboard-action" onclick="adm_navigateTo('config-metas')"><svg class="adm-icon adm-inline-icon" aria-hidden="true"><use href="#adm-icon-target"/></svg>Configurar metas</button>
             </div>
           </div>
+
+          <section class="adm-dashboard-attention" id="adm-dashboard-attention" aria-labelledby="adm-dashboard-attention-title">
+            <div class="adm-dashboard-attention-heading"><div><span class="adm-dashboard-eyebrow">AÇÃO RÁPIDA</span><h3 id="adm-dashboard-attention-title">Atenção operacional</h3></div><span id="dash-attention-status" class="adm-dashboard-status">Verificando pendências…</span></div>
+            <div class="adm-dashboard-attention-items">
+              <article class="adm-dashboard-attention-item" id="dash-pending-sales-card">
+                <div><span class="adm-dashboard-attention-label">Conferência de vendas IXC</span><strong id="dash-pending-sales">—</strong><small id="dash-pending-sales-note">Pendências aguardando revisão</small></div>
+                <button type="button" class="adm-dashboard-text-action" onclick="adm_navigateTo('nova-venda')">Revisar <span aria-hidden="true">→</span></button>
+              </article>
+              <article class="adm-dashboard-attention-item" id="dash-pending-renewals-card">
+                <div><span class="adm-dashboard-attention-label">Conferência de renovações</span><strong id="dash-pending-renewals">—</strong><small id="dash-pending-renewals-note">Plano ou valor aguardando revisão</small></div>
+                <button type="button" class="adm-dashboard-text-action" onclick="adm_navigateTo('renovacoes')">Revisar <span aria-hidden="true">→</span></button>
+              </article>
+            </div>
+          </section>
 
           <div class="adm-dashboard-kpis" id="adm-stats-row">
             <div class="adm-stat-card">
@@ -431,6 +446,11 @@
               <div class="label">Vendas no mês</div>
               <div class="value" id="dash-mes">—</div>
               <div class="sub">acumulado do mês atual</div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="label">Renovações no mês</div>
+              <div class="value" id="dash-renovacoes">—</div>
+              <div class="sub">registros na filial</div>
             </div>
             <div class="adm-stat-card">
               <div class="label">Valor mensal</div>
@@ -475,6 +495,21 @@
                 </div>
               </div>
               <div class="adm-dashboard-week-bars" id="dash-week-bars" aria-label="Vendas por dia nesta semana"></div>
+            </article>
+          </div>
+
+          <div class="adm-dashboard-highlights" aria-label="Destaques e atividade recente">
+            <article class="adm-dashboard-panel adm-dashboard-highlight-card">
+              <span class="adm-dashboard-eyebrow">DESTAQUE DO MÊS</span><h3>Mais vendas</h3>
+              <strong id="dash-month-sales-leader">—</strong><p id="dash-month-sales-leader-note">Aguardando dados do mês</p>
+            </article>
+            <article class="adm-dashboard-panel adm-dashboard-highlight-card">
+              <span class="adm-dashboard-eyebrow">DESTAQUE DO MÊS</span><h3>Mais renovações</h3>
+              <strong id="dash-month-renewal-leader">—</strong><p id="dash-month-renewal-leader-note">Aguardando dados do mês</p>
+            </article>
+            <article class="adm-dashboard-panel adm-dashboard-highlight-card adm-dashboard-activity-card">
+              <span class="adm-dashboard-eyebrow">ATIVIDADE RECENTE</span><h3>Última venda registrada</h3>
+              <strong id="dash-recent-sale">—</strong><p id="dash-recent-sale-note">Sem vendas recentes</p>
             </article>
           </div>
 

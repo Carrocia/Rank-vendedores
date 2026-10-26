@@ -5342,7 +5342,85 @@ document.addEventListener('keydown', event => {
 });
 document.addEventListener('adm:dashboarddataready', () => {
   if (document.getElementById('sec-analitica')?.classList.contains('active')) renderizarAnaliticaPerfis();
+  renderizarOperacaoDashboard(_ultimoProcessado);
 });
+
+let _dashboardPendenciasRequestId = 0;
+
+function renderizarOperacaoDashboard(d) {
+  const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  const fmt = value => Number(value || 0).toLocaleString('pt-BR');
+  const vendasMes = [...(d?.intMes || []), ...(d?.extMes || [])]
+    .filter(item => Number(item.vendas) > 0)
+    .sort((a, b) => Number(b.vendas) - Number(a.vendas) || Number(b.valor || 0) - Number(a.valor || 0));
+  const liderVendas = vendasMes[0];
+  const liderRenovacoes = _cache.destaquesRenovacoes?.[0];
+  const vendaRecente = _cache.vendaMaisRecente;
+
+  setText('dash-renovacoes', _cache.renovacoesTotal == null ? '—' : fmt(_cache.renovacoesTotal));
+  setText('dash-month-sales-leader', liderVendas?.nome || 'Sem vendas no mês');
+  setText('dash-month-sales-leader-note', liderVendas
+    ? `${fmt(liderVendas.vendas)} vendas · ${liderVendas.tipo === 'externo' ? 'Externo' : 'Interno'}`
+    : 'O destaque aparece após a primeira venda do mês.');
+  setText('dash-month-renewal-leader', liderRenovacoes?.vendedor_nome || 'Sem renovações no mês');
+  setText('dash-month-renewal-leader-note', liderRenovacoes
+    ? `${fmt(liderRenovacoes.quantidade)} renovações · ${liderRenovacoes.tipo === 'externo' ? 'Externo' : 'Interno'}`
+    : 'O destaque aparece após a primeira renovação do mês.');
+  setText('dash-recent-sale', vendaRecente?.vendedores?.nome || 'Sem vendas recentes');
+  const dataVenda = vendaRecente?.data_venda ? new Date(vendaRecente.data_venda) : null;
+  setText('dash-recent-sale-note', dataVenda && !Number.isNaN(dataVenda.getTime())
+    ? dataVenda.toLocaleString('pt-BR', { dateStyle: 'medium', timeStyle: 'short' })
+    : 'Os novos lançamentos aparecerão aqui.');
+
+  const status = document.getElementById('dash-attention-status');
+  if (status) {
+    status.classList.remove('is-clear', 'is-attention');
+    status.textContent = window.ADMIN_AUTENTICADO ? 'Consultando fila de revisão…' : 'Aguardando acesso administrativo';
+  }
+  carregarContagensPendentesDashboard(d);
+}
+
+async function carregarContagensPendentesDashboard(d) {
+  const requestId = ++_dashboardPendenciasRequestId;
+  const filialId = Number(window.FILIAL_ATUAL_ID);
+  const mes = Number(d?.mes?.mesNum);
+  const ano = Number(d?.mes?.ano);
+  const status = document.getElementById('dash-attention-status');
+  const renderContagem = (id, noteId, cardId, quantidade, descricao) => {
+    const card = document.getElementById(cardId);
+    if (card) card.classList.toggle('is-pending', Number(quantidade) > 0);
+    document.getElementById(id)?.replaceChildren(document.createTextNode(quantidade == null ? '—' : fmtDashboard(quantidade)));
+    const note = document.getElementById(noteId);
+    if (note) note.textContent = quantidade == null ? 'Não foi possível consultar a fila' : quantidade === 0 ? 'Nenhum item aguardando revisão' : descricao;
+  };
+  const fmtDashboard = value => Number(value || 0).toLocaleString('pt-BR');
+  if (!window.ADMIN_AUTENTICADO || !window._supabase || !Number.isInteger(filialId) || filialId <= 0 || !mes || !ano) {
+    renderContagem('dash-pending-sales', 'dash-pending-sales-note', 'dash-pending-sales-card', null, '');
+    renderContagem('dash-pending-renewals', 'dash-pending-renewals-note', 'dash-pending-renewals-card', null, '');
+    if (status) status.textContent = 'Acesse como administrador para consultar as filas';
+    return;
+  }
+  const [vendas, renovacoes] = await Promise.all([
+    window._supabase.from('vendas_conferencia_ixc').select('id', { count: 'exact', head: true }).eq('filial_id', filialId).eq('situacao', 'pendente'),
+    window._supabase.from('renovacoes_registros').select('id', { count: 'exact', head: true }).eq('filial_id', filialId).eq('mes', mes).eq('ano', ano).eq('conferencia_pendente', true),
+  ]);
+  if (requestId !== _dashboardPendenciasRequestId) return;
+  if (vendas.error) console.warn('[carregarContagensPendentesDashboard] vendas IXC:', vendas.error.message);
+  if (renovacoes.error) console.warn('[carregarContagensPendentesDashboard] renovações:', renovacoes.error.message);
+  const quantidadeVendas = vendas.error ? null : Number(vendas.count || 0);
+  const quantidadeRenovacoes = renovacoes.error ? null : Number(renovacoes.count || 0);
+  renderContagem('dash-pending-sales', 'dash-pending-sales-note', 'dash-pending-sales-card', quantidadeVendas,
+    `${fmtDashboard(quantidadeVendas)} venda(s) aguardando conferência`);
+  renderContagem('dash-pending-renewals', 'dash-pending-renewals-note', 'dash-pending-renewals-card', quantidadeRenovacoes,
+    `${fmtDashboard(quantidadeRenovacoes)} renovação(ões) aguardando conferência`);
+  if (status) {
+    status.classList.toggle('is-clear', quantidadeVendas === 0 && quantidadeRenovacoes === 0);
+    status.classList.toggle('is-attention', Number(quantidadeVendas) + Number(quantidadeRenovacoes) > 0);
+    status.textContent = quantidadeVendas == null || quantidadeRenovacoes == null
+      ? 'Não foi possível consultar todas as filas'
+      : quantidadeVendas + quantidadeRenovacoes === 0 ? 'Tudo em dia' : `${quantidadeVendas + quantidadeRenovacoes} item(ns) precisam de revisão`;
+  }
+}
 
 function contarDiasUteisResumo(inicio, fim) {
   let total = 0;
