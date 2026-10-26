@@ -87,7 +87,8 @@ as $function$
         or (vd.tipo::text = 'externo' and v.filial_destino_id = vd.filial_id))
     group by v.vendedor_id
   )
-  select f.id, f.nome::text, vd.id, vd.nome::text, vd.tipo::text, metas_conquista.conquista
+  select distinct on (f.id, vd.id, vd.tipo::text)
+    f.id, f.nome::text, vd.id, vd.nome::text, vd.tipo::text, metas_conquista.conquista
   from public.vendedores vd
   join public.filiais f on f.id = vd.filial_id and f.ativo is true
   cross join periodo p
@@ -105,7 +106,8 @@ as $function$
     and (vd.tipo::text = 'externo' or m.vendedor_id is not null)
     and metas_conquista.meta is not null and metas_conquista.meta > 0
     and coalesce(vm.quantidade, 0) >= metas_conquista.meta
-  order by f.nome, vd.nome, metas_conquista.conquista;
+  order by f.id, vd.id, vd.tipo::text,
+    case metas_conquista.conquista when 'M1' then 3 when 'M2' then 2 else 1 end desc;
 $function$;
 revoke all on function public.conquistas_mensais_globais() from public;
 grant execute on function public.conquistas_mensais_globais() to anon, authenticated;

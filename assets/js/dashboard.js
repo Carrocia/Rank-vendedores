@@ -798,6 +798,16 @@ async function carregarDestaquesExternosGlobais() {
   return { lista: data || [], erro: false };
 }
 
+async function carregarDestaquesMensaisFechadosGlobais() {
+  if (!window._supabase) return { lista: [], erro: true };
+  const { data, error } = await window._supabase.rpc('destaques_mensais_fechados_globais');
+  if (error) {
+    console.warn('[carregarDestaquesMensaisFechadosGlobais] aplique supabase/conquistas-destaque-mensal.sql:', error.message);
+    return { lista: [], erro: true };
+  }
+  return { lista: data || [], erro: false };
+}
+
 function renderDestaquesExternosGlobais(periodoAtivo = document.documentElement.getAttribute('data-active-tab') || 'semanal') {
   const container = document.getElementById('destaquesGrid');
   if (!container) return;
@@ -846,11 +856,16 @@ function renderConquistas() {
   if (mesEl) mesEl.textContent = new Date().toLocaleDateString('pt-BR', { month: 'long' });
 
   const { lista: conquistas = [], erro = false } = _cache.conquistasGlobais || {};
-  const lista = conquistas.filter(c => !(
+  const { lista: campeoes = [], erro: erroCampeoes = false } = _cache.destaquesMensaisFechados || {};
+  const listaMetas = conquistas.filter(c => !(
     c.tipo === 'externo' && c.conquista === 'Meta de vendas' && Number(c.vendas) < 14
   ));
+  const lista = [
+    ...listaMetas.map(c => ({ ...c, destaqueTipo: 'meta' })),
+    ...campeoes.map(c => ({ ...c, destaqueTipo: 'campeao' })),
+  ];
   if (!lista.length) {
-    container.innerHTML = `<div class="conquistas-vazio">${erro
+    container.innerHTML = `<div class="conquistas-vazio">${erro || erroCampeoes
       ? 'Conquistas de todas as filiais indisponíveis. Aplique a atualização do Supabase para carregar este painel.'
       : 'Nenhuma meta individual foi atingida neste mês.'}</div>`;
     return;
@@ -861,6 +876,7 @@ function renderConquistas() {
     ? (Number(conquista.vendas) > 14 ? 'M1' : 'M2')
     : (conquista.conquista || 'do mês'); // compatibilidade enquanto a RPC antiga não for atualizada
   const medalha = conquista => {
+    if (conquista.destaqueTipo === 'campeao') return '🏆';
     const meta = nomeMeta(conquista);
     return meta === 'M1' ? '🥇' : meta === 'M2' ? '🥈' : meta === 'M3' ? '🥉' : '🏆';
   };
@@ -872,7 +888,9 @@ function renderConquistas() {
           <article class="conquista-card">
             <div class="conquista-card-top"><span class="conquista-medalha">${medalha(c)}</span><span class="conquista-filial">${esc(c.filial_nome || 'Filial')}</span></div>
             <strong class="conquista-vendedor">${esc(c.vendedor_nome || 'Vendedor')}</strong>
-            <span class="conquista-texto">atingiu a meta <b>${esc(nomeMeta(c))}</b></span>
+            <span class="conquista-texto">${c.destaqueTipo === 'campeao'
+              ? `ganhou o destaque de ${esc(new Date(Number(c.ano), Number(c.mes) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))} · 1º lugar no ranking ${c.tipo === 'externo' ? 'externo' : 'interno'}`
+              : `atingiu a meta <b>${esc(nomeMeta(c))}</b>`}</span>
           </article>`).join('')}
         </div>
       </div>
@@ -943,6 +961,7 @@ let _cache = {
   semana: null, mes: null,
   conquistasGlobais: { lista: [], erro: false },
   destaquesExternosGlobais: { lista: [], erro: false },
+  destaquesMensaisFechados: { lista: [], erro: false },
 };
 // Último resultado de processarDadosParaRender(), guardado por renderAll()
 // para o card "Status do Caçador" reaproveitar (sem recalcular tudo de
@@ -1079,7 +1098,7 @@ async function carregarDados() {
     const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
-           conquistasGlobais, destaquesExternosGlobais, vendasFechados, vendasFechadosOrigem] = await Promise.all([
+           conquistasGlobais, destaquesExternosGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem] = await Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
       loadAdicionais(),
@@ -1101,6 +1120,10 @@ async function carregarDados() {
       }),
       carregarDestaquesExternosGlobais().catch(err => {
         console.warn('[carregarDestaquesExternosGlobais]', err);
+        return { lista: [], erro: true };
+      }),
+      carregarDestaquesMensaisFechadosGlobais().catch(err => {
+        console.warn('[carregarDestaquesMensaisFechadosGlobais]', err);
         return { lista: [], erro: true };
       }),
       pFechados,
@@ -1139,6 +1162,7 @@ async function carregarDados() {
     _cache.vendasOrigemMes = vendasOrigemMes;
     _cache.conquistasGlobais = conquistasGlobais;
     _cache.destaquesExternosGlobais = destaquesExternosGlobais;
+    _cache.destaquesMensaisFechados = destaquesMensaisFechados;
     _cache.destaquesAuto = mesesFechados.map((m, i) => calcularDestaqueMes(
       m, vendasFechados[i], vendedores,
       vendasFechadosOrigem[i].filter(v => v.tipo === 'interno')

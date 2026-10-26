@@ -1,0 +1,113 @@
+-- Atualiza o carrossel público de conquistas:
+-- 1) uma única conquista, sempre o maior marco atual, por vendedor;
+-- 2) campeões mensais apenas depois do fechamento oficial do período.
+begin;
+
+create or replace function public.conquistas_mensais_globais()
+returns table (
+  filial_id bigint,
+  filial_nome text,
+  vendedor_id bigint,
+  vendedor_nome text,
+  tipo text,
+  conquista text
+)
+language sql stable security definer set search_path = ''
+as $function$
+  with periodo as (
+    select
+      date_trunc('month', now() at time zone 'America/Manaus') at time zone 'America/Manaus' as inicio,
+      (date_trunc('month', now() at time zone 'America/Manaus') + interval '1 month') at time zone 'America/Manaus' as fim,
+      extract(month from now() at time zone 'America/Manaus')::integer as mes,
+      extract(year from now() at time zone 'America/Manaus')::integer as ano
+  ),
+  vendas_mes as (
+    select v.vendedor_id, count(*)::bigint as quantidade
+    from public.vendas v
+    join public.vendedores vd on vd.id = v.vendedor_id
+    cross join periodo p
+    where v.data_venda >= p.inicio and v.data_venda < p.fim
+      and v.filial_origem_id = vd.filial_id
+      and v.fora_filial is not true
+      and (vd.tipo::text = 'interno' or (vd.tipo::text = 'externo' and v.filial_destino_id = vd.filial_id))
+    group by v.vendedor_id
+  ),
+  candidatas as (
+    select f.id as filial_id, f.nome::text as filial_nome,
+      vd.id as vendedor_id, vd.nome::text as vendedor_nome, vd.tipo::text as tipo,
+      mc.conquista,
+      case mc.conquista when 'M1' then 3 when 'M2' then 2 else 1 end as prioridade
+    from public.vendedores vd
+    join public.filiais f on f.id = vd.filial_id and f.ativo is true
+    cross join periodo p
+    left join public.metas m on m.vendedor_id = vd.id and m.mes = p.mes and m.ano = p.ano
+    left join vendas_mes vm on vm.vendedor_id = vd.id
+    cross join lateral (
+      select 'M3'::text as conquista, m.meta_m3::numeric as meta where vd.tipo::text = 'interno'
+      union all select 'M2'::text, m.meta_m2::numeric where vd.tipo::text = 'interno'
+      union all select 'M1'::text, m.meta_m1::numeric where vd.tipo::text = 'interno'
+      union all select 'M1'::text, 15::numeric where vd.tipo::text = 'externo' and coalesce(vm.quantidade, 0) >= 15
+      union all select 'M2'::text, 14::numeric where vd.tipo::text = 'externo' and coalesce(vm.quantidade, 0) = 14
+    ) mc
+    where vd.ativo is true and coalesce(vd.participa_ranking, true) is true
+      and (vd.tipo::text = 'externo' or m.vendedor_id is not null)
+      and mc.meta is not null and mc.meta > 0 and coalesce(vm.quantidade, 0) >= mc.meta
+  ),
+  priorizadas as (
+    select *, row_number() over (
+      partition by filial_id, vendedor_id, tipo order by prioridade desc
+    ) as ordem from candidatas
+  )
+  select filial_id, filial_nome, vendedor_id, vendedor_nome, tipo, conquista
+  from priorizadas where ordem = 1
+  order by filial_nome, vendedor_nome;
+$function$;
+
+revoke all on function public.conquistas_mensais_globais() from public;
+grant execute on function public.conquistas_mensais_globais() to anon, authenticated;
+
+create or replace function public.destaques_mensais_fechados_globais()
+returns table (
+  filial_id bigint,
+  filial_nome text,
+  vendedor_id bigint,
+  vendedor_nome text,
+  tipo text,
+  mes integer,
+  ano integer,
+  vendas bigint,
+  valor_vendas numeric
+)
+language sql stable security definer set search_path = ''
+as $function$
+  with periodos_recentes as (
+    select f.filial_id, f.mes, f.ano,
+      row_number() over (partition by f.filial_id order by f.ano desc, f.mes desc) as periodo_ordem
+    from public.ranks_carreira_periodos_fechados f
+  ),
+  candidatos as (
+    select r.filial_id, fi.nome::text as filial_nome,
+      r.vendedor_id, r.vendedor_nome, r.tipo::text as tipo,
+      r.mes, r.ano, r.vendas::bigint as vendas,
+      r.valor_vendas::numeric as valor_vendas,
+      rank() over (
+        partition by r.filial_id, r.mes, r.ano, r.tipo
+        order by r.vendas desc, r.valor_vendas desc
+      ) as posicao
+    from periodos_recentes p
+    join public.ranks_carreira_mensais r
+      on r.filial_id = p.filial_id and r.mes = p.mes and r.ano = p.ano
+    join public.filiais fi on fi.id = r.filial_id and fi.ativo is true
+    where p.periodo_ordem = 1 and r.vendas > 0
+  )
+  select filial_id, filial_nome, vendedor_id, vendedor_nome, tipo,
+    mes, ano, vendas, valor_vendas
+  from candidatos where posicao = 1
+  order by ano desc, mes desc, filial_nome, tipo, vendedor_nome;
+$function$;
+
+revoke all on function public.destaques_mensais_fechados_globais() from public;
+grant execute on function public.destaques_mensais_fechados_globais() to anon, authenticated;
+
+commit;
+notify pgrst, 'reload schema';
