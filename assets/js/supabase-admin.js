@@ -5099,11 +5099,16 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   if (xpTotal) xpTotal.textContent = '—';
   if (xpBreakdown) xpBreakdown.replaceChildren();
   try {
-    const periodoXP = _ultimoProcessado?.mes || _cache.mes || {};
+    const periodoXP = _ultimoProcessado?.mes || _cache.mes || calcularPeriodoMes();
+    const mesXP = Number(periodoXP.mesNum || periodoXP.mes);
+    const anoXP = Number(periodoXP.ano);
+    if (!Number.isInteger(mesXP) || mesXP < 1 || mesXP > 12 || !Number.isInteger(anoXP)) {
+      throw new Error(`Período inválido para calcular XP (${String(periodoXP.mesNum ?? periodoXP.mes)}/${String(periodoXP.ano)}).`);
+    }
     const { data: xpData, error: xpError } = await window._supabase.rpc('calcular_xp_comercial_vendedor', {
       p_vendedor_id: Number(cadastro?.id || vendedor.id),
-      p_mes: Number(periodoXP.mesNum),
-      p_ano: Number(periodoXP.ano),
+      p_mes: mesXP,
+      p_ano: anoXP,
     });
     if (token !== _analiticaRenderToken) return;
     if (xpError) throw xpError;
@@ -5130,11 +5135,14 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
       xpNote.textContent = `${ticketInfo}${campanhaInfo}${metasInfo} XP de carreira não altera o rank mensal nem promove automaticamente enquanto os limites de carreira não forem definidos.`;
     }
   } catch (xpError) {
-    console.warn('[renderizarPerfilAnalitico] não foi possível carregar XP comercial:', xpError.message);
-    if (xpStatus) xpStatus.textContent = 'XP ainda não disponível';
+    const erroXP = xpError?.message || 'Erro desconhecido ao consultar a função de XP.';
+    const codigoXP = xpError?.code ? ` (${xpError.code})` : '';
+    const dicaXP = xpError?.hint ? ` Dica do Supabase: ${xpError.hint}` : '';
+    console.warn('[renderizarPerfilAnalitico] não foi possível carregar XP comercial:', xpError);
+    if (xpStatus) xpStatus.textContent = `Falha ao consultar XP${codigoXP}`;
     if (xpTotal) xpTotal.textContent = '—';
-    if (xpBreakdown) xpBreakdown.innerHTML = '<p class="an-chart-empty">Aplique supabase/xp-comercial-acumulado.sql para habilitar o XP acumulado.</p>';
-    if (xpNote) xpNote.textContent = 'O rank mensal continua usando a regra atual até a configuração do XP comercial.';
+    if (xpBreakdown) xpBreakdown.replaceChildren();
+    if (xpNote) xpNote.textContent = `${erroXP}${dicaXP} O rank mensal continua usando a regra atual.`;
   }
   if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
   await preencherFichaAnalitica(selecionado, carreira);
