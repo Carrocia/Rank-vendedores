@@ -4440,29 +4440,6 @@ function renderAdmVendedoresTable(d) {
 // html2canvas() fotografa o template e vira PNG pra download.
 // ================================================================
 
-// Sequência de dias seguidos com pelo menos 1 venda, olhando as vendas
-// do mês corrente já carregadas em cache (não faz nova consulta ao
-// Supabase). Conta a partir do dia mais recente com venda pra trás,
-// dia a dia, parando no primeiro buraco.
-function calcularSequenciaDias(vendasDoVendedor) {
-  const dias = new Set();
-  vendasDoVendedor.forEach(v => {
-    const dataStr = String(v.data_venda || '').slice(0, 10);
-    if (dataStr) dias.add(dataStr);
-  });
-  if (dias.size === 0) return 0;
-  const datasOrdenadas = [...dias].sort().reverse(); // mais recente primeiro
-  let sequencia = 1;
-  let anterior = new Date(datasOrdenadas[0] + 'T12:00:00');
-  for (let i = 1; i < datasOrdenadas.length; i++) {
-    const atual = new Date(datasOrdenadas[i] + 'T12:00:00');
-    const diffDias = Math.round((anterior - atual) / 86400000);
-    if (diffDias === 1) { sequencia++; anterior = atual; }
-    else break;
-  }
-  return sequencia;
-}
-
 // Posição (1º, 2º, 3º...) do vendedor no ranking DESTA semana, dentro
 // do próprio grupo (interno concorre com interno, externo com
 // externo) — o mesmo critério já usado nos pódios da página pública.
@@ -4482,12 +4459,11 @@ function ordinal(n) {
   return n + 'º';
 }
 
-// Pool de frases sobre constância — a escolha é determinística
-// (baseada na sequência de dias + vendas do mês), não aleatória, pra
-// gerar o mesmo card duas vezes seguidas sem ficar trocando de frase.
+// Frases de incentivo escolhidas pelo avanço da meta e a posição semanal,
+// sem usar a data de ativação para inferir constância diária.
 const SC_FRASES_ALTA = [
   'Você tá voando tão alto que o Wi-Fi pediu carona. 🚀',
-  'Constância ligada no máximo — e o resultado também.',
+  'Seu progresso aparece em cada meta que você alcança.',
   'Meta no retrovisor, próximo desafio no radar. Bora!',
   'Seu sinal tá tão forte que chega antes da notícia da venda.',
   'Conexão feita, cliente feliz, equipe orgulhosa. Repete!',
@@ -4518,20 +4494,6 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   const vendedorCadastro = (_cache.vendedores || []).find(v => (v.slug || v.id) === slug);
   const tipo = vendedorSemana.tipo;
 
-  // sequência: precisa das vendas do próprio vendedor no mês (já em cache)
-  const vendasDoVendedor = vendedorCadastro
-    ? (_cache.vendasMes || []).filter(v => {
-      if (String(v.vendedor_id) !== String(vendedorCadastro.id)) return false;
-      if (tipo === 'externo' && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v))) return false;
-      return true;
-    })
-    : [];
-  if (vendedorCadastro && tipo === 'interno') {
-    (_cache.vendasOrigemMes || []).filter(v => v.tipo === 'interno' && v.vendedor_id === vendedorCadastro.id)
-      .forEach(v => vendasDoVendedor.push({ data_venda: v.dia }));
-  }
-  const sequencia = calcularSequenciaDias(vendasDoVendedor);
-
   const posicao = calcularPosicaoRanking(slug, tipo, d);
   const barrasAcesas = posicao === 1 ? 4 : posicao !== null && posicao <= 3 ? 3 : posicao !== null && posicao <= 5 ? 2 : posicao !== null ? 1 : 0;
   const labelSinal = posicao === null ? 'SEM VENDAS NA SEMANA' : `${ordinal(posicao)} NA SEMANA`;
@@ -4561,9 +4523,9 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   const m1JaAtingida = tipo === 'interno' && metasPessoais.length > 0
     && vendasMesPessoa >= metasPessoais[metasPessoais.length - 1].meta;
 
-  // frase de constância: combina sequência + posição pra escolher a faixa
-  const pontuacaoConstancia = sequencia + (posicao ? (6 - Math.min(5, posicao)) : 0);
-  const poolFrases = pontuacaoConstancia >= 7 ? SC_FRASES_ALTA : pontuacaoConstancia >= 3 ? SC_FRASES_MEDIA : SC_FRASES_BAIXA;
+  // O texto de incentivo reflete metas e posição, não dias com ativação.
+  const pontuacaoDestaque = Math.min(100, pctMeta) + (posicao ? (6 - Math.min(5, posicao)) * 5 : 0);
+  const poolFrases = pontuacaoDestaque >= 100 ? SC_FRASES_ALTA : pontuacaoDestaque >= 60 ? SC_FRASES_MEDIA : SC_FRASES_BAIXA;
   const frase = poolFrases[vendedorMes.vendas % poolFrases.length];
 
   // ── Preenche o template oculto ──────────────────────────────────
@@ -4666,7 +4628,7 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
   }
   document.getElementById('sc-stat-vendas').textContent = vendedorMes.vendas;
   document.getElementById('sc-stat-ticket').textContent = ticketMedio ? ('R$' + ticketMedio.toFixed(0)) : '—';
-  document.getElementById('sc-stat-dias').innerHTML = `${sequencia}<span class="sc-unit"> ${sequencia === 1 ? 'dia' : 'dias'}</span>`;
+  document.getElementById('sc-stat-semana').textContent = vendedorSemana.vendas || 0;
   if (!ehExterno) {
     const renovacaoMensal = Array.isArray(_cache.renovacoesMes) ? _cache.renovacoesMes : null;
     const renovacaoPessoa = renovacaoMensal?.find(item => String(item.vendedor_id) === String(vendedorCadastro?.id));
@@ -4846,25 +4808,15 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   const hoje = new Date();
   const mesmoMes = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mesNum;
   const diaCorte = mesmoMes ? Math.min(hoje.getDate(), fim) : fim;
-  const diasAtivos = new Set();
   const vendasPorDia = new Map();
   const registrar = (item, quantidade = 1) => {
     const data = String(item.data_venda || item.dia || '').slice(0, 10);
     const dia = Number(data.slice(8, 10));
     if (!data || !dia || dia > diasNoMes) return;
-    diasAtivos.add(data);
     vendasPorDia.set(data, (vendasPorDia.get(data) || 0) + quantidade);
   };
   vendasDiretas.forEach(item => registrar(item, 1));
   vendasOrigem.forEach(item => registrar(item, Number(item.vendas || 0)));
-  const ehDiaUtil = data => { const dia = data.getDay(); return dia !== 0 && dia !== 6; };
-  let diasUteisObservados = 0;
-  for (let dia = 1; dia <= diaCorte; dia++) if (ehDiaUtil(new Date(ano, mesNum - 1, dia))) diasUteisObservados++;
-  const diasUteisComVenda = [...diasAtivos].filter(data => {
-    const dia = Number(data.slice(8, 10));
-    return dia <= diaCorte && ehDiaUtil(new Date(ano, mesNum - 1, dia));
-  }).length;
-  const consistencia = diasUteisObservados > 0 ? diasUteisComVenda / diasUteisObservados * 100 : null;
   const fimAtual = new Date(ano, mesNum - 1, diaCorte);
   const inicioAtual = new Date(fimAtual); inicioAtual.setDate(inicioAtual.getDate() - 6);
   const inicioAnterior = new Date(inicioAtual); inicioAnterior.setDate(inicioAnterior.getDate() - 7);
@@ -4878,13 +4830,12 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   const detalheSemanal = !janelaAnteriorCompleta
     ? 'Sem 7 dias anteriores no mês para comparar'
     : semanaAnterior > 0
-      ? `${semanaAtual} venda(s) nos últimos 7 dias; ${semanaAnterior} na semana anterior (${evolucao > 0 ? '+' : ''}${evolucao}%)`
-      : `${semanaAtual} venda(s) nos últimos 7 dias; ${semanaAnterior} na semana anterior (sem base percentual)`;
+      ? `${semanaAtual} ativação(ões) nos últimos 7 dias; ${semanaAnterior} nos 7 dias anteriores (${evolucao > 0 ? '+' : ''}${evolucao}%)`
+      : `${semanaAtual} ativação(ões) nos últimos 7 dias; ${semanaAnterior} nos 7 dias anteriores (sem base percentual)`;
   const indicadores = [
     { nome: 'Meta de vendas', curto: 'Vendas', valor: metaVendas > 0 ? vendas / metaVendas * 100 : null, detalhe: metaVendas > 0 ? `${Math.round(vendas / metaVendas * 100)}% da meta mensal` : 'Meta não cadastrada' },
     { nome: 'Ticket médio', curto: 'Ticket', valor: referencia > 0 ? ticket / referencia * 100 : null, detalhe: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível' },
-    { nome: 'Constância', curto: 'Constância', valor: consistencia == null ? null : Math.min(150, consistencia), detalhe: `${diasUteisComVenda} de ${diasUteisObservados} dias úteis com venda` },
-    { nome: 'Evolução semanal', curto: 'Evolução', valor: evolucao == null ? null : Math.max(0, Math.min(150, 100 + evolucao)), detalhe: detalheSemanal, exibicao: evolucao == null ? `${semanaAtual} × ${semanaAnterior}` : `${evolucao > 0 ? '+' : ''}${evolucao}%` },
+    { nome: 'Evolução semanal', curto: 'Evolução', valor: evolucao == null ? null : Math.max(0, Math.min(150, 100 + evolucao)), detalhe: detalheSemanal, exibicao: evolucao == null ? `${semanaAtual} vs ${semanaAnterior}` : `${evolucao > 0 ? '+' : ''}${evolucao}%` },
   ];
   if (!externo) indicadores.push({
     nome: 'Renovações', curto: 'Renovações',
@@ -4914,8 +4865,8 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
     return `<li><span><b>${escapeHtmlText(item.nome)}</b><small>${escapeHtmlText(item.detalhe)}</small></span><strong>${escapeHtmlText(exibicao)}</strong></li>`;
   }).join('');
   if (note) note.textContent = externo
-    ? '100% indica a meta ou referência atingida. Constância considera dias úteis (segunda a sexta); renovações não entram na avaliação de externos.'
-    : '100% indica a meta ou referência atingida. Constância considera dias úteis (segunda a sexta); a evolução compara duas janelas de 7 dias.';
+    ? '100% indica a meta ou referência atingida. Os períodos usam a data de ativação; a plataforma não avalia conversas nem fechamento diário.'
+    : '100% indica a meta ou referência atingida. Os períodos usam a data de ativação; renovações contam apenas para vendedores internos.';
   if (insights) {
     const comparaveis = indicadores.filter(item => item.valor != null);
     const maisForte = [...comparaveis].sort((a, b) => b.valor - a.valor)[0];
@@ -4926,8 +4877,7 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
     let textoAtencao = 'Nenhum indicador comparável está abaixo da referência. Continue acompanhando o ritmo.';
     if (abaixo?.nome === 'Meta de vendas') textoAtencao = `Faltam ${Math.max(0, metaVendas - vendas)} venda(s) para atingir a meta mensal.`;
     else if (abaixo?.nome === 'Ticket médio') textoAtencao = `O ticket está em ${Math.round(abaixo.valor)}% da referência regional; acompanhe o valor médio das novas vendas.`;
-    else if (abaixo?.nome === 'Constância') textoAtencao = `Houve venda em ${diasUteisComVenda} de ${diasUteisObservados} dias úteis transcorridos. Tente distribuir os fechamentos ao longo da semana.`;
-    else if (abaixo?.nome === 'Evolução semanal') textoAtencao = `${semanaAtual} venda(s) nos últimos 7 dias, contra ${semanaAnterior} na semana anterior. Observe se a redução continua na próxima semana.`;
+    else if (abaixo?.nome === 'Evolução semanal') textoAtencao = `${semanaAtual} ativação(ões) nos últimos 7 dias, contra ${semanaAnterior} nos 7 dias anteriores. A comparação usa a data de ativação registrada; observe se a variação se mantém.`;
     else if (abaixo?.nome === 'Renovações') textoAtencao = `Renovações em ${Math.round(abaixo.valor)}% da meta M1${metaRenovacoes > 0 ? `; faltam ${Math.max(0, metaRenovacoes - renovacoes)} para a meta` : ''}.`;
     insights.innerHTML = `<article class="an-attribute-insight is-positive"><span>DESTAQUE</span><p>${escapeHtmlText(textoDestaque)}</p></article><article class="an-attribute-insight is-focus"><span>PONTO DE ATENÇÃO</span><p>${escapeHtmlText(textoAtencao)}</p></article>`;
   }
@@ -4967,13 +4917,13 @@ function renderizarGraficosPerfilAnalitico(selecionado) {
   if (chartDaily) {
     chartDaily.innerHTML = vendasPorDia.map(item => {
       const height = item.quantidade ? Math.max(5, Math.round(item.quantidade / maxDia * 100)) : 0;
-      return `<span class="an-day-column" title="Dia ${item.dia}: ${item.quantidade} venda${item.quantidade === 1 ? '' : 's'}" aria-label="Dia ${item.dia}: ${item.quantidade} venda(s)"><i style="height:${height}%"></i><small>${item.dia % 5 === 0 || item.dia === 1 ? item.dia : ''}</small></span>`;
+      return `<span class="an-day-column" title="Dia ${item.dia}: ${item.quantidade} ativação(ões)" aria-label="Dia ${item.dia}: ${item.quantidade} ativação(ões)"><i style="height:${height}%"></i><small>${item.dia % 5 === 0 || item.dia === 1 ? item.dia : ''}</small></span>`;
     }).join('');
   }
-  if (chartTotal) chartTotal.textContent = `${totalDiario} vendas`;
+  if (chartTotal) chartTotal.textContent = `${totalDiario} ativações`;
   if (chartNote) chartNote.textContent = vendasOrigem.length
-    ? `Inclui ${vendasOrigem.reduce((t, v) => t + Number(v.vendas || 0), 0)} venda(s) originada(s) em outras filiais.`
-    : 'Acompanhe em quais dias as vendas foram registradas.';
+    ? `Contagem pela data de ativação. Inclui ${vendasOrigem.reduce((t, v) => t + Number(v.vendas || 0), 0)} ativação(ões) originada(s) em outras filiais.`
+    : 'Contagem distribuída pela data de ativação registrada no sistema.';
   if (lastDay) lastDay.textContent = String(diasNoMes);
 
   const planos = _cache.planos || [];
@@ -5157,8 +5107,8 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-rank-mensal-status').textContent = rankMensal
-    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · XP considera vendas, valor, constância e evolução semanal${externo ? '' : ' e renovações'}`
-    : rank?.elegivel ? 'Ainda não atingiu 20 XP. Vendas, ticket, constância, volume diário e evolução semanal acumulam pontos ao longo do mês.' : 'Confira a meta individual de vendas para habilitar o cálculo.';
+    ? `${rank.vendas} vendas · ticket médio R$ ${ticket.toFixed(2).replace('.', ',')} · XP considera vendas, ticket e evolução semanal${externo ? '' : ' e renovações'}`
+    : rank?.elegivel ? 'Ainda não atingiu 20 XP. Vendas, ticket, evolução semanal e renovações internas somam pontos ao longo do mês.' : 'Confira a meta individual de vendas para habilitar o cálculo.';
   const status = document.getElementById('an-status');
   if (status) status.textContent = 'Carregando histórico de carreira…';
   let historico = [];
@@ -5648,7 +5598,7 @@ const FRASES_CELEBRACAO_POR_RITMO = {
     'Meta no retrovisor, próximo desafio no radar. Bora!',
     'Seu resultado chegou antes até do sinal. 📶',
     'Você tá voando — até o modem quer pegar carona!',
-    'Constância ligada no máximo. O resultado também!',
+    'Sua evolução está em alta. O resultado também!',
     'Cliente conectado, meta avançando em alta velocidade!',
   ],
   no: [
@@ -5657,7 +5607,7 @@ const FRASES_CELEBRACAO_POR_RITMO = {
     'Tá no ritmo: segue assim que a próxima conquista vem!',
     'Cliente conectado, meta avançando. Boa!',
     'Seu esforço já aparece nos números. Continua!',
-    'A constância está fazendo o trabalho dela. Segue firme!',
+    'Seu progresso está fazendo a diferença. Segue firme!',
   ],
   avancando: [
     'Cada venda é uma conexão a mais com a meta.',

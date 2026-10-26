@@ -8,12 +8,12 @@ Este modelo substitui a exigência de atingir M3/M2/M1 para receber um rank mens
 
 | Componente | Limite | Regra inicial |
 | --- | ---: | --- |
-| Vendas | 35 XP | Pontos proporcionais às vendas em relação à meta M1, com crédito desde a primeira venda. M1 completa esta categoria; não é requisito para rank. |
+| Vendas | 50 XP | Pontos proporcionais às vendas em relação à meta M1, com crédito desde a primeira venda. M1 completa esta categoria; não é requisito para rank. |
 | Ticket / valor | 20 XP | Pontuação gradual comparada ao ticket de referência da filial. Abaixo de 80%: 0; 80%: 0; 95%: 10; 110% ou mais: 20. |
-| Constância | 20 XP | 2 XP por dia diferente com ao menos uma venda, até 10 dias no mês. Isso evita entregar todo o bônus de constância por uma venda no começo do mês. |
-| Volume diário | 10 XP | +2 XP por dia com três ou mais vendas, limitado a 10 XP. |
-| Evolução semanal | 10 XP | Compara os últimos sete dias com os sete anteriores. Crescimento de 50% ou mais recebe 10 XP; crescimento menor pontua proporcionalmente. Sem base anterior, um período atual com vendas recebe no máximo 4 XP. |
-| Renovações | 5 XP | +0,25 XP por renovação, limitado a 5. Para vendedores externos, este componente vale 0 e não é requisito. |
+| Evolução semanal | 20 XP | Compara o total de ativações nos últimos sete dias com os sete anteriores. Crescimento de 50% ou mais recebe 20 XP; crescimento menor pontua proporcionalmente. Sem base anterior, uma janela atual com ativações recebe 8 XP. |
+| Renovações | 10 XP | +0,5 XP por renovação, limitado a 10. Para vendedores externos, este componente vale 0 e não é requisito. |
+
+Não há pontos por fechar vendas em dias consecutivos ou por concentrar várias ativações no mesmo dia. O sistema registra a data de ativação, que não revela quando a negociação começou ou quanto tempo levou.
 
 ## Faixas iniciais
 
@@ -25,7 +25,7 @@ Este modelo substitui a exigência de atingir M3/M2/M1 para receber um rank mens
 | A | 65 |
 | S | 80 |
 
-Ticket deixa de ser uma barreira eliminatória e passa a contribuir para o XP. A falta de M1 não impede o rank. Os vendedores continuam sem rank quando ainda não têm pontuação suficiente ou os dados essenciais não permitem o cálculo.
+Ticket deixa de ser uma barreira eliminatória e passa a contribuir para o XP. A falta de M1 não impede o rank. O peso maior fica nas vendas; evolução semanal e ticket complementam o resultado, e renovações somam um bônus menor para internos. Os vendedores continuam sem rank quando ainda não têm pontuação suficiente ou os dados essenciais não permitem o cálculo.
 
 ## Calibração e histórico
 

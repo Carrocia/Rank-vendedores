@@ -61,6 +61,8 @@ begin
              timezone('America/Manaus', now())::date
            ) as data_corte
   ), vendas_diarias as (
+    -- data_venda representa a data de ativação registrada no IXC. O rank
+    -- compara volumes por janela semanal, sem inferir esforço diário.
     select vp.carreira_pessoa_id,
            sa.data_venda::date as dia,
            count(sa.vendedor_id)::bigint as quantidade,
@@ -83,8 +85,6 @@ begin
     select vd.carreira_pessoa_id,
            coalesce(sum(vd.quantidade), 0)::bigint as quantidade,
            coalesce(sum(vd.valor), 0)::numeric as valor,
-           count(*)::numeric as dias_ativos,
-           count(*) filter (where vd.quantidade >= 3)::numeric as dias_alto_volume,
            coalesce(sum(vd.quantidade) filter (where vd.dia > px.data_corte - 7 and vd.dia <= px.data_corte), 0)::numeric as vendas_semana_atual,
            coalesce(sum(vd.quantidade) filter (where vd.dia > px.data_corte - 14 and vd.dia <= px.data_corte - 7), 0)::numeric as vendas_semana_anterior
     from vendas_diarias vd
@@ -133,8 +133,6 @@ begin
            tr.ticket as ticket_referencia,
            (va.tipo = 'externo') as somente_externo,
            coalesce(rp.quantidade, 0)::bigint as renovacoes_reais,
-           coalesce(vp.dias_ativos, 0)::numeric as dias_ativos,
-           coalesce(vp.dias_alto_volume, 0)::numeric as dias_alto_volume,
            coalesce(vp.vendas_semana_atual, 0)::numeric as vendas_semana_atual,
            coalesce(vp.vendas_semana_anterior, 0)::numeric as vendas_semana_anterior
     from vendedores_alvo va
@@ -150,20 +148,18 @@ begin
     select m.*,
       (coalesce(m.meta_vendas, 0) > 0) as pode_classificar,
       case when m.meta_vendas > 0 then m.vendas::numeric / m.meta_vendas else 0 end as pct_vendas,
-      least(35::numeric, greatest(0::numeric,
-        m.vendas::numeric / nullif(m.meta_vendas, 0) * 35
+      least(50::numeric, greatest(0::numeric,
+        m.vendas::numeric / nullif(m.meta_vendas, 0) * 50
       )) as xp_vendas,
       case when m.meta_renovacoes > 0 then m.renovacoes_reais::numeric / m.meta_renovacoes else 0 end as pct_renovacoes,
       case when m.somente_externo then 0::numeric
-        else least(5::numeric, m.renovacoes_reais * 0.25)
+        else least(10::numeric, m.renovacoes_reais * 0.5)
       end as xp_renovacoes,
       least(100::numeric, greatest(0::numeric,
-        least(35::numeric, greatest(0::numeric, m.vendas::numeric / nullif(m.meta_vendas, 0) * 35))
+        least(50::numeric, greatest(0::numeric, m.vendas::numeric / nullif(m.meta_vendas, 0) * 50))
         + case when coalesce(m.ticket_referencia, 0) > 0 then least(20::numeric, greatest(0::numeric, (m.ticket_medio / m.ticket_referencia - 0.80) * 66.6666667)) else 0::numeric end
-        + least(20::numeric, m.dias_ativos / 10 * 20)
-        + least(10::numeric, m.dias_alto_volume * 2)
-        + case when m.vendas_semana_anterior > 0 then least(10::numeric, greatest(0::numeric, (m.vendas_semana_atual - m.vendas_semana_anterior) / m.vendas_semana_anterior * 20)) when m.vendas_semana_atual > 0 then 4::numeric else 0::numeric end
-        + case when m.somente_externo then 0::numeric else least(5::numeric, m.renovacoes_reais * 0.25) end
+        + case when m.vendas_semana_anterior > 0 then least(20::numeric, greatest(0::numeric, (m.vendas_semana_atual - m.vendas_semana_anterior) / m.vendas_semana_anterior * 40)) when m.vendas_semana_atual > 0 then 8::numeric else 0::numeric end
+        + case when m.somente_externo then 0::numeric else least(10::numeric, m.renovacoes_reais * 0.5) end
       )) as xp_total,
       coalesce(m.ticket_medio, 0)::numeric as ticket_medio_valido
     from metricas m
