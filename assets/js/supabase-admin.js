@@ -4790,10 +4790,9 @@ function resumirMarcosMeta(atual, metas, metaM1Fallback = 0) {
   if (!marcos.length) return 'Metas M3/M2/M1 não cadastradas';
   const atingida = [...marcos].reverse().find(item => valorAtual >= item.valor);
   const proxima = marcos.find(item => valorAtual < item.valor);
-  const lista = marcos.map(item => `${item.nome} ${item.valor}`).join(' · ');
   const nivel = atingida ? `${atingida.nome} alcançada` : `abaixo da ${marcos[0].nome}`;
-  if (proxima) return `${lista} · ${nivel} · próxima ${proxima.nome}: faltam ${Math.max(0, proxima.valor - valorAtual)}`;
-  return `${lista} · M1 alcançada`;
+  if (proxima) return `${nivel} · próxima ${proxima.nome}: faltam ${Math.max(0, proxima.valor - valorAtual)}`;
+  return `${nivel} · todas as metas alcançadas`;
 }
 
 function renderizarAtributosComerciais(selecionado, dados, contexto) {
@@ -4829,58 +4828,78 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   const janelaAnteriorCompleta = inicioAnterior >= new Date(ano, mesNum - 1, 1);
   const evolucao = janelaAnteriorCompleta && semanaAnterior > 0 ? Math.round((semanaAtual - semanaAnterior) / semanaAnterior * 100) : null;
   const detalheSemanal = !janelaAnteriorCompleta
-    ? 'Sem 7 dias anteriores no mês para comparar'
+    ? 'Ainda não há uma janela anterior completa de 7 dias dentro do mês.'
     : semanaAnterior > 0
-      ? `${semanaAtual} ativação(ões) nos últimos 7 dias; ${semanaAnterior} nos 7 dias anteriores (${evolucao > 0 ? '+' : ''}${evolucao}%)`
-      : `${semanaAtual} ativação(ões) nos últimos 7 dias; ${semanaAnterior} nos 7 dias anteriores (sem base percentual)`;
+      ? `${semanaAtual} ativações nos últimos 7 dias vs. ${semanaAnterior} nos 7 anteriores (${evolucao > 0 ? '+' : ''}${evolucao}%). Usa a data de ativação, não o início da negociação.`
+      : `${semanaAtual} ativações nos últimos 7 dias; a janela anterior teve 0, então não há base para calcular variação percentual.`;
   const indicadores = [
     { nome: 'Meta de vendas', curto: 'Vendas', valor: metaVendas > 0 ? vendas / metaVendas * 100 : null, detalhe: metaVendas > 0 ? `${Math.round(vendas / metaVendas * 100)}% da meta mensal` : 'Meta não cadastrada' },
     { nome: 'Ticket médio', curto: 'Ticket', valor: referencia > 0 ? ticket / referencia * 100 : null, detalhe: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível' },
-    { nome: 'Evolução semanal', curto: 'Evolução', valor: evolucao == null ? null : Math.max(0, Math.min(150, 100 + evolucao)), detalhe: detalheSemanal, exibicao: evolucao == null ? `${semanaAtual} vs ${semanaAnterior}` : `${evolucao > 0 ? '+' : ''}${evolucao}%` },
+    { nome: 'Variação recente', curto: 'Variação', valor: evolucao == null ? null : (semanaAtual / semanaAnterior) * 100, detalhe: detalheSemanal, exibicao: evolucao == null ? 'Sem base' : `${evolucao > 0 ? '+' : ''}${evolucao}%` },
   ];
   if (!externo) indicadores.push({
     nome: 'Renovações', curto: 'Renovações',
     valor: metaRenovacoes > 0 ? renovacoes / metaRenovacoes * 100 : null,
     detalhe: metaRenovacoes > 0 ? `${Math.round(renovacoes / metaRenovacoes * 100)}% da meta M1` : 'Meta de renovação não cadastrada',
   });
-  const quantidade = indicadores.length;
-  const centroX = 210, centroY = 150, raio = 102, maximo = 150;
+  const indicadoresRadar = indicadores.filter(item => item.valor != null && Number.isFinite(item.valor));
+  const maiorValorRadar = Math.max(100, ...indicadoresRadar.map(item => item.valor));
+  const maximo = Math.max(150, Math.ceil(maiorValorRadar / 50) * 50);
+  const niveisRadar = [...new Set([100, Math.round(maximo / 2 / 10) * 10, maximo])].filter(nivel => nivel > 0).sort((a, b) => a - b);
+  const centroX = 210, centroY = 150, raio = 102;
+  const quantidade = indicadoresRadar.length;
   const ponto = (indice, nivel) => {
     const angulo = (-90 + indice * 360 / quantidade) * Math.PI / 180;
     const distancia = raio * nivel / maximo;
     return [centroX + Math.cos(angulo) * distancia, centroY + Math.sin(angulo) * distancia];
   };
-  const pontosPoligono = nivel => indicadores.map((_, i) => ponto(i, nivel).map(n => n.toFixed(1)).join(',')).join(' ');
-  const grades = [50, 100, 150].map(nivel => `<polygon class="an-radar-grid ${nivel === 100 ? 'is-reference' : ''}" points="${pontosPoligono(nivel)}"></polygon>`).join('');
-  const eixos = indicadores.map((item, i) => {
+  const pontosPoligono = nivel => indicadoresRadar.map((_, i) => ponto(i, nivel).map(n => n.toFixed(1)).join(',')).join(' ');
+  const grades = niveisRadar.map(nivel => `<polygon class="an-radar-grid ${nivel === 100 ? 'is-reference' : ''}" points="${pontosPoligono(nivel)}"></polygon>`).join('');
+  const escalaRadar = quantidade ? niveisRadar.map(nivel => {
+    const [, y] = ponto(0, nivel);
+    return `<text class="an-radar-scale-label" x="216" y="${(y - 3).toFixed(1)}">${nivel}%</text>`;
+  }).join('') : '';
+  const eixos = indicadoresRadar.map((item, i) => {
     const [x, y] = ponto(i, maximo);
-    const [lx, ly] = ponto(i, 174);
+    const angulo = (-90 + i * 360 / quantidade) * Math.PI / 180;
+    const lx = centroX + Math.cos(angulo) * 126;
+    const ly = centroY + Math.sin(angulo) * 126;
     const ancoragem = lx < centroX - 10 ? 'end' : lx > centroX + 10 ? 'start' : 'middle';
     return `<line class="an-radar-axis" x1="${centroX}" y1="${centroY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"></line><text class="an-radar-label" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${ancoragem}">${escapeHtmlText(item.curto)}</text>`;
   }).join('');
-  const preenchimento = indicadores.map((item, i) => ponto(i, item.valor == null ? 100 : Math.min(maximo, Math.max(0, item.valor))).map(n => n.toFixed(1)).join(',')).join(' ');
-  const dots = indicadores.map((item, i) => { const [x, y] = ponto(i, item.valor == null ? 100 : Math.min(maximo, Math.max(0, item.valor))); return `<circle class="an-radar-point" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"></circle>`; }).join('');
-  chart.innerHTML = `<svg viewBox="0 0 420 300" role="img" aria-label="Radar dos atributos comerciais. A linha de referência representa 100 por cento.">${grades}${eixos}<polygon class="an-radar-area" points="${preenchimento}"></polygon>${dots}</svg>`;
+  const preenchimento = indicadoresRadar.map((item, i) => ponto(i, Math.min(maximo, Math.max(0, item.valor))).map(n => n.toFixed(1)).join(',')).join(' ');
+  const dots = indicadoresRadar.map((item, i) => { const [x, y] = ponto(i, Math.min(maximo, Math.max(0, item.valor))); return `<circle class="an-radar-point" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"></circle>`; }).join('');
+  chart.innerHTML = indicadoresRadar.length >= 3
+    ? `<svg viewBox="0 0 420 300" role="img" aria-label="Radar dos indicadores comparáveis. Escala dinâmica até ${maximo} por cento; 100 por cento representa a meta ou referência, e para variação recente representa estabilidade frente aos sete dias anteriores.">${grades}${escalaRadar}${eixos}<polygon class="an-radar-area" points="${preenchimento}"></polygon>${dots}</svg>`
+    : '<p class="an-radar-empty">Ainda não há três indicadores com meta ou referência para comparar neste gráfico.</p>';
+  const legendaEscala = `Escala do radar: 0–${maximo}% · 100% = meta/referência; variação recente usa 100% como estabilidade.`;
+  const scaleNote = document.getElementById('an-attributes-scale');
+  const cardScaleNote = document.getElementById('an-card-attributes-scale');
+  if (scaleNote) scaleNote.textContent = `Escala até ${maximo}% · referência 100%`;
+  if (cardScaleNote) cardScaleNote.textContent = `Escala até ${maximo}% · referência 100%`;
   legend.innerHTML = indicadores.map(item => {
     const exibicao = item.exibicao || (item.valor == null ? 'Sem base' : `${Math.round(item.valor)}%`);
     return `<li><span><b>${escapeHtmlText(item.nome)}</b><small>${escapeHtmlText(item.detalhe)}</small></span><strong>${escapeHtmlText(exibicao)}</strong></li>`;
   }).join('');
-  if (note) note.textContent = externo
-    ? '100% indica a meta ou referência atingida. Os períodos usam a data de ativação; a plataforma não avalia conversas nem fechamento diário.'
-    : '100% indica a meta ou referência atingida. Os períodos usam a data de ativação; renovações contam apenas para vendedores internos.';
+  if (note) note.textContent = `${legendaEscala} A variação compara duas janelas de 7 dias pela data de ativação — ela não mede o início da negociação nem exige fechamento diário.${externo ? '' : ' Renovações contam apenas para vendedores internos.'}`;
   if (insights) {
     const comparaveis = indicadores.filter(item => item.valor != null);
-    const maisForte = [...comparaveis].sort((a, b) => b.valor - a.valor)[0];
+    const maisForte = [...comparaveis].filter(item => item.valor >= 100).sort((a, b) => b.valor - a.valor)[0];
     const abaixo = [...comparaveis].filter(item => item.valor < 100).sort((a, b) => a.valor - b.valor)[0];
-    const textoDestaque = maisForte
-      ? `${maisForte.nome}: ${maisForte.detalhe}.`
-      : 'Ainda faltam metas ou referências para identificar um destaque neste período.';
-    let textoAtencao = 'Nenhum indicador comparável está abaixo da referência. Continue acompanhando o ritmo.';
-    if (abaixo?.nome === 'Meta de vendas') textoAtencao = `Faltam ${Math.max(0, metaVendas - vendas)} venda(s) para atingir a meta mensal.`;
-    else if (abaixo?.nome === 'Ticket médio') textoAtencao = `O ticket está em ${Math.round(abaixo.valor)}% da referência regional; acompanhe o valor médio das novas vendas.`;
-    else if (abaixo?.nome === 'Evolução semanal') textoAtencao = `${semanaAtual} ativação(ões) nos últimos 7 dias, contra ${semanaAnterior} nos 7 dias anteriores. A comparação usa a data de ativação registrada; observe se a variação se mantém.`;
-    else if (abaixo?.nome === 'Renovações') textoAtencao = `Renovações em ${Math.round(abaixo.valor)}% da meta M1${metaRenovacoes > 0 ? `; faltam ${Math.max(0, metaRenovacoes - renovacoes)} para a meta` : ''}.`;
-    insights.innerHTML = `<article class="an-attribute-insight is-positive"><span>DESTAQUE</span><p>${escapeHtmlText(textoDestaque)}</p></article><article class="an-attribute-insight is-focus"><span>PONTO DE ATENÇÃO</span><p>${escapeHtmlText(textoAtencao)}</p></article>`;
+    const cards = [];
+    if (maisForte) cards.push(`<article class="an-attribute-insight is-positive"><span>PONTO FORTE</span><p>${escapeHtmlText(maisForte.nome)}: ${escapeHtmlText(maisForte.detalhe)}.</p></article>`);
+    if (abaixo) {
+      let textoAtencao = `${abaixo.nome} está em ${Math.round(abaixo.valor)}% da referência.`;
+      if (abaixo.nome === 'Meta de vendas') textoAtencao = `Faltam ${Math.max(0, metaVendas - vendas)} vendas para alcançar a meta mensal.`;
+      else if (abaixo.nome === 'Ticket médio') textoAtencao = `Ticket em ${Math.round(abaixo.valor)}% da referência regional; diferença de R$ ${formatarValorAnalitica(Math.max(0, referencia - ticket))}.`;
+      else if (abaixo.nome === 'Variação recente') textoAtencao = `${semanaAtual} ativações nos últimos 7 dias vs. ${semanaAnterior} nos 7 anteriores; a variação usa a data de ativação.`;
+      else if (abaixo.nome === 'Renovações') textoAtencao = `Renovações em ${Math.round(abaixo.valor)}% da meta M1; faltam ${Math.max(0, metaRenovacoes - renovacoes)} para alcançá-la.`;
+      cards.push(`<article class="an-attribute-insight is-focus"><span>OPORTUNIDADE</span><p>${escapeHtmlText(textoAtencao)}</p></article>`);
+    }
+    insights.innerHTML = cards.join('');
+    insights.hidden = cards.length === 0;
+    const cardHighlights = document.getElementById('an-card-highlights-section');
+    if (cardHighlights) cardHighlights.hidden = cards.length === 0;
   }
 }
 
@@ -5239,16 +5258,12 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem rank';
-  document.getElementById('an-card-month-note').textContent = rankMensal
-    ? `classificação atual por XP${externo ? '' : ' · renovações somam bônus'}`
-    : rank?.elegivel ? '20 XP para o rank D · pontos acumulam por desempenho ao longo do mês' : 'dados insuficientes para classificar';
+  document.getElementById('an-card-month-note').textContent = 'Rank mensal por XP: D 20 · C 35 · B 50 · A 65 · S 80';
   document.getElementById('an-card-career-rank-img').src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira;
-  document.getElementById('an-card-career-note').textContent = carreira.mesesFechados ? 'maior rank fechado · critérios de renovação mais altos' : 'início da trajetória';
-  document.getElementById('an-card-ss-count').textContent = `${carreira.streakAtual}/4`;
-  document.getElementById('an-card-ss-bar').style.width = `${carreira.streakAtual * 25}%`;
-  document.getElementById('an-card-ss-note').textContent = carreira.ssConquistado
-    ? 'Marco SS conquistado.' : externo ? 'Quatro meses M1 consecutivos em vendas.' : 'Quatro meses M1 em vendas; renovação M1 no quarto mês.';
+  document.getElementById('an-card-career-note').textContent = carreira.mesesFechados
+    ? 'Maior rank de mês já fechado · XP acumulado não altera este rank.'
+    : 'Base inicial · critérios de XP para rank de carreira ainda não definidos.';
   const d = _ultimoProcessado;
   const periodo = d?.mes?.mesNome ? `${d.mes.mesNome} ${d.mes.ano || ''}` : CONFIG.mesReferencia || '';
   document.getElementById('an-card-period').textContent = periodo;
@@ -5279,6 +5294,12 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   copiarConteudo('an-radar-chart', 'an-card-radar');
   copiarConteudo('an-attributes-legend', 'an-card-attributes-list');
   copiarConteudo('an-attributes-insights', 'an-card-insights');
+  const insightsOrigem = document.getElementById('an-attributes-insights');
+  const insightsCard = document.getElementById('an-card-highlights-section');
+  if (insightsCard) insightsCard.hidden = !insightsOrigem || insightsOrigem.hidden || !insightsOrigem.childElementCount;
+  const scaleSource = document.getElementById('an-attributes-scale');
+  const scaleCard = document.getElementById('an-card-attributes-scale');
+  if (scaleSource && scaleCard) scaleCard.textContent = scaleSource.textContent;
   copiarConteudo('an-plan-mix', 'an-card-plan-mix');
   copiarConteudo('an-top-plans', 'an-card-top-plans');
   copiarConteudo('an-daily-chart', 'an-card-daily-chart');
@@ -5289,7 +5310,7 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   document.getElementById('an-card-xp-total').textContent = document.getElementById('an-xp-total')?.textContent || '—';
   document.getElementById('an-card-xp-note').textContent = [
     document.getElementById('an-xp-period-status')?.textContent,
-    document.getElementById('an-xp-note')?.textContent,
+    'XP do período não define o rank de carreira.',
   ].filter(Boolean).join(' · ');
   copiarConteudo('an-xp-breakdown', 'an-card-xp-breakdown');
   document.getElementById('an-card-generated').textContent = new Date().toLocaleDateString('pt-BR');
