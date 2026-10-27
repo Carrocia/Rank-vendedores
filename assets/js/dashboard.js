@@ -1,27 +1,14 @@
-// ritmo do mes: compara a % da meta de cada vendedor com o % de
-// dias do mes que ja passaram (CONFIG.mesRitmo)
 function escapeHtmlText(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[char]);
 }
 
-function computeRitmo(pct) {
-  const { diaAtual, diasNoMes } = calcularPeriodoMes();
-  const esperado = (diaAtual / diasNoMes) * 100;
-  if (pct >= esperado + 5) return { classe: 'verde',    label: 'Acima do ritmo',  icon: '🟢' };
-  if (pct >= esperado - 5) return { classe: 'amarelo',  label: 'No ritmo',        icon: '🟡' };
-  return { classe: 'vermelho', label: 'Abaixo do ritmo', icon: '🔴' };
-}
-
-// Calcula o selo e o progresso mensal individual:
+// Calcula apenas o selo da meta mensal atingida:
 // metas M1/M2/M3 cadastradas para internos e faixa fixa de 14 vendas
 // para M2 dos externos (M1 começa acima desse marco).
-//  - badgeTier: a maior meta já atingida.
-//  - progressPct: progresso em direção à próxima meta; após M1, continua
-//    calculado sobre M1 e pode passar de 100%.
 function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesPorId) {
-  const vazio = { badgeTier: null, progressPct: null };
+  const vazio = { badgeTier: null };
   const linha = (metasIndividuais || []).find(m => String(m.vendedor_id) === String(vendedorId));
   const vendasMes = Number(vendasMesPorId[vendedorId] || 0);
 
@@ -51,11 +38,7 @@ function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesP
       if (vendasMes >= t.meta) badgeTier = t;             // meta batida de verdade (100%)
     });
 
-    // A porcentagem acompanha a próxima meta até M1. Depois de M1,
-    // continua usando M1 como referência e pode ultrapassar 100%.
-    const proximaMeta = tiers.find(t => vendasMes < t.meta) || tiers[tiers.length - 1];
-    const progressPct = Math.round((vendasMes / proximaMeta.meta) * 100);
-    return { badgeTier, progressPct };
+    return { badgeTier };
   }
 
   return vazio;
@@ -77,7 +60,7 @@ const LIST_TIER_ASSETS = {
 };
 const META_M2_EXTERNO_VENDAS = 14;
 
-// mode: 'semanal' mostra vendas + meta + %  |  'mensal' mostra so % + barra + ritmo
+// O pódio público mostra posições e identidade, sem expor volume individual.
 function renderPodium(containerId, entries, options = {}) {
   const mode = options.mode || 'semanal';
   const metasIndividuais = options.metasIndividuais;
@@ -96,11 +79,7 @@ function renderPodium(containerId, entries, options = {}) {
     const avatarHTML = photo
       ? `<img class="podium-photo" src="${photo}" alt="${nomeSeguro}">`
       : `<div class="podium-photo podium-photo-fallback" aria-label="${nomeSeguro}">${escapeHtmlText(String(nome || '?').trim().charAt(0).toUpperCase())}</div>`;
-    const pctBase = e.meta ? Math.round((e.vendas / e.meta) * 100) : 0;
-    const tiers = metasIndividuais ? calcularTiersIndividuais(e.id, e.tipo, metasIndividuais, vendasMesPorId) : { badgeTier: null, progressPct: null };
-    const pct = mode === 'mensal' && e.tipo === 'interno' && tiers.progressPct !== null
-      ? tiers.progressPct
-      : Math.min(100, pctBase);
+    const tiers = metasIndividuais ? calcularTiersIndividuais(e.id, e.tipo, metasIndividuais, vendasMesPorId) : { badgeTier: null };
     // Só UM selo — a maior meta já batida (M3 sozinha conta, assim como M2 e M1).
     const badgesHTML = tiers.badgeTier && PODIUM_TIER_ASSETS[tiers.badgeTier.tier]
       ? `<div class="podium-tier-badges">
@@ -108,25 +87,12 @@ function renderPodium(containerId, entries, options = {}) {
         </div>`
       : '';
 
-    let subHTML;
-    if (mode === 'semanal') {
-      subHTML = `<span class="podium-value" data-target="${e.vendas}" style="margin-bottom:10px;">0 vendas</span>`;
-    } else {
-      const ritmo = computeRitmo(pct);
-      subHTML = `
-        <div class="podium-sub podium-sub-mensal">
-          <span class="podium-sub-pct-big" data-target="${pct}">0% da meta</span>
-          <div class="podium-mini-bar"><div class="podium-mini-bar-fill" data-width="${pct}"></div></div>
-          <span class="ritmo-badge ritmo-${ritmo.classe}">${ritmo.icon} ${ritmo.label}</span>
-        </div>`;
-    }
+    const subHTML = mode === 'mensal' && tiers.badgeTier
+      ? `<span class="podium-value">Meta ${escapeHtmlText(tiers.badgeTier.label)} alcançada</span>`
+      : '<span class="podium-value">Em destaque</span>';
 
     const shimmerDelay = rank === 1 ? '0s' : rank === 2 ? '0.4s' : '0.8s';
-    const tooltipVendas = mode === 'semanal' ? formatVendas(e.vendas) : '';
-    const tooltipMeta = e.meta ? `${pct}% da meta mensal` : '';
-    const tooltipContent = mode === 'semanal'
-      ? `<strong>${nomeSeguro}</strong>${tooltipVendas}`
-      : `<strong>${nomeSeguro}</strong>${tooltipMeta}`;
+    const tooltipContent = `<strong>${nomeSeguro}</strong><span>${rank}º lugar</span>`;
     return `<div class="podium-stand" data-rank="${rank}" style="--rank-color:${style.color};--rank-color-dark:${style.dark};--rank-glow:${style.glow};--gold-c:#ffc94d;">
       <div class="podium-tooltip">${tooltipContent}</div>
       <div class="podium-photo-wrap">
@@ -146,14 +112,8 @@ function renderPodium(containerId, entries, options = {}) {
   container.querySelectorAll('.podium-stand').forEach(stand => {
     const rank = Number(stand.dataset.rank);
     const base = stand.querySelector('.podium-base');
-    const valueEl = stand.querySelector('.podium-value');
-    const pctBigEl = stand.querySelector('.podium-sub-pct-big');
-    const barFillEl = stand.querySelector('.podium-mini-bar-fill');
     setTimeout(() => {
       base.style.height = base.dataset.finalHeight + 'px';
-      if (valueEl) animateNumber(valueEl, Number(valueEl.dataset.target), { suffixFn: formatVendas });
-      if (pctBigEl) animateNumber(pctBigEl, Number(pctBigEl.dataset.target), { suffixFn: v => v + '% da meta' });
-      if (barFillEl) barFillEl.style.width = barFillEl.dataset.width + '%';
     }, reduceMotion ? 0 : delayByRank[rank] || 0);
   });
 }
@@ -210,12 +170,6 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
     }
 
     item.append(posicao, identidade);
-    if (mode === 'semanal') {
-      const vendas = document.createElement('span');
-      vendas.className = 'ranking-full-numbers';
-      vendas.textContent = formatVendas(Number(vendedor.vendas || 0));
-      item.appendChild(vendas);
-    }
     lista.appendChild(item);
   });
 }
@@ -268,7 +222,7 @@ function renderGoal(containerId, goal) {
   requestAnimationFrame(tick);
 }
 
-function renderMuralPerson(person, role, formatador = formatVendas) {
+function renderMuralPerson(person, role, formatador = null) {
   if (!person) {
     return `
       <div class="mural-winner mural-winner-pending">
@@ -290,7 +244,7 @@ function renderMuralPerson(person, role, formatador = formatVendas) {
       <div class="mural-person-info">
         <span class="mural-role">${escapeHtmlText(role)}</span>
         <span class="mural-name">${nomeSeguro}</span>
-        <span class="mural-value">${formatador(person.vendas)}</span>
+        ${formatador ? `<span class="mural-value">${formatador(person.vendas)}</span>` : ''}
       </div>
     </div>`;
 }
@@ -593,7 +547,7 @@ function renderContextoCabecalho(d, periodoAtivo) {
   } else {
     resumo = `${mensal ? 'Acompanhe o resultado do mês' : 'Acompanhe o ritmo desta semana'}: ${total.toLocaleString('pt-BR')} ${total === 1 ? 'venda registrada' : 'vendas registradas'}. `;
   }
-  if (nomeLider) resumo += `${nomeLider} está na liderança geral, com ${Number(lider.vendas || 0).toLocaleString('pt-BR')} vendas.`;
+  if (nomeLider) resumo += `${nomeLider} está na liderança geral.`;
   else resumo += 'As lideranças aparecem assim que houver vendas no período.';
   if (nomes.intro) nomes.intro.textContent = resumo;
 }
@@ -2292,7 +2246,7 @@ function verificarConquistasDeMetas(d) {
   todos.forEach(v => {
     if (!v.meta || avisadas[v.id]) return;
     if (v.vendas >= v.meta) {
-      showToast(`${v.nome} bateu a meta do mês! (${v.vendas}/${v.meta} vendas)`, 'celebration', 8000);
+      showToast(`${v.nome} bateu a meta do mês!`, 'celebration', 8000);
       avisadas[v.id] = true;
     }
   });
@@ -2483,7 +2437,7 @@ function showCelebration() {
         </div>
         <span class="celebration-role">${w.role}</span>
         <span class="celebration-name">${pessoa.nome || w.entry.nome || ''}</span>
-        <span class="celebration-value" data-target="${w.entry.vendas}">0 vendas</span>
+        <span class="celebration-value">Destaque do mês</span>
       </div>`;
     }).join('');
   }
@@ -2492,9 +2446,6 @@ function showCelebration() {
   document.body.style.overflow = 'hidden';
   document.getElementById('celebrationOverlay').classList.add('active');
 
-  document.querySelectorAll('.celebration-value').forEach(el => {
-    animateNumber(el, Number(el.dataset.target), { duration: 1000, suffixFn: formatVendas });
-  });
 }
 
 function hideCelebration() {
