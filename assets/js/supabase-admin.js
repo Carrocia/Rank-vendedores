@@ -5209,14 +5209,14 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     if (xpNote) xpNote.textContent = `${erroXP}${dicaXP} O rank mensal continua usando a regra atual.`;
   }
   if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
-  await preencherFichaAnalitica(selecionado, carreira);
+  await preencherFichaAnalitica(selecionado, carreira, detalhesVendas);
   profile.hidden = false;
   modal.hidden = false;
   document.body.classList.add('an-modal-open');
   modal.querySelector('[data-an-close]:not(.an-modal-backdrop)')?.focus({ preventScroll: true });
 }
 
-async function preencherFichaAnalitica(selecionado, carreira) {
+async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {}) {
   const { vendedor, cadastro, rank, renovacao, tipo } = selecionado;
   const externo = tipo === 'externo';
   const rankMensal = rank?.elegivel ? rank.rank_mensal : null;
@@ -5265,6 +5265,33 @@ async function preencherFichaAnalitica(selecionado, carreira) {
     : resumirMarcosMeta(renovacoes, selecionado.metasRenovacao, metaRenovacoes);
   document.getElementById('an-card-ticket').textContent = `R$ ${formatarValorAnalitica(ticket)}`;
   document.getElementById('an-card-ticket-note').textContent = referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível';
+  const valorVendido = (detalhesVendas.vendasDiretas || []).reduce((total, item) => total + Number(item.valor_total ?? item.valor_plano ?? item.valor ?? 0), 0)
+    + (detalhesVendas.vendasOrigem || []).reduce((total, item) => total + Number(item.valor || 0), 0);
+  document.getElementById('an-card-value').textContent = `R$ ${formatarValorAnalitica(valorVendido)}`;
+
+  const copiarConteudo = (origemId, destinoId, seletor = null) => {
+    const origem = document.getElementById(origemId);
+    const destino = document.getElementById(destinoId);
+    if (!origem || !destino) return;
+    const conteudo = seletor ? origem.querySelector(seletor) : origem;
+    destino.replaceChildren(...Array.from(conteudo?.childNodes || []).map(no => no.cloneNode(true)));
+  };
+  copiarConteudo('an-radar-chart', 'an-card-radar');
+  copiarConteudo('an-attributes-legend', 'an-card-attributes-list');
+  copiarConteudo('an-attributes-insights', 'an-card-insights');
+  copiarConteudo('an-plan-mix', 'an-card-plan-mix');
+  copiarConteudo('an-top-plans', 'an-card-top-plans');
+  copiarConteudo('an-daily-chart', 'an-card-daily-chart');
+  document.getElementById('an-card-plan-total').textContent = document.getElementById('an-plan-total')?.textContent || '—';
+  document.getElementById('an-card-daily-total').textContent = document.getElementById('an-daily-total')?.textContent || '—';
+  document.getElementById('an-card-daily-note').textContent = document.getElementById('an-daily-note')?.textContent || '';
+  document.getElementById('an-card-attributes-note').textContent = document.getElementById('an-attributes-note')?.textContent || '';
+  document.getElementById('an-card-xp-total').textContent = document.getElementById('an-xp-total')?.textContent || '—';
+  document.getElementById('an-card-xp-note').textContent = [
+    document.getElementById('an-xp-period-status')?.textContent,
+    document.getElementById('an-xp-note')?.textContent,
+  ].filter(Boolean).join(' · ');
+  copiarConteudo('an-xp-breakdown', 'an-card-xp-breakdown');
   document.getElementById('an-card-generated').textContent = new Date().toLocaleDateString('pt-BR');
   if (rankMensal) card.dataset.rank = String(rankMensal).toLowerCase(); else delete card.dataset.rank;
 }

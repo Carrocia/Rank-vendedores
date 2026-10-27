@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261023-analitica-ranks-1">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261027-analitica-ficha-v1">
 </head>
 <body>
 
@@ -316,7 +316,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261026-admin-dashboard-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261026-admin-dashboard-v1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261027-analitica-ficha-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1826,22 +1826,40 @@
 <div id="an-offscreen" aria-hidden="true">
   <article id="an-card">
     <div class="an-card-glow"></div>
+    <div class="an-card-grid"></div>
     <div class="an-card-inner">
-      <header class="an-card-brand"><img data-logo="dark" alt="UNI Internet"><span>FICHA DE DESEMPENHO</span></header>
+      <header class="an-card-brand"><div class="an-card-brand-mark"><img data-logo="dark" alt="UNI Internet"><span><b>UNI INTERNET</b><small>SISTEMA DE PROGRESSÃO COMERCIAL</small></span></div><div class="an-card-brand-title"><small>FICHA INDIVIDUAL</small><strong>ANÁLISE DE DESEMPENHO</strong></div></header>
       <div class="an-card-divider"></div>
-      <div class="an-card-period"><span id="an-card-period">—</span><span id="an-card-filial">—</span></div>
-      <section class="an-card-person"><div id="an-card-avatar" class="an-card-avatar">—</div><div><h1 id="an-card-name">—</h1><p id="an-card-role">—</p></div></section>
+      <div class="an-card-period"><span>PERÍODO ANALISADO <b id="an-card-period">—</b></span><span>FILIAL <b id="an-card-filial">—</b></span></div>
+      <section class="an-card-person"><div id="an-card-avatar" class="an-card-avatar">—</div><div><small>PERFIL COMERCIAL</small><h1 id="an-card-name">—</h1><p id="an-card-role">—</p></div></section>
       <section class="an-card-ranks">
-        <article><span>RANK MENSAL</span><img id="an-card-month-rank-img" alt=""><strong id="an-card-month-rank">—</strong><small id="an-card-month-note">—</small></article>
-        <article><span>RANK DE CARREIRA</span><img id="an-card-career-rank-img" alt=""><strong id="an-card-career-rank">—</strong><small id="an-card-career-note">—</small></article>
+        <article class="an-card-rank-month"><span>RANK DO MÊS</span><div><img id="an-card-month-rank-img" alt=""><strong id="an-card-month-rank">—</strong></div><small id="an-card-month-note">—</small></article>
+        <article class="an-card-rank-career"><span>RANK DE CARREIRA</span><div><img id="an-card-career-rank-img" alt=""><strong id="an-card-career-rank">—</strong></div><small id="an-card-career-note">—</small></article>
       </section>
-      <section class="an-card-progress"><div><span>PROGRESSO PARA SS</span><strong id="an-card-ss-count">0/4</strong></div><div class="an-card-progress-bar"><i id="an-card-ss-bar"></i></div><small id="an-card-ss-note">—</small></section>
+      <section class="an-card-progress"><div><span>TRAJETÓRIA RUMO AO SS</span><strong id="an-card-ss-count">0/4</strong></div><div class="an-card-progress-bar"><i id="an-card-ss-bar"></i></div><small id="an-card-ss-note">—</small></section>
       <section class="an-card-stats">
-        <article><span>VENDAS</span><strong id="an-card-sales">—</strong><small id="an-card-sales-note">—</small></article>
+        <article><span>VENDAS NO MÊS</span><strong id="an-card-sales">—</strong><small id="an-card-sales-note">—</small></article>
+        <article><span>VALOR VENDIDO</span><strong id="an-card-value">—</strong><small>novas vendas registradas</small></article>
         <article><span>RENOVAÇÕES</span><strong id="an-card-renewals">—</strong><small id="an-card-renewals-note">—</small></article>
         <article><span>TICKET MÉDIO</span><strong id="an-card-ticket">—</strong><small id="an-card-ticket-note">—</small></article>
       </section>
-      <footer class="an-card-footer"><span>UNI INTERNET · EVOLUÇÃO COMERCIAL</span><span id="an-card-generated">—</span></footer>
+      <section class="an-card-xp">
+        <div class="an-card-section-heading"><div><small>PROGRESSÃO COMERCIAL</small><strong>XP do período</strong></div><b id="an-card-xp-total">—</b></div>
+        <div class="an-card-xp-breakdown" id="an-card-xp-breakdown"></div>
+        <p id="an-card-xp-note">O XP acompanha as vendas e renovações registradas.</p>
+      </section>
+      <section class="an-card-panel an-card-attributes">
+        <div class="an-card-section-heading"><div><small>VISÃO ANALÍTICA</small><strong>Atributos comerciais</strong></div><span>Referência: 100%</span></div>
+        <div class="an-card-attributes-layout"><div id="an-card-radar" class="an-card-radar"></div><ul id="an-card-attributes-list" class="an-card-attributes-list"></ul></div>
+        <p id="an-card-attributes-note" class="an-card-muted"></p>
+      </section>
+      <div class="an-card-detail-grid">
+        <section class="an-card-panel an-card-mix"><div class="an-card-section-heading"><div><small>COMPOSIÇÃO</small><strong>Mix de planos</strong></div><b id="an-card-plan-total">—</b></div><div id="an-card-plan-mix"></div></section>
+        <section class="an-card-panel an-card-top"><div class="an-card-section-heading"><div><small>DESTAQUES</small><strong>Planos mais vendidos</strong></div></div><div id="an-card-top-plans"></div></section>
+      </div>
+      <section class="an-card-panel an-card-daily"><div class="an-card-section-heading"><div><small>RITMO DO MÊS</small><strong>Ativações por dia</strong></div><b id="an-card-daily-total">—</b></div><div id="an-card-daily-chart"></div><p id="an-card-daily-note" class="an-card-muted"></p></section>
+      <section class="an-card-highlights"><div class="an-card-section-heading"><div><small>LEITURA DO DESEMPENHO</small><strong>Destaques do período</strong></div></div><div id="an-card-insights"></div></section>
+      <footer class="an-card-footer"><span>UNI INTERNET · DADOS DE DESEMPENHO INDIVIDUAL</span><span id="an-card-generated">—</span></footer>
     </div>
   </article>
 </div>
