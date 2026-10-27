@@ -29,7 +29,7 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261026-mural-faixas-1">
+<link rel="stylesheet" href="assets/css/site.css?v=20261027-ranking-editorial-v1">
 
   <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261026-dashboard-v1">
 
@@ -105,22 +105,22 @@
         <div class="header-copy">
           <span class="season-badge" id="seasonBadge" hidden></span>
           <h1><span class="header-title-main">Ranking de Vendas</span><span class="header-title-filial">— <span id="filial-atual-nome">Alta Floresta D'Oeste</span></span></h1>
-          <p>Quem está na liderança da semana e do mês — vendas externas e internas lado a lado.</p>
+          <p id="rankingIntro">Acompanhe o ritmo da equipe, as lideranças por categoria e o avanço da filial.</p>
         </div>
       </div>
       <div class="header-kpis">
         <div class="header-kpi">
-          <span class="header-kpi-label">Vendas na semana</span>
+          <span class="header-kpi-label" id="kpiPeriodoLabel">Vendas na semana</span>
           <span class="header-kpi-value" id="kpiSemana">—</span>
         </div>
         <div class="header-kpi-divider"></div>
         <div class="header-kpi">
-          <span class="header-kpi-label">Meta mensal</span>
+          <span class="header-kpi-label" id="kpiMetaLabel">Meta mensal</span>
           <span class="header-kpi-value" id="kpiMensal">—</span>
         </div>
         <div class="header-kpi-divider"></div>
         <div class="header-kpi">
-          <span class="header-kpi-label">Líder do mês</span>
+          <span class="header-kpi-label" id="kpiLiderLabel">Líder do mês</span>
           <span class="header-kpi-value" id="kpiLider">—</span>
         </div>
       </div>
@@ -315,7 +315,7 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261026-admin-dashboard-v1"></script>
+  <script src="assets/js/dashboard.js?v=20261027-ranking-editorial-v1"></script>
   <script src="assets/js/supabase-admin.js?v=20261027-analitica-ficha-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════

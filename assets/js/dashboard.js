@@ -576,7 +576,6 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
   const liderExterno = [...(vendasExternas || [])].sort(ordenarVendas)[0] || {};
   const liderInterno = [...(vendasInternas || [])].sort(ordenarVendas)[0] || {};
   const todasVendasPeriodo = [...(vendasExternas || []), ...(vendasInternas || [])];
-  const maisVendas = [...todasVendasPeriodo].sort(ordenarVendas)[0] || {};
   const evolucao = [...todasVendasPeriodo].sort((a, b) =>
     (Number(b.evolucao || 0) - Number(a.evolucao || 0)) || ordenarVendas(a, b)
   )[0] || {};
@@ -589,16 +588,16 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
   )[0];
   const dataVendaRecente = vendaRecente ? new Date(vendaRecente.data_venda) : null;
   const vendaRecentePeriodoLabel = dataVendaRecente && !Number.isNaN(dataVendaRecente.getTime())
-    ? `${vendaRecente.vendedores?.nome || '—'} — ${dataVendaRecente.toLocaleDateString('pt-BR')} ${dataVendaRecente.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    ? `${dataVendaRecente.toLocaleDateString('pt-BR')} às ${dataVendaRecente.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
     : `Sem vendas ${mensal ? 'no mês' : 'nesta semana'}`;
   const mesNome = d.mes?.mesNome
     ? d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1)
     : CONFIG.mesReferencia;
   const tituloEl = document.getElementById('destaquesTitle');
-  if (tituloEl) tituloEl.textContent = mensal ? `🏆 Destaques de ${mesNome}` : '🏆 Destaques da Semana';
+  if (tituloEl) tituloEl.textContent = mensal ? `🏆 Lideranças e destaques de ${mesNome}` : '🏆 Lideranças da semana';
 
   const nomeDoVendedor = vendedor => vendedor.nome || nomeDe(vendedor.id);
-  const fotoDoVendedor = mensal ? () => '' : vendedor => vendedor.foto_url
+  const fotoDoVendedor = vendedor => vendedor.foto_url
     || (PESSOAS[vendedor.slug] || PESSOAS[vendedor.id] || {}).foto || fotoDe(vendedor.id);
   const valorEvolucao = Number(evolucao.evolucao || 0);
   const textoEvolucao = valorEvolucao > 0
@@ -607,29 +606,72 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
       ? `${formatVendas(valorEvolucao)} vs. semana passada`
       : 'Mesmo volume da semana passada';
 
+  const liderCard = (vendedor, tipo) => ({
+    icon: '✦', cor: tipo === 'interno' ? 'purple' : 'blue',
+    label: tipo === 'interno' ? 'Liderança interna' : 'Liderança externa',
+    nome: vendedor.id ? nomeDoVendedor(vendedor) : 'Aguardando vendas',
+    foto: vendedor.id ? fotoDoVendedor(vendedor) : '',
+    valor: vendedor.id ? `${formatVendas(vendedor.vendas || 0)} ${Number(vendedor.vendas || 0) === 1 ? 'venda' : 'vendas'}` : 'Sem vendas neste período',
+    classe: 'destaque-card-leader',
+  });
   const cards = [
-    { icon: '👑', cor: 'gold', label: 'Líder Externo', nome: nomeDoVendedor(liderExterno), foto: fotoDoVendedor(liderExterno), valor: mensal ? '' : formatVendas(liderExterno.vendas || 0) },
-    { icon: '👑', cor: 'gold', label: 'Líder Interno', nome: nomeDoVendedor(liderInterno), foto: fotoDoVendedor(liderInterno), valor: mensal ? '' : formatVendas(liderInterno.vendas || 0) },
-    { icon: '⚡', cor: 'purple', label: mensal ? 'Mais Vendas no Mês' : 'Mais Vendas na Semana', nome: nomeDoVendedor(maisVendas), foto: fotoDoVendedor(maisVendas), valor: mensal ? '' : formatVendas(maisVendas.vendas || 0) },
+    liderCard(liderInterno, 'interno'),
+    liderCard(liderExterno, 'externo'),
     mensal
-      ? { icon: '🎯', cor: 'red', label: 'Maior % da Meta Mensal', nome: nomeDoVendedor(maiorPctMeta), foto: fotoDoVendedor(maiorPctMeta), valor: pctMeta !== null ? `${pctMeta}% da ${rotuloMetaDestaque}` : 'Sem meta cadastrada' }
-      : { icon: '📈', cor: 'red', label: 'Maior Evolução Semanal', nome: nomeDoVendedor(evolucao), foto: fotoDoVendedor(evolucao), valor: evolucao.id ? textoEvolucao : 'Sem comparação' },
-    { icon: '⏱️', cor: 'blue', label: mensal ? 'Venda Mais Recente do Mês' : 'Venda Mais Recente da Semana', nome: '', foto: '', valor: vendaRecentePeriodoLabel },
+      ? { icon: '🎯', cor: 'red', label: 'Maior avanço para a meta', nome: maiorPctMeta.id ? nomeDoVendedor(maiorPctMeta) : '', foto: maiorPctMeta.id ? fotoDoVendedor(maiorPctMeta) : '', valor: pctMeta !== null ? `${pctMeta}% da ${rotuloMetaDestaque}` : 'Metas ainda não configuradas', classe: 'destaque-card-insight' }
+      : { icon: '📈', cor: 'red', label: 'Evolução na semana', nome: evolucao.id ? nomeDoVendedor(evolucao) : '', foto: evolucao.id ? fotoDoVendedor(evolucao) : '', valor: evolucao.id ? textoEvolucao : 'Sem comparação disponível', classe: 'destaque-card-insight' },
+    { icon: '⏱️', cor: 'gold', label: 'Venda mais recente', nome: vendaRecente ? (vendaRecente.vendedores?.nome || 'Venda registrada') : '', foto: '', valor: vendaRecentePeriodoLabel, classe: 'destaque-card-insight destaque-card-recent' },
   ];
 
   const container = document.getElementById('destaquesGrid');
   if (!container) return;
   container.innerHTML = cards.map(c => `
-    <div class="destaque-card">
+    <div class="destaque-card ${c.classe || ''}">
       <div class="destaque-icon-badge ${c.cor}">${c.icon}</div>
       <span class="destaque-label">${c.label}</span>
       <div class="destaque-pessoa">
-        ${c.foto ? `<img class="destaque-foto" src="${c.foto}" alt="${c.nome}">` : ''}
+        ${c.foto ? `<img class="destaque-foto" src="${c.foto}" alt="" loading="lazy">` : ''}
         ${c.nome ? `<span class="destaque-nome">${c.nome}</span>` : ''}
       </div>
       ${c.valor ? `<span class="destaque-valor">${c.valor}</span>` : ''}
     </div>
   `).join('');
+}
+
+function renderContextoCabecalho(d, periodoAtivo) {
+  const mensal = periodoAtivo === 'mensal';
+  const total = mensal ? d.totalMes : d.totalSemana;
+  const meta = d.metasFilial ? Number(mensal ? d.metasFilial.mensal_m1 : d.metasFilial.semanal_m1) : 0;
+  const nomes = {
+    periodo: document.getElementById('kpiPeriodoLabel'),
+    meta: document.getElementById('kpiMetaLabel'),
+    lider: document.getElementById('kpiLiderLabel'),
+    intro: document.getElementById('rankingIntro'),
+  };
+  if (nomes.periodo) nomes.periodo.textContent = mensal ? 'Vendas no mês' : 'Vendas na semana';
+  if (nomes.meta) nomes.meta.textContent = mensal ? 'Progresso da meta' : 'Meta da semana';
+  if (nomes.lider) nomes.lider.textContent = mensal ? 'Líder do mês' : 'Líder da semana';
+  const ranking = mensal ? [...(d.intMes || []), ...(d.extMes || [])] : [...(d.intSem || []), ...(d.extSem || [])];
+  const lider = ranking.sort((a, b) => (Number(b.vendas || 0) - Number(a.vendas || 0)) || (Number(b.valor || 0) - Number(a.valor || 0)))[0];
+  const nomeLider = lider && Number(lider.vendas || 0) > 0 ? lider.nome : '';
+  const kpiPeriodo = document.getElementById('kpiSemana');
+  const kpiMeta = document.getElementById('kpiMensal');
+  const kpiLider = document.getElementById('kpiLider');
+  if (kpiPeriodo) kpiPeriodo.textContent = `${Number(total || 0).toLocaleString('pt-BR')} ${Number(total || 0) === 1 ? 'venda' : 'vendas'}`;
+  if (kpiMeta) kpiMeta.textContent = meta > 0 ? `${Math.round((total / meta) * 100)}% atingido` : 'Sem meta';
+  if (kpiLider) kpiLider.textContent = nomeLider || 'A definir';
+  let resumo;
+  if (meta > 0) {
+    const faltam = Math.max(0, meta - total);
+    resumo = faltam > 0
+      ? `${mensal ? 'Neste mês' : 'Nesta semana'}, a filial está a ${faltam.toLocaleString('pt-BR')} ${faltam === 1 ? 'venda' : 'vendas'} da meta. `
+      : `${mensal ? 'Meta mensal' : 'Meta da semana'} concluída: ${total.toLocaleString('pt-BR')} vendas registradas. `;
+  } else {
+    resumo = `${mensal ? 'Acompanhe o resultado do mês' : 'Acompanhe o ritmo desta semana'}: ${total.toLocaleString('pt-BR')} ${total === 1 ? 'venda registrada' : 'vendas registradas'}. `;
+  }
+  if (nomeLider) resumo += `${nomeLider} está na liderança geral, com ${Number(lider.vendas || 0).toLocaleString('pt-BR')} vendas.`;
+  else resumo += 'As lideranças aparecem assim que houver vendas no período.';
+  if (nomes.intro) nomes.intro.textContent = resumo;
 }
 
 // ---------- Renovações e Risco de Churn do Mês (sempre mensal) ----------
@@ -2397,16 +2439,9 @@ function renderAll(cache) {
   _ultimoProcessado = d;
   verificarConquistasDeMetas(d);
 
-  // KPIs do cabeçalho — 100% derivados dos dados reais carregados do Supabase
-  const kpiSemana = document.getElementById('kpiSemana');
-  const kpiMensal = document.getElementById('kpiMensal');
-  const kpiLider = document.getElementById('kpiLider');
-  if (kpiSemana) kpiSemana.textContent = d.totalSemana + ' vendas';
-  if (kpiMensal) kpiMensal.textContent = d.pctMensal + '% atingido';
-  if (kpiLider) kpiLider.textContent = d.lider;
-
   const periodoDestaques = document.documentElement.getAttribute('data-active-tab') || 'semanal';
   const isMensal = periodoDestaques === 'mensal';
+  renderContextoCabecalho(d, periodoDestaques);
   if (isMensal) renderMensalProgress(d);
   else renderWeekProgress(d);
   renderDestaquesSemana(d, periodoDestaques);
@@ -2494,6 +2529,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     if (_dadosCarregados) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
+      renderContextoCabecalho(d, tab);
       renderDestaquesSemana(d, tab);
       renderDestaquesExternosGlobais(tab);
       if (isMensal) {

@@ -288,7 +288,7 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
     margin-bottom: 6px;
   }
-  .header-copy p { color: var(--text-muted); font-size: 0.95rem; max-width: 460px; }
+  .header-copy p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.55; max-width: 560px; }
 
   .header-week-card {
     display: flex; align-items: center; gap: 12px;
@@ -754,13 +754,14 @@
   .week-side-value-pct { font-size: 1.05rem; font-weight: 900; color: var(--green); }
 
   /* ---------- Destaques da Semana ---------- */
-  .destaques-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 16px; }
+  .destaques-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
   .destaque-card {
     background: linear-gradient(135deg, var(--surface), var(--surface-hover));
     backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: 16px;
-    padding: 18px; text-align: center; transition: transform 0.3s ease, box-shadow 0.3s ease;
+    min-width: 0; min-height: 154px; padding: 17px; text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
-  .destaque-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px var(--shadow-hover); }
+  .destaque-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px var(--shadow-hover); }
   .destaque-icon-badge {
     display: inline-flex; align-items: center; justify-content: center;
     width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; margin-bottom: 8px;
@@ -771,7 +772,7 @@
   .destaque-icon-badge.blue { background: rgba(var(--accent-rgb),0.16); }
   .destaque-label { display: block; font-size:0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 10px; }
   .destaque-pessoa { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .destaque-foto { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin-bottom: 4px; }
+  .destaque-foto { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin-bottom: 4px; }
   .destaque-nome { font-size: 0.9rem; font-weight: 800; color: var(--heading-color); }
   .destaque-valor { display: block; font-size: 0.76rem; font-weight: 700; color: var(--accent); }
   .destaque-card-rede { display: flex; flex-direction: column; align-items: center; }
@@ -785,6 +786,20 @@
   .destaque-rede-pessoa small { overflow: hidden; color: var(--text-muted); font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
   .destaque-rede-total { color: var(--accent); font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
   .destaque-rede-vazio { color: var(--text-muted); font-size: 0.72rem; }
+  .destaque-card-leader { position: relative; overflow: hidden; text-align: left; border-top: 2px solid var(--accent); }
+  .destaque-card-leader::after { position: absolute; content: ''; width: 110px; height: 110px; right: -55px; bottom: -68px; border-radius: 50%; background: var(--accent-glow); filter: blur(18px); pointer-events: none; }
+  .destaque-card-leader .destaque-icon-badge { width: 28px; height: 28px; margin-bottom: 10px; }
+  .destaque-card-leader .destaque-label { margin-bottom: 9px; }
+  .destaque-card-leader .destaque-pessoa { min-height: 48px; flex-direction: row; justify-content: flex-start; gap: 11px; margin-bottom: 7px; }
+  .destaque-card-leader .destaque-foto { flex: 0 0 48px; margin: 0; }
+  .destaque-card-leader .destaque-nome { overflow: hidden; font-size: .98rem; text-overflow: ellipsis; white-space: nowrap; }
+  .destaque-card-leader .destaque-valor { padding-left: 59px; font-size: .78rem; }
+  .destaque-card-insight { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; }
+  .destaque-card-insight .destaque-label { margin: 2px 0 12px; }
+  .destaque-card-insight .destaque-pessoa { align-items: flex-start; min-height: 1.3em; margin: 0 0 5px; }
+  .destaque-card-insight .destaque-nome { font-size: .9rem; }
+  .destaque-card-insight .destaque-valor { color: var(--heading-color); font-weight: 650; line-height: 1.45; text-align: left; }
+  .destaque-card-recent .destaque-valor { color: var(--text-muted); font-size: .72rem; }
 
   /* ---------- aviso do ranking mensal ---------- */
   .lock-notice {
@@ -1070,10 +1085,20 @@
   @media (prefers-reduced-motion: reduce) { .conquistas-track, .conquista-nav, .conquistas-pontos button { transition: none; } }
 
   @media (max-width: 900px) {
+    .destaques-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .podium-cols, .ranking-full { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 640px) {
+    .destaques-grid { grid-template-columns: 1fr; gap: 10px; }
+    .destaque-card { min-height: 0; padding: 14px; }
+    .destaque-card-leader { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; column-gap: 9px; }
+    .destaque-card-leader .destaque-icon-badge { grid-row: 1 / 3; margin: 0; }
+    .destaque-card-leader .destaque-label { margin: 0 0 4px; }
+    .destaque-card-leader .destaque-pessoa { grid-column: 2; min-height: 36px; margin: 0; }
+    .destaque-card-leader .destaque-foto { flex-basis: 36px; width: 36px; height: 36px; }
+    .destaque-card-leader .destaque-valor { grid-column: 2; padding: 0; margin-top: 2px; }
+    .destaque-card-insight { min-height: 112px; }
     .hero-panel { padding: 24px; gap: 22px; }
     .header-logo { width: 68px; }
     .conquistas-carousel { grid-template-columns: 30px minmax(0, 1fr) 30px; gap: 6px; }
