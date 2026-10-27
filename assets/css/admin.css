@@ -473,6 +473,8 @@ body.an-modal-open { overflow:hidden; }
 .an-xp-total { display:grid; justify-items:end; gap:3px; }
 .an-xp-total strong { color:var(--heading-color); font-size:1.35rem; font-variant-numeric:tabular-nums; }
 .an-xp-total span { color:var(--accent); font-size:.7rem; font-weight:700; text-align:right; }
+.an-xp-total small { color:var(--muted-color); font-size:.7rem; }
+.an-xp-total small b { color:var(--heading-color); font-variant-numeric:tabular-nums; }
 .an-xp-breakdown { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin-top:14px; }
 .an-xp-line { display:flex; min-width:0; flex-direction:column; gap:7px; padding:11px 12px; border:1px solid var(--border); border-radius:11px; background:rgba(0,0,0,.12); }
 .an-xp-line span { color:var(--text-muted); font-size:.67rem; }
