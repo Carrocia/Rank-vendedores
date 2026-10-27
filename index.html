@@ -29,7 +29,7 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261027-ranking-editorial-v2">
+<link rel="stylesheet" href="assets/css/site.css?v=20261027-ranking-editorial-v3">
 
   <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261026-dashboard-v1">
 
@@ -182,12 +182,6 @@
     </div>
   </section>
 
-  <!-- ===== SEÇÃO: DESTAQUES DA SEMANA ===== -->
-  <section class="podium-section" id="publicHighlights">
-    <h2 id="destaquesTitle">🏆 Destaques da Semana</h2>
-    <div class="destaques-grid" id="destaquesGrid"></div>
-  </section>
-
   <main class="ranking-panel anim-in" data-tab-panel="semanal">
     <div class="podium-cols">
     <section class="podium-section">
@@ -289,7 +283,7 @@
   <nav class="mobile-public-nav" id="mobilePublicNav" aria-label="Navegação pública">
     <button type="button" data-mobile-public="inicio" aria-current="page"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-dashboard"/></svg><span>Início</span></button>
     <button type="button" data-mobile-public="ranking"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg><span>Ranking</span></button>
-    <button type="button" data-mobile-public="destaques"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg><span>Destaques</span></button>
+    <button type="button" data-mobile-public="meta"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-target"/></svg><span>Meta</span></button>
     <button type="button" data-mobile-public="mais" aria-expanded="false" aria-controls="mobilePublicMore"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-package"/></svg><span>Mais</span></button>
   </nav>
   <div class="mobile-public-more" id="mobilePublicMore" hidden>
@@ -315,8 +309,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261027-ranking-editorial-v2"></script>
-  <script src="assets/js/supabase-admin.js?v=20261027-analitica-ficha-v1"></script>
+  <script src="assets/js/dashboard.js?v=20261027-ranking-editorial-v3"></script>
+  <script src="assets/js/supabase-admin.js?v=20261027-ranking-sem-cards-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE

@@ -562,78 +562,6 @@ function renderMensalProgress(d) {
     document.getElementById('weekBarPct')
   );
 }
-// Destaques acompanham a aba ativa: a semanal usa só dados da semana;
-// a mensal usa só os acumulados do mês corrente.
-function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
-  if (!d) return;
-  const mensal = periodoAtivo === 'mensal';
-  const nomeDe = id => (PESSOAS[id] || {}).nome || id || '—';
-  const fotoDe = id => (PESSOAS[id] || {}).foto || '';
-  const vendasExternas = mensal ? d.extMes : d.extSem;
-  const vendasInternas = mensal ? d.intMes : d.intSem;
-  const ordenarVendas = (a, b) => (Number(b.vendas || 0) - Number(a.vendas || 0))
-    || (Number(b.valor || 0) - Number(a.valor || 0));
-  const liderExterno = [...(vendasExternas || [])].sort(ordenarVendas)[0] || {};
-  const liderInterno = [...(vendasInternas || [])].sort(ordenarVendas)[0] || {};
-  const todasVendasPeriodo = [...(vendasExternas || []), ...(vendasInternas || [])];
-  const evolucao = [...todasVendasPeriodo].sort((a, b) =>
-    (Number(b.evolucao || 0) - Number(a.evolucao || 0)) || ordenarVendas(a, b)
-  )[0] || {};
-  const vendasRecentesPeriodo = mensal ? (_cache.vendasMes || []) : (_cache.vendasSemana || []);
-  const vendaRecente = [...vendasRecentesPeriodo].sort((a, b) =>
-    new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()
-  )[0];
-  const dataVendaRecente = vendaRecente ? new Date(vendaRecente.data_venda) : null;
-  const vendaRecentePeriodoLabel = dataVendaRecente && !Number.isNaN(dataVendaRecente.getTime())
-    ? `${dataVendaRecente.toLocaleDateString('pt-BR')} às ${dataVendaRecente.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-    : `Sem vendas ${mensal ? 'no mês' : 'nesta semana'}`;
-  const mesNome = d.mes?.mesNome
-    ? d.mes.mesNome.charAt(0).toUpperCase() + d.mes.mesNome.slice(1)
-    : CONFIG.mesReferencia;
-  const tituloEl = document.getElementById('destaquesTitle');
-  if (tituloEl) tituloEl.textContent = mensal ? `🏆 Lideranças e destaques de ${mesNome}` : '🏆 Lideranças da semana';
-
-  const nomeDoVendedor = vendedor => vendedor.nome || nomeDe(vendedor.id);
-  const fotoDoVendedor = vendedor => vendedor.foto_url
-    || (PESSOAS[vendedor.slug] || PESSOAS[vendedor.id] || {}).foto || fotoDe(vendedor.id);
-  const valorEvolucao = Number(evolucao.evolucao || 0);
-  const textoEvolucao = valorEvolucao > 0
-    ? `+${formatVendas(valorEvolucao)} vs. semana passada`
-    : valorEvolucao < 0
-      ? `${formatVendas(valorEvolucao)} vs. semana passada`
-      : 'Mesmo volume da semana passada';
-
-  const liderCard = (vendedor, tipo) => ({
-    icon: '✦', cor: tipo === 'interno' ? 'purple' : 'blue',
-    label: tipo === 'interno' ? 'Liderança interna' : 'Liderança externa',
-    nome: vendedor.id ? nomeDoVendedor(vendedor) : 'Aguardando vendas',
-    foto: vendedor.id ? fotoDoVendedor(vendedor) : '',
-    valor: vendedor.id ? `${Number(vendedor.vendas || 0).toLocaleString('pt-BR')} ${Number(vendedor.vendas || 0) === 1 ? 'venda' : 'vendas'}` : 'Sem vendas neste período',
-    classe: 'destaque-card-leader',
-  });
-  const cards = [
-    liderCard(liderInterno, 'interno'),
-    liderCard(liderExterno, 'externo'),
-    ...(!mensal ? [{ icon: '📈', cor: 'red', label: 'Evolução na semana', nome: evolucao.id ? nomeDoVendedor(evolucao) : '', foto: evolucao.id ? fotoDoVendedor(evolucao) : '', valor: evolucao.id ? textoEvolucao : 'Sem comparação disponível', classe: 'destaque-card-insight' }] : []),
-    { icon: '⏱️', cor: 'gold', label: 'Venda mais recente', nome: vendaRecente ? (vendaRecente.vendedores?.nome || 'Venda registrada') : '', foto: '', valor: vendaRecentePeriodoLabel, classe: 'destaque-card-insight destaque-card-recent' },
-  ];
-
-  const container = document.getElementById('destaquesGrid');
-  if (!container) return;
-  container.classList.toggle('destaques-grid-mensal', mensal);
-  container.innerHTML = cards.map(c => `
-    <div class="destaque-card ${c.classe || ''}">
-      <div class="destaque-icon-badge ${c.cor}">${c.icon}</div>
-      <span class="destaque-label">${c.label}</span>
-      <div class="destaque-pessoa">
-        ${c.foto ? `<img class="destaque-foto" src="${c.foto}" alt="" loading="lazy">` : ''}
-        ${c.nome ? `<span class="destaque-nome">${c.nome}</span>` : ''}
-      </div>
-      ${c.valor ? `<span class="destaque-valor">${c.valor}</span>` : ''}
-    </div>
-  `).join('');
-}
-
 function renderContextoCabecalho(d, periodoAtivo) {
   const mensal = periodoAtivo === 'mensal';
   const total = mensal ? d.totalMes : d.totalSemana;
@@ -837,16 +765,6 @@ async function carregarConquistasGlobais() {
   return { lista: data || [], erro: false };
 }
 
-async function carregarDestaquesExternosGlobais() {
-  if (!window._supabase) return { lista: [], erro: true };
-  const { data, error } = await window._supabase.rpc('destaques_externos_globais');
-  if (error) {
-    console.error('[carregarDestaquesExternosGlobais] RPC destaques_externos_globais:', error);
-    return { lista: [], erro: true };
-  }
-  return { lista: data || [], erro: false };
-}
-
 async function carregarDestaquesMensaisFechadosGlobais() {
   if (!window._supabase) return { lista: [], erro: true };
   const { data, error } = await window._supabase.rpc('destaques_mensais_fechados_globais');
@@ -855,33 +773,6 @@ async function carregarDestaquesMensaisFechadosGlobais() {
     return { lista: [], erro: true };
   }
   return { lista: data || [], erro: false };
-}
-
-function renderDestaquesExternosGlobais(periodoAtivo = document.documentElement.getAttribute('data-active-tab') || 'semanal') {
-  const container = document.getElementById('destaquesGrid');
-  if (!container) return;
-  container.querySelector('.destaque-card-rede')?.remove();
-  const estado = _cache.destaquesExternosGlobais || { lista: [], erro: false };
-  const destaques = estado.lista || [];
-  const periodo = periodoAtivo === 'mensal' ? 'mes' : 'semana';
-  const item = destaques.find(destaque => destaque.periodo === periodo);
-  const rotulo = periodo === 'mes' ? 'Mês' : 'Semana';
-  let conteudo;
-  if (estado.erro) {
-    conteudo = '<span class="destaque-rede-vazio" title="Confira a função destaques_externos_globais no Supabase">Falha ao carregar</span>';
-  } else if (!item) {
-    conteudo = `<span class="destaque-rede-vazio">Ainda sem vendas no ${periodo === 'semana' ? 'período semanal' : 'mês'}</span>`;
-  } else {
-    conteudo = `<span class="destaque-rede-pessoa"><strong>${escapeHtmlText(item.vendedor_nome || 'Vendedor')}</strong><small>${escapeHtmlText(item.filial_nome || 'Filial')}</small></span>${periodo === 'semana' ? `<span class="destaque-rede-total">${escapeHtmlText(formatVendas(item.vendas))}</span>` : ''}`;
-  }
-  container.insertAdjacentHTML('beforeend', `<article class="destaque-card destaque-card-rede">
-    <div class="destaque-icon-badge purple" aria-hidden="true">🌐</div>
-    <span class="destaque-label">Líder externo UNI</span>
-    <div class="destaque-rede-periodo">
-      <span class="destaque-rede-rotulo">${rotulo}</span>
-      ${conteudo}
-    </div>
-  </article>`);
 }
 
 function atualizarCarrosselConquistas(direcao) {
@@ -1009,7 +900,6 @@ let _cache = {
   vendaMaisRecente: null,
   semana: null, mes: null,
   conquistasGlobais: { lista: [], erro: false },
-  destaquesExternosGlobais: { lista: [], erro: false },
   destaquesMensaisFechados: { lista: [], erro: false },
 };
 // Último resultado de processarDadosParaRender(), guardado por renderAll()
@@ -1068,10 +958,6 @@ function renderEstadoSemDados() {
   if (barPctEl) barPctEl.textContent = '—';
   const ringWrap = document.getElementById('metaRingWrap');
   if (ringWrap) ringWrap.style.setProperty('--ring-pct', '0%');
-
-  // Destaques da semana
-  const destaquesGrid = document.getElementById('destaquesGrid');
-  if (destaquesGrid) destaquesGrid.innerHTML = '<div class="sem-dados-msg">Sem dados disponíveis no momento.</div>';
 
   // Gráficos
   renderEvolucaoChart(null);
@@ -1153,7 +1039,7 @@ async function carregarDados() {
     const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
-           conquistasGlobais, destaquesExternosGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas] = await Promise.all([
+           conquistasGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas] = await Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
       loadAdicionais(),
@@ -1171,10 +1057,6 @@ async function carregarDados() {
       promessaConfigSite,
       carregarConquistasGlobais().catch(err => {
         console.warn('[carregarConquistasGlobais]', err);
-        return { lista: [], erro: true };
-      }),
-      carregarDestaquesExternosGlobais().catch(err => {
-        console.warn('[carregarDestaquesExternosGlobais]', err);
         return { lista: [], erro: true };
       }),
       carregarDestaquesMensaisFechadosGlobais().catch(err => {
@@ -1217,7 +1099,6 @@ async function carregarDados() {
     _cache.vendasOrigemSemanaAnterior = vendasOrigemSemanaAnterior;
     _cache.vendasOrigemMes = vendasOrigemMes;
     _cache.conquistasGlobais = conquistasGlobais;
-    _cache.destaquesExternosGlobais = destaquesExternosGlobais;
     _cache.destaquesMensaisFechados = destaquesMensaisFechados;
     _cache.destaquesAuto = mesesFechados.map((m, i) => {
       const destaqueMes = calcularDestaqueMes(
@@ -2440,8 +2321,6 @@ function renderAll(cache) {
   renderContextoCabecalho(d, periodoDestaques);
   if (isMensal) renderMensalProgress(d);
   else renderWeekProgress(d);
-  renderDestaquesSemana(d, periodoDestaques);
-  renderDestaquesExternosGlobais(periodoDestaques);
   renderRenovacaoCancelamento(d);
   renderEvolucaoChart(d.evolucaoSemana);
   renderDonutChart(d.vendasPorPlano);
@@ -2526,15 +2405,11 @@ document.querySelectorAll('.tab-button').forEach(btn => {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
       renderContextoCabecalho(d, tab);
-      renderDestaquesSemana(d, tab);
-      renderDestaquesExternosGlobais(tab);
       if (isMensal) {
         renderMensalProgress(d);
       } else {
         renderWeekProgress(d);
       }
-    } else {
-      renderDestaquesExternosGlobais(tab);
     }
     // se não há dados carregados, o estado "sem dados" já está
     // visível (renderEstadoSemDados) e não precisa ser recalculado

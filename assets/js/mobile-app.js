@@ -52,7 +52,7 @@
       button.setAttribute('aria-current', 'page');
       if (destination === 'inicio') window.scrollTo({ top: 0, behavior: 'smooth' });
       if (destination === 'ranking') scrollPublicTo(document.querySelector('.ranking-panel:not(.hidden)'));
-      if (destination === 'destaques') scrollPublicTo('publicHighlights');
+      if (destination === 'meta') scrollPublicTo('metaCardSection');
     });
   });
 

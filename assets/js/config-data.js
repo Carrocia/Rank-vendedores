@@ -36,11 +36,6 @@ const CONFIG = {
     diasNoMes: 30,    // quantos dias tem o mes
   },
 
-  // Os 5 cards de "Destaques da Semana" (Líder Externo, Líder Interno,
-  // Maior Evolução, Maior % da Meta e Venda Mais Recente) são
-  // calculados 100% a partir dos dados reais do Supabase — veja
-  // renderDestaquesSemana(d) e processarDadosParaRender(cache).
-
   // ---------- Metas da Filial (M1 / M2 / M3) ----------
   // semanal = vendas acumuladas na semana vs meta semanal de cada faixa
   // mensal  = vendas acumuladas no mês vs meta mensal de cada faixa

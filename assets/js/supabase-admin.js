@@ -6587,7 +6587,7 @@ carregarDados();
   const porId = id => document.getElementById(id);
   const secaoDe = id => { const el = porId(id); return el ? el.closest('section') : null; };
   const E = {
-    meta: porId('metaCardSection'), destaques: secaoDe('destaquesGrid'),
+    meta: porId('metaCardSection'),
     rankSemanal: document.querySelector('[data-tab-panel="semanal"]'),
     rankMensal: document.querySelector('[data-tab-panel="mensal"]'),
     filial: porId('metasFilialSection'), churn: document.querySelector('.churn-dash'),
@@ -6595,7 +6595,7 @@ carregarDados();
     planos: secaoDe('donutChart'), conquistas: secaoDe('conquistasGrid'),
   };
   const slides = [
-    { titulo: 'Meta da Semana e Destaques', tab: 'semanal', show: ['meta', 'destaques'] },
+    { titulo: 'Meta da Semana', tab: 'semanal', show: ['meta'] },
     { titulo: 'Ranking Semanal', tab: 'semanal', show: ['rankSemanal'] },
     { titulo: 'Metas da Filial — Semana', tab: 'semanal', show: ['filial'] },
     { titulo: 'Meta do Mês', tab: 'mensal', show: ['meta'] },
