@@ -579,9 +579,6 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
   const evolucao = [...todasVendasPeriodo].sort((a, b) =>
     (Number(b.evolucao || 0) - Number(a.evolucao || 0)) || ordenarVendas(a, b)
   )[0] || {};
-  const maiorPctMeta = d.maiorPct || {};
-  const pctMeta = Number.isFinite(maiorPctMeta.pctMetaAtual) ? Math.round(maiorPctMeta.pctMetaAtual) : null;
-  const rotuloMetaDestaque = maiorPctMeta.metaAlvoLabel || 'meta';
   const vendasRecentesPeriodo = mensal ? (_cache.vendasMes || []) : (_cache.vendasSemana || []);
   const vendaRecente = [...vendasRecentesPeriodo].sort((a, b) =>
     new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()
@@ -611,20 +608,19 @@ function renderDestaquesSemana(d, periodoAtivo = 'semanal') {
     label: tipo === 'interno' ? 'Liderança interna' : 'Liderança externa',
     nome: vendedor.id ? nomeDoVendedor(vendedor) : 'Aguardando vendas',
     foto: vendedor.id ? fotoDoVendedor(vendedor) : '',
-    valor: vendedor.id ? `${formatVendas(vendedor.vendas || 0)} ${Number(vendedor.vendas || 0) === 1 ? 'venda' : 'vendas'}` : 'Sem vendas neste período',
+    valor: vendedor.id ? `${Number(vendedor.vendas || 0).toLocaleString('pt-BR')} ${Number(vendedor.vendas || 0) === 1 ? 'venda' : 'vendas'}` : 'Sem vendas neste período',
     classe: 'destaque-card-leader',
   });
   const cards = [
     liderCard(liderInterno, 'interno'),
     liderCard(liderExterno, 'externo'),
-    mensal
-      ? { icon: '🎯', cor: 'red', label: 'Maior avanço para a meta', nome: maiorPctMeta.id ? nomeDoVendedor(maiorPctMeta) : '', foto: maiorPctMeta.id ? fotoDoVendedor(maiorPctMeta) : '', valor: pctMeta !== null ? `${pctMeta}% da ${rotuloMetaDestaque}` : 'Metas ainda não configuradas', classe: 'destaque-card-insight' }
-      : { icon: '📈', cor: 'red', label: 'Evolução na semana', nome: evolucao.id ? nomeDoVendedor(evolucao) : '', foto: evolucao.id ? fotoDoVendedor(evolucao) : '', valor: evolucao.id ? textoEvolucao : 'Sem comparação disponível', classe: 'destaque-card-insight' },
+    ...(!mensal ? [{ icon: '📈', cor: 'red', label: 'Evolução na semana', nome: evolucao.id ? nomeDoVendedor(evolucao) : '', foto: evolucao.id ? fotoDoVendedor(evolucao) : '', valor: evolucao.id ? textoEvolucao : 'Sem comparação disponível', classe: 'destaque-card-insight' }] : []),
     { icon: '⏱️', cor: 'gold', label: 'Venda mais recente', nome: vendaRecente ? (vendaRecente.vendedores?.nome || 'Venda registrada') : '', foto: '', valor: vendaRecentePeriodoLabel, classe: 'destaque-card-insight destaque-card-recent' },
   ];
 
   const container = document.getElementById('destaquesGrid');
   if (!container) return;
+  container.classList.toggle('destaques-grid-mensal', mensal);
   container.innerHTML = cards.map(c => `
     <div class="destaque-card ${c.classe || ''}">
       <div class="destaque-icon-badge ${c.cor}">${c.icon}</div>
