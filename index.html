@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261027-analitica-ficha-v3">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261027-analitica-ficha-v4">
 </head>
 <body>
 
@@ -310,7 +310,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261027-ranking-sem-volume-individual-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261027-analitica-ficha-v4"></script>
+  <script src="assets/js/supabase-admin.js?v=20261027-analitica-ficha-v5"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -993,7 +993,7 @@
                 <section class="an-xp-panel" aria-labelledby="an-xp-title">
                   <header><div><span class="adm-card-eyebrow">PROGRESSÃO COMERCIAL</span><h3 id="an-xp-title">XP acumulado</h3></div><div class="an-xp-total"><strong id="an-xp-total">—</strong><span id="an-xp-period-status">Calculando período…</span><small>XP do mês: <b id="an-xp-period-total">—</b></small></div></header>
                   <div class="an-xp-breakdown" id="an-xp-breakdown"></div>
-                  <p id="an-xp-note">O XP acumulado acompanha a carreira. Ele não altera os ranks enquanto os limites de carreira não forem definidos.</p>
+                  <p id="an-xp-note">O XP comercial do mês é provisório até o fechamento; o acumulado da carreira avança pelos níveis de XP.</p>
                   <details class="an-xp-rules">
                     <summary>Regras do XP: como ganhar e critérios de progressão</summary>
                     <div class="an-xp-rules-content">
@@ -1010,7 +1010,7 @@
                         <span>R$ 110 a R$ 114,99 <b>1,20×</b></span><span>R$ 115 a R$ 119,99 <b>1,30×</b></span>
                         <span>R$ 120 a R$ 129,99 <b>1,45×</b></span><span>R$ 130 ou mais <b>1,70×</b></span>
                       </div>
-                      <p class="an-xp-level-note"><strong>Ranks por nível:</strong> os limites de XP para avançar entre D, C, B, A e S ainda serão definidos. Até lá, o XP acumula sem alterar o rank mensal ou o rank de carreira. As regras atuais desses ranks continuam valendo.</p>
+                      <p class="an-xp-level-note"><strong>Rank mensal:</strong> usa pontos de desempenho de 0 a 100 e pode subir ou cair enquanto o mês está aberto. Faixas: D 20, C 35, B 50, A 65 e S 80 pontos. <strong>Rank de carreira:</strong> usa XP acumulado; D inicia a jornada, C 3.000, B 9.000, A 18.000, S 30.000 e SS 45.000 XP.</p>
                     </div>
                   </details>
                 </section>
@@ -1838,8 +1838,11 @@
         <article><span>TICKET MÉDIO</span><strong id="an-card-ticket">—</strong><small id="an-card-ticket-note">—</small></article>
       </section>
       <section class="an-card-xp">
-        <div class="an-card-section-heading"><div><small>PROGRESSÃO COMERCIAL</small><strong>XP gerado neste mês</strong></div><b id="an-card-xp-total">—</b></div>
-        <div class="an-card-xp-breakdown" id="an-card-xp-breakdown"></div>
+        <div class="an-card-section-heading"><div><small>PROGRESSÃO COMERCIAL</small><strong>Jornada de ranks</strong></div><b id="an-card-xp-total">—</b></div>
+        <div class="an-card-progressions">
+          <article class="an-card-progression an-card-progression-career"><div><span>RANK DE CARREIRA · XP ACUMULADO</span><b id="an-card-career-progress-rank">—</b></div><strong id="an-card-career-progress-value">—</strong><div class="an-card-progress-track" role="progressbar" aria-label="Progresso para o próximo rank de carreira" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="an-card-career-progress-bar"></i></div><small id="an-card-career-progress-note">—</small></article>
+          <article class="an-card-progression an-card-progression-month"><div><span>RANK DO MÊS · PONTOS DO PERÍODO</span><b id="an-card-month-progress-rank">—</b></div><strong id="an-card-month-progress-value">—</strong><div class="an-card-progress-track" role="progressbar" aria-label="Progresso para o próximo rank mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="an-card-month-progress-bar"></i></div><small id="an-card-month-progress-note">—</small></article>
+        </div>
         <p id="an-card-xp-note">O XP acompanha as vendas e renovações registradas.</p>
       </section>
       <section class="an-card-panel an-card-attributes">

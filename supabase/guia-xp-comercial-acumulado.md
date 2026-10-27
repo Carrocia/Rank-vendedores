@@ -1,6 +1,6 @@
 # XP comercial acumulado
 
-O XP acumulado é separado da pontuação usada para calcular o rank mensal. O rank mensal atual e o histórico de rank de carreira continuam com suas regras existentes; os limites de XP para futuros ranks de carreira ainda não estão definidos.
+O XP acumulado é separado da pontuação usada para calcular o rank mensal. O rank mensal é recalculado com os pontos de desempenho do período; a carreira analítica usa o XP acumulado com as faixas D (base), C 3.000, B 9.000, A 18.000, S 30.000 e SS 45.000 XP.
 
 ## Cálculo mensal
 
@@ -25,7 +25,7 @@ O superadministrador pode corrigir um mês fechado com `corrigir_xp_comercial_fe
 
 ## Aplicação no Supabase
 
-Execute `xp-comercial-acumulado.sql` depois de acesso regional, progressão/fechamento de ranks e `renovacoes-mensais.sql`. Se o XP já estiver instalado, execute novamente a versão atualizada do mesmo arquivo para adicionar as faixas percentuais, habilitar o bônus e substituir o cálculo provisório; o script é idempotente. Depois publique a versão do site com o painel analítico. O perfil exibe o XP mensal e acumulado, mas não converte XP em rank de carreira.
+Execute `xp-comercial-acumulado.sql` depois de acesso regional, progressão/fechamento de ranks e `renovacoes-mensais.sql`. Se o XP já estiver instalado, execute novamente a versão atualizada do mesmo arquivo para adicionar as faixas percentuais, habilitar o bônus e substituir o cálculo provisório; o script é idempotente. Depois publique a versão do site com o painel analítico. A classificação por XP de carreira é apresentada na camada analítica; o SQL mantém os snapshots e o total acumulado, separados do rank mensal.
 
 ## Limite dos testes locais
 

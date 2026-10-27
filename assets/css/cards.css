@@ -284,10 +284,6 @@
 .an-card-section-heading small { color:#32d2ff; font-size:7px; font-weight:900; letter-spacing:1.3px; }
 .an-card-section-heading strong { color:#f1f8ff; font-size:13px; font-weight:900; }
 .an-card-xp .an-card-section-heading > b { color:#63e8ff; font-size:23px; font-weight:900; }
-.an-card-xp-breakdown { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; margin-top:9px; }
-.an-card-xp-breakdown .an-xp-line { min-width:0; gap:5px; padding:7px 8px; border:1px solid rgba(77,150,207,.23); border-radius:8px; background:rgba(1,11,24,.38); }
-.an-card-xp-breakdown .an-xp-line span { color:#94abc1; font-size:6px; line-height:1.25; }
-.an-card-xp-breakdown .an-xp-line strong { color:#eaf8ff; font-size:9px; }
 .an-card-xp > p { margin:7px 0 0; color:#91a8bf; font-size:7px; line-height:1.35; }
 .an-card-panel { min-width:0; padding:13px 15px; border:1px solid rgba(45,157,234,.3); border-radius:15px; background:linear-gradient(145deg,rgba(12,57,98,.36),rgba(6,15,29,.78) 68%); }
 .an-card-attributes { flex:none; }
@@ -426,11 +422,17 @@
 #an-card .an-card-stats article small { font-size:9px; }
 #an-card .an-card-section-heading small { font-size:8px; }
 #an-card .an-card-section-heading strong { font-size:15px; }
-#an-card .an-card-xp .an-card-section-heading > b { font-size:25px; }
-#an-card .an-card-xp-breakdown { grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
-#an-card .an-card-xp-breakdown .an-xp-line { display:grid; align-content:center; min-height:48px; padding:8px 10px; }
-#an-card .an-card-xp-breakdown .an-xp-line span { font-size:8px; }
-#an-card .an-card-xp-breakdown .an-xp-line strong { font-size:11px; }
+#an-card .an-card-xp .an-card-section-heading > b { font-size:21px; white-space:nowrap; }
+#an-card .an-card-progressions { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px; }
+#an-card .an-card-progression { min-width:0; padding:11px 12px; border:1px solid rgba(77,150,207,.23); border-radius:10px; background:rgba(1,11,24,.38); }
+#an-card .an-card-progression > div:first-child { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+#an-card .an-card-progression > div:first-child span { color:#94abc1; font-size:8px; font-weight:900; letter-spacing:.55px; }
+#an-card .an-card-progression > div:first-child b { color:#f1f8ff; font-size:12px; }
+#an-card .an-card-progression > strong { display:block; margin-top:8px; color:#eaf8ff; font-size:16px; font-variant-numeric:tabular-nums; }
+#an-card .an-card-progress-track { display:block; height:8px; margin-top:7px; overflow:hidden; border-radius:999px; background:rgba(146,186,220,.17); }
+#an-card .an-card-progress-track > i { display:block; width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#19d9e9,#3488ff); box-shadow:0 0 12px rgba(27,171,255,.35); transition:width .2s ease; }
+#an-card .an-card-progression-month .an-card-progress-track > i { background:linear-gradient(90deg,#ff62ac,#8d76ff); }
+#an-card .an-card-progression > small { display:block; margin-top:7px; color:#a4b8ca; font-size:9px; line-height:1.35; }
 #an-card .an-card-xp > p { font-size:9px; }
 #an-card .an-card-attributes { padding:14px 17px; }
 #an-card .an-card-attributes-list { gap:2px; margin-top:8px; }

@@ -4698,6 +4698,66 @@ const RANK_CARREIRA_IMAGENS = {
   B: 'assets/images/ranks/rank-b.png', A: 'assets/images/ranks/rank-a.png',
   S: 'assets/images/ranks/rank-s.png', SS: 'assets/images/ranks/rank-ss.png',
 };
+const FAIXAS_XP_CARREIRA = [
+  { rank: 'D', minimo: 0 }, { rank: 'C', minimo: 3000 },
+  { rank: 'B', minimo: 9000 }, { rank: 'A', minimo: 18000 },
+  { rank: 'S', minimo: 30000 }, { rank: 'SS', minimo: 45000 },
+];
+const FAIXAS_PONTOS_MENSAIS = [
+  { rank: 'D', minimo: 20 }, { rank: 'C', minimo: 35 },
+  { rank: 'B', minimo: 50 }, { rank: 'A', minimo: 65 },
+  { rank: 'S', minimo: 80 },
+];
+
+function calcularProgressoFaixa(valor, faixas) {
+  const total = Math.max(0, Number(valor) || 0);
+  const indiceAtual = faixas.reduce((indice, faixa, i) => total >= faixa.minimo ? i : indice, -1);
+  const atual = indiceAtual >= 0 ? faixas[indiceAtual] : null;
+  const proxima = faixas[indiceAtual + 1] || null;
+  if (!proxima) return {
+    valor: total, atual, proxima: null, dentroFaixa: 0, tamanhoFaixa: 0,
+    percentual: 100, faltam: 0, maximo: true,
+  };
+  const inicio = atual?.minimo || 0;
+  const tamanhoFaixa = proxima.minimo - inicio;
+  const dentroFaixa = Math.max(0, total - inicio);
+  return {
+    valor: total, atual, proxima, dentroFaixa, tamanhoFaixa,
+    percentual: tamanhoFaixa > 0 ? Math.min(100, dentroFaixa / tamanhoFaixa * 100) : 0,
+    faltam: Math.max(0, proxima.minimo - total), maximo: false,
+  };
+}
+
+function formatarPontosRank(valor) {
+  return Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+}
+
+function preencherBarraProgressoFicha(prefixo, progresso, unidade) {
+  const rank = document.getElementById(`an-card-${prefixo}-progress-rank`);
+  const valor = document.getElementById(`an-card-${prefixo}-progress-value`);
+  const barra = document.getElementById(`an-card-${prefixo}-progress-bar`);
+  const trilho = barra?.closest('[role="progressbar"]');
+  const nota = document.getElementById(`an-card-${prefixo}-progress-note`);
+  if (!rank || !valor || !barra || !trilho || !nota) return;
+  if (!progresso) {
+    rank.textContent = 'Aguardando dados';
+    valor.textContent = '—';
+    barra.style.width = '0%';
+    trilho.setAttribute('aria-valuenow', '0');
+    nota.textContent = 'Dados insuficientes para calcular este progresso.';
+    return;
+  }
+  rank.textContent = progresso.atual ? `Rank ${progresso.atual.rank}` : `A caminho do rank ${progresso.proxima?.rank || '—'}`;
+  valor.textContent = progresso.maximo
+    ? `${formatarPontosRank(progresso.valor)}+ ${unidade}`
+    : `${formatarPontosRank(progresso.dentroFaixa)} / ${formatarPontosRank(progresso.tamanhoFaixa)} ${unidade}${prefixo === 'month' ? ' nesta faixa' : ''}`;
+  barra.style.width = `${progresso.percentual}%`;
+  trilho.setAttribute('aria-valuenow', String(Math.round(progresso.percentual)));
+  const totalCarreira = prefixo === 'career' ? ` · ${formatarPontosRank(progresso.valor)} XP acumulados` : '';
+  nota.textContent = progresso.maximo
+    ? `Rank ${progresso.atual?.rank || ''} alcançado · faixa máxima atual${totalCarreira}.`
+    : `Próximo rank ${progresso.proxima.rank} · faltam ${formatarPontosRank(progresso.faltam)} ${unidade}${totalCarreira}.`;
+}
 
 function formatarValorAnalitica(valor) {
   return Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -4824,6 +4884,20 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   const somarPeriodo = (inicio, fim) => [...vendasPorDia.entries()].reduce((total, [data, qtd]) => total + (data >= dataChave(inicio) && data <= dataChave(fim) ? qtd : 0), 0);
   const semanaAtual = somarPeriodo(inicioAtual, fimAtual);
   const semanaAnterior = somarPeriodo(inicioAnterior, fimAnterior);
+  const pontosVendas = metaVendas > 0 ? Math.min(50, Math.max(0, vendas / metaVendas * 50)) : 0;
+  const pontosTicket = referencia > 0
+    ? Math.min(20, Math.max(0, (ticket / referencia - 0.8) * 66.6666667))
+    : 0;
+  const pontosEvolucao = semanaAnterior > 0
+    ? Math.min(20, Math.max(0, (semanaAtual - semanaAnterior) / semanaAnterior * 40))
+    : semanaAtual > 0 ? 8 : 0;
+  const pontosRenovacao = externo ? 0 : Math.min(10, Math.max(0, renovacoes * 0.5));
+  const pontosMensais = metaVendas > 0
+    ? Math.min(100, pontosVendas + pontosTicket + pontosEvolucao + pontosRenovacao)
+    : null;
+  const progressoMensal = pontosMensais == null
+    ? null
+    : calcularProgressoFaixa(pontosMensais, FAIXAS_PONTOS_MENSAIS);
   const janelaAnteriorCompleta = inicioAnterior >= new Date(ano, mesNum - 1, 1);
   const evolucao = janelaAnteriorCompleta && semanaAnterior > 0 ? Math.round((semanaAtual - semanaAnterior) / semanaAnterior * 100) : null;
   const detalheSemanal = !janelaAnteriorCompleta
@@ -4910,6 +4984,7 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
     const cardHighlights = document.getElementById('an-card-highlights-section');
     if (cardHighlights) cardHighlights.hidden = cards.length === 0;
   }
+  return { progressoMensal, pontosMensais, semanaAtual, semanaAnterior };
 }
 
 function renderizarGraficosPerfilAnalitico(selecionado) {
@@ -5191,7 +5266,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;
   const detalhesVendas = renderizarGraficosPerfilAnalitico(selecionado);
   const mesAnalitico = _cache.mes || {};
-  renderizarAtributosComerciais(selecionado, detalhesVendas, {
+  const leituraXPmensal = renderizarAtributosComerciais(selecionado, detalhesVendas, {
     vendas, metaVendas, ticket, referencia, renovacoes,
     metaRenovacoes: Number(metasRenovacao.meta_m1 || metasRenovacao.m1 || metaRenovacoes),
     diasNoMes: new Date(Number(mesAnalitico.ano || new Date().getFullYear()), Number(mesAnalitico.mesNum || new Date().getMonth() + 1), 0).getDate(),
@@ -5235,6 +5310,14 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     const xpPeriodoEl = document.getElementById('an-xp-period-total');
     if (xpTotal) xpTotal.textContent = formatarXP(xp.xp_acumulado_carreira);
     if (xpPeriodoEl) xpPeriodoEl.textContent = formatarXP(xp.xp_total_periodo);
+    carreira.progressoXP = calcularProgressoFaixa(xp.xp_acumulado_carreira, FAIXAS_XP_CARREIRA);
+    carreira.rankCarreira = carreira.progressoXP.atual?.rank || 'D';
+    rankCarreiraImg.hidden = false;
+    rankCarreiraImg.src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
+    document.getElementById('an-rank-carreira').textContent = carreira.rankCarreira;
+    document.getElementById('an-rank-carreira-status').textContent = carreira.progressoXP.proxima
+      ? `${formatarPontosRank(carreira.progressoXP.valor)} XP acumulados · próximo rank ${carreira.progressoXP.proxima.rank}: faltam ${formatarPontosRank(carreira.progressoXP.faltam)} XP`
+      : `Rank ${carreira.rankCarreira} alcançado · faixa máxima de XP.`;
     if (xpStatus) xpStatus.textContent = `${xp.status === 'fechado' ? 'Mês fechado' : 'Estimativa provisória'} · ${formatarXP(xp.xp_total_periodo)} no mês`;
     const ajusteTicket = Number(xp.xp_bonus_ticket || 0);
     const bonusMetas = Number(xp.xp_bonus_meta_vendas || 0) + Number(xp.xp_bonus_meta_renovacoes || 0);
@@ -5253,7 +5336,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
       const metasInfo = xp.bonus_metas_ativo
         ? ' Os bônus de vendas e renovações usam as metas oficiais separadamente; o multiplicador de ticket não se aplica a eles.'
         : ' Bônus de metas desativado na configuração central.';
-      xpNote.textContent = `${ticketInfo}${campanhaInfo}${metasInfo} XP de carreira não altera o rank mensal nem promove automaticamente enquanto os limites de carreira não forem definidos.`;
+      xpNote.textContent = `${ticketInfo}${campanhaInfo}${metasInfo} O XP acumulado define a faixa de carreira; a pontuação mensal é calculada separadamente e pode variar até o fechamento.`;
     }
   } catch (xpError) {
     const erroXP = xpError?.message || 'Erro desconhecido ao consultar a função de XP.';
@@ -5264,18 +5347,23 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     if (xpTotal) xpTotal.textContent = '—';
     const xpPeriodoEl = document.getElementById('an-xp-period-total');
     if (xpPeriodoEl) xpPeriodoEl.textContent = '—';
+    carreira.rankCarreira = null;
+    carreira.progressoXP = null;
+    rankCarreiraImg.hidden = true;
+    document.getElementById('an-rank-carreira').textContent = '—';
+    document.getElementById('an-rank-carreira-status').textContent = 'XP de carreira indisponível.';
     if (xpBreakdown) xpBreakdown.replaceChildren();
     if (xpNote) xpNote.textContent = `${erroXP}${dicaXP} O rank mensal continua usando a regra atual.`;
   }
   if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
-  await preencherFichaAnalitica(selecionado, carreira, detalhesVendas);
+  await preencherFichaAnalitica(selecionado, carreira, detalhesVendas, leituraXPmensal);
   profile.hidden = false;
   modal.hidden = false;
   document.body.classList.add('an-modal-open');
   modal.querySelector('[data-an-close]:not(.an-modal-backdrop)')?.focus({ preventScroll: true });
 }
 
-async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {}) {
+async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {}, leituraXPmensal = null) {
   const { vendedor, cadastro, rank, renovacao, tipo } = selecionado;
   const externo = tipo === 'externo';
   const rankMensal = rank?.elegivel ? rank.rank_mensal : null;
@@ -5300,11 +5388,14 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem rank';
   const descricoesRank = { D: 'Base · início da jornada', C: 'Desenvolvimento · construindo consistência', B: 'Consistência · resultados regulares', A: 'Alto desempenho · superou objetivos', S: 'Excelência · resultado de destaque', SS: 'Desempenho excepcional' };
   document.getElementById('an-card-month-note').textContent = descricoesRank[rankMensal] || 'A classificação mensal considera o desempenho deste período.';
-  document.getElementById('an-card-career-rank-img').src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
-  document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira;
-  document.getElementById('an-card-career-note').textContent = carreira.mesesFechados
-    ? `${carreira.mesesFechados} ${carreira.mesesFechados === 1 ? 'mês concluído' : 'meses concluídos'} no histórico.`
-    : 'Base de carreira · nenhum mês concluído no histórico.';
+  const rankCarreiraImg = document.getElementById('an-card-career-rank-img');
+  rankCarreiraImg.hidden = !carreira.rankCarreira;
+  if (carreira.rankCarreira) rankCarreiraImg.src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
+  else rankCarreiraImg.removeAttribute('src');
+  document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira || '—';
+  document.getElementById('an-card-career-note').textContent = carreira.progressoXP?.proxima
+    ? `${formatarPontosRank(carreira.progressoXP.valor)} XP acumulados · próximo rank ${carreira.progressoXP.proxima.rank}`
+    : carreira.progressoXP ? `Rank ${carreira.rankCarreira} · faixa máxima alcançada` : 'Progresso de carreira indisponível.';
   const d = _ultimoProcessado;
   const periodo = d?.mes?.mesNome ? `${d.mes.mesNome} ${d.mes.ano || ''}` : CONFIG.mesReferencia || '';
   document.getElementById('an-card-period').textContent = periodo;
@@ -5339,11 +5430,14 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   copiarConteudo('an-top-plans', 'an-card-top-plans');
   document.getElementById('an-card-plan-total').textContent = document.getElementById('an-plan-total')?.textContent || '—';
   const xpPeriod = document.getElementById('an-xp-period-total')?.textContent || '—';
-  document.getElementById('an-card-xp-total').textContent = xpPeriod;
+  document.getElementById('an-card-xp-total').textContent = xpPeriod === '—' ? '— XP' : `+${xpPeriod}`;
   const statusXP = document.getElementById('an-xp-period-status')?.textContent || 'Estimativa do período';
-  document.getElementById('an-card-xp-note').textContent = `${statusXP.split(' · ')[0]} · acumulado na carreira: ${document.getElementById('an-xp-total')?.textContent || '—'}. O XP não altera o rank mensal.`;
-  const xpRows = [...(document.getElementById('an-xp-breakdown')?.children || [])].filter(row => !/^0(?:[,.]0+)? XP$/.test(row.querySelector('strong')?.textContent.trim() || ''));
-  document.getElementById('an-card-xp-breakdown').replaceChildren(...xpRows.map(row => row.cloneNode(true)));
+  document.getElementById('an-card-xp-note').textContent = `${statusXP.split(' · ')[0]}. Os pontos do rank mensal são recalculados durante o mês; cancelamentos ou ajustes podem reduzi-los.`;
+  preencherBarraProgressoFicha('career', carreira.progressoXP, 'XP');
+  preencherBarraProgressoFicha('month', leituraXPmensal?.progressoMensal, 'pontos');
+  if (!leituraXPmensal?.progressoMensal) {
+    document.getElementById('an-card-month-progress-note').textContent = 'Meta de vendas necessária para calcular o progresso mensal.';
+  }
   document.getElementById('an-card-plan-note').textContent = document.getElementById('an-plan-note')?.textContent || '';
   document.getElementById('an-card-generated').textContent = new Date().toLocaleDateString('pt-BR');
   if (rankMensal) card.dataset.rank = String(rankMensal).toLowerCase(); else delete card.dataset.rank;
