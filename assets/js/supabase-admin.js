@@ -5671,15 +5671,21 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     const { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo } = selecionado;
     const externo = tipo === 'externo';
     const vendedorId = String(cadastro?.id || vendedor.id);
-    const vendasDiretas = (contexto.cache.vendasMes || []).filter(item => {
-      if (String(item.vendedor_id) !== vendedorId) return false;
-      return !(externo && (item.fora_filial === true || isVendaRecebidaDeOutraFilial(item)));
-    });
-    const vendasFora = !externo
-      ? await loadVendasEquipeEmOutrasFiliais(periodo.de, periodo.ate)
-      : [];
+    const filialVendedorId = Number(cadastro?.filial_id ?? vendedor.filial_id ?? window.FILIAL_ATUAL_ID);
+    const vendasDiretas = (contexto.cache.vendasMes || []).filter(item => String(item.vendedor_id) === vendedorId);
+    const vendasFora = await loadVendasEquipeEmOutrasFiliais(periodo.de, periodo.ate);
     const vendasOrigem = vendasFora.filter(item => String(item.vendedor_id) === vendedorId);
     const registros = [...vendasDiretas, ...vendasOrigem].map(item => {
+      const origemId = Number(item.filial_origem_id);
+      const destinoId = Number(item.filial_destino_id);
+      const origemValida = Number.isInteger(origemId) && origemId > 0;
+      const destinoValido = Number.isInteger(destinoId) && destinoId > 0;
+      let origemTipo = 'origem_indefinida';
+      if (item.fora_filial === true) origemTipo = 'fora_filial';
+      else if (origemValida && destinoValido && origemId === filialVendedorId && destinoId === filialVendedorId) origemTipo = 'propria_regional';
+      else if (origemValida && destinoValido && origemId === filialVendedorId && destinoId !== filialVendedorId) origemTipo = 'outra_regional_destino';
+      else if (origemValida && origemId !== filialVendedorId) origemTipo = 'outra_regional_origem';
+      const contaMeta = !externo || origemTipo === 'propria_regional';
       const planoId = String(item.plano_id ?? item.planos?.id ?? '').trim();
       const plano = (contexto.cache.planos || []).find(p => String(p.id) === planoId);
       const nomeBase = plano?.nome || item.plano_nome || item.planos?.nome || 'Plano sem identificação';
@@ -5694,28 +5700,34 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         cliente: String(item.cliente || extrairClienteDeObservacao(item.observacao) || '').trim(),
         plano: nomePlano,
         valor: Number(item.valor_total ?? item.valor_plano ?? item.valor ?? 0),
-        foraFilial: vendasOrigem.includes(item),
+        origemTipo,
+        contaMeta,
       };
     }).sort((a, b) => a.data.localeCompare(b.data));
     const totalVendas = registros.length;
     const valorTotal = registros.reduce((total, item) => total + item.valor, 0);
-    const vendasFechadas = Number(rank?.vendas ?? totalVendas);
-    const valorFechado = Number(rank?.valor_vendas ?? valorTotal);
-    if (vendasFechadas !== totalVendas || Math.abs(valorFechado - valorTotal) > 0.02) {
-      throw new Error(`Os registros detalhados somam ${totalVendas} venda(s), mas o fechamento registra ${vendasFechadas}. Para evitar um PDF divergente, confira os dados deste mês antes de compartilhar.`);
+    const registrosMeta = registros.filter(item => item.contaMeta);
+    const vendasContabilizadasMeta = registrosMeta.length;
+    const valorContabilizadoMeta = registrosMeta.reduce((total, item) => total + item.valor, 0);
+    const vendasFechadas = Number(rank?.vendas ?? vendasContabilizadasMeta);
+    const valorFechado = Number(rank?.valor_vendas ?? valorContabilizadoMeta);
+    if (vendasFechadas !== vendasContabilizadasMeta || Math.abs(valorFechado - valorContabilizadoMeta) > 0.02) {
+      throw new Error(`Os registros que contam para a meta somam ${vendasContabilizadasMeta} venda(s), mas o fechamento registra ${vendasFechadas}. Para evitar um PDF divergente, confira os dados deste mês antes de compartilhar.`);
     }
-    const ticket = totalVendas ? valorTotal / totalVendas : 0;
+    const ticket = vendasContabilizadasMeta ? valorContabilizadoMeta / vendasContabilizadasMeta : 0;
+    const contagemOrigem = Object.fromEntries(['propria_regional', 'outra_regional_destino', 'fora_filial', 'outra_regional_origem', 'origem_indefinida']
+      .map(tipoOrigem => [tipoOrigem, registros.filter(item => item.origemTipo === tipoOrigem).length]));
     const renovacoes = Number(renovacao?.quantidade ?? rank?.renovacoes ?? 0);
     const referencia = Number(rank?.ticket_referencia || 0);
     const diasNoMes = new Date(ano, mes, 0).getDate();
     const vendasPorDia = Array.from({ length: diasNoMes }, (_, i) => ({ dia: i + 1, qtd: 0 }));
-    registros.forEach(item => {
+    registrosMeta.forEach(item => {
       const dia = Number(item.data.slice(8, 10));
       if (dia > 0 && dia <= diasNoMes) vendasPorDia[dia - 1].qtd++;
     });
     const diasComAtivacao = vendasPorDia.filter(item => item.qtd > 0).length;
     const porPlano = new Map();
-    registros.forEach(item => porPlano.set(item.plano, (porPlano.get(item.plano) || 0) + 1));
+    registrosMeta.forEach(item => porPlano.set(item.plano, (porPlano.get(item.plano) || 0) + 1));
     const listaPlanos = [...porPlano.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
     const nomeMes = periodo.mesNome || new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
     const formatoReais = valor => `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -5738,7 +5750,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     const anterior = contagemPeriodo(Math.max(1, diasNoMes - 13), Math.max(0, diasNoMes - 7));
     const variacaoRecente = anterior > 0 ? Math.round((recente - anterior) / anterior * 100) : null;
     const indicadores = [
-      { nome: 'Meta de vendas', resultado: `${formatoInteiro(totalVendas)} de ${formatoInteiro(metaVendas)} vendas`, percentual: metaVendas > 0 ? Math.round(totalVendas / metaVendas * 100) : null, referencia: 'Meta mensal individual' },
+      { nome: 'Meta individual de vendas', resultado: `${formatoInteiro(vendasContabilizadasMeta)} de ${formatoInteiro(metaVendas)} vendas`, percentual: metaVendas > 0 ? Math.round(vendasContabilizadasMeta / metaVendas * 100) : null, referencia: 'Somente vendas elegíveis para este perfil' },
       { nome: 'Ticket médio', resultado: formatoReais(ticket), percentual: referencia > 0 ? Math.round(ticket / referencia * 100) : null, referencia: 'Referência regional = 100%' },
       { nome: 'Ativações recentes', resultado: anterior > 0 ? `${recente} nos últimos 7 dias · ${anterior} nos 7 anteriores` : `${recente} nos últimos 7 dias`, percentual: variacaoRecente, referencia: 'Comparação pela data de ativação' },
     ];
@@ -5821,9 +5833,9 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     y += 29;
     y = tituloSecao('Resumo do período', y);
     const kpis = [
-      { label: 'VENDAS ATIVADAS', value: formatoInteiro(totalVendas), sub: `${diasComAtivacao} dias com ativações` },
-      { label: 'VALOR VENDIDO', value: formatoReais(valorTotal), sub: 'Soma dos registros do período' },
-      { label: 'TICKET MÉDIO', value: formatoReais(ticket), sub: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência` : 'Referência indisponível' },
+      { label: 'VENDAS REGISTRADAS', value: formatoInteiro(totalVendas), sub: `${formatoInteiro(vendasContabilizadasMeta)} contam para sua meta` },
+      { label: 'VALOR TOTAL REGISTRADO', value: formatoReais(valorTotal), sub: 'Inclui vendas dentro e fora da regional' },
+      { label: 'TICKET MÉDIO DA META', value: formatoReais(ticket), sub: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência` : 'Referência indisponível' },
       externo
         ? { label: 'DIAS COM ATIVAÇÕES', value: formatoInteiro(diasComAtivacao), sub: 'Dias do mês com vendas ativadas' }
         : { label: 'RENOVAÇÕES', value: formatoInteiro(renovacoes), sub: metaRenovacaoM1 > 0 ? `${Math.round(renovacoes / metaRenovacaoM1 * 100)}% da meta M1` : 'Registros do mês' },
@@ -5837,23 +5849,43 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8); doc.setTextColor(...muted); doc.text(doc.splitTextToSize(item.sub, cardW - 6).slice(0, 2), x + 3, y + 20);
     });
     y += 34;
+    y = tituloSecao('Origem das vendas e contagem da meta', y);
+    const origemRows = [
+      ['Da própria regional', contagemOrigem.propria_regional, 'Sim'],
+      ['Da própria regional, para outra filial', contagemOrigem.outra_regional_destino, externo ? 'Não' : 'Sim'],
+      ['Fora da regional / originada em outra regional', contagemOrigem.fora_filial + contagemOrigem.outra_regional_origem, externo ? 'Não' : 'Sim'],
+      ['Origem ou destino sem identificação', contagemOrigem.origem_indefinida, externo ? 'Não' : 'Sim'],
+      ['Total de vendas registradas', totalVendas, '—'],
+      ['Total contabilizado na meta individual', vendasContabilizadasMeta, '—'],
+    ];
+    doc.autoTable({ startY: y, theme: 'grid', head: [['Origem', 'Vendas', 'Conta para a meta?']], body: origemRows,
+      margin: { left: 16, right: 16 }, styles: { fontSize: 7, cellPadding: 1.8, textColor: tinta },
+      headStyles: { fillColor: azul, textColor: [255, 255, 255] },
+      columnStyles: { 0: { cellWidth: 104 }, 1: { cellWidth: 28, halign: 'center' }, 2: { cellWidth: 54, halign: 'center' } },
+    });
+    y = doc.lastAutoTable.finalY + 3;
+    textoQuebrado(externo
+      ? 'Para vendedor externo, a meta considera apenas vendas sem marcação de fora da filial, com origem e destino na própria regional. As demais aparecem no total, mas ficam fora da meta individual.'
+      : 'Para vendedor interno, todas as vendas atribuídas ao perfil entram na meta, inclusive vendas para outra filial e vendas marcadas fora da filial.',
+    16, y + 1, 178, 6.5);
+    y += 9;
     y = tituloSecao(mesEncerrado || periodoFechado ? 'Metas de vendas do mês encerrado' : externo ? 'Sua meta do mês' : 'Etapas das metas de vendas', y);
     if (metasEtapas.length) {
       const etapasW = 178 / metasEtapas.length;
       metasEtapas.forEach((etapa, index) => {
         const x = 16 + index * etapasW;
-        const pct = etapa.meta > 0 ? Math.min(100, totalVendas / etapa.meta * 100) : 0;
-        const faltam = Math.max(0, etapa.meta - totalVendas);
+        const pct = etapa.meta > 0 ? Math.min(100, vendasContabilizadasMeta / etapa.meta * 100) : 0;
+        const faltam = Math.max(0, etapa.meta - vendasContabilizadasMeta);
         doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul); doc.text(etapa.nome, x, y);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-        doc.text(`${formatoInteiro(Math.min(totalVendas, etapa.meta))} de ${formatoInteiro(etapa.meta)} vendas`, x, y + 6);
+        doc.text(`${formatoInteiro(Math.min(vendasContabilizadasMeta, etapa.meta))} de ${formatoInteiro(etapa.meta)} vendas`, x, y + 6);
         doc.setDrawColor(...line); doc.setFillColor(...line); doc.roundedRect(x, y + 9, etapasW - 6, 3, 1.5, 1.5, 'F');
         if (pct > 0) { doc.setFillColor(...ciano); doc.roundedRect(x, y + 9, Math.max(2, (etapasW - 6) * pct / 100), 3, 1.5, 1.5, 'F'); }
         const nomeEtapaCurto = etapa.nome.split(' · ')[0];
         const textoEtapa = mesEncerrado || periodoFechado
           ? faltam
             ? (externo ? `${formatoInteiro(faltam)} abaixo da meta` : `${formatoInteiro(faltam)} abaixo de ${nomeEtapaCurto}`)
-            : `${nomeEtapaCurto} ${totalVendas > etapa.meta ? 'superada' : 'alcançada'}`
+            : `${nomeEtapaCurto} ${vendasContabilizadasMeta > etapa.meta ? 'superada' : 'alcançada'}`
           : faltam ? `Faltam ${formatoInteiro(faltam)}` : 'Meta atingida';
         doc.text(textoEtapa, x, y + 18);
       });
@@ -5864,9 +5896,9 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     doc.addPage();
     cabecalho('Como seu mês aconteceu', `Ativações, produtos e indicadores comerciais${periodoFechado ? '' : ' · PRÉVIA'}`);
     y = 54;
-    y = tituloSecao('Ativações por dia', y);
+    y = tituloSecao('Vendas que contam para a meta · por dia', y);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-    doc.text(`Total: ${formatoInteiro(totalVendas)} ativações · contagem pela data de ativação, não pelo início da negociação.`, 16, y);
+    doc.text(`Total: ${formatoInteiro(vendasContabilizadasMeta)} vendas elegíveis · contagem pela data de ativação.`, 16, y);
     y += 5;
     const chartX = 19, chartW = 174, chartH = 45, chartY = y + chartH;
     const maxDia = Math.max(1, ...vendasPorDia.map(item => item.qtd));
@@ -5896,10 +5928,10 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       doc.text(String(item.dia), centro, chartY + 4, { align: 'center' });
     });
     y = chartY + 12;
-    y = tituloSecao('Planos vendidos', y);
+    y = tituloSecao('Planos que contam para a meta', y);
     if (listaPlanos.length) {
       doc.autoTable({ startY: y, theme: 'striped', head: [['Produto cadastrado', 'Quantidade', 'Participação']],
-        body: listaPlanos.map(([produto, quantidade]) => [produto, quantidade, totalVendas ? `${Math.round(quantidade / totalVendas * 100)}%` : '0%']),
+        body: listaPlanos.map(([produto, quantidade]) => [produto, quantidade, vendasContabilizadasMeta ? `${Math.round(quantidade / vendasContabilizadasMeta * 100)}%` : '0%']),
         margin: { left: 16, right: 16 }, styles: { fontSize: 8, cellPadding: 2.2, textColor: tinta },
         headStyles: { fillColor: azul, textColor: [255, 255, 255] }, alternateRowStyles: { fillColor: [246, 250, 252] },
         columnStyles: { 0: { cellWidth: 112 }, 1: { cellWidth: 30, halign: 'center' }, 2: { cellWidth: 36, halign: 'right' } },
@@ -5920,24 +5952,25 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     textoQuebrado('Os indicadores mostram seu próprio período. A variação semanal usa ativações registradas e serve como referência de evolução, não como exigência de fechar vendas todos os dias.', 16, y, 178, 7);
 
     doc.addPage();
-    cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros ativos${periodoFechado ? ' considerados no fechamento' : ' · prévia sujeita a atualização'}`);
+    cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros · ${formatoInteiro(vendasContabilizadasMeta)} contam para a meta${periodoFechado ? '' : ' · prévia sujeita a atualização'}`);
     const semCliente = registros.filter(item => !item.cliente).length;
     if (semCliente) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(164, 91, 30);
       doc.text(`${semCliente} registro(s) sem nome de cliente cadastrado aparecem identificados na tabela.`, 16, 51);
     }
     doc.autoTable({ startY: semCliente ? 57 : 51, theme: 'grid',
-      head: [['Data de ativação', 'Cliente', 'Plano', 'Valor']],
+      head: [['Data de ativação', 'Cliente', 'Plano', 'Valor', 'Na meta?']],
       body: registros.length ? registros.map(item => [
         item.data ? item.data.split('-').reverse().join('/') : '—',
         item.cliente || 'Cliente não identificado',
-        `${item.plano}${item.foraFilial ? ' · venda em outra filial' : ''}`,
+        `${item.plano}${item.origemTipo === 'outra_regional_destino' ? ' · para outra filial' : item.origemTipo === 'fora_filial' ? ' · fora da filial' : item.origemTipo === 'outra_regional_origem' ? ' · origem em outra filial' : ''}`,
         formatoReais(item.valor),
-      ]) : [['—', 'Nenhuma venda ativa registrada', '—', formatoReais(0)]],
+        item.contaMeta ? 'Sim' : 'Não',
+      ]) : [['—', 'Nenhuma venda ativa registrada', '—', formatoReais(0), '—']],
       margin: { left: 16, right: 16, top: 23, bottom: 18 },
       styles: { fontSize: 7, cellPadding: 2.1, overflow: 'linebreak', valign: 'middle', textColor: tinta },
       headStyles: { fillColor: azul, textColor: [255, 255, 255] }, alternateRowStyles: { fillColor: [246, 250, 252] },
-      columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 51 }, 2: { cellWidth: 78 }, 3: { cellWidth: 24, halign: 'right' } },
+      columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 44 }, 2: { cellWidth: 66 }, 3: { cellWidth: 25, halign: 'right' }, 4: { cellWidth: 21, halign: 'center' } },
       rowPageBreak: 'avoid',
       willDrawPage: data => {
         if (data.pageNumber > 1) {
