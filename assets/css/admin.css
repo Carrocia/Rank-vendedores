@@ -788,8 +788,28 @@ body.an-modal-open { overflow:hidden; }
 
 #sec-config-metas > .adm-form-card { padding:22px 24px 8px; }
 #sec-config-metas > .adm-form-card .adm-subsection-title { display:flex; align-items:center; gap:8px; }
-#sec-config-metas > .adm-form-card .adm-table-wrap { max-height:520px; overflow:auto; }
-#sec-config-metas > .adm-form-card .adm-table { min-width:720px; }
+#sec-config-metas .cfg-filial-target-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+#sec-config-metas .cfg-filial-target-group { min-width:0; padding:16px; border:1px solid var(--border); border-radius:13px; background:rgba(255,255,255,.018); }
+#sec-config-metas .cfg-filial-target-group h3 { margin:0 0 14px; color:var(--heading-color); font-size:.84rem; }
+#sec-config-metas .cfg-filial-target-fields { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+#sec-config-metas .cfg-filial-target-fields input { width:100%; }
+#sec-config-metas .cfg-meta-type-intro { margin:-4px 0 18px; max-width:900px; line-height:1.55; }
+#sec-config-metas .cfg-meta-type-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+#sec-config-metas .cfg-meta-type-card { min-width:0; padding:20px; border:1px solid var(--border); border-radius:15px; background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); }
+#sec-config-metas .cfg-meta-type-card.is-interno { border-top:2px solid rgba(var(--accent-rgb),.72); }
+#sec-config-metas .cfg-meta-type-card.is-externo { border-top:2px solid rgba(var(--accent2-rgb),.72); }
+#sec-config-metas .cfg-meta-type-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+#sec-config-metas .cfg-meta-type-kicker { color:var(--accent); font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+#sec-config-metas .cfg-meta-type-card.is-externo .cfg-meta-type-kicker { color:var(--accent2); }
+#sec-config-metas .cfg-meta-type-heading h3 { margin:4px 0 0; color:var(--heading-color); font-size:1rem; }
+#sec-config-metas .cfg-meta-type-count { flex:0 0 auto; padding:6px 10px; border:1px solid var(--border); border-radius:999px; color:var(--text-muted); font-size:.72rem; }
+#sec-config-metas .cfg-meta-type-count strong { color:var(--heading-color); }
+#sec-config-metas .cfg-meta-type-description { min-height:2.7em; margin:12px 0 16px; color:var(--text-muted); font-size:.8rem; line-height:1.5; }
+#sec-config-metas .cfg-meta-type-fields { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+#sec-config-metas .cfg-meta-type-card .adm-field label { min-height:2em; }
+#sec-config-metas .cfg-meta-type-card input { width:100%; }
+#sec-config-metas .cfg-meta-externo-field { max-width:320px; }
+#sec-config-metas .cfg-meta-type-note { margin:16px 0 10px; }
 #sec-config-metas > .adm-form-actions { padding:14px 18px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
 #sec-admins > .adm-table-wrap .adm-table,
 #sec-filiais-admin > .adm-table-wrap .adm-table { min-width:680px; }
@@ -845,6 +865,11 @@ body.an-modal-open { overflow:hidden; }
 .adm-celebration-actions .adm-btn:disabled { opacity: .58; cursor: progress; transform: none; }
 @media (max-width: 640px) {
   #sec-metas .adm-metas-grid { grid-template-columns:1fr; gap:12px; }
+  #sec-config-metas .cfg-filial-target-groups { grid-template-columns:1fr; gap:12px; }
+  #sec-config-metas .cfg-filial-target-fields { grid-template-columns:1fr; }
+  #sec-config-metas .cfg-meta-type-grid { grid-template-columns:1fr; }
+  #sec-config-metas .cfg-meta-type-fields { grid-template-columns:1fr; }
+  #sec-config-metas .cfg-meta-type-description { min-height:0; }
   .adm-vendedores-bulk-export { align-items: stretch; flex-direction: column; }
   .adm-vendedores-bulk-export button { justify-content: center; width: 100%; }
   .adm-celebration-actions { flex-direction: column; }

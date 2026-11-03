@@ -6306,34 +6306,26 @@ function renderConfigMetas(cache) {
   setVal('cfg-cancel-m1', rc ? rc.cancelamentos_m1 : null);
   setVal('cfg-cancel-atual', rc ? rc.cancelamentos_atual : null);
 
-  // Metas individuais — uma linha por vendedor ativo
-  const tbody = document.getElementById('cfg-metas-vendedores-tbody');
-  if (!tbody) return;
+  // Metas padrão por tipo: preenche uma única vez cada grupo e aplica
+  // depois o mesmo valor a todos os vendedores ativos daquele tipo.
   const vendedores = cache.vendedores || [];
   const metas = cache.metas || [];
-  if (vendedores.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Nenhum vendedor carregado.</td></tr>';
-    const renovTbody = document.getElementById('cfg-metas-renov-vendedores-tbody');
-    if (renovTbody) renovTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Nenhum vendedor carregado.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = vendedores.map(v => {
-    const linha = metas.find(m => m.vendedor_id === v.id) || {};
-    const isInterno = v.tipo === 'interno';
-    const tipoLabel = isInterno
-      ? '<span class="adm-badge interno">Interno</span>'
-      : '<span class="adm-badge externo">Externo</span>';
-    const inputM = (campo, valor) => `<input type="number" min="0" step="1" style="width:90px;" id="cfg-meta-${v.id}-${campo}" value="${valor ?? ''}" placeholder="—" ${isInterno ? '' : 'disabled'}>`;
-    const inputVendas = `<input type="number" min="0" step="1" style="width:110px;" id="cfg-meta-${v.id}-vendas" value="${linha.meta_vendas ?? ''}" placeholder="—" ${isInterno ? 'disabled' : ''}>`;
-    return `<tr data-vendedor-id="${v.id}" data-tipo="${v.tipo}">
-      <td><strong>${v.nome}</strong></td>
-      <td>${tipoLabel}</td>
-      <td>${inputM('m3', linha.meta_m3)}</td>
-      <td>${inputM('m2', linha.meta_m2)}</td>
-      <td>${inputM('m1', linha.meta_m1)}</td>
-      <td>${inputVendas}</td>
-    </tr>`;
-  }).join('');
+  const internos = vendedores.filter(v => v.tipo === 'interno' && v.ativo !== false);
+  const externos = vendedores.filter(v => v.tipo === 'externo' && v.ativo !== false);
+  const setCount = (id, count) => { const el = document.getElementById(id); if (el) el.textContent = String(count); };
+  setCount('cfg-meta-interno-count', internos.length);
+  setCount('cfg-meta-externo-count', externos.length);
+  const obterMetaPadrao = (grupo, campo) => {
+    const valores = grupo.map(v => metas.find(m => String(m.vendedor_id) === String(v.id))?.[campo]).filter(v => v !== null && v !== undefined && v !== '');
+    if (!valores.length) return null;
+    const frequencias = new Map();
+    valores.forEach(valor => frequencias.set(String(valor), (frequencias.get(String(valor)) || 0) + 1));
+    return valores.find(valor => frequencias.get(String(valor)) === Math.max(...frequencias.values()));
+  };
+  setVal('cfg-meta-interno-m3', obterMetaPadrao(internos, 'meta_m3'));
+  setVal('cfg-meta-interno-m2', obterMetaPadrao(internos, 'meta_m2'));
+  setVal('cfg-meta-interno-m1', obterMetaPadrao(internos, 'meta_m1'));
+  setVal('cfg-meta-externo-vendas', obterMetaPadrao(externos, 'meta_vendas'));
 
   const renovTbody = document.getElementById('cfg-metas-renov-vendedores-tbody');
   if (renovTbody) {
@@ -6477,25 +6469,18 @@ async function handleSalvarMetas() {
     mensal_m3: leiturasFilial[3].valor, mensal_m2: leiturasFilial[4].valor, mensal_m1: leiturasFilial[5].valor,
   };
 
-  // 2) Ler e validar as metas individuais de cada vendedor
-  const linhas = document.querySelectorAll('#cfg-metas-vendedores-tbody tr[data-vendedor-id]');
-  const vendedoresParaSalvar = [];
-  for (const linha of linhas) {
-    const vendedor_id = linha.dataset.vendedorId;
-    const tipo = linha.dataset.tipo;
-    const m3 = lerMetaInput(`cfg-meta-${vendedor_id}-m3`);
-    const m2 = lerMetaInput(`cfg-meta-${vendedor_id}-m2`);
-    const m1 = lerMetaInput(`cfg-meta-${vendedor_id}-m1`);
-    const vendas = lerMetaInput(`cfg-meta-${vendedor_id}-vendas`);
-    if (!m3.ok || !m2.ok || !m1.ok || !vendas.ok) {
-      showToast('Preencha as metas individuais com números inteiros maiores ou iguais a zero (ou deixe em branco).', 'warning');
-      return;
-    }
-    const dados = tipo === 'interno'
-      ? { meta_m3: m3.valor, meta_m2: m2.valor, meta_m1: m1.valor }
-      : { meta_vendas: vendas.valor };
-    vendedoresParaSalvar.push({ vendedor_id, dados });
+  // 2) Ler uma vez as metas padrão de cada tipo e replicar para o grupo.
+  const camposPorTipo = ['cfg-meta-interno-m3', 'cfg-meta-interno-m2', 'cfg-meta-interno-m1', 'cfg-meta-externo-vendas'];
+  const metasTipo = camposPorTipo.map(lerMetaInput);
+  if (metasTipo.some(item => !item.ok)) {
+    showToast('Informe metas por tipo como números inteiros maiores ou iguais a zero (ou deixe em branco).', 'warning');
+    return;
   }
+  const internos = (_cache.vendedores || []).filter(v => v.tipo === 'interno' && v.ativo !== false);
+  const externos = (_cache.vendedores || []).filter(v => v.tipo === 'externo' && v.ativo !== false);
+  const vendedoresParaSalvar = [];
+  internos.forEach(v => vendedoresParaSalvar.push({ vendedor_id: v.id, dados: { meta_m3: metasTipo[0].valor, meta_m2: metasTipo[1].valor, meta_m1: metasTipo[2].valor } }));
+  externos.forEach(v => vendedoresParaSalvar.push({ vendedor_id: v.id, dados: { meta_vendas: metasTipo[3].valor } }));
 
   // 3) Cancelamentos permanecem na configuração de metas.
   const camposRenovCancel = ['cfg-cancel-m3', 'cfg-cancel-m2', 'cfg-cancel-m1', 'cfg-cancel-atual'];
@@ -6517,7 +6502,7 @@ async function handleSalvarMetas() {
     await salvarMetaRenovCancel(dadosRenovCancel);
     // 5) Só depois de tudo salvo com sucesso, recarregar os dados reais
     await carregarDados();
-    showToast('Metas atualizadas com sucesso!', 'success');
+    showToast(`Metas aplicadas a ${internos.length} interno(s) e ${externos.length} externo(s).`, 'success');
   } catch (err) {
     console.error('[handleSalvarMetas]', err);
     showToast((err && err.message) ? err.message : 'Não foi possível salvar as metas. Verifique a conexão com o Supabase.', 'error');

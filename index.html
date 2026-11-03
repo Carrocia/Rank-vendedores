@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261027-ranking-sem-volume-individual-v1">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261027-ficha-xp-v1">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261103-metas-por-tipo-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -310,7 +310,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261027-ranking-sem-volume-individual-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261027-analitica-ficha-v5"></script>
+  <script src="assets/js/supabase-admin.js?v=20261103-metas-por-tipo-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1601,34 +1601,50 @@
         <!-- ── CONFIGURAÇÃO DE METAS ────────────────────────────── -->
         <section class="adm-section" id="sec-config-metas">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg></span>Configuração de Metas</div>
-          <p class="adm-page-lead">Defina metas da filial, metas individuais e limites de cancelamento para o período indicado.</p>
+          <p class="adm-page-lead">Configure metas da filial, metas padrão para cada tipo de vendedor e limites de cancelamento.</p>
 
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Meta da Filial — <span id="cfg-fil-periodo">mês/ano atual</span></div>
-            <div class="adm-form-grid">
-              <div class="adm-field"><label>Meta Semanal — M3</label><input type="number" id="cfg-fil-sem-m3" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Meta Semanal — M2</label><input type="number" id="cfg-fil-sem-m2" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Meta Semanal — M1</label><input type="number" id="cfg-fil-sem-m1" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Meta Mensal — M3</label><input type="number" id="cfg-fil-mes-m3" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Meta Mensal — M2</label><input type="number" id="cfg-fil-mes-m2" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Meta Mensal — M1</label><input type="number" id="cfg-fil-mes-m1" min="0" step="1" placeholder="Não configurado"></div>
+            <div class="cfg-filial-target-groups">
+              <div class="cfg-filial-target-group">
+                <h3>Metas semanais</h3>
+                <div class="adm-form-grid cfg-filial-target-fields">
+                  <div class="adm-field"><label for="cfg-fil-sem-m3">M3 · Base</label><input type="number" id="cfg-fil-sem-m3" min="0" step="1" placeholder="Não configurado"></div>
+                  <div class="adm-field"><label for="cfg-fil-sem-m2">M2 · Intermediária</label><input type="number" id="cfg-fil-sem-m2" min="0" step="1" placeholder="Não configurado"></div>
+                  <div class="adm-field"><label for="cfg-fil-sem-m1">M1 · Avançada</label><input type="number" id="cfg-fil-sem-m1" min="0" step="1" placeholder="Não configurado"></div>
+                </div>
+              </div>
+              <div class="cfg-filial-target-group">
+                <h3>Metas mensais</h3>
+                <div class="adm-form-grid cfg-filial-target-fields">
+                  <div class="adm-field"><label for="cfg-fil-mes-m3">M3 · Base</label><input type="number" id="cfg-fil-mes-m3" min="0" step="1" placeholder="Não configurado"></div>
+                  <div class="adm-field"><label for="cfg-fil-mes-m2">M2 · Intermediária</label><input type="number" id="cfg-fil-mes-m2" min="0" step="1" placeholder="Não configurado"></div>
+                  <div class="adm-field"><label for="cfg-fil-mes-m1">M1 · Avançada</label><input type="number" id="cfg-fil-mes-m1" min="0" step="1" placeholder="Não configurado"></div>
+                </div>
+              </div>
             </div>
           </div>
 
           <div class="adm-form-card">
-            <div class="adm-section-title adm-subsection-title">Metas Individuais — <span id="cfg-ind-periodo">mês/ano atual</span></div>
-            <div class="adm-table-wrap">
-              <table class="adm-table">
-                <thead>
-                  <tr><th>Vendedor</th><th>Tipo</th><th>M3</th><th>M2</th><th>M1</th><th>Meta de Vendas</th></tr>
-                </thead>
-                <tbody id="cfg-metas-vendedores-tbody">
-                  <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:70%;"></span></td><td><span class="skeleton-bar" style="width:55%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td></tr>
-                  <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:60%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td></tr>
-                  <tr class="skeleton-row"><td><span class="skeleton-bar" style="width:65%;"></span></td><td><span class="skeleton-bar" style="width:55%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:40%;"></span></td><td><span class="skeleton-bar" style="width:50%;"></span></td></tr>
-                </tbody>
-              </table>
+            <div class="adm-section-title adm-subsection-title">Metas padrão por tipo — <span id="cfg-ind-periodo">mês/ano atual</span></div>
+            <p class="adm-muted-copy cfg-meta-type-intro">Informe cada meta uma vez. Ao salvar, o sistema aplica os valores a todos os vendedores daquele tipo nesta filial e neste período.</p>
+            <div class="cfg-meta-type-grid">
+              <section class="cfg-meta-type-card is-interno" aria-labelledby="cfg-meta-interno-title">
+                <div class="cfg-meta-type-heading"><div><span class="cfg-meta-type-kicker">Equipe interna</span><h3 id="cfg-meta-interno-title">Vendedores internos</h3></div><span class="cfg-meta-type-count"><strong id="cfg-meta-interno-count">—</strong> pessoas</span></div>
+                <p class="cfg-meta-type-description">Metas de vendas por nível, compartilhadas por toda a equipe interna.</p>
+                <div class="adm-form-grid cfg-meta-type-fields">
+                  <div class="adm-field"><label for="cfg-meta-interno-m3">M3 · Base</label><input type="number" min="0" step="1" id="cfg-meta-interno-m3" placeholder="Não configurado"></div>
+                  <div class="adm-field"><label for="cfg-meta-interno-m2">M2 · Intermediária</label><input type="number" min="0" step="1" id="cfg-meta-interno-m2" placeholder="Não configurado"></div>
+                  <div class="adm-field"><label for="cfg-meta-interno-m1">M1 · Avançada</label><input type="number" min="0" step="1" id="cfg-meta-interno-m1" placeholder="Não configurado"></div>
+                </div>
+              </section>
+              <section class="cfg-meta-type-card is-externo" aria-labelledby="cfg-meta-externo-title">
+                <div class="cfg-meta-type-heading"><div><span class="cfg-meta-type-kicker">Equipe externa</span><h3 id="cfg-meta-externo-title">Vendedores externos</h3></div><span class="cfg-meta-type-count"><strong id="cfg-meta-externo-count">—</strong> pessoas</span></div>
+                <p class="cfg-meta-type-description">Uma meta mensal de vendas, compartilhada por toda a equipe externa.</p>
+                <div class="adm-field cfg-meta-externo-field"><label for="cfg-meta-externo-vendas">Meta mensal de vendas</label><input type="number" min="0" step="1" id="cfg-meta-externo-vendas" placeholder="Não configurado"></div>
+              </section>
             </div>
+            <p class="adm-callout cfg-meta-type-note"><strong>Ao salvar, a meta padrão substitui os valores anteriores</strong> de todos os vendedores daquele tipo. Metas individuais de renovação continuam configuradas separadamente.</p>
           </div>
 
           <div class="adm-form-card">
