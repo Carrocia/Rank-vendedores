@@ -310,7 +310,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261027-ranking-sem-volume-individual-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261103-ficha-limpa-v1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261103-relatorio-individual-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -976,6 +976,7 @@
                     <button type="button" class="adm-btn adm-btn-primary" id="an-gerar-btn" onclick="gerarFichaAnalitica(event)">
                       <svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg>Gerar ficha PNG
                     </button>
+                    <button type="button" class="adm-btn" id="an-relatorio-pdf-btn" onclick="gerarRelatorioAnaliticoPDF(event)" disabled title="Disponível depois do fechamento do mês">Relatório do mês em PDF</button>
                     <button type="button" class="adm-btn an-close-btn" data-an-close aria-label="Fechar perfil">Fechar</button>
                   </div>
                 </header>

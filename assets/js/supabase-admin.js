@@ -5349,6 +5349,11 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const profile = document.getElementById('an-profile');
   const modal = document.getElementById('an-profile-modal');
   if (!selecionado || !profile || !modal) return;
+  const botaoRelatorioPDF = document.getElementById('an-relatorio-pdf-btn');
+  if (botaoRelatorioPDF) {
+    botaoRelatorioPDF.disabled = true;
+    botaoRelatorioPDF.title = 'Disponível depois do fechamento do mês.';
+  }
   const { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo } = selecionado;
   const externo = tipo === 'externo';
   const vendas = Number(rank?.vendas ?? vendedor.vendas ?? 0);
@@ -5442,6 +5447,13 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     if (xpError) throw xpError;
     const xp = Array.isArray(xpData) ? xpData[0] : xpData;
     if (!xp) throw new Error('O cálculo não retornou dados para este colaborador.');
+    if (botaoRelatorioPDF) {
+      const fechado = String(xp.status || '').toLowerCase() === 'fechado';
+      botaoRelatorioPDF.disabled = !fechado;
+      botaoRelatorioPDF.title = fechado
+        ? 'Baixar o relatório individual deste mês fechado.'
+        : 'O PDF fica disponível depois de consolidar o mês.';
+    }
     const formatarXP = valor => `${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} XP`;
     const xpPeriodoEl = document.getElementById('an-xp-period-total');
     if (xpTotal) xpTotal.textContent = formatarXP(xp.xp_acumulado_carreira);
@@ -5490,6 +5502,10 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     document.getElementById('an-rank-carreira-status').textContent = 'XP de carreira indisponível.';
     if (xpBreakdown) xpBreakdown.replaceChildren();
     if (xpNote) xpNote.textContent = `${erroXP}${dicaXP} O rank mensal continua usando a regra atual.`;
+    if (botaoRelatorioPDF) {
+      botaoRelatorioPDF.disabled = true;
+      botaoRelatorioPDF.title = 'Não foi possível confirmar o fechamento deste mês.';
+    }
   }
   if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
   await preencherFichaAnalitica(selecionado, carreira, detalhesVendas, leituraXPmensal, mesAnalitico);
@@ -5570,6 +5586,317 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   document.getElementById('an-card-plan-note').textContent = document.getElementById('an-plan-note')?.textContent || '';
   document.getElementById('an-card-generated').textContent = new Date().toLocaleDateString('pt-BR');
   if (rankMensal) card.dataset.rank = String(rankMensal).toLowerCase(); else delete card.dataset.rank;
+}
+
+async function gerarRelatorioAnaliticoPDF(evt) {
+  const selecionado = obterPerfilAnaliticoSelecionado();
+  const botao = evt?.currentTarget || document.getElementById('an-relatorio-pdf-btn');
+  if (!selecionado || !botao) return;
+  const textoOriginal = botao.textContent;
+  let fechamentoConfirmado = document.getElementById('an-xp-period-status')?.textContent?.startsWith('Mês fechado') || false;
+  botao.disabled = true;
+  botao.textContent = 'Preparando relatório…';
+  try {
+    if (typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF) await carregarLibsAdmin();
+    if (typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF) throw new Error('A biblioteca de PDF não carregou. Tente novamente.');
+
+    const contexto = contextoAnaliticaSelecionado();
+    const periodo = contexto.mes || {};
+    const mes = Number(periodo.mesNum || periodo.mes);
+    const ano = Number(periodo.ano);
+    if (!Number.isInteger(mes) || mes < 1 || mes > 12 || !Number.isInteger(ano)) throw new Error('Não consegui identificar o mês do relatório.');
+
+    const { data: xpData, error: xpError } = await window._supabase.rpc('calcular_xp_comercial_vendedor', {
+      p_vendedor_id: Number(selecionado.cadastro?.id || selecionado.vendedor.id), p_mes: mes, p_ano: ano,
+    });
+    if (xpError) throw xpError;
+    const xp = Array.isArray(xpData) ? xpData[0] : xpData;
+    const fechado = String(xp?.status || '').toLowerCase() === 'fechado';
+    fechamentoConfirmado = fechado;
+    if (!fechado) {
+      botao.disabled = true;
+      botao.title = 'O PDF fica disponível depois de consolidar o mês.';
+      throw new Error('Este mês ainda não foi fechado. O relatório ficará disponível após a consolidação do rank e do XP.');
+    }
+
+    const { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo } = selecionado;
+    const externo = tipo === 'externo';
+    const vendedorId = String(cadastro?.id || vendedor.id);
+    const vendasDiretas = (contexto.cache.vendasMes || []).filter(item => {
+      if (String(item.vendedor_id) !== vendedorId) return false;
+      return !(externo && (item.fora_filial === true || isVendaRecebidaDeOutraFilial(item)));
+    });
+    const vendasFora = !externo
+      ? await loadVendasEquipeEmOutrasFiliais(periodo.de, periodo.ate)
+      : [];
+    const vendasOrigem = vendasFora.filter(item => String(item.vendedor_id) === vendedorId);
+    const registros = [...vendasDiretas, ...vendasOrigem].map(item => {
+      const planoId = String(item.plano_id ?? item.planos?.id ?? '').trim();
+      const plano = (contexto.cache.planos || []).find(p => String(p.id) === planoId);
+      const nomeBase = plano?.nome || item.plano_nome || item.planos?.nome || 'Plano sem identificação';
+      const velocidade = Number(plano?.velocidade_mb || item.planos?.velocidade_mb)
+        || Number(String(nomeBase).match(/(\d+(?:[.,]\d+)?)\s*(?:mbps|mb)\b/i)?.[1]?.replace(',', '.'))
+        || null;
+      const nomePlano = plano?.eh_servico || item.planos?.eh_servico
+        ? nomeBase
+        : `${nomeBase}${velocidade && !new RegExp(`${velocidade}\\s*(?:mbps|mb)`, 'i').test(nomeBase) ? ` ${velocidade} Mbps` : ''}`;
+      return {
+        data: dataLocalStr(item.data_venda),
+        cliente: String(item.cliente || extrairClienteDeObservacao(item.observacao) || '').trim(),
+        plano: nomePlano,
+        valor: Number(item.valor_total ?? item.valor_plano ?? item.valor ?? 0),
+        foraFilial: vendasOrigem.includes(item),
+      };
+    }).sort((a, b) => a.data.localeCompare(b.data));
+    const totalVendas = registros.length;
+    const valorTotal = registros.reduce((total, item) => total + item.valor, 0);
+    const vendasFechadas = Number(rank?.vendas ?? totalVendas);
+    const valorFechado = Number(rank?.valor_vendas ?? valorTotal);
+    if (vendasFechadas !== totalVendas || Math.abs(valorFechado - valorTotal) > 0.02) {
+      throw new Error(`Os registros detalhados somam ${totalVendas} venda(s), mas o fechamento registra ${vendasFechadas}. Para evitar um PDF divergente, confira os dados deste mês antes de compartilhar.`);
+    }
+    const ticket = totalVendas ? valorTotal / totalVendas : 0;
+    const renovacoes = Number(renovacao?.quantidade ?? rank?.renovacoes ?? 0);
+    const referencia = Number(rank?.ticket_referencia || 0);
+    const diasNoMes = new Date(ano, mes, 0).getDate();
+    const vendasPorDia = Array.from({ length: diasNoMes }, (_, i) => ({ dia: i + 1, qtd: 0 }));
+    registros.forEach(item => {
+      const dia = Number(item.data.slice(8, 10));
+      if (dia > 0 && dia <= diasNoMes) vendasPorDia[dia - 1].qtd++;
+    });
+    const diasComAtivacao = vendasPorDia.filter(item => item.qtd > 0).length;
+    const porPlano = new Map();
+    registros.forEach(item => porPlano.set(item.plano, (porPlano.get(item.plano) || 0) + 1));
+    const listaPlanos = [...porPlano.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+    const nomeMes = periodo.mesNome || new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+    const formatoReais = valor => `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatoInteiro = valor => Number(valor || 0).toLocaleString('pt-BR');
+    const metaVendas = externo
+      ? Number(metasVendas.meta_vendas ?? rank?.meta_vendas ?? vendedor.meta ?? 0)
+      : Number(metasVendas.meta_m1 ?? rank?.meta_vendas ?? 0);
+    const metasEtapas = externo
+      ? (metaVendas > 0 ? [{ nome: 'Meta individual', meta: metaVendas }] : [])
+      : [
+        { nome: 'M3 · etapa inicial', meta: Number(metasVendas.meta_m3 || 0) },
+        { nome: 'M2 · etapa intermediária', meta: Number(metasVendas.meta_m2 || 0) },
+        { nome: 'M1 · etapa avançada', meta: Number(metasVendas.meta_m1 || metaVendas) },
+      ].filter(item => item.meta > 0);
+    const etapaAtual = metasEtapas.find(item => totalVendas < item.meta);
+    const metaRenovacaoM1 = Number(metasRenovacao.meta_m1 || 0);
+
+    const contagemPeriodo = (inicioDia, fimDia) => vendasPorDia.reduce((total, item) =>
+      total + (item.dia >= inicioDia && item.dia <= fimDia ? item.qtd : 0), 0);
+    const recente = contagemPeriodo(Math.max(1, diasNoMes - 6), diasNoMes);
+    const anterior = contagemPeriodo(Math.max(1, diasNoMes - 13), Math.max(0, diasNoMes - 7));
+    const variacaoRecente = anterior > 0 ? Math.round((recente - anterior) / anterior * 100) : null;
+    const indicadores = [
+      { nome: 'Meta de vendas', resultado: `${formatoInteiro(totalVendas)} de ${formatoInteiro(metaVendas)} vendas`, percentual: metaVendas > 0 ? Math.round(totalVendas / metaVendas * 100) : null, referencia: 'Meta mensal individual' },
+      { nome: 'Ticket médio', resultado: formatoReais(ticket), percentual: referencia > 0 ? Math.round(ticket / referencia * 100) : null, referencia: 'Referência regional = 100%' },
+      { nome: 'Ativações recentes', resultado: anterior > 0 ? `${recente} nos últimos 7 dias · ${anterior} nos 7 anteriores` : `${recente} nos últimos 7 dias`, percentual: variacaoRecente, referencia: 'Comparação pela data de ativação' },
+    ];
+    if (!externo) indicadores.push({
+      nome: 'Renovações', resultado: metaRenovacaoM1 > 0 ? `${formatoInteiro(renovacoes)} de ${formatoInteiro(metaRenovacaoM1)}` : `${formatoInteiro(renovacoes)} registradas`,
+      percentual: metaRenovacaoM1 > 0 ? Math.round(renovacoes / metaRenovacaoM1 * 100) : null,
+      referencia: metaRenovacaoM1 > 0 ? 'Meta individual M1' : 'Sem meta de renovação cadastrada',
+    });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    if (typeof doc.autoTable !== 'function') throw new Error('A tabela do PDF não carregou. Tente novamente.');
+    const azul = [14, 69, 111], ciano = [20, 177, 213], tinta = [24, 43, 63], muted = [94, 113, 132], pale = [237, 246, 251], line = [211, 225, 235];
+    const cabecalho = (titulo, subtitulo = '') => {
+      doc.setFillColor(...ciano); doc.rect(0, 0, 210, 3, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...azul); doc.text('UNI INTERNET', 16, 15);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text('RELATÓRIO INDIVIDUAL DE DESEMPENHO', 16, 20);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...tinta); doc.text(titulo, 16, 32);
+      if (subtitulo) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...muted); doc.text(subtitulo, 16, 39); }
+      doc.setDrawColor(...line); doc.line(16, 44, 194, 44);
+    };
+    const tituloSecao = (texto, y) => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...azul); doc.text(texto.toUpperCase(), 16, y);
+      return y + 6;
+    };
+    const textoQuebrado = (texto, x, y, largura, tamanho = 8) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(tamanho); doc.setTextColor(...muted);
+      const linhas = doc.splitTextToSize(texto, largura); doc.text(linhas, x, y); return linhas.length;
+    };
+    const rankMensal = rank?.elegivel ? String(rank.rank_mensal || 'Sem rank') : 'Sem rank';
+    const xpCarreira = Number(xp.xp_acumulado_carreira || 0);
+    const carreira = calcularProgressoFaixa(xpCarreira, FAIXAS_XP_CARREIRA);
+    const proximoRank = carreira.proxima?.rank || 'Rank máximo';
+    const saldoRank = carreira.proxima ? `${formatoInteiro(carreira.faltam)} XP para ${proximoRank}` : 'Último rank alcançado';
+    const geradoEm = new Date().toLocaleDateString('pt-BR');
+    const filial = window.FILIAL_ATUAL?.nome || 'Filial selecionada';
+
+    doc.setProperties({ title: `Relatório analítico — ${vendedor.nome} — ${nomeMes} ${ano}`, subject: 'Desempenho comercial individual', author: 'UNI Internet' });
+    cabecalho('Seu mês em análise', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · FECHAMENTO CONCLUÍDO`);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...tinta); doc.text(String(vendedor.nome || 'Colaborador'), 16, 56);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...muted);
+    doc.text(`${externo ? 'Vendedor externo' : 'Vendedor interno'} · ${filial}`, 16, 62);
+    doc.text(`Gerado em ${geradoEm}`, 194, 62, { align: 'right' });
+
+    let y = 72;
+    const rankCards = [
+      { x: 16, label: 'RANK DO MÊS', value: rankMensal, sub: 'Classificação deste período' },
+      { x: 107, label: 'RANK DE CARREIRA', value: carreira.atual?.rank || 'D', sub: `Próximo: ${proximoRank}` },
+    ];
+    rankCards.forEach(item => {
+      doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(item.x, y, 87, 25, 3, 3, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text(item.label, item.x + 5, y + 7);
+      doc.setFontSize(16); doc.setTextColor(...azul); doc.text(item.value, item.x + 5, y + 17);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text(item.sub, item.x + 29, y + 17);
+    });
+    y += 34;
+    y = tituloSecao('Resumo do período', y);
+    const kpis = [
+      { label: 'VENDAS ATIVADAS', value: formatoInteiro(totalVendas), sub: `${diasComAtivacao} dias com ativações` },
+      { label: 'VALOR VENDIDO', value: formatoReais(valorTotal), sub: 'Soma dos registros do período' },
+      { label: 'TICKET MÉDIO', value: formatoReais(ticket), sub: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência` : 'Referência indisponível' },
+      externo
+        ? { label: 'XP NO PERÍODO', value: `${formatoInteiro(xp.xp_total_periodo)} XP`, sub: saldoRank }
+        : { label: 'RENOVAÇÕES', value: formatoInteiro(renovacoes), sub: metaRenovacaoM1 > 0 ? `${Math.round(renovacoes / metaRenovacaoM1 * 100)}% da meta M1` : 'Registros do mês' },
+    ];
+    const gap = 3, cardW = (178 - gap * 3) / 4;
+    kpis.forEach((item, index) => {
+      const x = 16 + index * (cardW + gap);
+      doc.setFillColor(248, 251, 253); doc.setDrawColor(...line); doc.roundedRect(x, y, cardW, 25, 2, 2, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.2); doc.setTextColor(...muted); doc.text(item.label, x + 3, y + 6);
+      doc.setFontSize(item.value.length > 15 ? 9 : 12); doc.setTextColor(...tinta); doc.text(item.value, x + 3, y + 14);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8); doc.setTextColor(...muted); doc.text(doc.splitTextToSize(item.sub, cardW - 6).slice(0, 2), x + 3, y + 20);
+    });
+    y += 34;
+    y = tituloSecao(externo ? 'Sua meta do mês' : 'Etapas das metas de vendas', y);
+    if (metasEtapas.length) {
+      const etapasW = 178 / metasEtapas.length;
+      metasEtapas.forEach((etapa, index) => {
+        const x = 16 + index * etapasW;
+        const pct = etapa.meta > 0 ? Math.min(100, totalVendas / etapa.meta * 100) : 0;
+        const faltam = Math.max(0, etapa.meta - totalVendas);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul); doc.text(etapa.nome, x, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+        doc.text(`${formatoInteiro(Math.min(totalVendas, etapa.meta))} de ${formatoInteiro(etapa.meta)} vendas`, x, y + 6);
+        doc.setDrawColor(...line); doc.setFillColor(...line); doc.roundedRect(x, y + 9, etapasW - 6, 3, 1.5, 1.5, 'F');
+        if (pct > 0) { doc.setFillColor(...ciano); doc.roundedRect(x, y + 9, Math.max(2, (etapasW - 6) * pct / 100), 3, 1.5, 1.5, 'F'); }
+        doc.text(faltam ? `Faltam ${formatoInteiro(faltam)}` : 'Etapa concluída', x, y + 18);
+      });
+      y += 28;
+    } else {
+      textoQuebrado('As metas deste período não estão configuradas.', 16, y + 3, 178); y += 13;
+    }
+    y = tituloSecao('Sua leitura do mês', y + 1);
+    const melhor = indicadores.filter(item => item.percentual != null).sort((a, b) => b.percentual - a.percentual)[0];
+    const forca = melhor && melhor.percentual >= 100
+      ? `${melhor.nome}: ${melhor.resultado} (${melhor.percentual}% da referência).`
+      : `${formatoInteiro(totalVendas)} vendas ativadas no período, com ticket médio de ${formatoReais(ticket)}.`;
+    const proximoPasso = !metasEtapas.length
+      ? 'As metas deste período ainda não estão configuradas.'
+      : etapaAtual
+      ? `Você está avançando em ${etapaAtual.nome}. Faltam ${formatoInteiro(Math.max(0, etapaAtual.meta - totalVendas))} vendas para concluir esta etapa.`
+      : 'Todas as etapas de vendas configuradas para este mês foram concluídas.';
+    const caixasLeitura = [
+      { titulo: melhor && melhor.percentual >= 100 ? 'DESTAQUE DO PERÍODO' : 'SEU RESULTADO', texto: forca, fill: [235, 249, 247], stroke: [167, 222, 211] },
+      { titulo: 'PRÓXIMO PASSO', texto: proximoPasso, fill: [239, 247, 252], stroke: [184, 215, 232] },
+    ];
+    caixasLeitura.forEach((item, index) => {
+      const x = 16 + index * 91;
+      doc.setFillColor(...item.fill); doc.setDrawColor(...item.stroke); doc.roundedRect(x, y, 87, 27, 3, 3, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...azul); doc.text(item.titulo, x + 4, y + 7);
+      textoQuebrado(item.texto, x + 4, y + 13, 79, 7);
+    });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
+    doc.text(`XP no período: ${formatoInteiro(xp.xp_total_periodo)} · ${saldoRank}.`, 16, y + 34);
+
+    doc.addPage();
+    cabecalho('Como seu mês aconteceu', 'Ativações, produtos e indicadores comerciais');
+    y = 54;
+    y = tituloSecao('Ativações por dia', y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+    doc.text(`Total: ${formatoInteiro(totalVendas)} ativações · contagem pela data de ativação, não pelo início da negociação.`, 16, y);
+    y += 5;
+    const chartX = 17, chartW = 176, chartH = 33, chartY = y + chartH;
+    const maxDia = Math.max(1, ...vendasPorDia.map(item => item.qtd));
+    const slot = chartW / diasNoMes;
+    doc.setDrawColor(...line); doc.line(chartX, chartY, chartX + chartW, chartY);
+    vendasPorDia.forEach(item => {
+      const height = item.qtd ? Math.max(1.2, item.qtd / maxDia * chartH) : 0;
+      const barW = Math.max(1, slot * .58);
+      if (height) { doc.setFillColor(...ciano); doc.roundedRect(chartX + (item.dia - 1) * slot + (slot - barW) / 2, chartY - height, barW, height, .5, .5, 'F'); }
+      if (item.dia === 1 || item.dia % 5 === 0 || item.dia === diasNoMes) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(...muted);
+        doc.text(String(item.dia), chartX + (item.dia - .5) * slot, chartY + 4, { align: 'center' });
+      }
+    });
+    y = chartY + 13;
+    y = tituloSecao('Planos vendidos', y);
+    if (listaPlanos.length) {
+      doc.autoTable({ startY: y, theme: 'striped', head: [['Produto cadastrado', 'Quantidade', 'Participação']],
+        body: listaPlanos.map(([produto, quantidade]) => [produto, quantidade, totalVendas ? `${Math.round(quantidade / totalVendas * 100)}%` : '0%']),
+        margin: { left: 16, right: 16 }, styles: { fontSize: 8, cellPadding: 2.2, textColor: tinta },
+        headStyles: { fillColor: azul, textColor: [255, 255, 255] }, alternateRowStyles: { fillColor: [246, 250, 252] },
+        columnStyles: { 0: { cellWidth: 112 }, 1: { cellWidth: 30, halign: 'center' }, 2: { cellWidth: 36, halign: 'right' } },
+      });
+      y = doc.lastAutoTable.finalY + 10;
+    } else {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...muted); doc.text('Nenhum plano identificado neste período.', 16, y + 4); y += 12;
+    }
+    if (y > 223) { doc.addPage(); cabecalho('Seus indicadores comerciais', 'Leitura individual do período fechado'); y = 54; }
+    y = tituloSecao('Atributos comerciais', y);
+    doc.autoTable({ startY: y, theme: 'grid', head: [['Indicador', 'Seu resultado', 'Referência']],
+      body: indicadores.map(item => [item.nome, `${item.resultado}${item.percentual == null ? '' : ` · ${item.percentual}%`}`, item.referencia]),
+      margin: { left: 16, right: 16 }, styles: { fontSize: 7.5, cellPadding: 2.5, textColor: tinta },
+      headStyles: { fillColor: azul, textColor: [255, 255, 255] },
+      columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 83 }, 2: { cellWidth: 53 } },
+    });
+    y = doc.lastAutoTable.finalY + 7;
+    textoQuebrado('Os indicadores mostram seu próprio período. A variação semanal usa ativações registradas e serve como referência de evolução, não como exigência de fechar vendas todos os dias.', 16, y, 178, 7);
+
+    doc.addPage();
+    cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros ativos considerados no fechamento`);
+    const semCliente = registros.filter(item => !item.cliente).length;
+    if (semCliente) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(164, 91, 30);
+      doc.text(`${semCliente} registro(s) sem nome de cliente cadastrado aparecem identificados na tabela.`, 16, 51);
+    }
+    doc.autoTable({ startY: semCliente ? 57 : 51, theme: 'grid',
+      head: [['Data de ativação', 'Cliente', 'Plano', 'Valor']],
+      body: registros.length ? registros.map(item => [
+        item.data ? item.data.split('-').reverse().join('/') : '—',
+        item.cliente || 'Cliente não identificado',
+        `${item.plano}${item.foraFilial ? ' · venda em outra filial' : ''}`,
+        formatoReais(item.valor),
+      ]) : [['—', 'Nenhuma venda ativa registrada', '—', formatoReais(0)]],
+      margin: { left: 16, right: 16, top: 23, bottom: 18 },
+      styles: { fontSize: 7, cellPadding: 2.1, overflow: 'linebreak', valign: 'middle', textColor: tinta },
+      headStyles: { fillColor: azul, textColor: [255, 255, 255] }, alternateRowStyles: { fillColor: [246, 250, 252] },
+      columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 51 }, 2: { cellWidth: 78 }, 3: { cellWidth: 24, halign: 'right' } },
+      rowPageBreak: 'avoid',
+      willDrawPage: data => {
+        if (data.pageNumber > 1) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul); doc.text('SUAS VENDAS NO PERÍODO · CONTINUAÇÃO', 16, 12);
+          doc.setDrawColor(...line); doc.line(16, 16, 194, 16);
+        }
+      },
+    });
+    const totalPaginas = doc.internal.getNumberOfPages();
+    for (let pagina = 1; pagina <= totalPaginas; pagina++) {
+      doc.setPage(pagina); doc.setDrawColor(...line); doc.line(16, 286, 194, 286);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
+      doc.text('UNI INTERNET · VENDAS ATIVADAS NO PERÍODO · CANCELAMENTOS NÃO COMPÕEM OS TOTAIS', 16, 291);
+      doc.text(`${pagina} / ${totalPaginas}`, 194, 291, { align: 'right' });
+    }
+    const seguro = String(vendedor.nome || 'colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+    doc.save(`Relatorio_Analitico_${seguro}_${ano}-${String(mes).padStart(2, '0')}.pdf`);
+    showToast('Relatório analítico individual gerado.', 'success');
+  } catch (error) {
+    console.error('[gerarRelatorioAnaliticoPDF]', error);
+    showToast(error.message || 'Não foi possível gerar o relatório analítico.', 'error');
+  } finally {
+    botao.disabled = !fechamentoConfirmado;
+    botao.title = fechamentoConfirmado
+      ? 'Baixar o relatório individual deste mês fechado.'
+      : 'Disponível depois do fechamento do mês.';
+    botao.textContent = textoOriginal;
+  }
 }
 
 async function gerarFichaAnalitica(evt) {
