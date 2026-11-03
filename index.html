@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261103-metas-por-etapa-v1">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261103-ficha-limpa-v1">
 </head>
 <body>
 
@@ -310,7 +310,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261027-ranking-sem-volume-individual-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261103-metas-por-etapa-v1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261103-ficha-limpa-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1855,19 +1855,17 @@
         <article><span>TICKET MÉDIO</span><strong id="an-card-ticket">—</strong><small id="an-card-ticket-note">—</small></article>
       </section>
       <section class="an-card-xp">
-        <div class="an-card-section-heading"><div><small>PROGRESSÃO COMERCIAL</small><strong>Jornada de ranks</strong></div><b id="an-card-xp-total">—</b></div>
+        <div class="an-card-section-heading"><div><small>PROGRESSÃO COMERCIAL</small><strong>XP gerado no período</strong></div><b id="an-card-xp-total">—</b></div>
         <div class="an-card-progressions">
           <article class="an-card-progression an-card-progression-career"><div><span>RANK DE CARREIRA · XP ACUMULADO</span><b id="an-card-career-progress-rank">—</b></div><strong id="an-card-career-progress-value">—</strong><div class="an-card-progress-track" role="progressbar" aria-label="Progresso para o próximo rank de carreira" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="an-card-career-progress-bar"></i></div><small id="an-card-career-progress-note">—</small></article>
-          <article class="an-card-progression an-card-progression-month"><div><span>RANK DO MÊS · PONTOS DO PERÍODO</span><b id="an-card-month-progress-rank">—</b></div><strong id="an-card-month-progress-value">—</strong><div class="an-card-progress-track" role="progressbar" aria-label="Progresso para o próximo rank mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="an-card-month-progress-bar"></i></div><small id="an-card-month-progress-note">—</small></article>
         </div>
         <p id="an-card-xp-note">O XP acompanha as vendas e renovações registradas.</p>
       </section>
       <section class="an-card-panel an-card-attributes">
-        <div class="an-card-section-heading"><div><small>METAS DE VENDAS</small><strong>Etapas do mês</strong></div><span id="an-card-goal-order">Progresso em etapas</span></div>
+        <div class="an-card-section-heading"><div><small>METAS DE VENDAS</small><strong>Etapas do mês</strong></div></div>
         <div id="an-card-attributes-list" class="an-card-goal-progression"></div>
       </section>
       <section class="an-card-panel an-card-top"><div class="an-card-section-heading"><div><small>PLANOS VENDIDOS</small><strong>Produtos deste mês</strong></div><b id="an-card-plan-total">—</b></div><p id="an-card-plan-note" class="an-card-muted"></p><div id="an-card-top-plans"></div></section>
-      <section class="an-card-highlights" id="an-card-highlights-section" hidden><div class="an-card-section-heading"><div><small>LEITURA DO DESEMPENHO</small><strong>Conquistas e próximo passo</strong></div></div><div id="an-card-insights"></div></section>
       <footer class="an-card-footer"><span>UNI INTERNET · DADOS DE DESEMPENHO INDIVIDUAL</span><span id="an-card-generated">—</span></footer>
     </div>
   </article>

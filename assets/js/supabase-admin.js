@@ -4704,12 +4704,6 @@ const FAIXAS_XP_CARREIRA = [
   { rank: 'B', minimo: 9000 }, { rank: 'A', minimo: 18000 },
   { rank: 'S', minimo: 30000 }, { rank: 'SS', minimo: 45000 },
 ];
-const FAIXAS_PONTOS_MENSAIS = [
-  { rank: 'D', minimo: 20 }, { rank: 'C', minimo: 35 },
-  { rank: 'B', minimo: 50 }, { rank: 'A', minimo: 65 },
-  { rank: 'S', minimo: 80 },
-];
-
 function calcularProgressoFaixa(valor, faixas) {
   const total = Math.max(0, Number(valor) || 0);
   const indiceAtual = faixas.reduce((indice, faixa, i) => total >= faixa.minimo ? i : indice, -1);
@@ -4748,16 +4742,17 @@ function preencherBarraProgressoFicha(prefixo, progresso, unidade) {
     nota.textContent = 'Dados insuficientes para calcular este progresso.';
     return;
   }
-  rank.textContent = progresso.atual ? `Rank ${progresso.atual.rank}` : `A caminho do rank ${progresso.proxima?.rank || '—'}`;
+  rank.textContent = prefixo === 'career'
+    ? (progresso.proxima ? `Próximo ${progresso.proxima.rank}` : `Rank ${progresso.atual?.rank || '—'}`)
+    : progresso.atual ? `Rank ${progresso.atual.rank}` : `A caminho do rank ${progresso.proxima?.rank || '—'}`;
   valor.textContent = progresso.maximo
     ? `${formatarPontosRank(progresso.valor)}+ ${unidade}`
     : `${formatarPontosRank(progresso.dentroFaixa)} / ${formatarPontosRank(progresso.tamanhoFaixa)} ${unidade}${prefixo === 'month' ? ' nesta faixa' : ''}`;
   barra.style.width = `${progresso.percentual}%`;
   trilho.setAttribute('aria-valuenow', String(Math.round(progresso.percentual)));
-  const totalCarreira = prefixo === 'career' ? ` · ${formatarPontosRank(progresso.valor)} XP acumulados` : '';
   nota.textContent = progresso.maximo
-    ? `Rank ${progresso.atual?.rank || ''} alcançado · faixa máxima atual${totalCarreira}.`
-    : `Próximo rank ${progresso.proxima.rank} · faltam ${formatarPontosRank(progresso.faltam)} ${unidade}${totalCarreira}.`;
+    ? `Rank ${progresso.atual?.rank || ''} alcançado · faixa máxima atual.`
+    : `Próximo rank ${progresso.proxima.rank} · faltam ${formatarPontosRank(progresso.faltam)} ${unidade}.`;
 }
 
 function formatarValorAnalitica(valor) {
@@ -4974,8 +4969,6 @@ function renderizarProgressoMetasFicha(vendas, metas = {}, tipo = 'interno', met
     ].filter(etapa => etapa.meta > 0);
   const container = document.getElementById('an-card-attributes-list');
   if (!container) return;
-  const orderLabel = document.getElementById('an-card-goal-order');
-  if (orderLabel) orderLabel.textContent = externo ? 'Meta individual do período' : 'Ordem de conquista · M3 → M2 → M1';
   if (!etapas.length) {
     container.innerHTML = '<p class="an-card-goal-empty">As metas deste período ainda não foram configuradas.</p>';
     return;
@@ -4983,11 +4976,10 @@ function renderizarProgressoMetasFicha(vendas, metas = {}, tipo = 'interno', met
   const indiceAtual = etapas.findIndex(etapa => atual < etapa.meta);
   const etapaAtual = indiceAtual < 0 ? null : etapas[indiceAtual];
   const percentualAtual = etapaAtual ? Math.min(100, Math.round(atual / etapaAtual.meta * 100)) : 100;
-  const restanteAtual = etapaAtual ? Math.max(0, etapaAtual.meta - atual) : 0;
   const resumo = externo
-    ? (etapaAtual ? `Você alcançou ${percentualAtual}% da meta. Faltam ${restanteAtual} venda${restanteAtual === 1 ? '' : 's'} para concluir.` : 'Meta individual concluída. Parabéns pelo resultado!')
+    ? (etapaAtual ? 'Sua meta individual está em andamento.' : 'Meta individual concluída. Parabéns pelo resultado!')
     : (etapaAtual
-      ? `${indiceAtual > 0 ? `${etapas[indiceAtual - 1].nome} concluída. ` : ''}Você está em ${percentualAtual}% da ${etapaAtual.nome}. Faltam ${restanteAtual} venda${restanteAtual === 1 ? '' : 's'} para alcançar ${etapaAtual.nome}.`
+      ? `${etapaAtual.nome} é sua etapa atual. Conclua esta meta para avançar à próxima.`
       : 'M3, M2 e M1 concluídas. Você alcançou todas as etapas do mês!');
   const linhas = etapas.map((etapa, indice) => {
     const concluida = atual >= etapa.meta;
@@ -5033,20 +5025,6 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   const somarPeriodo = (inicio, fim) => [...vendasPorDia.entries()].reduce((total, [data, qtd]) => total + (data >= dataChave(inicio) && data <= dataChave(fim) ? qtd : 0), 0);
   const semanaAtual = somarPeriodo(inicioAtual, fimAtual);
   const semanaAnterior = somarPeriodo(inicioAnterior, fimAnterior);
-  const pontosVendas = metaVendas > 0 ? Math.min(50, Math.max(0, vendas / metaVendas * 50)) : 0;
-  const pontosTicket = referencia > 0
-    ? Math.min(20, Math.max(0, (ticket / referencia - 0.8) * 66.6666667))
-    : 0;
-  const pontosEvolucao = semanaAnterior > 0
-    ? Math.min(20, Math.max(0, (semanaAtual - semanaAnterior) / semanaAnterior * 40))
-    : semanaAtual > 0 ? 8 : 0;
-  const pontosRenovacao = externo ? 0 : Math.min(10, Math.max(0, renovacoes * 0.5));
-  const pontosMensais = metaVendas > 0
-    ? Math.min(100, pontosVendas + pontosTicket + pontosEvolucao + pontosRenovacao)
-    : null;
-  const progressoMensal = pontosMensais == null
-    ? null
-    : calcularProgressoFaixa(pontosMensais, FAIXAS_PONTOS_MENSAIS);
   const janelaAnteriorCompleta = inicioAnterior >= new Date(ano, mesNum - 1, 1);
   const evolucao = janelaAnteriorCompleta && semanaAnterior > 0 ? Math.round((semanaAtual - semanaAnterior) / semanaAnterior * 100) : null;
   const detalheSemanal = !janelaAnteriorCompleta
@@ -5124,10 +5102,8 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
     }
     insights.innerHTML = cards.join('');
     insights.hidden = cards.length === 0;
-    const cardHighlights = document.getElementById('an-card-highlights-section');
-    if (cardHighlights) cardHighlights.hidden = cards.length === 0;
   }
-  return { progressoMensal, pontosMensais, semanaAtual, semanaAnterior };
+  return { semanaAtual, semanaAnterior };
 }
 
 function renderizarGraficosPerfilAnalitico(selecionado) {
@@ -5548,9 +5524,9 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   if (carreira.rankCarreira) rankCarreiraImg.src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   else rankCarreiraImg.removeAttribute('src');
   document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira || '—';
-  document.getElementById('an-card-career-note').textContent = carreira.progressoXP?.proxima
-    ? `${formatarPontosRank(carreira.progressoXP.valor)} XP acumulados · próximo rank ${carreira.progressoXP.proxima.rank}`
-    : carreira.progressoXP ? `Rank ${carreira.rankCarreira} · faixa máxima alcançada` : 'Progresso de carreira indisponível.';
+  document.getElementById('an-card-career-note').textContent = carreira.progressoXP
+    ? 'Classificação definida pelo XP acumulado de carreira.'
+    : 'Progresso de carreira indisponível.';
   const periodo = mesAnalitico?.mesNome ? `${mesAnalitico.mesNome} ${mesAnalitico.ano || ''}` : CONFIG.mesReferencia || '';
   const nomeMesAnalitico = mesAnalitico?.mesNome || 'período';
   document.getElementById('an-card-period').textContent = periodo;
@@ -5578,21 +5554,13 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
     const conteudo = seletor ? origem.querySelector(seletor) : origem;
     destino.replaceChildren(...Array.from(conteudo?.childNodes || []).map(no => no.cloneNode(true)));
   };
-  copiarConteudo('an-attributes-insights', 'an-card-insights');
-  const insightsOrigem = document.getElementById('an-attributes-insights');
-  const insightsCard = document.getElementById('an-card-highlights-section');
-  if (insightsCard) insightsCard.hidden = !insightsOrigem || insightsOrigem.hidden || !insightsOrigem.childElementCount;
   copiarConteudo('an-top-plans', 'an-card-top-plans');
   document.getElementById('an-card-plan-total').textContent = document.getElementById('an-plan-total')?.textContent || '—';
   const xpPeriod = document.getElementById('an-xp-period-total')?.textContent || '—';
   document.getElementById('an-card-xp-total').textContent = xpPeriod === '—' ? '— XP' : `+${xpPeriod}`;
   const statusXP = document.getElementById('an-xp-period-status')?.textContent || 'Estimativa do período';
-  document.getElementById('an-card-xp-note').textContent = `${statusXP.split(' · ')[0]}. Os pontos do rank mensal são recalculados durante o mês; cancelamentos ou ajustes podem reduzi-los.`;
+  document.getElementById('an-card-xp-note').textContent = `${statusXP.split(' · ')[0]}. O XP pode mudar com novas vendas, cancelamentos ou ajustes até o fechamento.`;
   preencherBarraProgressoFicha('career', carreira.progressoXP, 'XP');
-  preencherBarraProgressoFicha('month', leituraXPmensal?.progressoMensal, 'pontos');
-  if (!leituraXPmensal?.progressoMensal) {
-    document.getElementById('an-card-month-progress-note').textContent = 'Meta de vendas necessária para calcular o progresso mensal.';
-  }
   document.getElementById('an-card-plan-note').textContent = document.getElementById('an-plan-note')?.textContent || '';
   document.getElementById('an-card-generated').textContent = new Date().toLocaleDateString('pt-BR');
   if (rankMensal) card.dataset.rank = String(rankMensal).toLowerCase(); else delete card.dataset.rank;
