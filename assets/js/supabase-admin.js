@@ -6014,8 +6014,40 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...muted);
     doc.text('Realizado da regional comparado às metas e aos limites definidos para o período.', 16, 55);
     const metasVendasFilial = [metasFilial.mensal_m3, metasFilial.mensal_m2, metasFilial.mensal_m1];
+    const progressoMetaVendasFilial = calcularProgressoEtapasMeta(vendasFilial, [
+      { label: 'M3', meta: metasFilial.mensal_m3 },
+      { label: 'M2', meta: metasFilial.mensal_m2 },
+      { label: 'M1', meta: metasFilial.mensal_m1 },
+    ]);
     const metasRenovacaoFilialValores = [metasRenovacaoFilial.meta_m3, metasRenovacaoFilial.meta_m2, metasRenovacaoFilial.meta_m1];
     const cancelamentoFilialValores = limitesCancelamento;
+    // Faixa global de progresso: a porcentagem acompanha a próxima etapa
+    // ainda não concluída (M3 → M2 → M1), em vez de ficar presa à M1.
+    const progressX = 16, progressY = 64, progressW = 178, progressH = 34;
+    doc.setFillColor(239, 248, 253); doc.setDrawColor(...line);
+    doc.roundedRect(progressX, progressY, progressW, progressH, 2.5, 2.5, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...muted);
+    doc.text('PROGRESSO DA META MENSAL', progressX + 5, progressY + 8);
+    if (progressoMetaVendasFilial) {
+      const etapaFechada = progressoMetaVendasFilial.concluida;
+      const statusEtapa = etapaFechada
+        ? (progressoMetaVendasFilial.etapa === 'M1' ? 'M1 concluída' : 'Metas configuradas concluídas')
+        : `Etapa ${progressoMetaVendasFilial.etapa}`;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul);
+      doc.text(`${statusEtapa} · ${formatoInteiro(vendasFilial)} de ${formatoInteiro(progressoMetaVendasFilial.meta)} vendas`, progressX + 5, progressY + 17);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...ciano);
+      doc.text(`${progressoMetaVendasFilial.percentual}%`, progressX + progressW - 5, progressY + 12, { align: 'right' });
+      const barX = progressX + 5, barY = progressY + 26, barW = progressW - 10;
+      doc.setDrawColor(215, 228, 238); doc.setLineWidth(2.2); doc.line(barX, barY, barX + barW, barY);
+      if (progressoMetaVendasFilial.percentual > 0) {
+        doc.setDrawColor(...ciano); doc.line(barX, barY, barX + barW * progressoMetaVendasFilial.percentual / 100, barY);
+      }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8); doc.setTextColor(...muted);
+      doc.text(etapaFechada ? 'Todas as metas configuradas foram alcançadas.' : `Faltam ${formatoInteiro(progressoMetaVendasFilial.faltam)} vendas para atingir ${progressoMetaVendasFilial.etapa}.`, progressX + 5, progressY + 32);
+    } else {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+      doc.text('Metas M3, M2 e M1 não configuradas para este período.', progressX + 5, progressY + 21);
+    }
     const drawFilialMetric = ({ titulo, atual, unidade, metas, modo = 'meta', y: cardY }) => {
       const cardX = 16, cardW = 178, cardH = 45, resumoW = 48;
       const trilha = [222, 230, 238], neutro = [133, 151, 167];
@@ -6081,10 +6113,10 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       });
       doc.setLineWidth(.2);
     };
-    drawFilialMetric({ titulo: 'Vendas novas da filial', atual: vendasFilial, unidade: 'vendas realizadas', metas: metasVendasFilial, y: 66 });
-    drawFilialMetric({ titulo: 'Renovações da filial', atual: renovacoesFilial, unidade: 'renovações importadas', metas: metasRenovacaoFilialValores, y: 119 });
-    drawFilialMetric({ titulo: 'Cancelamentos informados', atual: cancelamentosFilial, unidade: 'limite menor é melhor', metas: cancelamentoFilialValores, modo: 'limite', y: 172 });
-    textoQuebrado('Metas de vendas e renovações: barras mostram o avanço do realizado. Cancelamentos: a barra mostra quanto do limite informado no painel ADM foi usado; ultrapassar o limite aparece em vermelho. Vendas e renovações seguem as importações registradas para esta filial no mês.', 16, 228, 178, 7);
+    drawFilialMetric({ titulo: 'Vendas novas da filial', atual: vendasFilial, unidade: 'vendas realizadas', metas: metasVendasFilial, y: 104 });
+    drawFilialMetric({ titulo: 'Renovações da filial', atual: renovacoesFilial, unidade: 'renovações importadas', metas: metasRenovacaoFilialValores, y: 156 });
+    drawFilialMetric({ titulo: 'Cancelamentos informados', atual: cancelamentosFilial, unidade: 'limite menor é melhor', metas: cancelamentoFilialValores, modo: 'limite', y: 208 });
+    textoQuebrado('Metas de vendas e renovações: barras mostram o avanço do realizado. Cancelamentos: a barra mostra quanto do limite informado no painel ADM foi usado; ultrapassar o limite aparece em vermelho. Vendas e renovações seguem as importações registradas para esta filial no mês.', 16, 262, 178, 7);
 
     doc.addPage();
     cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros · ${formatoInteiro(vendasContabilizadasMeta)} contam para a meta${periodoFechado ? '' : ' · prévia sujeita a atualização'}`);

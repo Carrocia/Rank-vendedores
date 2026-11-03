@@ -458,6 +458,36 @@ function animateCard(pct, atual, barFillEl, ringEl, barPctEl, duration = 1300) {
   requestAnimationFrame(tick);
 }
 
+// Mantém a progressão mensal na ordem das metas configuradas: M3, depois M2,
+// depois M1. Ao concluir uma etapa, a porcentagem passa a medir a próxima.
+function calcularProgressoEtapasMeta(realizado, etapas) {
+  const validas = (etapas || []).map(etapa => ({
+    label: etapa.label,
+    meta: Number(etapa.meta),
+  })).filter(etapa => Number.isFinite(etapa.meta) && etapa.meta > 0);
+  if (!validas.length) return null;
+
+  const atual = Math.max(0, Number(realizado) || 0);
+  const indice = validas.findIndex(etapa => atual < etapa.meta);
+  const etapaAtual = validas[indice < 0 ? validas.length - 1 : indice];
+  return {
+    etapa: etapaAtual.label,
+    meta: etapaAtual.meta,
+    realizado: atual,
+    faltam: Math.max(0, etapaAtual.meta - atual),
+    percentual: Math.min(100, Math.round((atual / etapaAtual.meta) * 100)),
+    concluida: indice < 0,
+  };
+}
+
+function obterProgressoMetaMensalFilial(realizado, metasFilial) {
+  return calcularProgressoEtapasMeta(realizado, [
+    { label: 'M3', meta: metasFilial?.mensal_m3 },
+    { label: 'M2', meta: metasFilial?.mensal_m2 },
+    { label: 'M1', meta: metasFilial?.mensal_m1 },
+  ]);
+}
+
 // renderWeekProgress SEMPRE recebe d real (processado a partir do
 // Supabase). Se a meta semanal não estiver cadastrada em metas_filial,
 // mostra "—" em vez de simular um número.
@@ -493,20 +523,29 @@ function renderWeekProgress(d) {
 // estiver cadastrada em metas_filial, mostra "—" em vez de simular.
 function renderMensalProgress(d) {
   const mes = d.mes;
-  const metaMensal = (d.metasFilial && d.metasFilial.mensal_m1) || null;
   const vendas = d.totalMes;
-  const faltam = metaMensal ? Math.max(0, metaMensal - vendas) : '—';
-  const pct = metaMensal ? Math.min(100, Math.round((vendas / metaMensal) * 100)) : 0;
+  const progressoMeta = obterProgressoMetaMensalFilial(vendas, d.metasFilial);
+  const metaMensal = progressoMeta?.meta || null;
+  const faltam = progressoMeta ? progressoMeta.faltam : '—';
+  const pct = progressoMeta?.percentual || 0;
   const mesNome = mes.mesNome ? (mes.mesNome.charAt(0).toUpperCase() + mes.mesNome.slice(1)) : '—';
 
   document.getElementById('metaCardTitle').textContent = 'Meta do Mês de ' + mesNome;
   document.getElementById('metaColTitle').textContent = 'Progresso do mês';
-  document.getElementById('metaSubLabel').textContent = 'vendas realizadas / meta do mês';
-  document.getElementById('metaPctLabel').textContent = 'Desempenho mensal da filial';
-  document.getElementById('metaFaltamSuffix').textContent = 'vendas para fechar o mês';
+  document.getElementById('metaSubLabel').textContent = progressoMeta
+    ? `vendas realizadas / meta ${progressoMeta.etapa}`
+    : 'vendas realizadas / meta do mês';
+  document.getElementById('metaPctLabel').textContent = progressoMeta
+    ? `Progresso da meta ${progressoMeta.etapa}`
+    : 'Meta mensal não configurada';
+  document.getElementById('metaFaltamSuffix').textContent = progressoMeta
+    ? (progressoMeta.concluida ? 'meta M1 concluída' : `vendas para atingir ${progressoMeta.etapa}`)
+    : 'vendas para fechar o mês';
   document.getElementById('metaSideBlock3').style.display = 'none';
   document.getElementById('weekDataLabel').textContent = mesNome + ' de ' + mes.ano;
-  document.getElementById('weekBarMetaCaption').textContent = metaMensal ? ('Meta: ' + metaMensal + ' vendas') : 'Meta não configurada';
+  document.getElementById('weekBarMetaCaption').textContent = progressoMeta
+    ? `Meta ${progressoMeta.etapa}: ${metaMensal} vendas`
+    : 'Metas mensais não configuradas';
   document.getElementById('weekMeta').textContent = metaMensal || '—';
   document.getElementById('weekFaltam').textContent = faltam;
   animateNumber(document.getElementById('weekAtual'), vendas, { duration: 1000 });
@@ -519,7 +558,9 @@ function renderMensalProgress(d) {
 function renderContextoCabecalho(d, periodoAtivo) {
   const mensal = periodoAtivo === 'mensal';
   const total = mensal ? d.totalMes : d.totalSemana;
-  const meta = d.metasFilial ? Number(mensal ? d.metasFilial.mensal_m1 : d.metasFilial.semanal_m1) : 0;
+  const progressoMensal = mensal ? obterProgressoMetaMensalFilial(total, d.metasFilial) : null;
+  const meta = mensal ? Number(progressoMensal?.meta || 0)
+    : (d.metasFilial ? Number(d.metasFilial.semanal_m1) : 0);
   const nomes = {
     periodo: document.getElementById('kpiPeriodoLabel'),
     meta: document.getElementById('kpiMetaLabel'),
@@ -541,9 +582,10 @@ function renderContextoCabecalho(d, periodoAtivo) {
   let resumo;
   if (meta > 0) {
     const faltam = Math.max(0, meta - total);
+    const etapa = mensal && progressoMensal ? ` ${progressoMensal.etapa}` : '';
     resumo = faltam > 0
-      ? `${mensal ? 'Neste mês' : 'Nesta semana'}, a filial está a ${faltam.toLocaleString('pt-BR')} ${faltam === 1 ? 'venda' : 'vendas'} da meta. `
-      : `${mensal ? 'Meta mensal' : 'Meta da semana'} concluída: ${total.toLocaleString('pt-BR')} vendas registradas. `;
+      ? `${mensal ? 'Neste mês' : 'Nesta semana'}, a filial está a ${faltam.toLocaleString('pt-BR')} ${faltam === 1 ? 'venda' : 'vendas'} da meta${etapa}. `
+      : `${mensal ? `Meta mensal${etapa}` : 'Meta da semana'} concluída: ${total.toLocaleString('pt-BR')} vendas registradas. `;
   } else {
     resumo = `${mensal ? 'Acompanhe o resultado do mês' : 'Acompanhe o ritmo desta semana'}: ${total.toLocaleString('pt-BR')} ${total === 1 ? 'venda registrada' : 'vendas registradas'}. `;
   }
@@ -2121,8 +2163,9 @@ function processarDadosParaRender(cache) {
     .reduce((s, v) => s + Number(v.vendas || 0), 0);
   const totalSemana = vendasSemana.length - vendasRecebidasSemana
     + vendasOutrasFiliaisSemana + vendasOrigemSemanaTotal;
-  const metaGlobal = (metasFilial && metasFilial.mensal_m1) || null; // sem fallback fictício
-  const pctMensal = metaGlobal ? Math.min(100, Math.round((totalMes / metaGlobal) * 100)) : 0;
+  const progressoMetaMensal = obterProgressoMetaMensalFilial(totalMes, metasFilial);
+  const metaGlobal = progressoMetaMensal?.meta || null; // sem fallback fictício
+  const pctMensal = progressoMetaMensal?.percentual || 0;
   // O ranking mensal também credita aos vendedores internos as vendas
   // interregionais feitas por eles (somadas em intMes acima). Use os mesmos
   // totais exibidos na classificação para que o ranking do ADM e o card
@@ -2173,7 +2216,7 @@ function processarDadosParaRender(cache) {
 
   return {
     extSem, intSem, extMes, intMes,
-    totalSemana, totalMes, pctMensal, lider,
+    totalSemana, totalMes, pctMensal, progressoMetaMensal, metaGlobal, lider,
     evolucaoSemana, vendasPorPlano,
     metasFilial, metasRenovCancel, semana, mes,
     liderExternoSem, liderInternoSem, maiorEvolucao, maiorPct,
@@ -2209,18 +2252,17 @@ function renderAdmDashboard(d) {
   const valorMes = (d.rankingMes || []).reduce((s, r) => s + Number(r.valor || 0), 0);
   setText('dash-valor', 'R$ ' + valorMes.toFixed(2).replace('.', ','));
 
-  // Meta mensal M1 real, vinda de metas_filial (já normalizada por
-  // loadMetasFilial()). Se não estiver configurada, mostra "—".
-  const metaM1 = d.metasFilial && d.metasFilial.mensal_m1;
-  setText('dash-meta-pct', metaM1 ? (d.pctMensal + '%') : '—');
-  const progresso = metaM1 ? Math.max(0, Math.min(100, Number(d.pctMensal) || 0)) : 0;
+  // Exibe a etapa mensal atual na ordem M3 → M2 → M1.
+  const etapaMeta = d.progressoMetaMensal;
+  setText('dash-meta-pct', etapaMeta ? (d.pctMensal + '%') : '—');
+  const progresso = etapaMeta ? Math.max(0, Math.min(100, Number(d.pctMensal) || 0)) : 0;
   const barraMeta = document.getElementById('dash-meta-progress');
   const progressoWrap = barraMeta?.parentElement;
   if (barraMeta) barraMeta.style.width = `${progresso}%`;
   if (progressoWrap) progressoWrap.setAttribute('aria-valuenow', String(Math.round(progresso)));
-  setText('dash-meta-summary', metaM1
-    ? `${Number(d.totalMes || 0).toLocaleString('pt-BR')} de ${Number(metaM1).toLocaleString('pt-BR')} vendas`
-    : 'Meta M1 ainda não configurada');
+  setText('dash-meta-summary', etapaMeta
+    ? `${Number(d.totalMes || 0).toLocaleString('pt-BR')} de ${Number(etapaMeta.meta).toLocaleString('pt-BR')} vendas · ${etapaMeta.concluida ? 'M1 concluída' : `${etapaMeta.etapa} atual`}`
+    : 'Metas M3, M2 e M1 ainda não configuradas');
 
   if (_dashSemanaOffset === 0) _dashSemanaSelecionada = { periodo: d.semana, dias: d.evolucaoSemana || [] };
   const semanaVisivel = _dashSemanaSelecionada || { periodo: d.semana, dias: d.evolucaoSemana || [] };
