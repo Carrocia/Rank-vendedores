@@ -5686,7 +5686,6 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         { nome: 'M2 · etapa intermediária', meta: Number(metasVendas.meta_m2 || 0) },
         { nome: 'M1 · etapa avançada', meta: Number(metasVendas.meta_m1 || metaVendas) },
       ].filter(item => item.meta > 0);
-    const etapaAtual = metasEtapas.find(item => totalVendas < item.meta);
     const metaRenovacaoM1 = Number(metasRenovacao.meta_m1 || 0);
 
     const contagemPeriodo = (inicioDia, fimDia) => vendasPorDia.reduce((total, item) =>
@@ -5730,7 +5729,6 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(tamanho); doc.setTextColor(...muted);
       const linhas = doc.splitTextToSize(texto, largura); doc.text(linhas, x, y); return linhas.length;
     };
-    const rankMensal = rank?.elegivel ? String(rank.rank_mensal || 'Sem rank') : 'Sem rank';
     const ranksDoTipo = (contexto.cache.ranksMensais || [])
       .filter(item => String(item.tipo || '').toLowerCase() === tipo)
       .sort((a, b) => Number(b.vendas || 0) - Number(a.vendas || 0)
@@ -5745,13 +5743,6 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         && Number(item.valor_vendas || 0) === valorNaPosicao).length
       : 0;
     const grupoLabel = externo ? 'vendedores externos' : 'vendedores internos';
-    const textoPosicao = posicaoMes
-      ? `${posicaoMes}º lugar em vendas${empatadosNaPosicao > 1 ? ' (empatado)' : ''} entre ${grupoLabel}`
-      : 'Colocação indisponível para este período';
-    const xpCarreira = Number(xp.xp_acumulado_carreira || 0);
-    const carreira = calcularProgressoFaixa(xpCarreira, FAIXAS_XP_CARREIRA);
-    const proximoRank = carreira.proxima?.rank || 'Rank máximo';
-    const saldoRank = carreira.proxima ? `${formatoInteiro(carreira.faltam)} XP para ${proximoRank}` : 'Último rank alcançado';
     const geradoEm = new Date().toLocaleDateString('pt-BR');
     const filial = window.FILIAL_ATUAL?.nome || 'Filial selecionada';
 
@@ -5768,29 +5759,29 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     if (!periodoFechado) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(164, 91, 30);
       doc.text(mesVigente
-        ? 'PRÉVIA: vendas, cancelamentos e XP podem mudar até o fechamento do mês.'
+        ? 'PRÉVIA: vendas e cancelamentos ainda podem ser atualizados até o fechamento do mês.'
         : 'MÊS ENCERRADO, MAS A CONSOLIDAÇÃO OFICIAL AINDA ESTÁ PENDENTE; dados podem mudar.', 16, 68);
     }
 
-    let y = 72;
-    const rankCards = [
-      { x: 16, label: 'RANK DO MÊS', value: rankMensal, sub: posicaoMes ? `${posicaoMes}º em vendas · ${externo ? 'externos' : 'internos'}` : 'Colocação indisponível' },
-      { x: 107, label: 'RANK DE CARREIRA', value: carreira.atual?.rank || 'D', sub: `Próximo: ${proximoRank}` },
-    ];
-    rankCards.forEach(item => {
-      doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(item.x, y, 87, 25, 3, 3, 'FD');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text(item.label, item.x + 5, y + 7);
-      doc.setFontSize(16); doc.setTextColor(...azul); doc.text(item.value, item.x + 5, y + 17);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text(item.sub, item.x + 29, y + 17);
-    });
-    y += 34;
+    let y = periodoFechado || mesVigente ? 72 : 77;
+    doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(16, y, 178, 21, 3, 3, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...muted);
+    doc.text(periodoFechado ? 'POSIÇÃO FINAL NO MÊS' : mesVigente ? 'POSIÇÃO ATUAL NO MÊS' : 'POSIÇÃO DO MÊS ENCERRADO', 21, y + 7);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...azul);
+    doc.text(posicaoMes ? `${posicaoMes}º lugar${empatadosNaPosicao > 1 ? ' · empatado' : ''}` : 'Sem colocação', 21, y + 16);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...muted);
+    const descricaoPosicao = posicaoMes
+      ? `em vendas entre ${ranksDoTipo.length} ${grupoLabel} da filial ${filial}`
+      : `Não foi possível calcular a colocação entre ${grupoLabel}.`;
+    doc.text(doc.splitTextToSize(descricaoPosicao, 118).slice(0, 2), 70, y + 10);
+    y += 29;
     y = tituloSecao('Resumo do período', y);
     const kpis = [
       { label: 'VENDAS ATIVADAS', value: formatoInteiro(totalVendas), sub: `${diasComAtivacao} dias com ativações` },
       { label: 'VALOR VENDIDO', value: formatoReais(valorTotal), sub: 'Soma dos registros do período' },
       { label: 'TICKET MÉDIO', value: formatoReais(ticket), sub: referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência` : 'Referência indisponível' },
       externo
-        ? { label: 'XP NO PERÍODO', value: `${formatoInteiro(xp.xp_total_periodo)} XP`, sub: saldoRank }
+        ? { label: 'DIAS COM ATIVAÇÕES', value: formatoInteiro(diasComAtivacao), sub: 'Dias do mês com vendas ativadas' }
         : { label: 'RENOVAÇÕES', value: formatoInteiro(renovacoes), sub: metaRenovacaoM1 > 0 ? `${Math.round(renovacoes / metaRenovacaoM1 * 100)}% da meta M1` : 'Registros do mês' },
     ];
     const gap = 3, cardW = (178 - gap * 3) / 4;
@@ -5802,7 +5793,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8); doc.setTextColor(...muted); doc.text(doc.splitTextToSize(item.sub, cardW - 6).slice(0, 2), x + 3, y + 20);
     });
     y += 34;
-    y = tituloSecao(externo ? 'Sua meta do mês' : 'Etapas das metas de vendas', y);
+    y = tituloSecao(mesEncerrado || periodoFechado ? 'Metas de vendas do mês encerrado' : externo ? 'Sua meta do mês' : 'Etapas das metas de vendas', y);
     if (metasEtapas.length) {
       const etapasW = 178 / metasEtapas.length;
       metasEtapas.forEach((etapa, index) => {
@@ -5814,43 +5805,18 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         doc.text(`${formatoInteiro(Math.min(totalVendas, etapa.meta))} de ${formatoInteiro(etapa.meta)} vendas`, x, y + 6);
         doc.setDrawColor(...line); doc.setFillColor(...line); doc.roundedRect(x, y + 9, etapasW - 6, 3, 1.5, 1.5, 'F');
         if (pct > 0) { doc.setFillColor(...ciano); doc.roundedRect(x, y + 9, Math.max(2, (etapasW - 6) * pct / 100), 3, 1.5, 1.5, 'F'); }
-        doc.text(faltam ? `Faltam ${formatoInteiro(faltam)}` : 'Etapa concluída', x, y + 18);
+        const nomeEtapaCurto = etapa.nome.split(' · ')[0];
+        const textoEtapa = mesEncerrado || periodoFechado
+          ? faltam
+            ? (externo ? `${formatoInteiro(faltam)} abaixo da meta` : `${formatoInteiro(faltam)} abaixo de ${nomeEtapaCurto}`)
+            : `${nomeEtapaCurto} ${totalVendas > etapa.meta ? 'superada' : 'alcançada'}`
+          : faltam ? `Faltam ${formatoInteiro(faltam)}` : 'Meta atingida';
+        doc.text(textoEtapa, x, y + 18);
       });
       y += 28;
     } else {
       textoQuebrado('As metas deste período não estão configuradas.', 16, y + 3, 178); y += 13;
     }
-    y = tituloSecao('Sua leitura do mês', y + 1);
-    const melhor = indicadores.filter(item => item.percentual != null).sort((a, b) => b.percentual - a.percentual)[0];
-    const forca = posicaoMes
-      ? periodoFechado ? `Você terminou o mês em ${textoPosicao}.`
-        : mesEncerrado ? `Sua posição no mês encerrado é parcial: ${textoPosicao}.`
-          : `Até agora, você está em ${textoPosicao}.`
-      : melhor && melhor.percentual >= 100
-        ? `${melhor.nome}: ${melhor.resultado} (${melhor.percentual}% da referência).`
-        : `${formatoInteiro(totalVendas)} vendas ativadas no período, com ticket médio de ${formatoReais(ticket)}.`;
-    const proximoPasso = !metasEtapas.length
-      ? 'As metas deste período ainda não estão configuradas.'
-      : mesEncerrado && etapaAtual
-        ? `O mês foi encerrado antes de concluir ${etapaAtual.nome}; faltaram ${formatoInteiro(Math.max(0, etapaAtual.meta - totalVendas))} vendas para essa etapa.`
-        : mesEncerrado
-          ? 'Você encerrou o mês concluindo todas as etapas de vendas configuradas.'
-      : etapaAtual
-      ? `Você está avançando em ${etapaAtual.nome}. Faltam ${formatoInteiro(Math.max(0, etapaAtual.meta - totalVendas))} vendas para concluir esta etapa.`
-      : 'Todas as etapas de vendas configuradas para este mês foram concluídas.';
-    const caixasLeitura = [
-      { titulo: posicaoMes ? 'SUA COLOCAÇÃO' : melhor && melhor.percentual >= 100 ? 'DESTAQUE DO PERÍODO' : 'SEU RESULTADO', texto: forca, fill: [235, 249, 247], stroke: [167, 222, 211] },
-      { titulo: 'PRÓXIMO PASSO', texto: proximoPasso, fill: [239, 247, 252], stroke: [184, 215, 232] },
-    ];
-    caixasLeitura.forEach((item, index) => {
-      const x = 16 + index * 91;
-      doc.setFillColor(...item.fill); doc.setDrawColor(...item.stroke); doc.roundedRect(x, y, 87, 27, 3, 3, 'FD');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...azul); doc.text(item.titulo, x + 4, y + 7);
-      textoQuebrado(item.texto, x + 4, y + 13, 79, 7);
-    });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
-    doc.text(`XP no período: ${formatoInteiro(xp.xp_total_periodo)} · ${saldoRank}.`, 16, y + 34);
-
     doc.addPage();
     cabecalho('Como seu mês aconteceu', `Ativações, produtos e indicadores comerciais${periodoFechado ? '' : ' · PRÉVIA'}`);
     y = 54;
