@@ -4902,9 +4902,14 @@ async function carregarContextoPeriodoHistorico(chave) {
     const mes = periodoMesPorChave(chave);
     const vendedores = (_cache.vendedores || []).filter(v => v.ativo !== false);
     const ids = vendedores.map(v => v.id);
-    const [vendasMes, vendasOrigemMes, metas, metasRenovacaoIndividual, renovacoesMes, ranksMensais] = await Promise.all([
+    const [vendasMes, vendasOrigemMes, vendasFiliais, metasFilial, metasRenovCancel,
+      metasRenovacaoFilial, metas, metasRenovacaoIndividual, renovacoesMes, ranksMensais] = await Promise.all([
       loadVendas(mes.de, mes.ate),
       loadVendasOrigem(mes.de, mes.ate),
+      loadVendasOutrasFiliais(mes.de, mes.ate),
+      loadMetasFilial(mes.mesNum, mes.ano),
+      loadMetasRenovCancel(mes.mesNum, mes.ano),
+      loadMetasRenovacaoFilial(mes.mesNum, mes.ano),
       loadMetas(mes.mesNum, mes.ano, ids),
       loadMetasRenovacaoIndividual(mes.mesNum, mes.ano),
       loadRenovacoesMensais(mes.mesNum, mes.ano),
@@ -4936,6 +4941,7 @@ async function carregarContextoPeriodoHistorico(chave) {
     const d = { mes, intMes, extMes };
     const cache = {
       ..._cache, mes, vendasMes: vendasMes || [], vendasOrigemMes: vendasOrigemMes || [],
+      vendasFiliais: vendasFiliais || [], metasFilial, metasRenovCancel, metasRenovacaoFilial,
       metas: metas || [], metasRenovacaoIndividual: metasRenovacaoIndividual || [],
       renovacoesMes: renovacoesMes || [], ranksMensais: ranksMensais || [],
     };
@@ -5743,6 +5749,27 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         { nome: 'M1 · etapa avançada', meta: Number(metasVendas.meta_m1 || metaVendas) },
       ].filter(item => item.meta > 0);
     const metaRenovacaoM1 = Number(metasRenovacao.meta_m1 || 0);
+    const metasRenovacaoEtapas = [
+      { nome: 'M3 · etapa inicial', meta: Number(metasRenovacao.meta_m3 || 0) },
+      { nome: 'M2 · etapa intermediária', meta: Number(metasRenovacao.meta_m2 || 0) },
+      { nome: 'M1 · etapa avançada', meta: Number(metasRenovacao.meta_m1 || 0) },
+    ].filter(etapa => etapa.meta > 0);
+    const metasFilial = contexto.cache.metasFilial || {};
+    const metasRenovCancel = contexto.cache.metasRenovCancel || {};
+    const metasRenovacaoFilial = contexto.cache.metasRenovacaoFilial || {
+      meta_m3: metasRenovCancel.renovacoes_m3,
+      meta_m2: metasRenovCancel.renovacoes_m2,
+      meta_m1: metasRenovCancel.renovacoes_m1,
+    };
+    const vendasFilial = (contexto.cache.vendasMes || []).filter(item => item.fora_filial !== true).length
+      + (contexto.cache.vendasFiliais || []).reduce((total, item) => total + Number(item.quantidade || 1), 0);
+    const renovacoesFilial = Array.isArray(contexto.cache.renovacoesMes)
+      ? contexto.cache.renovacoesMes.reduce((total, item) => total + Number(item.quantidade || 0), 0)
+      : null;
+    const cancelamentosFilial = metasRenovCancel.cancelamentos_atual == null
+      ? null : Number(metasRenovCancel.cancelamentos_atual);
+    const metasFilialRenovacao = [metasRenovacaoFilial.meta_m3, metasRenovacaoFilial.meta_m2, metasRenovacaoFilial.meta_m1];
+    const limitesCancelamento = [metasRenovCancel.cancelamentos_m3, metasRenovCancel.cancelamentos_m2, metasRenovCancel.cancelamentos_m1];
 
     const contagemPeriodo = (inicioDia, fimDia) => vendasPorDia.reduce((total, item) =>
       total + (item.dia >= inicioDia && item.dia <= fimDia ? item.qtd : 0), 0);
@@ -5855,9 +5882,11 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       ['Da própria regional, para outra filial', contagemOrigem.outra_regional_destino, externo ? 'Não' : 'Sim'],
       ['Fora da regional / originada em outra regional', contagemOrigem.fora_filial + contagemOrigem.outra_regional_origem, externo ? 'Não' : 'Sim'],
       ['Origem ou destino sem identificação', contagemOrigem.origem_indefinida, externo ? 'Não' : 'Sim'],
+    ].filter(([, quantidade]) => Number(quantidade) > 0);
+    origemRows.push(
       ['Total de vendas registradas', totalVendas, '—'],
       ['Total contabilizado na meta individual', vendasContabilizadasMeta, '—'],
-    ];
+    );
     doc.autoTable({ startY: y, theme: 'grid', head: [['Origem', 'Vendas', 'Conta para a meta?']], body: origemRows,
       margin: { left: 16, right: 16 }, styles: { fontSize: 7, cellPadding: 1.8, textColor: tinta },
       headStyles: { fillColor: azul, textColor: [255, 255, 255] },
@@ -5892,6 +5921,35 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       y += 28;
     } else {
       textoQuebrado('As metas deste período não estão configuradas.', 16, y + 3, 178); y += 13;
+    }
+    if (y > 226) { doc.addPage(); cabecalho('Suas renovações no mês', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · resultado individual`); y = 54; }
+    y = tituloSecao('Etapas individuais de renovação', y);
+    if (externo) {
+      doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(16, y, 178, 18, 2, 2, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul);
+      doc.text(`${formatoInteiro(renovacoes)} renovação(ões) registrada(s) no período`, 21, y + 7);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+      doc.text('Vendedor externo não possui metas individuais de renovação configuradas.', 21, y + 13);
+      y += 24;
+    } else if (metasRenovacaoEtapas.length) {
+      const etapasW = 178 / metasRenovacaoEtapas.length;
+      metasRenovacaoEtapas.forEach((etapa, index) => {
+        const x = 16 + index * etapasW;
+        const pct = Math.min(100, renovacoes / etapa.meta * 100);
+        const faltam = Math.max(0, etapa.meta - renovacoes);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul); doc.text(etapa.nome, x, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+        doc.text(`${formatoInteiro(Math.min(renovacoes, etapa.meta))} de ${formatoInteiro(etapa.meta)} renovações`, x, y + 6);
+        doc.setDrawColor(...line); doc.setFillColor(...line); doc.roundedRect(x, y + 9, etapasW - 6, 3, 1.5, 1.5, 'F');
+        if (pct > 0) { doc.setFillColor(...ciano); doc.roundedRect(x, y + 9, Math.max(2, (etapasW - 6) * pct / 100), 3, 1.5, 1.5, 'F'); }
+        const curto = etapa.nome.split(' · ')[0];
+        const status = faltam ? `${formatoInteiro(faltam)} para ${curto}` : `${curto} ${renovacoes > etapa.meta ? 'superada' : 'atingida'}`;
+        doc.text(status, x, y + 18);
+      });
+      y += 28;
+    } else {
+      textoQuebrado(`${formatoInteiro(renovacoes)} renovação(ões) registrada(s). As metas M3, M2 e M1 individuais não estão configuradas para este período.`, 16, y + 3, 178);
+      y += 13;
     }
     doc.addPage();
     cabecalho('Como seu mês aconteceu', `Ativações, produtos e indicadores comerciais${periodoFechado ? '' : ' · PRÉVIA'}`);
@@ -5950,6 +6008,31 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     });
     y = doc.lastAutoTable.finalY + 7;
     textoQuebrado('Os indicadores mostram seu próprio período. A variação semanal usa ativações registradas e serve como referência de evolução, não como exigência de fechar vendas todos os dias.', 16, y, 178, 7);
+
+    doc.addPage();
+    cabecalho('Resultado da filial', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · contexto coletivo do período`);
+    let yFilial = tituloSecao('Metas, renovações e cancelamentos', 55);
+    const formatarRealizado = valor => valor == null ? 'Não informado' : formatoInteiro(valor);
+    const formatarComparativo = (realizado, meta) => {
+      const limite = Number(meta);
+      if (realizado == null || !Number.isFinite(limite) || limite <= 0) return '—';
+      return `${formatoInteiro(realizado)} / ${formatoInteiro(limite)}`;
+    };
+    const metasVendasFilial = [metasFilial.mensal_m3, metasFilial.mensal_m2, metasFilial.mensal_m1];
+    const metasRenovacaoFilialValores = [metasRenovacaoFilial.meta_m3, metasRenovacaoFilial.meta_m2, metasRenovacaoFilial.meta_m1];
+    const cancelamentoFilialValores = limitesCancelamento;
+    const linhasFilial = [
+      ['Vendas novas', `${formatarRealizado(vendasFilial)} vendas`, ...metasVendasFilial.map(meta => formatarComparativo(vendasFilial, meta))],
+      ['Renovações', `${formatarRealizado(renovacoesFilial)} renovações`, ...metasRenovacaoFilialValores.map(meta => formatarComparativo(renovacoesFilial, meta))],
+      ['Cancelamentos informados', `${formatarRealizado(cancelamentosFilial)} cancelamentos`, ...cancelamentoFilialValores.map(limite => formatarComparativo(cancelamentosFilial, limite))],
+    ];
+    doc.autoTable({ startY: yFilial, theme: 'grid', head: [['Indicador da filial', 'Realizado', 'M3', 'M2', 'M1']], body: linhasFilial,
+      margin: { left: 16, right: 16 }, styles: { fontSize: 8, cellPadding: 3, textColor: tinta, valign: 'middle' },
+      headStyles: { fillColor: azul, textColor: [255, 255, 255] }, alternateRowStyles: { fillColor: [246, 250, 252] },
+      columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 35 }, 2: { cellWidth: 33.7, halign: 'center' }, 3: { cellWidth: 33.7, halign: 'center' }, 4: { cellWidth: 33.6, halign: 'center' } },
+    });
+    yFilial = doc.lastAutoTable.finalY + 8;
+    textoQuebrado('Nas colunas M3, M2 e M1, vendas e renovações mostram realizado / meta; cancelamentos mostram realizado / limite informado no painel ADM. Para cancelamentos, ficar abaixo do limite é melhor. Os números de vendas e renovações seguem as importações registradas para esta filial no mês.', 16, yFilial, 178, 8);
 
     doc.addPage();
     cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros · ${formatoInteiro(vendasContabilizadasMeta)} contam para a meta${periodoFechado ? '' : ' · prévia sujeita a atualização'}`);
