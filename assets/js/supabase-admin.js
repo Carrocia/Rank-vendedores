@@ -4962,20 +4962,45 @@ function obterPerfilAnaliticoSelecionado() {
   return { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo: vendedor.tipo || cadastro?.tipo || 'interno' };
 }
 
-function resumirMarcosMeta(atual, metas, metaM1Fallback = 0) {
-  const valorAtual = Number(atual || 0);
-  const marcos = ['m3', 'm2', 'm1'].map((chave, indice) => ({
-    nome: `M${3 - indice}`,
-    valor: Number(metas?.[`meta_${chave}`] || 0),
-  })).filter(item => item.valor > 0);
-  if (!marcos.some(item => item.nome === 'M1') && Number(metaM1Fallback) > 0) {
-    marcos.push({ nome: 'M1', valor: Number(metaM1Fallback) });
+function renderizarProgressoMetasFicha(vendas, metas = {}, tipo = 'interno', metaFallback = 0) {
+  const atual = Math.max(0, Number(vendas) || 0);
+  const externo = tipo === 'externo';
+  const etapas = externo
+    ? [{ nome: 'Meta', meta: Number(metas.meta_vendas || metaFallback || 0), descricao: 'Meta individual' }]
+    : [
+      { nome: 'M3', meta: Number(metas.meta_m3 || 0), descricao: 'Primeira etapa' },
+      { nome: 'M2', meta: Number(metas.meta_m2 || 0), descricao: 'Etapa intermediária' },
+      { nome: 'M1', meta: Number(metas.meta_m1 || 0), descricao: 'Etapa avançada' },
+    ].filter(etapa => etapa.meta > 0);
+  const container = document.getElementById('an-card-attributes-list');
+  if (!container) return;
+  const orderLabel = document.getElementById('an-card-goal-order');
+  if (orderLabel) orderLabel.textContent = externo ? 'Meta individual do período' : 'Ordem de conquista · M3 → M2 → M1';
+  if (!etapas.length) {
+    container.innerHTML = '<p class="an-card-goal-empty">As metas deste período ainda não foram configuradas.</p>';
+    return;
   }
-  if (!marcos.length) return 'Metas M3/M2/M1 não cadastradas';
-  const atingida = [...marcos].reverse().find(item => valorAtual >= item.valor);
-  const proxima = marcos.find(item => valorAtual < item.valor);
-  if (proxima) return `${atingida ? `${atingida.nome} concluída · ` : ''}próxima etapa ${proxima.nome} · faltam ${Math.max(0, proxima.valor - valorAtual)}`;
-  return `${atingida?.nome || 'Todas as etapas'} concluída`;
+  const indiceAtual = etapas.findIndex(etapa => atual < etapa.meta);
+  const etapaAtual = indiceAtual < 0 ? null : etapas[indiceAtual];
+  const percentualAtual = etapaAtual ? Math.min(100, Math.round(atual / etapaAtual.meta * 100)) : 100;
+  const restanteAtual = etapaAtual ? Math.max(0, etapaAtual.meta - atual) : 0;
+  const resumo = externo
+    ? (etapaAtual ? `Você alcançou ${percentualAtual}% da meta. Faltam ${restanteAtual} venda${restanteAtual === 1 ? '' : 's'} para concluir.` : 'Meta individual concluída. Parabéns pelo resultado!')
+    : (etapaAtual
+      ? `${indiceAtual > 0 ? `${etapas[indiceAtual - 1].nome} concluída. ` : ''}Você está em ${percentualAtual}% da ${etapaAtual.nome}. Faltam ${restanteAtual} venda${restanteAtual === 1 ? '' : 's'} para alcançar ${etapaAtual.nome}.`
+      : 'M3, M2 e M1 concluídas. Você alcançou todas as etapas do mês!');
+  const linhas = etapas.map((etapa, indice) => {
+    const concluida = atual >= etapa.meta;
+    const emAndamento = !concluida && indice === indiceAtual;
+    const percentual = concluida ? 100 : emAndamento ? Math.min(100, Math.round(atual / etapa.meta * 100)) : 0;
+    const status = concluida
+      ? 'Concluída'
+      : emAndamento
+        ? `${atual} de ${etapa.meta} · faltam ${etapa.meta - atual}`
+        : `Depois da ${etapas[indice - 1]?.nome || 'etapa anterior'}`;
+    return `<div class="an-card-goal-step${concluida ? ' is-complete' : ''}${emAndamento ? ' is-current' : ' is-locked'}"><span class="an-card-goal-badge">${concluida ? '✓' : escapeHtmlText(etapa.nome)}</span><div class="an-card-goal-copy"><div><b>${escapeHtmlText(etapa.nome)} · ${escapeHtmlText(etapa.descricao)}</b><small>${escapeHtmlText(status)}</small></div><i class="an-card-goal-track"><i style="width:${percentual}%"></i></i></div><strong>${escapeHtmlText(String(etapa.meta))} vendas</strong></div>`;
+  }).join('');
+  container.innerHTML = `<div class="an-card-goal-summary"><div><small>${etapaAtual ? `PRÓXIMA ETAPA · ${escapeHtmlText(etapaAtual.nome)}` : 'JORNADA CONCLUÍDA'}</small><strong>${escapeHtmlText(resumo)}</strong></div>${etapaAtual ? `<b>${percentualAtual}%</b>` : '<b>✓</b>'}</div><div class="an-card-goal-steps">${linhas}</div>`;
 }
 
 function renderizarAtributosComerciais(selecionado, dados, contexto) {
@@ -5041,13 +5066,7 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
   });
   const cardIndicators = document.getElementById('an-card-attributes-list');
   if (cardIndicators) {
-    const exibidos = indicadores.filter(item => ['Meta de vendas', 'Ticket médio'].includes(item.nome));
-    cardIndicators.innerHTML = exibidos.map(item => {
-      const valor = item.valor == null ? null : Math.max(0, Math.round(item.valor));
-      const width = valor == null ? 0 : Math.min(100, valor);
-      const comparacao = item.nome === 'Meta de vendas' ? 'da meta mensal' : 'da referência regional';
-      return `<li><span><b>${escapeHtmlText(item.nome)}</b><small>${valor == null ? 'Referência indisponível' : `${escapeHtmlText(item.detalhe)} · ${comparacao}`}</small><i class="an-card-indicator-track"><i style="width:${width}%"></i></i></span><strong>${valor == null ? '—' : `${valor}%`}</strong></li>`;
-    }).join('');
+    renderizarProgressoMetasFicha(vendas, contexto.metasVendas, selecionado.tipo, metaVendas);
   }
   const indicadoresRadar = indicadores.filter(item => item.valor != null && Number.isFinite(item.valor));
   const maiorValorRadar = Math.max(100, ...indicadoresRadar.map(item => item.valor));
@@ -5397,14 +5416,13 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   document.getElementById('an-rank-carreira-status').textContent = carreira.mesesFechados
     ? `${carreira.mesesFechados} mês(es) fechado(s) · renovação da carreira: C 50%, B 65%, A 85%, S 100%`
     : 'Base inicial · o ciclo começa em outubro de 2026';
-  const pctVendas = metaVendas > 0 ? Math.round(vendas / metaVendas * 100) : null;
   const pctRenovacoes = metaRenovacoes > 0 ? Math.round(renovacoes / metaRenovacoes * 100) : null;
   const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;
   const contextoAnalitico = contextoAnaliticaSelecionado();
   const detalhesVendas = renderizarGraficosPerfilAnalitico(selecionado);
   const mesAnalitico = contextoAnalitico.mes || {};
   const leituraXPmensal = renderizarAtributosComerciais(selecionado, detalhesVendas, {
-    vendas, metaVendas, ticket, referencia, renovacoes,
+    vendas, metaVendas, ticket, referencia, renovacoes, metasVendas,
     metaRenovacoes: Number(metasRenovacao.meta_m1 || metasRenovacao.m1 || metaRenovacoes),
     diasNoMes: new Date(Number(mesAnalitico.ano || new Date().getFullYear()), Number(mesAnalitico.mesNum || new Date().getMonth() + 1), 0).getDate(),
     ano: Number(mesAnalitico.ano || new Date().getFullYear()),
@@ -5414,9 +5432,9 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const valorVendasOrigem = detalhesVendas.vendasOrigem.reduce((total, item) => total + Number(item.valor || 0), 0);
   const valorVendido = valorVendasDiretas + valorVendasOrigem;
   const cards = [
-    ['Vendas no mês', vendas.toLocaleString('pt-BR'), metaVendas > 0 ? `${pctVendas}% da meta mensal · ${resumirMarcosMeta(vendas, metasVendas, metaVendas)}` : 'Meta mensal não cadastrada'],
+    ['Vendas no mês', vendas.toLocaleString('pt-BR'), 'Vendas novas registradas no período selecionado'],
     ['Valor vendido', `R$ ${formatarValorAnalitica(valorVendido)}`, 'Soma dos valores registrados nas vendas'],
-    ['Renovações', renovacoes.toLocaleString('pt-BR'), externo ? `Registros em ${nomeMesAnalitico}` : `Renovações registradas em ${nomeMesAnalitico}`],
+    ['Renovações', renovacoes.toLocaleString('pt-BR'), `Renovações registradas em ${nomeMesAnalitico}`],
     ['Ticket médio', `R$ ${formatarValorAnalitica(ticket)}`, referencia > 0 ? `${pctTicket}% da referência regional (R$ ${formatarValorAnalitica(referencia)})` : 'Referência indisponível'],
   ];
   document.getElementById('an-metrics').innerHTML = cards.map(([label, value, sub]) => `<article class="an-metric"><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`).join('');
@@ -5541,8 +5559,8 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   document.getElementById('an-card-role').textContent = externo ? 'Vendedor externo' : 'Vendedor interno';
   document.getElementById('an-card-sales').textContent = vendas.toLocaleString('pt-BR');
   document.getElementById('an-card-sales-note').textContent = metaVendas > 0
-    ? `${Math.round(vendas / metaVendas * 100)}% da meta mensal · ${resumirMarcosMeta(vendas, selecionado.metasVendas, metaVendas)}`
-    : 'Meta mensal não cadastrada';
+    ? 'Vendas novas registradas no período selecionado'
+    : 'Vendas novas no período · meta não cadastrada';
   document.getElementById('an-card-renewals').textContent = renovacoes.toLocaleString('pt-BR');
   document.getElementById('an-card-renewals-note').textContent = externo
     ? `Registros em ${nomeMesAnalitico}`
