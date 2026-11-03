@@ -1181,18 +1181,15 @@ function atualizarAcaoFechamentoRank() {
   const hoje = new Date();
   const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
   const inicioProjeto = new Date(2026, 9, 1);
-  const disponivel = hoje.getDate() >= 8;
   area.hidden = !window.ADMIN_AUTENTICADO || !window.FILIAL_ATUAL_ID || mesAnterior < inicioProjeto;
   const mes = mesAnterior.getMonth() + 1;
   const ano = mesAnterior.getFullYear();
   const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(mesAnterior);
   botao.dataset.mes = String(mes);
   botao.dataset.ano = String(ano);
-  botao.disabled = !disponivel;
+  botao.disabled = false;
   botao.textContent = `Consolidar ${nomeMes}`;
-  info.textContent = disponivel
-    ? `Confira as últimas importações de vendas e renovações. O fechamento registra os ranks e o XP do período de ${nomeMes}.`
-    : `O fechamento de ${nomeMes} ficará disponível no dia 8, depois da primeira semana para receber os relatórios finais.`;
+  info.textContent = `Você pode consolidar ${nomeMes} quando quiser, depois de conferir as importações finais. Se ficar pendente, o sistema fará a consolidação automática a partir do dia 8 do mês seguinte.`;
 }
 
 async function fecharRankMesAnteriorFilial() {
@@ -1202,7 +1199,7 @@ async function fecharRankMesAnteriorFilial() {
   const ano = Number(botao.dataset.ano);
   const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
     .format(new Date(ano, mes - 1, 1));
-  if (!confirm(`Consolidar o rank e o XP de ${nomeMes}? Confira antes se as importações finais de vendas e renovações foram feitas. Depois do fechamento, alterações não mudam os snapshots; a correção de XP exige motivo e ação do superadministrador.`)) return;
+  if (!confirm(`Consolidar agora o rank e o XP de ${nomeMes}? Confira se já importou os relatórios finais de vendas e renovações. A consolidação registra um retrato do mês; alterações posteriores não atualizam esse fechamento automaticamente. Se preferir, cancele e deixe a consolidação automática para depois do dia 7 do mês seguinte.`)) return;
   botao.disabled = true;
   const textoOriginal = botao.textContent;
   botao.textContent = 'Consolidando…';
