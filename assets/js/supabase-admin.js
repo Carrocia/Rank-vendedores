@@ -4747,7 +4747,7 @@ function preencherBarraProgressoFicha(prefixo, progresso, unidade) {
     : progresso.atual ? `Rank ${progresso.atual.rank}` : `A caminho do rank ${progresso.proxima?.rank || '—'}`;
   valor.textContent = progresso.maximo
     ? `${formatarPontosRank(progresso.valor)}+ ${unidade}`
-    : `${formatarPontosRank(progresso.dentroFaixa)} / ${formatarPontosRank(progresso.tamanhoFaixa)} ${unidade}${prefixo === 'month' ? ' nesta faixa' : ''}`;
+    : `${formatarPontosRank(progresso.dentroFaixa)} / ${formatarPontosRank(progresso.tamanhoFaixa)} ${unidade}${prefixo === 'career' || prefixo === 'month' ? ' nesta faixa' : ''}`;
   barra.style.width = `${progresso.percentual}%`;
   trilho.setAttribute('aria-valuenow', String(Math.round(progresso.percentual)));
   nota.textContent = progresso.maximo
@@ -4992,7 +4992,7 @@ function renderizarProgressoMetasFicha(vendas, metas = {}, tipo = 'interno', met
         : `Depois da ${etapas[indice - 1]?.nome || 'etapa anterior'}`;
     return `<div class="an-card-goal-step${concluida ? ' is-complete' : ''}${emAndamento ? ' is-current' : ' is-locked'}"><span class="an-card-goal-badge">${concluida ? '✓' : escapeHtmlText(etapa.nome)}</span><div class="an-card-goal-copy"><div><b>${escapeHtmlText(etapa.nome)} · ${escapeHtmlText(etapa.descricao)}</b><small>${escapeHtmlText(status)}</small></div><i class="an-card-goal-track"><i style="width:${percentual}%"></i></i></div><strong>${escapeHtmlText(String(etapa.meta))} vendas</strong></div>`;
   }).join('');
-  container.innerHTML = `<div class="an-card-goal-summary"><div><small>${etapaAtual ? `PRÓXIMA ETAPA · ${escapeHtmlText(etapaAtual.nome)}` : 'JORNADA CONCLUÍDA'}</small><strong>${escapeHtmlText(resumo)}</strong></div>${etapaAtual ? `<b>${percentualAtual}%</b>` : '<b>✓</b>'}</div><div class="an-card-goal-steps">${linhas}</div>`;
+  container.innerHTML = `<div class="an-card-goal-summary"><div><small>${etapaAtual ? `ETAPA ATUAL · ${escapeHtmlText(etapaAtual.nome)}` : 'JORNADA CONCLUÍDA'}</small><strong>${escapeHtmlText(resumo)}</strong></div>${etapaAtual ? `<b>${percentualAtual}%</b>` : '<b>✓</b>'}</div><div class="an-card-goal-steps">${linhas}</div>`;
 }
 
 function renderizarAtributosComerciais(selecionado, dados, contexto) {
@@ -5209,12 +5209,17 @@ function renderizarGraficosPerfilAnalitico(selecionado) {
   }
   const top = document.getElementById('an-top-plans');
   if (top) {
-    const ranking = [...porPlano.values()].sort((a, b) => b.quantidade - a.quantidade).slice(0, 6);
+    const todosOrdenados = [...porPlano.values()].sort((a, b) => b.quantidade - a.quantidade);
+    const ranking = todosOrdenados.slice(0, 6);
+    const demaisProdutos = todosOrdenados.slice(6);
+    const quantidadeDemais = demaisProdutos.reduce((total, item) => total + item.quantidade, 0);
     top.innerHTML = ranking.length
       ? ranking.map((item, index) => {
         const nomeExibido = item.semVelocidade && item.planoId ? `${item.nome} · ID ${item.planoId}` : item.nome;
         return `<div class="an-plan-row"><span class="an-plan-index">${index + 1}</span><span class="an-plan-name" title="${escapeHtmlText(nomeExibido)}">${escapeHtmlText(nomeExibido)}</span><span class="an-plan-track"><i style="width:${Math.round(item.quantidade / ranking[0].quantidade * 100)}%"></i></span><b>${item.quantidade}</b></div>`;
-      }).join('')
+      }).join('') + (demaisProdutos.length
+        ? `<div class="an-plan-row an-plan-row-other"><span class="an-plan-index">+</span><span class="an-plan-name" title="${demaisProdutos.length} outro(s) produto(s)">Outros produtos · ${demaisProdutos.length} tipo(s)</span><span class="an-plan-track"><i style="width:${Math.min(100, Math.round(quantidadeDemais / ranking[0].quantidade * 100))}%"></i></span><b>${quantidadeDemais}</b></div>`
+        : '')
       : '<p class="an-chart-empty">Sem vendas de planos detalhadas neste período.</p>';
     if (planNote && ranking.length && porPlano.size > ranking.length) {
       planNote.textContent += ` Exibindo os ${ranking.length} mais vendidos entre ${porPlano.size} produtos.`;
@@ -5517,15 +5522,16 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   rankMensalImg.hidden = !rankMensal;
   if (rankMensal) rankMensalImg.src = RANK_CARREIRA_IMAGENS[rankMensal]; else rankMensalImg.removeAttribute('src');
   document.getElementById('an-card-month-rank').textContent = rankMensal || 'Sem rank';
-  const descricoesRank = { D: 'Base · início da jornada', C: 'Desenvolvimento · construindo consistência', B: 'Consistência · resultados regulares', A: 'Alto desempenho · superou objetivos', S: 'Excelência · resultado de destaque', SS: 'Desempenho excepcional' };
-  document.getElementById('an-card-month-note').textContent = descricoesRank[rankMensal] || 'A classificação mensal considera o desempenho deste período.';
+  document.getElementById('an-card-month-note').textContent = rankMensal
+    ? 'Rank mensal combina indicadores; metas de vendas aparecem nas etapas abaixo.'
+    : 'A classificação mensal considera o desempenho deste período.';
   const rankCarreiraImg = document.getElementById('an-card-career-rank-img');
   rankCarreiraImg.hidden = !carreira.rankCarreira;
   if (carreira.rankCarreira) rankCarreiraImg.src = RANK_CARREIRA_IMAGENS[carreira.rankCarreira];
   else rankCarreiraImg.removeAttribute('src');
   document.getElementById('an-card-career-rank').textContent = carreira.rankCarreira || '—';
   document.getElementById('an-card-career-note').textContent = carreira.progressoXP
-    ? 'Classificação definida pelo XP acumulado de carreira.'
+    ? 'Nível permanente da trajetória comercial.'
     : 'Progresso de carreira indisponível.';
   const periodo = mesAnalitico?.mesNome ? `${mesAnalitico.mesNome} ${mesAnalitico.ano || ''}` : CONFIG.mesReferencia || '';
   const nomeMesAnalitico = mesAnalitico?.mesNome || 'período';
