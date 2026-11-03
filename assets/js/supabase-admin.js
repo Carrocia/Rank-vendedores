@@ -5352,7 +5352,8 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const botaoRelatorioPDF = document.getElementById('an-relatorio-pdf-btn');
   if (botaoRelatorioPDF) {
     botaoRelatorioPDF.disabled = true;
-    botaoRelatorioPDF.title = 'Disponível depois do fechamento do mês.';
+    botaoRelatorioPDF.textContent = 'Prévia do mês em PDF';
+    botaoRelatorioPDF.title = 'Preparando o relatório do período selecionado.';
   }
   const { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo } = selecionado;
   const externo = tipo === 'externo';
@@ -5449,10 +5450,11 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     if (!xp) throw new Error('O cálculo não retornou dados para este colaborador.');
     if (botaoRelatorioPDF) {
       const fechado = String(xp.status || '').toLowerCase() === 'fechado';
-      botaoRelatorioPDF.disabled = !fechado;
+      botaoRelatorioPDF.disabled = false;
+      botaoRelatorioPDF.textContent = fechado ? 'Relatório final em PDF' : 'Prévia do mês em PDF';
       botaoRelatorioPDF.title = fechado
         ? 'Baixar o relatório individual deste mês fechado.'
-        : 'O PDF fica disponível depois de consolidar o mês.';
+        : 'Baixar uma prévia individual. Os dados podem mudar até o fechamento do mês.';
     }
     const formatarXP = valor => `${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} XP`;
     const xpPeriodoEl = document.getElementById('an-xp-period-total');
@@ -5592,8 +5594,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
   const selecionado = obterPerfilAnaliticoSelecionado();
   const botao = evt?.currentTarget || document.getElementById('an-relatorio-pdf-btn');
   if (!selecionado || !botao) return;
-  const textoOriginal = botao.textContent;
-  let fechamentoConfirmado = document.getElementById('an-xp-period-status')?.textContent?.startsWith('Mês fechado') || false;
+  let periodoFechado = document.getElementById('an-xp-period-status')?.textContent?.startsWith('Mês fechado') || false;
   botao.disabled = true;
   botao.textContent = 'Preparando relatório…';
   try {
@@ -5612,12 +5613,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     if (xpError) throw xpError;
     const xp = Array.isArray(xpData) ? xpData[0] : xpData;
     const fechado = String(xp?.status || '').toLowerCase() === 'fechado';
-    fechamentoConfirmado = fechado;
-    if (!fechado) {
-      botao.disabled = true;
-      botao.title = 'O PDF fica disponível depois de consolidar o mês.';
-      throw new Error('Este mês ainda não foi fechado. O relatório ficará disponível após a consolidação do rank e do XP.');
-    }
+    periodoFechado = fechado;
 
     const { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo } = selecionado;
     const externo = tipo === 'externo';
@@ -5729,11 +5725,15 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     const filial = window.FILIAL_ATUAL?.nome || 'Filial selecionada';
 
     doc.setProperties({ title: `Relatório analítico — ${vendedor.nome} — ${nomeMes} ${ano}`, subject: 'Desempenho comercial individual', author: 'UNI Internet' });
-    cabecalho('Seu mês em análise', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · FECHAMENTO CONCLUÍDO`);
+    cabecalho('Seu mês em análise', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · ${periodoFechado ? 'FECHAMENTO CONCLUÍDO' : 'PRÉVIA · PERÍODO ABERTO'}`);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...tinta); doc.text(String(vendedor.nome || 'Colaborador'), 16, 56);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...muted);
     doc.text(`${externo ? 'Vendedor externo' : 'Vendedor interno'} · ${filial}`, 16, 62);
     doc.text(`Gerado em ${geradoEm}`, 194, 62, { align: 'right' });
+    if (!periodoFechado) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(164, 91, 30);
+      doc.text('PRÉVIA: vendas, cancelamentos e XP ainda podem ser atualizados até o fechamento.', 16, 68);
+    }
 
     let y = 72;
     const rankCards = [
@@ -5807,7 +5807,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     doc.text(`XP no período: ${formatoInteiro(xp.xp_total_periodo)} · ${saldoRank}.`, 16, y + 34);
 
     doc.addPage();
-    cabecalho('Como seu mês aconteceu', 'Ativações, produtos e indicadores comerciais');
+    cabecalho('Como seu mês aconteceu', `Ativações, produtos e indicadores comerciais${periodoFechado ? '' : ' · PRÉVIA'}`);
     y = 54;
     y = tituloSecao('Ativações por dia', y);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
@@ -5839,7 +5839,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     } else {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...muted); doc.text('Nenhum plano identificado neste período.', 16, y + 4); y += 12;
     }
-    if (y > 223) { doc.addPage(); cabecalho('Seus indicadores comerciais', 'Leitura individual do período fechado'); y = 54; }
+    if (y > 223) { doc.addPage(); cabecalho('Seus indicadores comerciais', `Leitura individual do período${periodoFechado ? ' fechado' : ' · prévia'}`); y = 54; }
     y = tituloSecao('Atributos comerciais', y);
     doc.autoTable({ startY: y, theme: 'grid', head: [['Indicador', 'Seu resultado', 'Referência']],
       body: indicadores.map(item => [item.nome, `${item.resultado}${item.percentual == null ? '' : ` · ${item.percentual}%`}`, item.referencia]),
@@ -5851,7 +5851,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     textoQuebrado('Os indicadores mostram seu próprio período. A variação semanal usa ativações registradas e serve como referência de evolução, não como exigência de fechar vendas todos os dias.', 16, y, 178, 7);
 
     doc.addPage();
-    cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros ativos considerados no fechamento`);
+    cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros ativos${periodoFechado ? ' considerados no fechamento' : ' · prévia sujeita a atualização'}`);
     const semCliente = registros.filter(item => !item.cliente).length;
     if (semCliente) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(164, 91, 30);
@@ -5881,21 +5881,22 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     for (let pagina = 1; pagina <= totalPaginas; pagina++) {
       doc.setPage(pagina); doc.setDrawColor(...line); doc.line(16, 286, 194, 286);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
-      doc.text('UNI INTERNET · VENDAS ATIVADAS NO PERÍODO · CANCELAMENTOS NÃO COMPÕEM OS TOTAIS', 16, 291);
+      doc.text(`UNI INTERNET · ${periodoFechado ? 'FECHAMENTO' : 'PRÉVIA'} · VENDAS ATIVADAS · CANCELAMENTOS NÃO COMPÕEM OS TOTAIS`, 16, 291);
       doc.text(`${pagina} / ${totalPaginas}`, 194, 291, { align: 'right' });
     }
     const seguro = String(vendedor.nome || 'colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
-    doc.save(`Relatorio_Analitico_${seguro}_${ano}-${String(mes).padStart(2, '0')}.pdf`);
-    showToast('Relatório analítico individual gerado.', 'success');
+    const prefixoArquivo = periodoFechado ? 'Relatorio_Analitico' : 'Previa_Analitica';
+    doc.save(`${prefixoArquivo}_${seguro}_${ano}-${String(mes).padStart(2, '0')}.pdf`);
+    showToast(periodoFechado ? 'Relatório analítico individual gerado.' : 'Prévia analítica individual gerada. Os dados podem mudar até o fechamento.', 'success');
   } catch (error) {
     console.error('[gerarRelatorioAnaliticoPDF]', error);
     showToast(error.message || 'Não foi possível gerar o relatório analítico.', 'error');
   } finally {
-    botao.disabled = !fechamentoConfirmado;
-    botao.title = fechamentoConfirmado
+    botao.disabled = false;
+    botao.textContent = periodoFechado ? 'Relatório final em PDF' : 'Prévia do mês em PDF';
+    botao.title = periodoFechado
       ? 'Baixar o relatório individual deste mês fechado.'
-      : 'Disponível depois do fechamento do mês.';
-    botao.textContent = textoOriginal;
+      : 'Baixar prévia individual; os dados podem mudar até o fechamento do mês.';
   }
 }
 
