@@ -4,6 +4,12 @@ begin;
 -- O job automático roda diariamente às 08:15 no horário de Manaus e só fecha
 -- o mês anterior a partir do dia 8, dando uma semana para os relatórios finais.
 
+-- Bancos que criaram a tabela antes desses indicadores precisam recebê-los
+-- explicitamente: CREATE TABLE IF NOT EXISTS não atualiza tabelas existentes.
+alter table public.ranks_carreira_mensais
+  add column if not exists m1_vendas boolean not null default false,
+  add column if not exists m1_renovacoes boolean not null default false;
+
 create or replace function public.consolidar_rank_mensal_filial(
   p_filial_id bigint,
   p_mes integer,
