@@ -6010,29 +6010,81 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     textoQuebrado('Os indicadores mostram seu próprio período. A variação semanal usa ativações registradas e serve como referência de evolução, não como exigência de fechar vendas todos os dias.', 16, y, 178, 7);
 
     doc.addPage();
-    cabecalho('Resultado da filial', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · contexto coletivo do período`);
-    let yFilial = tituloSecao('Metas, renovações e cancelamentos', 55);
-    const formatarRealizado = valor => valor == null ? 'Não informado' : formatoInteiro(valor);
-    const formatarComparativo = (realizado, meta) => {
-      const limite = Number(meta);
-      if (realizado == null || !Number.isFinite(limite) || limite <= 0) return '—';
-      return `${formatoInteiro(realizado)} / ${formatoInteiro(limite)}`;
-    };
+    cabecalho('Resultado da filial', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · panorama coletivo do mês`);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...muted);
+    doc.text('Realizado da regional comparado às metas e aos limites definidos para o período.', 16, 55);
     const metasVendasFilial = [metasFilial.mensal_m3, metasFilial.mensal_m2, metasFilial.mensal_m1];
     const metasRenovacaoFilialValores = [metasRenovacaoFilial.meta_m3, metasRenovacaoFilial.meta_m2, metasRenovacaoFilial.meta_m1];
     const cancelamentoFilialValores = limitesCancelamento;
-    const linhasFilial = [
-      ['Vendas novas', `${formatarRealizado(vendasFilial)} vendas`, ...metasVendasFilial.map(meta => formatarComparativo(vendasFilial, meta))],
-      ['Renovações', `${formatarRealizado(renovacoesFilial)} renovações`, ...metasRenovacaoFilialValores.map(meta => formatarComparativo(renovacoesFilial, meta))],
-      ['Cancelamentos informados', `${formatarRealizado(cancelamentosFilial)} cancelamentos`, ...cancelamentoFilialValores.map(limite => formatarComparativo(cancelamentosFilial, limite))],
-    ];
-    doc.autoTable({ startY: yFilial, theme: 'grid', head: [['Indicador da filial', 'Realizado', 'M3', 'M2', 'M1']], body: linhasFilial,
-      margin: { left: 16, right: 16 }, styles: { fontSize: 8, cellPadding: 3, textColor: tinta, valign: 'middle' },
-      headStyles: { fillColor: azul, textColor: [255, 255, 255] }, alternateRowStyles: { fillColor: [246, 250, 252] },
-      columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 35 }, 2: { cellWidth: 33.7, halign: 'center' }, 3: { cellWidth: 33.7, halign: 'center' }, 4: { cellWidth: 33.6, halign: 'center' } },
-    });
-    yFilial = doc.lastAutoTable.finalY + 8;
-    textoQuebrado('Nas colunas M3, M2 e M1, vendas e renovações mostram realizado / meta; cancelamentos mostram realizado / limite informado no painel ADM. Para cancelamentos, ficar abaixo do limite é melhor. Os números de vendas e renovações seguem as importações registradas para esta filial no mês.', 16, yFilial, 178, 8);
+    const drawFilialMetric = ({ titulo, atual, unidade, metas, modo = 'meta', y: cardY }) => {
+      const cardX = 16, cardW = 178, cardH = 45, resumoW = 48;
+      const trilha = [222, 230, 238], neutro = [133, 151, 167];
+      doc.setFillColor(249, 252, 254); doc.setDrawColor(...line); doc.roundedRect(cardX, cardY, cardW, cardH, 2.5, 2.5, 'FD');
+      doc.setDrawColor(...line); doc.line(cardX + resumoW, cardY + 5, cardX + resumoW, cardY + cardH - 5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...muted);
+      doc.text(titulo.toLocaleUpperCase('pt-BR'), cardX + 5, cardY + 9);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.setTextColor(...azul);
+      doc.text(atual == null ? '—' : formatoInteiro(atual), cardX + 5, cardY + 25);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
+      doc.text(unidade, cardX + 5, cardY + 33);
+      if (atual == null) {
+        doc.setFontSize(5.8); doc.text('Dado não informado para este mês', cardX + 5, cardY + 39);
+      }
+
+      const areaX = cardX + resumoW + 2;
+      const areaW = cardW - resumoW - 4;
+      const colW = areaW / 3;
+      ['M3', 'M2', 'M1'].forEach((stage, index) => {
+        const x = areaX + index * colW;
+        if (index > 0) {
+          doc.setDrawColor(229, 236, 242);
+          doc.line(x, cardY + 6, x, cardY + cardH - 6);
+        }
+        const meta = Number(metas[index]);
+        const validMeta = Number.isFinite(meta) && meta > 0;
+        const innerX = x + 4;
+        const innerW = colW - 8;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...ciano);
+        doc.text(stage, innerX, cardY + 10);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.4); doc.setTextColor(...tinta);
+        doc.text(validMeta ? `${modo === 'limite' ? 'Limite' : 'Meta'} ${formatoInteiro(meta)}` : 'Sem meta', innerX + 10, cardY + 10);
+
+        if (!validMeta || atual == null) {
+          doc.setDrawColor(...trilha); doc.setLineWidth(1.8); doc.line(innerX, cardY + 20, innerX + innerW, cardY + 20);
+          doc.setFontSize(5.8); doc.setTextColor(...neutro); doc.text(validMeta ? 'Sem realizado' : 'Não configurada', innerX, cardY + 31);
+          return;
+        }
+
+        const razao = Number(atual) / meta;
+        const progresso = Math.max(0, Math.min(1, razao));
+        let corBarra = ciano;
+        let status = '';
+        if (modo === 'limite') {
+          corBarra = razao > 1 ? [211, 75, 91] : razao >= .85 ? [211, 145, 51] : [28, 157, 126];
+          status = razao > 1
+            ? `Excedido em ${formatoInteiro(Number(atual) - meta)}`
+            : Number(atual) === meta ? 'No limite' : `Restam ${formatoInteiro(meta - Number(atual))}`;
+        } else {
+          status = Number(atual) >= meta
+            ? Number(atual) > meta ? 'Meta superada' : 'Meta atingida'
+            : `Faltam ${formatoInteiro(meta - Number(atual))}`;
+        }
+        doc.setDrawColor(...trilha); doc.setLineWidth(1.8); doc.line(innerX, cardY + 20, innerX + innerW, cardY + 20);
+        if (progresso > 0) {
+          doc.setDrawColor(...corBarra); doc.setLineWidth(1.8); doc.line(innerX, cardY + 20, innerX + innerW * progresso, cardY + 20);
+        }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.6); doc.setTextColor(...(modo === 'limite' ? corBarra : muted));
+        const statusLines = doc.splitTextToSize(status, innerW);
+        doc.text(statusLines.slice(0, 2), innerX, cardY + 29);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.2); doc.setTextColor(...neutro);
+        doc.text(modo === 'limite' ? `${Math.round(razao * 100)}% do limite usado` : `${Math.round(razao * 100)}% da meta`, innerX, cardY + 39);
+      });
+      doc.setLineWidth(.2);
+    };
+    drawFilialMetric({ titulo: 'Vendas novas da filial', atual: vendasFilial, unidade: 'vendas realizadas', metas: metasVendasFilial, y: 66 });
+    drawFilialMetric({ titulo: 'Renovações da filial', atual: renovacoesFilial, unidade: 'renovações importadas', metas: metasRenovacaoFilialValores, y: 119 });
+    drawFilialMetric({ titulo: 'Cancelamentos informados', atual: cancelamentosFilial, unidade: 'limite menor é melhor', metas: cancelamentoFilialValores, modo: 'limite', y: 172 });
+    textoQuebrado('Metas de vendas e renovações: barras mostram o avanço do realizado. Cancelamentos: a barra mostra quanto do limite informado no painel ADM foi usado; ultrapassar o limite aparece em vermelho. Vendas e renovações seguem as importações registradas para esta filial no mês.', 16, 228, 178, 7);
 
     doc.addPage();
     cabecalho('Suas vendas no período', `${formatoInteiro(totalVendas)} registros · ${formatoInteiro(vendasContabilizadasMeta)} contam para a meta${periodoFechado ? '' : ' · prévia sujeita a atualização'}`);
