@@ -3924,6 +3924,7 @@ function adm_navigateTo(sectionId) {
   if (sectionId === 'nova-venda' && typeof carregarPendenciasIxc === 'function') carregarPendenciasIxc();
   if (sectionId === 'renovacoes') carregarRelatorioResumoRenovacoes();
   if (sectionId === 'analitica') renderizarAnaliticaPerfis();
+  if (sectionId === 'celebracoes') atualizarMetasCelebraveis();
   // A área rolável é o conteúdo interno no mobile e o overlay no desktop.
   document.querySelector('#adm-panel .adm-panel-inner')?.scrollTo({ top: 0, behavior: 'auto' });
   document.getElementById('adm-panel-overlay')?.scrollTo({ top: 0, behavior: 'auto' });
@@ -4822,19 +4823,142 @@ function calcularProgressoCarreira(historico, tipo) {
 }
 
 let _analiticaVendedores = [];
+let _analiticaContextoPeriodo = null;
+let _celebracaoContextoPeriodo = null;
+const _contextosPeriodoHistorico = new Map();
+
+function chaveMesPeriodo(mes) { return `${Number(mes?.ano)}-${String(Number(mes?.mesNum)).padStart(2, '0')}`; }
+
+function periodoMesPorChave(chave) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(chave || ''))) throw new Error('Selecione um mês válido.');
+  const [ano, mesNum] = chave.split('-').map(Number);
+  const inicio = new Date(ano, mesNum - 1, 1);
+  const fim = new Date(ano, mesNum, 0);
+  const fmt = data => `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
+  const mesNome = inicio.toLocaleDateString('pt-BR', { month: 'long' });
+  return { de: fmt(inicio), ate: fmt(fim), mesNome, mesNum, ano, diasNoMes: fim.getDate(), diaAtual: fim.getDate(), diasRestantes: 0 };
+}
+
+function contextoAnaliticaAtual() {
+  return { d: _ultimoProcessado, mes: _cache.mes, cache: _cache, vendedores: _cache.vendedores || [], filialId: String(window.FILIAL_ATUAL_ID || '') };
+}
+
+function contextoAnaliticaSelecionado() {
+  if (_analiticaContextoPeriodo && _analiticaContextoPeriodo.filialId !== String(window.FILIAL_ATUAL_ID || '')) _analiticaContextoPeriodo = null;
+  if (_celebracaoContextoPeriodo && _celebracaoContextoPeriodo.filialId !== String(window.FILIAL_ATUAL_ID || '')) _celebracaoContextoPeriodo = null;
+  return _analiticaContextoPeriodo || contextoAnaliticaAtual();
+}
+
+function contextoCelebracaoSelecionado() {
+  if (_celebracaoContextoPeriodo && _celebracaoContextoPeriodo.filialId !== String(window.FILIAL_ATUAL_ID || '')) _celebracaoContextoPeriodo = null;
+  return _celebracaoContextoPeriodo || contextoAnaliticaAtual();
+}
+
+async function carregarContextoPeriodoHistorico(chave) {
+  const mesAtual = chaveMesPeriodo(_cache.mes || calcularPeriodoMes());
+  if (chave === mesAtual) return contextoAnaliticaAtual();
+  const cacheKey = `${window.FILIAL_ATUAL_ID}:${chave}`;
+  if (_contextosPeriodoHistorico.has(cacheKey)) return _contextosPeriodoHistorico.get(cacheKey);
+  const carregar = (async () => {
+    const mes = periodoMesPorChave(chave);
+    const vendedores = (_cache.vendedores || []).filter(v => v.ativo !== false);
+    const ids = vendedores.map(v => v.id);
+    const [vendasMes, vendasOrigemMes, metas, metasRenovacaoIndividual, renovacoesMes, ranksMensais] = await Promise.all([
+      loadVendas(mes.de, mes.ate),
+      loadVendasOrigem(mes.de, mes.ate),
+      loadMetas(mes.mesNum, mes.ano, ids),
+      loadMetasRenovacaoIndividual(mes.mesNum, mes.ano),
+      loadRenovacoesMensais(mes.mesNum, mes.ano),
+      loadRankMensalFilial(mes.mesNum, mes.ano),
+    ]);
+    if (_rankMensalErro) throw new Error(`Não foi possível consultar o rank de ${mes.mesNome} ${mes.ano}: ${_rankMensalErro}`);
+    const encontrarPorId = (lista, id) => (lista || []).find(item => String(item.vendedor_id) === String(id));
+    const intMes = [];
+    const extMes = [];
+    vendedores.filter(v => v.participa_ranking !== false).forEach(cadastro => {
+      const rank = encontrarPorId(ranksMensais, cadastro.id) || {};
+      const meta = encontrarPorId(metas, cadastro.id) || {};
+      const vendasDiretas = (vendasMes || []).filter(item => String(item.vendedor_id) === String(cadastro.id)
+        && !(cadastro.tipo === 'externo' && (item.fora_filial === true || isVendaRecebidaDeOutraFilial(item))));
+      const vendasOrigem = cadastro.tipo === 'interno'
+        ? (vendasOrigemMes || []).filter(item => String(item.vendedor_id) === String(cadastro.id) && item.tipo === 'interno') : [];
+      const quantidadeDireta = vendasDiretas.length;
+      const quantidadeOrigem = vendasOrigem.reduce((total, item) => total + Number(item.vendas || 0), 0);
+      const valorDireto = vendasDiretas.reduce((total, item) => total + Number(item.valor_total ?? item.valor_plano ?? item.valor ?? 0), 0);
+      const valorOrigem = vendasOrigem.reduce((total, item) => total + Number(item.valor || 0), 0);
+      const vendas = Number(rank.vendas ?? quantidadeDireta + quantidadeOrigem);
+      const valor = Number(rank.valor_vendas ?? valorDireto + valorOrigem);
+      const registro = {
+        ...cadastro, vendas, valor, valor_total: valor,
+        meta: Number(rank.meta_vendas ?? (cadastro.tipo === 'interno' ? meta.meta_m3 : meta.meta_vendas) ?? 0),
+      };
+      (cadastro.tipo === 'externo' ? extMes : intMes).push(registro);
+    });
+    const d = { mes, intMes, extMes };
+    const cache = {
+      ..._cache, mes, vendasMes: vendasMes || [], vendasOrigemMes: vendasOrigemMes || [],
+      metas: metas || [], metasRenovacaoIndividual: metasRenovacaoIndividual || [],
+      renovacoesMes: renovacoesMes || [], ranksMensais: ranksMensais || [],
+    };
+    return { d, mes, cache, vendedores, filialId: String(window.FILIAL_ATUAL_ID || '') };
+  })();
+  _contextosPeriodoHistorico.set(cacheKey, carregar);
+  try { return await carregar; }
+  catch (error) { _contextosPeriodoHistorico.delete(cacheKey); throw error; }
+}
+
+async function alterarPeriodoAnalitica(chave) {
+  const input = document.getElementById('an-period-select');
+  const resumo = document.getElementById('an-roster-summary');
+  if (!chave) return;
+  if (input) input.disabled = true;
+  if (resumo) resumo.textContent = 'Carregando os resultados do período…';
+  try {
+    const contexto = await carregarContextoPeriodoHistorico(chave);
+    _analiticaContextoPeriodo = chave === chaveMesPeriodo(_cache.mes || calcularPeriodoMes()) ? null : contexto;
+    await renderizarAnaliticaPerfis();
+  } catch (error) {
+    console.error('[alterarPeriodoAnalitica]', error);
+    if (input) input.value = chaveMesPeriodo(contextoAnaliticaSelecionado().mes || _cache.mes || calcularPeriodoMes());
+    if (resumo) resumo.textContent = error.message || 'Não foi possível carregar este período.';
+    showToast(error.message || 'Não foi possível carregar a análise deste mês.', 'error');
+  } finally { if (input) input.disabled = false; }
+}
+
+async function alterarPeriodoCelebracoes(chave) {
+  const input = document.getElementById('cel-periodo');
+  if (!chave) return;
+  if (input) input.max = chaveMesPeriodo(_cache.mes || calcularPeriodoMes());
+  if (input) input.disabled = true;
+  configurarBotoesCelebracao(true, 'Carregando resultados do mês…');
+  try {
+    const contexto = await carregarContextoPeriodoHistorico(chave);
+    _celebracaoContextoPeriodo = chave === chaveMesPeriodo(_cache.mes || calcularPeriodoMes()) ? null : contexto;
+    atualizarMetasCelebraveis();
+    const info = document.getElementById('cel-preview-info');
+    if (info && !document.getElementById('cel-vendedor')?.value) info.textContent = `Período selecionado: ${contexto.mes.mesNome} ${contexto.mes.ano}.`;
+    configurarBotoesCelebracao(false);
+  } catch (error) {
+    console.error('[alterarPeriodoCelebracoes]', error);
+    if (input) input.value = chaveMesPeriodo(contextoCelebracaoSelecionado().mes || _cache.mes || calcularPeriodoMes());
+    configurarBotoesCelebracao(false, error.message || 'Não foi possível carregar este período.');
+    showToast(error.message || 'Não foi possível carregar as celebrações deste mês.', 'error');
+  } finally { if (input) input.disabled = false; }
+}
 
 function obterPerfilAnaliticoSelecionado() {
   const id = document.getElementById('an-vendedor-select')?.value;
-  if (!id || !_ultimoProcessado) return null;
-  const cadastro = (_cache.vendedores || []).find(item => String(item.id) === String(id));
-  const vendedorRegistrado = [...(_ultimoProcessado.intMes || []), ...(_ultimoProcessado.extMes || [])]
+  const contexto = contextoAnaliticaSelecionado();
+  if (!id || !contexto.d) return null;
+  const cadastro = (contexto.vendedores || []).find(item => String(item.id) === String(id));
+  const vendedorRegistrado = [...(contexto.d.intMes || []), ...(contexto.d.extMes || [])]
     .find(item => String(item.id) === String(id));
   const vendedor = vendedorRegistrado || (cadastro ? { ...cadastro, vendas: 0, valor: 0, valor_total: 0, meta: Number(cadastro.meta || 0) } : null);
   if (!vendedor) return null;
-  const rank = (_cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(id)) || null;
-  const renovacao = (_cache.renovacoesMes || [])?.find(item => String(item.vendedor_id) === String(id));
-  const metasVendas = (_cache.metas || []).find(item => String(item.vendedor_id) === String(id)) || {};
-  const metasRenovacao = (_cache.metasRenovacaoIndividual || []).find(item => String(item.vendedor_id) === String(id)) || {};
+  const rank = (contexto.cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(id)) || null;
+  const renovacao = (contexto.cache.renovacoesMes || [])?.find(item => String(item.vendedor_id) === String(id));
+  const metasVendas = (contexto.cache.metas || []).find(item => String(item.vendedor_id) === String(id)) || {};
+  const metasRenovacao = (contexto.cache.metasRenovacaoIndividual || []).find(item => String(item.vendedor_id) === String(id)) || {};
   return { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo: vendedor.tipo || cadastro?.tipo || 'interno' };
 }
 
@@ -4976,7 +5100,7 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
       if (abaixo.nome === 'Meta de vendas') textoAtencao = `Faltam ${Math.max(0, metaVendas - vendas)} vendas para alcançar a meta mensal.`;
       else if (abaixo.nome === 'Ticket médio') textoAtencao = `Ticket em ${Math.round(abaixo.valor)}% da referência regional; diferença de R$ ${formatarValorAnalitica(Math.max(0, referencia - ticket))}.`;
       else if (abaixo.nome === 'Variação recente') textoAtencao = `${semanaAtual} ativações nos últimos 7 dias vs. ${semanaAnterior} nos 7 anteriores; a variação usa a data de ativação.`;
-      else if (abaixo.nome === 'Renovações') textoAtencao = `Foram registradas ${renovacoes} renovações neste mês.`;
+      else if (abaixo.nome === 'Renovações') textoAtencao = `Foram registradas ${renovacoes} renovações em ${new Date(ano, mesNum - 1, 1).toLocaleDateString('pt-BR', { month: 'long' })}.`;
       cards.push(`<article class="an-attribute-insight is-focus"><span>PRÓXIMO PASSO</span><p>${escapeHtmlText(textoAtencao)}</p></article>`);
     }
     insights.innerHTML = cards.join('');
@@ -4988,21 +5112,23 @@ function renderizarAtributosComerciais(selecionado, dados, contexto) {
 }
 
 function renderizarGraficosPerfilAnalitico(selecionado) {
+  const cache = contextoAnaliticaSelecionado().cache;
   const id = String(selecionado.cadastro?.id ?? selecionado.vendedor?.id ?? '');
   const externo = selecionado.tipo === 'externo';
-  const vendasDiretas = (_cache.vendasMes || []).filter(v => {
+  const vendasDiretas = (cache.vendasMes || []).filter(v => {
     if (String(v.vendedor_id) !== id) return false;
     return !(externo && (v.fora_filial === true || isVendaRecebidaDeOutraFilial(v)));
   });
-  const vendasOrigem = !externo ? (_cache.vendasOrigemMes || []).filter(v =>
+  const vendasOrigem = !externo ? (cache.vendasOrigemMes || []).filter(v =>
     String(v.vendedor_id) === id && v.tipo === 'interno'
   ) : [];
   const origemPorDia = new Map();
   vendasOrigem.forEach(v => origemPorDia.set(v.dia, (origemPorDia.get(v.dia) || 0) + Number(v.vendas || 0)));
-  const mesRef = _cache.mes || {};
+  const mesRef = cache.mes || {};
   const ano = Number(mesRef.ano || _ultimoProcessado?.mes?.ano || new Date().getFullYear());
   const mesNum = Number(mesRef.mesNum || _ultimoProcessado?.mes?.mesNum || new Date().getMonth() + 1);
   const diasNoMes = new Date(ano, mesNum, 0).getDate();
+  const nomeMesRef = mesRef.mesNome || new Date(ano, mesNum - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
   const vendasPorDia = Array.from({ length: diasNoMes }, (_, i) => ({ dia: i + 1, quantidade: 0 }));
   vendasDiretas.forEach(v => {
     const dia = Number(String(v.data_venda || '').slice(8, 10));
@@ -5030,8 +5156,8 @@ function renderizarGraficosPerfilAnalitico(selecionado) {
     : 'Contagem distribuída pela data de ativação registrada no sistema.';
   if (lastDay) lastDay.textContent = String(diasNoMes);
 
-  const planos = _cache.planos || [];
-  const categorias = _cache.categoriasPlanos || [];
+  const planos = cache.planos || [];
+  const categorias = cache.categoriasPlanos || [];
   const cores = ['#22d3ee', '#8b7cff', '#34d399', '#fbbf24', '#fb7185', '#60a5fa', '#f97316', '#c084fc'];
   const porPlano = new Map();
   const porCategoria = new Map();
@@ -5074,7 +5200,7 @@ function renderizarGraficosPerfilAnalitico(selecionado) {
   }
   if (mix) {
     if (!totalPlanos) {
-      mix.innerHTML = '<p class="an-chart-empty">Ainda não há planos identificados para este colaborador neste mês.</p>';
+      mix.innerHTML = `<p class="an-chart-empty">Ainda não há planos identificados para este colaborador em ${escapeHtmlText(nomeMesRef)}.</p>`;
     } else {
       let cursor = 0;
       const stops = categoriasOrdenadas.map(([nome, quantidade], index) => {
@@ -5105,6 +5231,9 @@ function renderizarGraficosPerfilAnalitico(selecionado) {
 }
 
 function renderizarGradeAnalitica(vendedores = _analiticaVendedores) {
+  const contexto = contextoAnaliticaSelecionado();
+  const ranks = contexto.cache.ranksMensais || [];
+  const mesLabel = `${contexto.mes?.mesNome || ''} ${contexto.mes?.ano || ''}`.trim();
   const grade = document.getElementById('an-roster-grid');
   const resumo = document.getElementById('an-roster-summary');
   if (!grade) return;
@@ -5112,21 +5241,21 @@ function renderizarGradeAnalitica(vendedores = _analiticaVendedores) {
   const filtrados = vendedores.filter(item => !busca || String(item.nome || '').toLocaleLowerCase('pt-BR').includes(busca));
   const ordemRanks = ['SS', 'S', 'A', 'B', 'C', 'D'];
   filtrados.sort((a, b) => {
-    const ra = (_cache.ranksMensais || []).find(r => String(r.vendedor_id) === String(a.id))?.rank_mensal || '';
-    const rb = (_cache.ranksMensais || []).find(r => String(r.vendedor_id) === String(b.id))?.rank_mensal || '';
+    const ra = ranks.find(r => String(r.vendedor_id) === String(a.id))?.rank_mensal || '';
+    const rb = ranks.find(r => String(r.vendedor_id) === String(b.id))?.rank_mensal || '';
     const ia = ra ? ordemRanks.indexOf(ra) : ordemRanks.length;
     const ib = rb ? ordemRanks.indexOf(rb) : ordemRanks.length;
     return ia - ib || String(a.nome).localeCompare(String(b.nome), 'pt-BR');
   });
-  const comRank = vendedores.filter(item => (_cache.ranksMensais || []).some(r => String(r.vendedor_id) === String(item.id) && r.elegivel && r.rank_mensal)).length;
-  if (resumo) resumo.textContent = `${vendedores.length} colaboradores · ${comRank} com rank neste mês`;
+  const comRank = vendedores.filter(item => ranks.some(r => String(r.vendedor_id) === String(item.id) && r.elegivel && r.rank_mensal)).length;
+  if (resumo) resumo.textContent = `${vendedores.length} colaboradores · ${comRank} com rank em ${mesLabel}`;
   if (!filtrados.length) {
     grade.innerHTML = `<div class="an-roster-empty">${busca ? 'Nenhum colaborador encontrado com esse nome.' : 'Nenhum colaborador participante do ranking foi encontrado nesta filial.'}</div>`;
     return;
   }
   grade.innerHTML = filtrados.map(item => {
-    const cadastro = (_cache.vendedores || []).find(v => String(v.id) === String(item.id));
-    const rank = (_cache.ranksMensais || []).find(r => String(r.vendedor_id) === String(item.id));
+    const cadastro = (contexto.vendedores || []).find(v => String(v.id) === String(item.id));
+    const rank = ranks.find(r => String(r.vendedor_id) === String(item.id));
     const rankLabel = rank?.elegivel ? rank.rank_mensal : null;
     const vendas = Number(rank?.vendas ?? item.vendas ?? 0);
     const meta = Number(rank?.meta_vendas ?? item.meta ?? 0);
@@ -5142,7 +5271,7 @@ function renderizarGradeAnalitica(vendedores = _analiticaVendedores) {
     const tipo = item.tipo === 'externo' ? 'Externo' : 'Interno';
     return `<button type="button" class="an-roster-card" data-an-select="${Number(item.id)}" aria-label="Abrir perfil de ${escapeHtmlText(item.nome)}">
       <span class="an-roster-card-top"><span class="an-roster-avatar">${avatar}</span><span class="an-roster-rank">${emblema}<small>${rankLabel ? `RANK ${escapeHtmlText(rankLabel)}` : 'EM PROGRESSO'}</small></span></span>
-      <span class="an-roster-name">${escapeHtmlText(item.nome)}</span><span class="an-roster-role">${tipo} · ${vendas} venda${vendas === 1 ? '' : 's'} no mês</span>
+      <span class="an-roster-name">${escapeHtmlText(item.nome)}</span><span class="an-roster-role">${tipo} · ${vendas} venda${vendas === 1 ? '' : 's'} em ${escapeHtmlText(mesLabel)}</span>
       <span class="an-roster-progress-label"><span>JORNADA DO MÊS</span><b>${meta > 0 ? `${pct}%` : '—'}</b></span>
       <span class="an-roster-progress" role="progressbar" aria-label="Progresso das vendas na meta mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>
       <span class="an-roster-open">Abrir perfil <span aria-hidden="true">↗</span></span>
@@ -5160,7 +5289,8 @@ async function renderizarAnaliticaPerfis() {
   const token = ++_analiticaRenderToken;
   const selecionadoAntes = select.value;
   const perfilAberto = !modal.hidden;
-  const d = _ultimoProcessado;
+  const contexto = contextoAnaliticaSelecionado();
+  const d = contexto.d;
   if (!d) {
     select.replaceChildren(new Option('Aguardando dados da equipe…', ''));
     grade.innerHTML = '<div class="an-roster-empty">Carregando dados da equipe…</div>';
@@ -5170,7 +5300,7 @@ async function renderizarAnaliticaPerfis() {
     return;
   }
   const vendedoresMes = [...(d.intMes || []), ...(d.extMes || [])];
-  const vendedores = (_cache.vendedores || [])
+  const vendedores = (contexto.vendedores || [])
     .filter(cadastro => cadastro.ativo !== false && cadastro.participa_ranking !== false)
     .map(cadastro => {
       const doMes = vendedoresMes.find(item => String(item.id) === String(cadastro.id));
@@ -5189,7 +5319,7 @@ async function renderizarAnaliticaPerfis() {
   _analiticaVendedores = vendedores;
   select.replaceChildren(new Option('Selecione um colaborador', ''));
   vendedores.forEach(item => {
-    const cadastro = (_cache.vendedores || []).find(v => String(v.id) === String(item.id));
+    const cadastro = (contexto.vendedores || []).find(v => String(v.id) === String(item.id));
     const tipo = item.tipo === 'externo' ? 'Externo' : 'Interno';
     select.add(new Option(`${item.nome} · ${tipo}`, String(item.id)));
   });
@@ -5197,6 +5327,11 @@ async function renderizarAnaliticaPerfis() {
   if (periodo) {
     const mesNome = d.mes?.mesNome || CONFIG.mesReferencia || '';
     periodo.textContent = `${String(mesNome).trim()} ${d.mes?.ano || new Date().getFullYear()}`;
+  }
+  const seletorPeriodo = document.getElementById('an-period-select');
+  if (seletorPeriodo) {
+    seletorPeriodo.max = chaveMesPeriodo(_cache.mes || calcularPeriodoMes());
+    if (!seletorPeriodo.value) seletorPeriodo.value = chaveMesPeriodo(_cache.mes || calcularPeriodoMes());
   }
   renderizarGradeAnalitica(vendedores);
   if (!vendedores.length) {
@@ -5222,6 +5357,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const metaRenovacoes = Number(rank?.meta_renovacoes || 0);
   const ticket = Number(rank?.ticket_medio ?? (vendedor.vendas ? Number(vendedor.valor || 0) / Number(vendedor.vendas) : 0));
   const referencia = Number(rank?.ticket_referencia || 0);
+  const nomeMesAnalitico = contextoAnaliticaSelecionado().mes?.mesNome || 'período';
   const rankMensal = rank?.elegivel ? rank.rank_mensal : null;
   const fileira = document.getElementById('an-avatar');
   const foto = cadastro?.foto_url || vendedor.foto_url || PHOTOS[vendedor.slug] || '';
@@ -5264,8 +5400,9 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const pctVendas = metaVendas > 0 ? Math.round(vendas / metaVendas * 100) : null;
   const pctRenovacoes = metaRenovacoes > 0 ? Math.round(renovacoes / metaRenovacoes * 100) : null;
   const pctTicket = referencia > 0 ? Math.round(ticket / referencia * 100) : null;
+  const contextoAnalitico = contextoAnaliticaSelecionado();
   const detalhesVendas = renderizarGraficosPerfilAnalitico(selecionado);
-  const mesAnalitico = _cache.mes || {};
+  const mesAnalitico = contextoAnalitico.mes || {};
   const leituraXPmensal = renderizarAtributosComerciais(selecionado, detalhesVendas, {
     vendas, metaVendas, ticket, referencia, renovacoes,
     metaRenovacoes: Number(metasRenovacao.meta_m1 || metasRenovacao.m1 || metaRenovacoes),
@@ -5279,7 +5416,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   const cards = [
     ['Vendas no mês', vendas.toLocaleString('pt-BR'), metaVendas > 0 ? `${pctVendas}% da meta mensal · ${resumirMarcosMeta(vendas, metasVendas, metaVendas)}` : 'Meta mensal não cadastrada'],
     ['Valor vendido', `R$ ${formatarValorAnalitica(valorVendido)}`, 'Soma dos valores registrados nas vendas'],
-    ['Renovações', renovacoes.toLocaleString('pt-BR'), externo ? 'Registros deste mês' : 'Renovações registradas neste mês'],
+    ['Renovações', renovacoes.toLocaleString('pt-BR'), externo ? `Registros em ${nomeMesAnalitico}` : `Renovações registradas em ${nomeMesAnalitico}`],
     ['Ticket médio', `R$ ${formatarValorAnalitica(ticket)}`, referencia > 0 ? `${pctTicket}% da referência regional (R$ ${formatarValorAnalitica(referencia)})` : 'Referência indisponível'],
   ];
   document.getElementById('an-metrics').innerHTML = cards.map(([label, value, sub]) => `<article class="an-metric"><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`).join('');
@@ -5291,7 +5428,7 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
   if (xpTotal) xpTotal.textContent = '—';
   if (xpBreakdown) xpBreakdown.replaceChildren();
   try {
-    const periodoXP = _ultimoProcessado?.mes || _cache.mes || calcularPeriodoMes();
+    const periodoXP = contextoAnalitico.mes || calcularPeriodoMes();
     const mesXP = Number(periodoXP.mesNum || periodoXP.mes);
     const anoXP = Number(periodoXP.ano);
     if (!Number.isInteger(mesXP) || mesXP < 1 || mesXP > 12 || !Number.isInteger(anoXP)) {
@@ -5356,14 +5493,14 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     if (xpNote) xpNote.textContent = `${erroXP}${dicaXP} O rank mensal continua usando a regra atual.`;
   }
   if (status && !status.textContent.startsWith('Não foi possível')) status.textContent = '';
-  await preencherFichaAnalitica(selecionado, carreira, detalhesVendas, leituraXPmensal);
+  await preencherFichaAnalitica(selecionado, carreira, detalhesVendas, leituraXPmensal, mesAnalitico);
   profile.hidden = false;
   modal.hidden = false;
   document.body.classList.add('an-modal-open');
   modal.querySelector('[data-an-close]:not(.an-modal-backdrop)')?.focus({ preventScroll: true });
 }
 
-async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {}, leituraXPmensal = null) {
+async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {}, leituraXPmensal = null, mesAnalitico = contextoAnaliticaSelecionado().mes) {
   const { vendedor, cadastro, rank, renovacao, tipo } = selecionado;
   const externo = tipo === 'externo';
   const rankMensal = rank?.elegivel ? rank.rank_mensal : null;
@@ -5396,8 +5533,8 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
   document.getElementById('an-card-career-note').textContent = carreira.progressoXP?.proxima
     ? `${formatarPontosRank(carreira.progressoXP.valor)} XP acumulados · próximo rank ${carreira.progressoXP.proxima.rank}`
     : carreira.progressoXP ? `Rank ${carreira.rankCarreira} · faixa máxima alcançada` : 'Progresso de carreira indisponível.';
-  const d = _ultimoProcessado;
-  const periodo = d?.mes?.mesNome ? `${d.mes.mesNome} ${d.mes.ano || ''}` : CONFIG.mesReferencia || '';
+  const periodo = mesAnalitico?.mesNome ? `${mesAnalitico.mesNome} ${mesAnalitico.ano || ''}` : CONFIG.mesReferencia || '';
+  const nomeMesAnalitico = mesAnalitico?.mesNome || 'período';
   document.getElementById('an-card-period').textContent = periodo;
   document.getElementById('an-card-filial').textContent = window.FILIAL_ATUAL?.nome || 'UNI Internet';
   document.getElementById('an-card-name').textContent = vendedor.nome;
@@ -5408,8 +5545,8 @@ async function preencherFichaAnalitica(selecionado, carreira, detalhesVendas = {
     : 'Meta mensal não cadastrada';
   document.getElementById('an-card-renewals').textContent = renovacoes.toLocaleString('pt-BR');
   document.getElementById('an-card-renewals-note').textContent = externo
-    ? 'Registros deste mês'
-    : 'Renovações registradas neste mês';
+    ? `Registros em ${nomeMesAnalitico}`
+    : `Renovações registradas em ${nomeMesAnalitico}`;
   document.getElementById('an-card-ticket').textContent = `R$ ${formatarValorAnalitica(ticket)}`;
   document.getElementById('an-card-ticket-note').textContent = referencia > 0 ? `${Math.round(ticket / referencia * 100)}% da referência regional` : 'Referência indisponível';
   const valorVendido = (detalhesVendas.vendasDiretas || []).reduce((total, item) => total + Number(item.valor_total ?? item.valor_plano ?? item.valor ?? 0), 0)
@@ -5461,7 +5598,8 @@ async function gerarFichaAnalitica(evt) {
     const link = document.createElement('a');
     const seguro = String(selecionado.vendedor.nome || 'colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
     link.href = URL.createObjectURL(blob);
-    link.download = `Ficha_Desempenho_${seguro}_${new Date().toISOString().slice(0, 10)}.png`;
+    const chavePeriodo = chaveMesPeriodo(contextoAnaliticaSelecionado().mes || _cache.mes);
+    link.download = `Ficha_Desempenho_${seguro}_${chavePeriodo}.png`;
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(link.href), 30000);
     showToast('Ficha analítica gerada.', 'success');
@@ -5808,16 +5946,16 @@ async function baixarCardsStatusZip(evt) {
 // mensais. Só permite celebrar marcos efetivamente alcançados.
 // ================================================================
 
-function metasBatidasDoVendedor(slug) {
-  const d = _ultimoProcessado;
+function metasBatidasDoVendedor(slug, contexto = contextoCelebracaoSelecionado()) {
+  const d = contexto.d;
   if (!d) return [];
   const vendedorMes = [...(d.intMes || []), ...(d.extMes || [])].find(v => v.slug === slug);
   if (!vendedorMes) return [];
-  const cadastro = (_cache.vendedores || []).find(v => String(v.slug || v.id) === String(slug));
+  const cadastro = (contexto.vendedores || []).find(v => String(v.slug || v.id) === String(slug));
   const vendasMes = Number(vendedorMes.vendas || 0);
 
   if (vendedorMes.tipo === 'interno') {
-    const metas = (_cache.metas || []).find(m => String(m.vendedor_id) === String(cadastro?.id));
+    const metas = (contexto.cache.metas || []).find(m => String(m.vendedor_id) === String(cadastro?.id));
     const niveis = [
       { value: 'm3', label: 'M3', meta: Number(metas?.meta_m3) },
       { value: 'm2', label: 'M2', meta: Number(metas?.meta_m2) },
@@ -5872,13 +6010,13 @@ const FRASES_CELEBRACAO_POR_RITMO = {
   ],
 };
 
-function faixaRitmoCelebracao(vendedorMes, slug) {
-  const cadastro = (_cache.vendedores || []).find(v =>
+function faixaRitmoCelebracao(vendedorMes, slug, contexto = contextoCelebracaoSelecionado()) {
+  const cadastro = (contexto.vendedores || []).find(v =>
     String(v.slug || '') === String(slug) || String(v.id) === String(vendedorMes.id)
   );
   let metaPrincipal = Number(vendedorMes.meta || 0);
   if (vendedorMes.tipo === 'interno') {
-    const metas = (_cache.metas || []).find(m => String(m.vendedor_id) === String(cadastro?.id));
+    const metas = (contexto.cache.metas || []).find(m => String(m.vendedor_id) === String(cadastro?.id));
     metaPrincipal = Math.max(
       Number(metas?.meta_m1) || 0,
       Number(metas?.meta_m2) || 0,
@@ -5889,7 +6027,7 @@ function faixaRitmoCelebracao(vendedorMes, slug) {
 
   const vendas = Number(vendedorMes.vendas || 0);
   const progressoPercentual = (vendas / metaPrincipal) * 100;
-  const { diaAtual, diasNoMes } = calcularPeriodoMes();
+  const { diaAtual, diasNoMes } = contexto.mes || calcularPeriodoMes();
   const esperadoPercentual = diasNoMes > 0 ? (diaAtual / diasNoMes) * 100 : 0;
   if (progressoPercentual >= esperadoPercentual + 5) return 'acima';
   if (progressoPercentual >= esperadoPercentual - 5) return 'no';
@@ -5915,39 +6053,49 @@ function selecionarFraseCelebracao(slug, ritmo) {
 // Chamada pelo <select> de vendedor na aba Celebrações — repopula o
 // <select> de metas só com as que essa pessoa bateu de verdade.
 function atualizarMetasCelebraveis() {
-  const slug = document.getElementById('cel-vendedor').value;
+  const vendedorSelect = document.getElementById('cel-vendedor');
+  const periodoInput = document.getElementById('cel-periodo');
+  const mesAtual = chaveMesPeriodo(_cache.mes || calcularPeriodoMes());
+  if (periodoInput) {
+    periodoInput.max = mesAtual;
+    if (!periodoInput.value) periodoInput.value = mesAtual;
+  }
+  const slug = vendedorSelect.value;
   const metaSelect = document.getElementById('cel-meta');
   const infoEl = document.getElementById('cel-preview-info');
+  const contexto = contextoCelebracaoSelecionado();
+  const nomePeriodo = `${contexto.mes?.mesNome || ''} ${contexto.mes?.ano || ''}`.trim();
   if (!slug) {
     metaSelect.innerHTML = '<option value="">Selecione o vendedor primeiro</option>';
-    infoEl.textContent = '';
+    infoEl.textContent = `Período selecionado: ${nomePeriodo}.`;
     return;
   }
-  const metas = metasBatidasDoVendedor(slug);
+  const metas = metasBatidasDoVendedor(slug, contexto);
   if (!metas.length) {
     metaSelect.innerHTML = '<option value="">Nenhuma meta batida no momento</option>';
-    infoEl.textContent = 'Esse vendedor ainda não atingiu um marco individual disponível para celebrar neste mês.';
+    infoEl.textContent = `Esse vendedor não atingiu um marco individual em ${nomePeriodo}.`;
     return;
   }
   metaSelect.innerHTML = metas.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
-  infoEl.textContent = `${metas.length} marco(s) realmente alcançado(s). A imagem terá formato vertical para Story.`;
+  infoEl.textContent = `${metas.length} marco(s) alcançado(s) em ${nomePeriodo}. A imagem terá formato vertical para Story.`;
 }
 
 function obterDadosCelebracaoSelecionada() {
   const slug = document.getElementById('cel-vendedor').value;
   const metaValue = document.getElementById('cel-meta').value;
-  const d = _ultimoProcessado;
+  const contexto = _celebracaoContextoPeriodo || contextoAnaliticaAtual();
+  const d = contexto.d;
   if (!slug || !metaValue) throw new Error('Selecione o vendedor e o marco atingido.');
   if (!d) throw new Error('Ainda não há dados carregados.');
-  const metaInfo = metasBatidasDoVendedor(slug).find(m => m.value === metaValue);
+  const metaInfo = metasBatidasDoVendedor(slug, contexto).find(m => m.value === metaValue);
   if (!metaInfo) throw new Error('Esse marco não está mais disponível para esse vendedor. Atualize os dados e tente novamente.');
   const vendedorMes = [...(d.intMes || []), ...(d.extMes || [])].find(v => v.slug === slug);
   if (!vendedorMes) throw new Error('Vendedor não encontrado nos dados mensais.');
-  return { slug, metaInfo, vendedorMes };
+  return { slug, metaInfo, vendedorMes, contexto };
 }
 
-async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
-  const vendedorCadastro = (_cache.vendedores || []).find(v =>
+async function preencherCardCelebracao(slug, metaInfo, vendedorMes, contexto = contextoCelebracaoSelecionado()) {
+  const vendedorCadastro = (contexto.vendedores || []).find(v =>
     String(v.slug || '') === String(slug) ||
     String(v.id) === String(vendedorMes.id) ||
     String(v.id) === String(slug)
@@ -5987,11 +6135,12 @@ async function preencherCardCelebracao(slug, metaInfo, vendedorMes) {
   }
 
   document.getElementById('gf-nome').textContent = vendedorMes.nome;
+  document.getElementById('gf-period').textContent = `${String(contexto.mes?.mesNome || '').toLocaleUpperCase('pt-BR')} ${contexto.mes?.ano || ''}`.trim();
   document.getElementById('gf-meta-label').textContent = metaInfo.label;
   document.getElementById('gf-headline').textContent = metaInfo.titulo || 'META CONQUISTADA!';
   const nextLabel = document.getElementById('gf-next-label');
   const nextText = document.getElementById('gf-proxima');
-  const ritmo = faixaRitmoCelebracao(vendedorMes, slug);
+  const ritmo = faixaRitmoCelebracao(vendedorMes, slug, contexto);
   document.getElementById('gf-motivation').textContent = selecionarFraseCelebracao(slug, ritmo);
   document.getElementById('gf-congrats').textContent = metaInfo.isFinal
     ? (metaInfo.value === 'individual'
@@ -6017,9 +6166,9 @@ function configurarBotoesCelebracao(ativo, mensagem = '') {
 
 async function gerarImagemCelebracao() {
   try {
-    const { slug, metaInfo, vendedorMes } = obterDadosCelebracaoSelecionada();
+    const { slug, metaInfo, vendedorMes, contexto } = obterDadosCelebracaoSelecionada();
     configurarBotoesCelebracao(true, 'Preparando a imagem…');
-    await preencherCardCelebracao(slug, metaInfo, vendedorMes);
+    await preencherCardCelebracao(slug, metaInfo, vendedorMes, contexto);
     if (typeof html2canvas === 'undefined') await carregarLibsAdmin();
     if (typeof html2canvas === 'undefined') throw new Error('Não foi possível carregar o gerador de imagens. Tente novamente.');
     if (document.fonts?.ready) await document.fonts.ready;
@@ -6031,7 +6180,7 @@ async function gerarImagemCelebracao() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Conquista_${slug}_${metaInfo.value}_${new Date().toISOString().slice(0, 10)}.png`;
+    link.download = `Conquista_${slug}_${metaInfo.value}_${chaveMesPeriodo(contexto.mes)}.png`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -6103,7 +6252,8 @@ function aplicarMolduraDestaqueMes(imagem) {
 
 async function gerarDestaqueDoMes(slug, evt) {
   if (!slug) { showToast('Selecione o vendedor destaque.', 'warning'); return; }
-  const d = _ultimoProcessado;
+  const contexto = contextoCelebracaoSelecionado();
+  const d = contexto.d;
   if (!d) { showToast('Ainda não há dados carregados.', 'warning'); return; }
 
   const vendedorMes = [...d.intMes, ...d.extMes].find(v => v.slug === slug);

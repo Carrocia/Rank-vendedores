@@ -411,7 +411,10 @@ body.adm-modal-open { overflow: hidden; }
 .an-search input::placeholder { color:var(--text-muted); }
 .an-controls { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0; padding:13px 17px; }
 .an-hidden-select { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
-.an-period-block { min-width:150px; padding:0 0 0 16px; border-left:1px solid var(--border); }
+.an-period-block { min-width:170px; padding:0 0 0 16px; border-left:1px solid var(--border); }
+.an-period-block .adm-card-eyebrow { display:block; margin-bottom:5px; }
+.an-period-select { width:100%; min-height:36px; padding:5px 9px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--heading-color); font:inherit; font-size:.82rem; }
+.an-period-select:focus { border-color:var(--accent); outline:2px solid rgba(var(--accent-rgb),.16); }
 .an-period { color:var(--heading-color); font-size:.94rem; font-weight:700; text-transform:capitalize; }
 .an-roster-summary { color:var(--text-muted); font-size:.82rem; text-align:right; }
 .an-roster-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
@@ -565,6 +568,7 @@ body.an-modal-open { overflow:hidden; }
   .an-controls { align-items:flex-start; flex-direction:column; }
   .an-profile-header { align-items:stretch; flex-direction:column; }
   .an-period-block { min-width:0; padding:0; border-left:0; }
+  .an-period-select { max-width:260px; }
   .an-roster-summary { text-align:left; }
   .an-profile-actions { align-items:stretch; flex-direction:column; }
   .an-profile-header .adm-btn { width:100%; justify-content:center; }
@@ -778,6 +782,7 @@ body.an-modal-open { overflow:hidden; }
 #sec-celebracoes .adm-compact-card { max-width:none; padding:24px; }
 #sec-celebracoes .adm-section-title-spaced { margin-top:8px; }
 #sec-celebracoes .adm-description { max-width:920px; line-height:1.65; }
+#sec-celebracoes .cel-period-field { max-width:280px; margin-bottom:18px; }
 #sec-celebracoes #dm-gerar-btn { width:auto; min-width:240px; }
 #sec-tema > .adm-form-card { padding:24px; }
 #sec-tema .adm-description { max-width:900px; line-height:1.65; }

@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261027-ranking-sem-volume-individual-v1">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261103-metas-por-tipo-v1">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261103-periodo-artes-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -41,7 +41,7 @@
      franquia; prefixo "sc-" em todas as classes pra nunca colidir
      com o resto do CSS do site.
      ═══════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261027-analitica-ficha-v4">
+<link rel="stylesheet" id="status-card-styles" href="assets/css/cards.css?v=20261103-periodo-artes-v1">
 </head>
 <body>
 
@@ -310,7 +310,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261027-ranking-sem-volume-individual-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261103-metas-por-tipo-v1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261103-periodo-artes-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -959,7 +959,7 @@
           </div>
           <div class="an-controls adm-form-card">
             <select id="an-vendedor-select" class="an-hidden-select" aria-hidden="true" tabindex="-1"><option value="">Selecione um colaborador</option></select>
-            <div class="an-period-block"><span class="adm-card-eyebrow">PERÍODO ANALISADO</span><div class="an-period" id="an-periodo">—</div></div>
+            <div class="an-period-block"><label class="adm-card-eyebrow" for="an-period-select">PERÍODO ANALISADO</label><input id="an-period-select" class="an-period-select" type="month" min="2026-10" aria-label="Selecionar mês da análise" onchange="alterarPeriodoAnalitica(this.value)"><div class="an-period" id="an-periodo" aria-live="polite">—</div></div>
             <div class="an-roster-summary" id="an-roster-summary" aria-live="polite">Carregando equipe…</div>
           </div>
           <div class="an-roster-grid" id="an-roster-grid" aria-live="polite"></div>
@@ -1267,10 +1267,11 @@
         <!-- ── CELEBRAÇÕES ─────────────────────────────────────── -->
         <section class="adm-section" id="sec-celebracoes">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-sparkles"/></svg></span>Celebrações — Marcos Individuais</div>
-          <p class="adm-page-lead">Gere artes individuais para reconhecer metas alcançadas e destacar o resultado do mês.</p>
+          <p class="adm-page-lead">Escolha o mês para consultar metas alcançadas e gerar artes de celebração ou Destaque do Mês, inclusive de períodos anteriores.</p>
           <div class="adm-card adm-compact-card">
+            <div class="adm-field cel-period-field"><label for="cel-periodo">Mês dos resultados</label><input id="cel-periodo" type="month" min="2026-10" aria-label="Selecionar mês das celebrações" onchange="alterarPeriodoCelebracoes(this.value)"></div>
             <p class="adm-description">
-              Escolha um vendedor e um marco individual já alcançado neste mês. Gere uma imagem
+              Escolha um vendedor e um marco individual já alcançado no mês selecionado. Gere uma imagem
               vertical pronta para compartilhar. Para vendedores internos, aparecem M3, M2 e M1;
               para externos, a meta mensal cadastrada.
             </p>
@@ -1298,7 +1299,7 @@
               Escolha quem é o destaque do mês — o sistema gera uma <strong>arte (imagem)</strong> pronta
               pra postar, no estilo da arte do Canva: mês, regional, foto e dados do vendedor
               preenchidos automaticamente, com a medalha fixa de 1º lugar. Escolha o vendedor e gere
-              a imagem — diferente do card de meta individual.
+              a imagem — diferente do card de meta individual. O mês acima também define o período desta arte.
             </p>
             <div class="adm-field">
               <label>Vendedor destaque</label>
@@ -1927,6 +1928,7 @@
         <div class="sc-kicker">Celebração</div>
       </div>
       <div class="sc-divider"></div>
+      <div class="gf-period" id="gf-period">—</div>
 
       <div class="gf-badge-wrap" id="gf-badge-wrap">
         <div class="gf-badge-ring"></div>

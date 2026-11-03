@@ -358,6 +358,7 @@
 #gf-card .sc-brand-row img { height: 50px; }
 #gf-card .sc-kicker { font-size: 12px; letter-spacing: 2.5px; }
 #gf-card .sc-divider { margin-top: 16px; background: linear-gradient(90deg, transparent, var(--sc-accent), var(--sc-accent-2), transparent); }
+#gf-card .gf-period { margin-top:12px; color:#b7c9d8; font-size:12px; font-weight:700; letter-spacing:2px; text-align:center; text-transform:uppercase; }
 #gf-card .sc-avatar-ring { background: linear-gradient(135deg, var(--sc-accent), var(--sc-accent-2)); }
 #gf-card .sc-avatar-inner { font-size: 30px; }
 .gf-badge-wrap { position: relative; width: 132px; height: 132px; margin: 34px auto 0; display: flex; align-items: center; justify-content: center; }
