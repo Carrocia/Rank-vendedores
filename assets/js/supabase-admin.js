@@ -5712,7 +5712,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     const cabecalho = (titulo, subtitulo = '') => {
       doc.setFillColor(...ciano); doc.rect(0, 0, 210, 3, 'F');
       doc.setFillColor(...azul); doc.rect(0, 3, 210, 25, 'F');
-      const logoUni = document.querySelector('.header-logo .logo-light')?.src;
+      const logoUni = document.querySelector('.header-logo .logo-dark')?.src;
       if (logoUni) {
         try { doc.addImage(logoUni, 'PNG', 16, 5, 27, 19); }
         catch (error) { console.warn('[gerarRelatorioAnaliticoPDF] não foi possível inserir o logo UNI:', error); }
