@@ -343,8 +343,8 @@ function renderHistorico() {
         ${h.emAndamento ? '<span class="mural-month-status">Em andamento</span>' : ''}
       </div>
       <div class="mural-winners${h.renovacao || h.emAndamento ? '' : ' mural-winners-two'}">
-        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno')}
-        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo')}
+        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno', quantidade => `${Number(quantidade).toLocaleString('pt-BR')} ${Number(quantidade) === 1 ? 'venda' : 'vendas'}`)}
+        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo', quantidade => `${Number(quantidade).toLocaleString('pt-BR')} ${Number(quantidade) === 1 ? 'venda' : 'vendas'}`)}
         ${h.renovacao || h.emAndamento
           ? renderMuralPerson(h.renovacao, 'Destaque em renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
           : ''}
