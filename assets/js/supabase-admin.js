@@ -1173,23 +1173,66 @@ async function loadRankMensalFilial(mes, ano) {
   return data || [];
 }
 
-function atualizarAcaoFechamentoRank() {
+async function atualizarAcaoFechamentoRank() {
   const area = document.getElementById('adm-rank-fechamento');
   const botao = document.getElementById('adm-rank-fechamento-btn');
   const info = document.getElementById('adm-rank-fechamento-info');
-  if (!area || !botao || !info) return;
+  if (!area || !botao || !info) return false;
   const hoje = new Date();
   const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
   const inicioProjeto = new Date(2026, 9, 1);
   area.hidden = !window.ADMIN_AUTENTICADO || !window.FILIAL_ATUAL_ID || mesAnterior < inicioProjeto;
+  if (area.hidden) return false;
   const mes = mesAnterior.getMonth() + 1;
   const ano = mesAnterior.getFullYear();
   const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(mesAnterior);
   botao.dataset.mes = String(mes);
   botao.dataset.ano = String(ano);
+  botao.disabled = true;
+  botao.textContent = `Verificando ${nomeMes}…`;
+  botao.dataset.rankFechado = 'false';
+  const { data: fechamento, error: erroFechamento } = await window._supabase
+    .from('ranks_carreira_periodos_fechados')
+    .select('filial_id')
+    .eq('filial_id', Number(window.FILIAL_ATUAL_ID))
+    .eq('mes', mes)
+    .eq('ano', ano)
+    .maybeSingle();
+  if (erroFechamento) {
+    botao.textContent = `Fechamento de ${nomeMes}`;
+    info.textContent = 'Não foi possível consultar se este mês já foi consolidado. Atualize a página antes de tentar novamente.';
+    return false;
+  }
+  botao.dataset.rankFechado = fechamento ? 'true' : 'false';
+
+  if (fechamento) {
+    const { data: periodosXp, error: erroXp } = await window._supabase
+      .from('xp_comercial_periodos')
+      .select('status')
+      .eq('filial_id', Number(window.FILIAL_ATUAL_ID))
+      .eq('mes', mes)
+      .eq('ano', ano);
+    if (erroXp) {
+      botao.textContent = `Rank de ${nomeMes} consolidado`;
+      info.textContent = 'O rank já está fechado, mas não foi possível verificar o fechamento do XP. Atualize a página para conferir.';
+      return false;
+    }
+    const xpPendente = (periodosXp || []).some(periodo => periodo.status !== 'fechado');
+    if (xpPendente) {
+      botao.disabled = false;
+      botao.textContent = `Concluir XP de ${nomeMes}`;
+      info.textContent = `O rank de ${nomeMes} já está consolidado. Use esta ação apenas para concluir os períodos de XP que ficaram pendentes.`;
+      return true;
+    }
+    botao.textContent = `${nomeMes} consolidado`;
+    info.textContent = `O rank e o XP de ${nomeMes} já foram consolidados. Este fechamento não pode ser repetido.`;
+    return true;
+  }
+
   botao.disabled = false;
   botao.textContent = `Consolidar ${nomeMes}`;
   info.textContent = `Você pode consolidar ${nomeMes} quando quiser, depois de conferir as importações finais. Se ficar pendente, o sistema fará a consolidação automática a partir do dia 8 do mês seguinte.`;
+  return true;
 }
 
 async function fecharRankMesAnteriorFilial() {
@@ -1199,9 +1242,12 @@ async function fecharRankMesAnteriorFilial() {
   const ano = Number(botao.dataset.ano);
   const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
     .format(new Date(ano, mes - 1, 1));
-  if (!confirm(`Consolidar agora o rank e o XP de ${nomeMes}? Confira se já importou os relatórios finais de vendas e renovações. A consolidação registra um retrato do mês; alterações posteriores não atualizam esse fechamento automaticamente. Se preferir, cancele e deixe a consolidação automática para depois do dia 7 do mês seguinte.`)) return;
+  const rankFechado = botao.dataset.rankFechado === 'true';
+  const confirmacao = rankFechado
+    ? `O rank de ${nomeMes} já está fechado. Tentar concluir agora apenas os períodos de XP que ainda estiverem pendentes?`
+    : `Consolidar agora o rank e o XP de ${nomeMes}? Confira se já importou os relatórios finais de vendas e renovações. A consolidação registra um retrato do mês; alterações posteriores não atualizam esse fechamento automaticamente. Se preferir, cancele e deixe a consolidação automática para depois do dia 7 do mês seguinte.`;
+  if (!confirm(confirmacao)) return;
   botao.disabled = true;
-  const textoOriginal = botao.textContent;
   botao.textContent = 'Consolidando…';
   let rankConsolidado = false;
   try {
@@ -1218,7 +1264,9 @@ async function fecharRankMesAnteriorFilial() {
       p_ano: ano,
     });
     if (xpError) throw xpError;
-    showToast(`Rank e XP de ${nomeMes} consolidados. ${Number(data || 0)} ranks e ${Number(xpData || 0)} períodos de XP.`, 'success');
+    showToast(rankFechado
+      ? `Períodos de XP pendentes de ${nomeMes} concluídos.`
+      : `Rank e XP de ${nomeMes} consolidados. ${Number(data || 0)} ranks e ${Number(xpData || 0)} períodos de XP.`, 'success');
     await carregarDados();
   } catch (error) {
     console.error('[fecharRankMesAnteriorFilial]', error);
@@ -1226,8 +1274,7 @@ async function fecharRankMesAnteriorFilial() {
       ? `O rank foi consolidado, mas o XP não. Aplique a migração de XP e tente consolidar novamente: ${error.message || 'erro no fechamento de XP.'}`
       : (error.message || 'Não foi possível consolidar o mês.'), 'error');
   } finally {
-    atualizarAcaoFechamentoRank();
-    botao.textContent = textoOriginal;
+    await atualizarAcaoFechamentoRank();
   }
 }
 
