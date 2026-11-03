@@ -80,6 +80,16 @@ function renderPodium(containerId, entries, options = {}) {
       ? `<img class="podium-photo" src="${photo}" alt="${nomeSeguro}">`
       : `<div class="podium-photo podium-photo-fallback" aria-label="${nomeSeguro}">${escapeHtmlText(String(nome || '?').trim().charAt(0).toUpperCase())}</div>`;
     const tiers = metasIndividuais ? calcularTiersIndividuais(e.id, e.tipo, metasIndividuais, vendasMesPorId) : { badgeTier: null };
+    const linhaMetas = e.tipo === 'interno'
+      ? (metasIndividuais || []).find(m => String(m.vendedor_id) === String(e.id))
+      : null;
+    const progressoMetaPessoa = mode === 'mensal' && linhaMetas
+      ? calcularProgressoEtapasMeta(vendasMesPorId[e.id], [
+        { label: 'M3', meta: linhaMetas.meta_m3 },
+        { label: 'M2', meta: linhaMetas.meta_m2 },
+        { label: 'M1', meta: linhaMetas.meta_m1 },
+      ])
+      : null;
     // Só UM selo — a maior meta já batida (M3 sozinha conta, assim como M2 e M1).
     const badgesHTML = tiers.badgeTier && PODIUM_TIER_ASSETS[tiers.badgeTier.tier]
       ? `<div class="podium-tier-badges">
@@ -87,9 +97,11 @@ function renderPodium(containerId, entries, options = {}) {
         </div>`
       : '';
 
-    const subHTML = mode === 'mensal' && tiers.badgeTier
-      ? `<span class="podium-value">Meta ${escapeHtmlText(tiers.badgeTier.label)} alcançada</span>`
-      : '<span class="podium-value">Em destaque</span>';
+    const subHTML = progressoMetaPessoa
+      ? `<span class="podium-value">${progressoMetaPessoa.concluida ? 'Metas concluídas · 100%' : `${progressoMetaPessoa.percentual}% da meta ${escapeHtmlText(progressoMetaPessoa.etapa)}`}</span>`
+      : mode === 'mensal' && tiers.badgeTier
+        ? `<span class="podium-value">Meta ${escapeHtmlText(tiers.badgeTier.label)} alcançada</span>`
+        : '<span class="podium-value">Em destaque</span>';
 
     const shimmerDelay = rank === 1 ? '0s' : rank === 2 ? '0.4s' : '0.8s';
     const tooltipContent = `<strong>${nomeSeguro}</strong><span>${rank}º lugar</span>`;
