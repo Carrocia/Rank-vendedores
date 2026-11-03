@@ -539,7 +539,7 @@ function renderMensalProgress(d) {
     ? `Progresso da meta ${progressoMeta.etapa}`
     : 'Meta mensal não configurada';
   document.getElementById('metaFaltamSuffix').textContent = progressoMeta
-    ? (progressoMeta.concluida ? 'meta M1 concluída' : `vendas para atingir ${progressoMeta.etapa}`)
+    ? (progressoMeta.concluida ? 'metas do mês concluídas' : `vendas para atingir ${progressoMeta.etapa}`)
     : 'vendas para fechar o mês';
   document.getElementById('metaSideBlock3').style.display = 'none';
   document.getElementById('weekDataLabel').textContent = mesNome + ' de ' + mes.ano;
@@ -2188,7 +2188,7 @@ function processarDadosParaRender(cache) {
   const liderInternoSem = intSem.sort((a,b) => (b.vendas - a.vendas) || ((b.valor||0) - (a.valor||0)))[0];
   const maiorEvolucao = todasSemana.reduce((a, b) => (b.vendas || 0) > (a.vendas || 0) ? b : a, todasSemana[0] || {});
   const todasMensal = [...extMes, ...intMes];
-  const progressoMetaMensal = vendedor => {
+  const calcularProgressoMetaIndividual = vendedor => {
     if (vendedor.tipo === 'interno') {
       const linha = (metas || []).find(m => String(m.vendedor_id) === String(vendedor.id));
       const niveis = [
@@ -2206,7 +2206,7 @@ function processarDadosParaRender(cache) {
   };
   const mensalComProgressoMeta = todasMensal
     .map(v => {
-      const progresso = progressoMetaMensal(v);
+      const progresso = calcularProgressoMetaIndividual(v);
       return progresso ? { ...v, ...progresso } : null;
     })
     .filter(v => v && Number.isFinite(v.pctMetaAtual));
@@ -2261,7 +2261,7 @@ function renderAdmDashboard(d) {
   if (barraMeta) barraMeta.style.width = `${progresso}%`;
   if (progressoWrap) progressoWrap.setAttribute('aria-valuenow', String(Math.round(progresso)));
   setText('dash-meta-summary', etapaMeta
-    ? `${Number(d.totalMes || 0).toLocaleString('pt-BR')} de ${Number(etapaMeta.meta).toLocaleString('pt-BR')} vendas · ${etapaMeta.concluida ? 'M1 concluída' : `${etapaMeta.etapa} atual`}`
+    ? `${Number(d.totalMes || 0).toLocaleString('pt-BR')} de ${Number(etapaMeta.meta).toLocaleString('pt-BR')} vendas · ${etapaMeta.concluida ? 'metas concluídas' : `${etapaMeta.etapa} atual`}`
     : 'Metas M3, M2 e M1 ainda não configuradas');
 
   if (_dashSemanaOffset === 0) _dashSemanaSelecionada = { periodo: d.semana, dias: d.evolucaoSemana || [] };
