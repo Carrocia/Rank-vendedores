@@ -97,11 +97,13 @@ function renderPodium(containerId, entries, options = {}) {
         </div>`
       : '';
 
-    const subHTML = progressoMetaPessoa
-      ? `<span class="podium-value">${progressoMetaPessoa.concluida ? 'Metas concluídas · 100%' : `${progressoMetaPessoa.percentual}% da meta ${escapeHtmlText(progressoMetaPessoa.etapa)}`}</span>`
-      : mode === 'mensal' && tiers.badgeTier
-        ? `<span class="podium-value">Meta ${escapeHtmlText(tiers.badgeTier.label)} alcançada</span>`
-        : '<span class="podium-value">Em destaque</span>';
+    const subHTML = mode === 'semanal'
+      ? `<span class="podium-value">${Number(e.vendas || 0).toLocaleString('pt-BR')} ${Number(e.vendas || 0) === 1 ? 'venda' : 'vendas'} na semana</span>`
+      : progressoMetaPessoa
+        ? `<span class="podium-value">${progressoMetaPessoa.concluida ? 'Metas concluídas · 100%' : `${progressoMetaPessoa.percentual}% da meta ${escapeHtmlText(progressoMetaPessoa.etapa)}`}</span>`
+        : mode === 'mensal' && tiers.badgeTier
+          ? `<span class="podium-value">Meta ${escapeHtmlText(tiers.badgeTier.label)} alcançada</span>`
+          : '<span class="podium-value">Em destaque</span>';
 
     const shimmerDelay = rank === 1 ? '0s' : rank === 2 ? '0.4s' : '0.8s';
     const tooltipContent = `<strong>${nomeSeguro}</strong><span>${rank}º lugar</span>`;
