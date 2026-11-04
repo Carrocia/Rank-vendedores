@@ -903,7 +903,7 @@ function showToast(message, type = 'success', duration = 4500) {
 const _maisVendidosCache = new Map();
 let _cache = {
   vendedores: [], planos: [], categoriasPlanos: [], adicionais: [], filiais: [],
-  metasFilial: null, metas: [], metasRenovCancel: null, metasRenovacaoFilial: null, metasRenovacaoIndividual: [], renovacoesMes: null, renovacoesTotal: null, destaquesRenovacoes: null,
+  metasFilial: null, metas: [], metasRenovCancel: null, metasRenovacaoFilial: null, renovacoesMes: null, renovacoesTotal: null, destaquesRenovacoes: null,
   ranksMensais: [],
   vendasSemana: [], vendasMes: [], vendasFiliais: [], vendasSemanaAnterior: [],
   vendasOrigemSemana: [], vendasOrigemSemanaAnterior: [], vendasOrigemMes: [],
@@ -1078,9 +1078,8 @@ async function carregarDados() {
       pRenovacoesFechadas,
     ]);
 
-    const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
+    const [metasRenovacaoFilial, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
       loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
-      loadMetasRenovacaoIndividual(_cache.mes.mesNum, _cache.mes.ano),
       loadRenovacoesMensais(_cache.mes.mesNum, _cache.mes.ano),
       loadTotalRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
       loadDestaquesRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
@@ -1095,7 +1094,6 @@ async function carregarDados() {
     _cache.metas = metas;
     _cache.metasRenovCancel = metasRenovCancel;
     _cache.metasRenovacaoFilial = metasRenovacaoFilial;
-    _cache.metasRenovacaoIndividual = metasRenovacaoIndividual;
     _cache.renovacoesMes = renovacoesMes;
     _cache.renovacoesTotal = renovacoesTotal;
     _cache.destaquesRenovacoes = destaquesRenovacoes;

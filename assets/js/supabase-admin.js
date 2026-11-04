@@ -759,6 +759,15 @@ async function cadastrarVendedor(event) {
         throw error;
       }
       vendedorId = vendedor.id;
+      if (tipo === 'interno') {
+        const periodoAtual = calcularPeriodoMes();
+        try {
+          await sincronizarMetaRenovacaoVendedor(vendedorId, filialId, periodoAtual.mesNum, periodoAtual.ano);
+        } catch (erroMetasRenovacao) {
+          console.warn('[cadastrarVendedor] não foi possível aplicar as metas de renovação compartilhadas:', erroMetasRenovacao);
+          showToast('Vendedor cadastrado, mas as metas compartilhadas de renovação não foram sincronizadas. Salve novamente as metas da equipe.', 'warning', 9000);
+        }
+      }
     }
 
     if (arquivoFoto && vendedorId) {
@@ -1127,22 +1136,31 @@ async function loadMetasRenovCancel(mes, ano) {
   };
 }
 
-// Metas por pessoa e contagens importadas residem em tabelas próprias, sem
-// acoplar renovações ao cadastro de metas de vendas ou de cancelamentos.
-async function loadMetasRenovacaoIndividual(mes, ano) {
-  const { data, error } = await window._supabase.from('metas_renovacao_individual')
-    .select('id,filial_id,vendedor_id,mes,ano,meta_m3,meta_m2,meta_m1')
-    .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano);
-  if (error) { console.warn('[loadMetasRenovacaoIndividual] aplique supabase/renovacoes-mensais.sql:', error.message); return []; }
-  return data || [];
-}
-
 async function loadMetasRenovacaoFilial(mes, ano) {
   const { data, error } = await window._supabase.from('metas_renovacao_filial')
     .select('id,filial_id,mes,ano,meta_m3,meta_m2,meta_m1')
     .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano).maybeSingle();
   if (error) { console.warn('[loadMetasRenovacaoFilial] usando metas antigas até aplicar a migração:', error.message); return null; }
   return data || null;
+}
+
+async function sincronizarMetaRenovacaoVendedor(vendedorId, filialId, mes, ano) {
+  const { data: metas, error: erroMetas } = await window._supabase.from('metas_renovacao_filial')
+    .select('meta_m3,meta_m2,meta_m1')
+    .eq('filial_id', filialId).eq('mes', mes).eq('ano', ano).maybeSingle();
+  if (erroMetas) throw erroMetas;
+  if (!metas) return;
+  const { error } = await window._supabase.from('metas_renovacao_individual').upsert({
+    filial_id: filialId,
+    vendedor_id: vendedorId,
+    mes,
+    ano,
+    meta_m3: metas.meta_m3,
+    meta_m2: metas.meta_m2,
+    meta_m1: metas.meta_m1,
+    atualizado_em: new Date().toISOString(),
+  }, { onConflict: 'vendedor_id,mes,ano' });
+  if (error) throw error;
 }
 
 async function loadRenovacoesMensais(mes, ano) {
@@ -4679,7 +4697,7 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
     const renovacaoMensal = Array.isArray(_cache.renovacoesMes) ? _cache.renovacoesMes : null;
     const renovacaoPessoa = renovacaoMensal?.find(item => String(item.vendedor_id) === String(vendedorCadastro?.id));
     const quantidadeRenovacoes = renovacaoPessoa ? Number(renovacaoPessoa.quantidade || 0) : (renovacaoMensal ? 0 : null);
-    const metasRenovPessoa = (_cache.metasRenovacaoIndividual || []).find(item => String(item.vendedor_id) === String(vendedorCadastro?.id)) || {};
+    const metasRenovPessoa = _cache.metasRenovacaoFilial || {};
     const metasRenovPessoaOrdenadas = [
       { label: 'M3', valor: Number(metasRenovPessoa.meta_m3) },
       { label: 'M2', valor: Number(metasRenovPessoa.meta_m2) },
@@ -4694,7 +4712,7 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
       ? 'Aguardando relatório'
       : metaRenovacaoAtual
         ? `${metaRenovacaoAtual.label} · ${quantidadeRenovacoes.toLocaleString('pt-BR')} / ${metaRenovacaoAtual.valor.toLocaleString('pt-BR')}`
-        : 'Meta individual não definida';
+    : 'Meta da equipe não configurada';
   }
 
   document.getElementById('sc-phrase').textContent = `"${frase}"`;
@@ -4903,7 +4921,7 @@ async function carregarContextoPeriodoHistorico(chave) {
     const vendedores = (_cache.vendedores || []).filter(v => v.ativo !== false);
     const ids = vendedores.map(v => v.id);
     const [vendasMes, vendasOrigemMes, vendasFiliais, metasFilial, metasRenovCancel,
-      metasRenovacaoFilial, metas, metasRenovacaoIndividual, renovacoesMes, ranksMensais] = await Promise.all([
+      metasRenovacaoFilial, metas, renovacoesMes, ranksMensais] = await Promise.all([
       loadVendas(mes.de, mes.ate),
       loadVendasOrigem(mes.de, mes.ate),
       loadVendasOutrasFiliais(mes.de, mes.ate),
@@ -4911,7 +4929,6 @@ async function carregarContextoPeriodoHistorico(chave) {
       loadMetasRenovCancel(mes.mesNum, mes.ano),
       loadMetasRenovacaoFilial(mes.mesNum, mes.ano),
       loadMetas(mes.mesNum, mes.ano, ids),
-      loadMetasRenovacaoIndividual(mes.mesNum, mes.ano),
       loadRenovacoesMensais(mes.mesNum, mes.ano),
       loadRankMensalFilial(mes.mesNum, mes.ano),
     ]);
@@ -4942,7 +4959,7 @@ async function carregarContextoPeriodoHistorico(chave) {
     const cache = {
       ..._cache, mes, vendasMes: vendasMes || [], vendasOrigemMes: vendasOrigemMes || [],
       vendasFiliais: vendasFiliais || [], metasFilial, metasRenovCancel, metasRenovacaoFilial,
-      metas: metas || [], metasRenovacaoIndividual: metasRenovacaoIndividual || [],
+      metas: metas || [],
       renovacoesMes: renovacoesMes || [], ranksMensais: ranksMensais || [],
     };
     return { d, mes, cache, vendedores, filialId: String(window.FILIAL_ATUAL_ID || '') };
@@ -5003,7 +5020,12 @@ function obterPerfilAnaliticoSelecionado() {
   const rank = (contexto.cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(id)) || null;
   const renovacao = (contexto.cache.renovacoesMes || [])?.find(item => String(item.vendedor_id) === String(id));
   const metasVendas = (contexto.cache.metas || []).find(item => String(item.vendedor_id) === String(id)) || {};
-  const metasRenovacao = (contexto.cache.metasRenovacaoIndividual || []).find(item => String(item.vendedor_id) === String(id)) || {};
+  const renovacaoLegada = contexto.cache.metasRenovCancel || {};
+  const metasRenovacao = contexto.cache.metasRenovacaoFilial || {
+    meta_m3: renovacaoLegada.renovacoes_m3,
+    meta_m2: renovacaoLegada.renovacoes_m2,
+    meta_m1: renovacaoLegada.renovacoes_m1,
+  };
   return { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo: vendedor.tipo || cadastro?.tipo || 'interno' };
 }
 
@@ -5784,7 +5806,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     if (!externo) indicadores.push({
       nome: 'Renovações', resultado: metaRenovacaoM1 > 0 ? `${formatoInteiro(renovacoes)} de ${formatoInteiro(metaRenovacaoM1)}` : `${formatoInteiro(renovacoes)} registradas`,
       percentual: metaRenovacaoM1 > 0 ? Math.round(renovacoes / metaRenovacaoM1 * 100) : null,
-      referencia: metaRenovacaoM1 > 0 ? 'Meta individual M1' : 'Sem meta de renovação cadastrada',
+      referencia: metaRenovacaoM1 > 0 ? 'Meta M1 compartilhada pela equipe interna' : 'Sem meta de renovação cadastrada',
     });
 
     const { jsPDF } = window.jspdf;
@@ -5923,13 +5945,13 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       textoQuebrado('As metas deste período não estão configuradas.', 16, y + 3, 178); y += 13;
     }
     if (y > 226) { doc.addPage(); cabecalho('Suas renovações no mês', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · resultado individual`); y = 54; }
-    y = tituloSecao('Etapas individuais de renovação', y);
+    y = tituloSecao('Metas de renovação da equipe interna', y);
     if (externo) {
       doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(16, y, 178, 18, 2, 2, 'FD');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul);
       doc.text(`${formatoInteiro(renovacoes)} renovação(ões) registrada(s) no período`, 21, y + 7);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-      doc.text('Vendedor externo não possui metas individuais de renovação configuradas.', 21, y + 13);
+      doc.text('As metas compartilhadas de renovação são destinadas à equipe interna.', 21, y + 13);
       y += 24;
     } else if (metasRenovacaoEtapas.length) {
       const etapasW = 178 / metasRenovacaoEtapas.length;
@@ -7059,7 +7081,7 @@ function renderConfigMetas(cache) {
   const mesLabel = (cache.mes && cache.mes.mesNome)
     ? (cache.mes.mesNome.charAt(0).toUpperCase() + cache.mes.mesNome.slice(1)) + '/' + cache.mes.ano
     : '—';
-  const periodoEls = [document.getElementById('cfg-fil-periodo'), document.getElementById('cfg-ind-periodo'), document.getElementById('cfg-renov-periodo'), document.getElementById('cfg-renov-ind-periodo'), document.getElementById('cfg-cancel-periodo')];
+  const periodoEls = [document.getElementById('cfg-fil-periodo'), document.getElementById('cfg-ind-periodo'), document.getElementById('cfg-renov-periodo'), document.getElementById('cfg-cancel-periodo')];
   periodoEls.forEach(el => { if (el) el.textContent = mesLabel; });
   const seletorCancel = document.getElementById('cfg-cancel-mes');
   if (seletorCancel) {
@@ -7078,8 +7100,7 @@ function renderConfigMetas(cache) {
   setVal('cfg-fil-mes-m2', mf ? mf.mensal_m2 : null);
   setVal('cfg-fil-mes-m1', mf ? mf.mensal_m1 : null);
 
-  // Metas gerais de renovação continuam na tabela mensal legada; o total
-  // realizado será preenchido pela importação do relatório específico.
+  // Uma meta compartilhada de renovação vale para toda a equipe interna.
   const rc = cache.metasRenovCancel;
   const metasRenovGeral = cache.metasRenovacaoFilial || {
     meta_m3: rc?.renovacoes_m3, meta_m2: rc?.renovacoes_m2, meta_m1: rc?.renovacoes_m1,
@@ -7118,17 +7139,6 @@ function renderConfigMetas(cache) {
   setVal('cfg-meta-interno-m2', obterMetaPadrao(internos, 'meta_m2'));
   setVal('cfg-meta-interno-m1', obterMetaPadrao(internos, 'meta_m1'));
   setVal('cfg-meta-externo-vendas', obterMetaPadrao(externos, 'meta_vendas'));
-
-  const renovTbody = document.getElementById('cfg-metas-renov-vendedores-tbody');
-  if (renovTbody) {
-    const metasRenov = cache.metasRenovacaoIndividual || [];
-    const vendedoresComMetaRenovacao = vendedores.filter(v => v.tipo === 'interno');
-    renovTbody.innerHTML = vendedoresComMetaRenovacao.length ? vendedoresComMetaRenovacao.map(v => {
-      const m = metasRenov.find(item => String(item.vendedor_id) === String(v.id)) || {};
-      const input = (campo, valor) => `<input type="number" min="0" step="1" style="width:90px" id="cfg-renov-meta-${v.id}-${campo}" value="${valor ?? ''}" placeholder="—">`;
-      return `<tr data-renov-vendedor-id="${v.id}" data-filial-id="${v.filial_id || window.FILIAL_ATUAL_ID}"><td><strong>${v.nome}</strong></td><td><span class="adm-badge interno">Interno</span></td><td>${input('m3', m.meta_m3)}</td><td>${input('m2', m.meta_m2)}</td><td>${input('m1', m.meta_m1)}</td></tr>`;
-    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Nenhum vendedor interno cadastrado.</td></tr>';
-  }
 }
 
 // Lê um <input> numérico e valida: vazio é permitido (= "não definir"),
@@ -7364,49 +7374,32 @@ async function handleSalvarMetasRenovacao() {
   }
   try {
     await salvarMetaRenovacaoFilial({ meta_m3: valores[0].valor, meta_m2: valores[1].valor, meta_m1: valores[2].valor });
+    const internos = (_cache.vendedores || []).filter(v => v.tipo === 'interno' && v.ativo !== false);
+    const metasCompartilhadas = internos.map(v => ({
+      filial_id: Number(v.filial_id || window.FILIAL_ATUAL_ID),
+      vendedor_id: Number(v.id),
+      mes: _cache.mes.mesNum,
+      ano: _cache.mes.ano,
+      meta_m3: valores[0].valor,
+      meta_m2: valores[1].valor,
+      meta_m1: valores[2].valor,
+      atualizado_em: new Date().toISOString(),
+    }));
+    if (metasCompartilhadas.length) {
+      const { error } = await window._supabase.from('metas_renovacao_individual')
+        .upsert(metasCompartilhadas, { onConflict: 'vendedor_id,mes,ano' });
+      if (error) throw new Error('As metas gerais foram salvas, mas não foi possível aplicá-las a todos os vendedores: ' + error.message);
+    }
     await carregarDados();
-    showToast('Metas gerais de renovação salvas.', 'success');
+    showToast(`Metas de renovação aplicadas igualmente a ${internos.length} vendedor(es) interno(s).`, 'success');
   } catch (err) {
     console.error('[handleSalvarMetasRenovacao]', err);
     const msg = String((err && err.message) || err);
-    showToast(/metas_renovacao_filial|schema cache|does not exist/i.test(msg)
+    showToast(msg.startsWith('As metas gerais foram salvas, mas')
+      ? msg
+      : /metas_renovacao_filial|schema cache|does not exist/i.test(msg)
       ? 'A tabela de metas gerais ainda não existe. Execute supabase/renovacoes-mensais.sql no SQL Editor.'
       : 'Não foi possível salvar as metas de renovação: ' + msg, 'error', 9000);
-  }
-}
-
-async function handleSalvarMetasIndividuaisRenovacao() {
-  if (!_dadosCarregados) { showToast('Os dados ainda não foram carregados do Supabase.', 'warning'); return; }
-  const linhas = [...document.querySelectorAll('#cfg-metas-renov-vendedores-tbody tr[data-renov-vendedor-id]')];
-  const metas = [];
-  for (const linha of linhas) {
-    const vendedor_id = Number(linha.dataset.renovVendedorId);
-    const campos = ['m3', 'm2', 'm1'].map(campo => lerMetaInput(`cfg-renov-meta-${vendedor_id}-${campo}`));
-    if (!Number.isInteger(vendedor_id) || campos.some(c => !c.ok)) {
-      showToast('Preencha as metas individuais de renovação com números inteiros iguais ou maiores que zero, ou deixe em branco.', 'warning');
-      return;
-    }
-    metas.push({
-      filial_id: Number(linha.dataset.filialId), vendedor_id,
-      mes: _cache.mes.mesNum, ano: _cache.mes.ano,
-      meta_m3: campos[0].valor, meta_m2: campos[1].valor, meta_m1: campos[2].valor,
-      atualizado_em: new Date().toISOString(),
-    });
-  }
-  try {
-    if (metas.length) {
-      const { error } = await window._supabase.from('metas_renovacao_individual')
-        .upsert(metas, { onConflict: 'vendedor_id,mes,ano' });
-      if (error) throw error;
-    }
-    await carregarDados();
-    showToast('Metas individuais de renovação salvas.', 'success');
-  } catch (err) {
-    console.error('[handleSalvarMetasIndividuaisRenovacao]', err);
-    const msg = String((err && err.message) || err);
-    showToast(/metas_renovacao_individual|schema cache|does not exist/i.test(msg)
-      ? 'A tabela de metas individuais ainda não existe no Supabase. Execute supabase/renovacoes-mensais.sql no SQL Editor.'
-      : 'Não foi possível salvar as metas individuais: ' + msg, 'error', 9000);
   }
 }
 
