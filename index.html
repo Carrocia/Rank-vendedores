@@ -310,7 +310,7 @@
 
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261103-ranking-progresso-metas-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261103-relatorio-individual-v10"></script>
+  <script src="assets/js/supabase-admin.js?v=20261104-cancelamentos-retroativos-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1651,13 +1651,15 @@
 
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title"><span class="adm-title-icon is-warning"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-warning"/></svg></span>Cancelamentos — <span id="cfg-cancel-periodo">mês/ano atual</span></div>
-            <p class="adm-muted-copy">Aqui é o contrário das outras metas: são tetos que não podem ser ultrapassados. Por isso a ordem é M1 (mais rígido) → M3 (mais tolerante).</p>
+            <p class="adm-muted-copy">Selecione o mês do registro. Você pode lançar ou corrigir os cancelamentos de um mês anterior antes de consolidá-lo.</p>
+            <div class="adm-field" style="max-width:320px;margin-bottom:16px"><label for="cfg-cancel-mes">Mês do registro</label><input type="month" id="cfg-cancel-mes" min="2026-10" aria-label="Mês do registro de cancelamentos" onchange="carregarCancelamentosPeriodoSelecionado()"></div>
             <div class="adm-form-grid">
               <div class="adm-field"><label>Meta M1</label><input type="number" id="cfg-cancel-m1" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label>Meta M2</label><input type="number" id="cfg-cancel-m2" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label>Meta M3</label><input type="number" id="cfg-cancel-m3" min="0" step="1" placeholder="Não configurado"></div>
-              <div class="adm-field"><label>Cancelamentos feitos até agora no mês</label><input type="number" id="cfg-cancel-atual" min="0" step="1" placeholder="0"></div>
+              <div class="adm-field"><label>Total de cancelamentos no mês</label><input type="number" id="cfg-cancel-atual" min="0" step="1" placeholder="0"></div>
             </div>
+            <div class="adm-form-actions" style="margin-top:14px"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-cancel-salvar" onclick="handleSalvarCancelamentos()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar cancelamentos deste mês</button></div>
           </div>
 
           <div class="adm-form-full adm-form-actions">

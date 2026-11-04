@@ -1109,7 +1109,7 @@ async function loadMetasRenovCancel(mes, ano) {
     .eq('filial_id', window.FILIAL_ATUAL_ID)
     .eq('mes', mes)
     .eq('ano', ano)
-    .single();
+    .maybeSingle();
   if (error) { console.error('[loadMetasRenovCancel]', error); return null; }
   if (!data) return null;
   return {
@@ -7012,6 +7012,47 @@ function renderAdmMetasConfig(cache) {
 // públicos depois de carregarDados() — sem tocar em nenhuma dessas funções.
 // ================================================================
 
+let _cancelamentosPeriodoReq = 0;
+
+function periodoSelecionadoCancelamentos() {
+  const valor = document.getElementById('cfg-cancel-mes')?.value || '';
+  const partes = /^(\d{4})-(\d{2})$/.exec(valor);
+  if (!partes) return null;
+  return { ano: Number(partes[1]), mes: Number(partes[2]), chave: valor };
+}
+
+async function carregarCancelamentosPeriodoSelecionado() {
+  const entrada = document.getElementById('cfg-cancel-mes');
+  if (!entrada || !_dadosCarregados) return;
+  const periodo = periodoSelecionadoCancelamentos();
+  if (!periodo || periodo.mes < 1 || periodo.mes > 12) return;
+
+  const agora = _cache.mes || calcularPeriodoMes();
+  const chaveAtual = `${agora.ano}-${String(agora.mesNum || agora.mes).padStart(2, '0')}`;
+  const atual = periodo.chave === chaveAtual;
+  const sequencia = ++_cancelamentosPeriodoReq;
+  const nomeMes = new Date(periodo.ano, periodo.mes - 1, 1)
+    .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const label = document.getElementById('cfg-cancel-periodo');
+  if (label) label.textContent = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
+
+  try {
+    const dados = atual ? (_cache.metasRenovCancel || null) : await loadMetasRenovCancel(periodo.mes, periodo.ano);
+    if (sequencia !== _cancelamentosPeriodoReq || entrada.value !== periodo.chave) return;
+    const setVal = (id, val) => {
+      const campo = document.getElementById(id);
+      if (campo) campo.value = val == null ? '' : String(val);
+    };
+    setVal('cfg-cancel-m1', dados?.cancelamentos_m1);
+    setVal('cfg-cancel-m2', dados?.cancelamentos_m2);
+    setVal('cfg-cancel-m3', dados?.cancelamentos_m3);
+    setVal('cfg-cancel-atual', dados?.cancelamentos_atual);
+  } catch (erro) {
+    console.error('[carregarCancelamentosPeriodoSelecionado]', erro);
+    showToast('Não foi possível carregar os cancelamentos deste mês.', 'error');
+  }
+}
+
 // Preenche o formulário (filial + tabela de vendedores) com os dados
 // já carregados em _cache — não faz nenhuma consulta nova ao Supabase.
 function renderConfigMetas(cache) {
@@ -7020,6 +7061,12 @@ function renderConfigMetas(cache) {
     : '—';
   const periodoEls = [document.getElementById('cfg-fil-periodo'), document.getElementById('cfg-ind-periodo'), document.getElementById('cfg-renov-periodo'), document.getElementById('cfg-renov-ind-periodo'), document.getElementById('cfg-cancel-periodo')];
   periodoEls.forEach(el => { if (el) el.textContent = mesLabel; });
+  const seletorCancel = document.getElementById('cfg-cancel-mes');
+  if (seletorCancel) {
+    const chaveAtual = `${cache.mes.ano}-${String(cache.mes.mesNum || cache.mes.mes).padStart(2, '0')}`;
+    seletorCancel.max = chaveAtual;
+    if (!seletorCancel.value) seletorCancel.value = chaveAtual;
+  }
 
   // Meta da Filial
   const mf = cache.metasFilial;
@@ -7040,10 +7087,16 @@ function renderConfigMetas(cache) {
   setVal('cfg-renov-m3', metasRenovGeral.meta_m3);
   setVal('cfg-renov-m2', metasRenovGeral.meta_m2);
   setVal('cfg-renov-m1', metasRenovGeral.meta_m1);
-  setVal('cfg-cancel-m3', rc ? rc.cancelamentos_m3 : null);
-  setVal('cfg-cancel-m2', rc ? rc.cancelamentos_m2 : null);
-  setVal('cfg-cancel-m1', rc ? rc.cancelamentos_m1 : null);
-  setVal('cfg-cancel-atual', rc ? rc.cancelamentos_atual : null);
+  const periodoCancel = periodoSelecionadoCancelamentos();
+  const chaveAtualCancel = `${cache.mes.ano}-${String(cache.mes.mesNum || cache.mes.mes).padStart(2, '0')}`;
+  if (periodoCancel?.chave === chaveAtualCancel) {
+    setVal('cfg-cancel-m3', rc?.cancelamentos_m3);
+    setVal('cfg-cancel-m2', rc?.cancelamentos_m2);
+    setVal('cfg-cancel-m1', rc?.cancelamentos_m1);
+    setVal('cfg-cancel-atual', rc?.cancelamentos_atual);
+  } else if (periodoCancel) {
+    carregarCancelamentosPeriodoSelecionado();
+  }
 
   // Metas padrão por tipo: preenche uma única vez cada grupo e aplica
   // depois o mesmo valor a todos os vendedores ativos daquele tipo.
@@ -7152,8 +7205,8 @@ async function salvarMetaVendedor(vendedor_id, dados) {
 
 // Salva os limites e o total manual de cancelamentos. Os campos antigos de
 // renovação são mantidos intactos somente para compatibilidade durante a migração.
-async function salvarMetaRenovCancel(dados) {
-  const legado = _cache.metasRenovCancel || {};
+async function salvarMetaRenovCancel(dados, periodo = _cache.mes, existentePeriodo = _cache.metasRenovCancel) {
+  const legado = existentePeriodo || {};
   const dadosSupabase = {
     renovacoes_meta_m3: dados.renovacoes_m3 ?? legado.renovacoes_m3 ?? 0,
     renovacoes_meta_m2: dados.renovacoes_m2 ?? legado.renovacoes_m2 ?? 0,
@@ -7164,12 +7217,12 @@ async function salvarMetaRenovCancel(dados) {
     cancelamentos_meta_m1: dados.cancelamentos_m1 ?? legado.cancelamentos_m1 ?? 0,
     cancelamentos_atual: dados.cancelamentos_atual ?? legado.cancelamentos_atual ?? 0,
   };
-  const existente = _cache.metasRenovCancel;
+  const existente = existentePeriodo;
   if (existente && existente.id) {
     const { error } = await window._supabase.from('metas_renovacao_cancelamento').update(dadosSupabase).eq('id', existente.id);
     if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível salvar as metas de renovação/cancelamento: ' + error.message); }
   } else {
-    const payload = { filial_id: window.FILIAL_ATUAL_ID, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
+    const payload = { filial_id: window.FILIAL_ATUAL_ID, mes: periodo.mesNum || periodo.mes, ano: periodo.ano, ...dadosSupabase };
     const { error } = await window._supabase.from('metas_renovacao_cancelamento').insert([payload]);
     if (error) { console.error('[salvarMetaRenovCancel]', error); throw new Error('Não foi possível criar as metas de renovação/cancelamento: ' + error.message); }
   }
@@ -7221,30 +7274,83 @@ async function handleSalvarMetas() {
   internos.forEach(v => vendedoresParaSalvar.push({ vendedor_id: v.id, dados: { meta_m3: metasTipo[0].valor, meta_m2: metasTipo[1].valor, meta_m1: metasTipo[2].valor } }));
   externos.forEach(v => vendedoresParaSalvar.push({ vendedor_id: v.id, dados: { meta_vendas: metasTipo[3].valor } }));
 
-  // 3) Cancelamentos permanecem na configuração de metas.
-  const camposRenovCancel = ['cfg-cancel-m3', 'cfg-cancel-m2', 'cfg-cancel-m1', 'cfg-cancel-atual'];
-  const leiturasRenovCancel = camposRenovCancel.map(lerMetaInput);
-  if (leiturasRenovCancel.some(l => !l.ok)) {
-    showToast('Preencha Renovações/Cancelamentos com números inteiros maiores ou iguais a zero (ou deixe em branco).', 'warning');
-    return;
-  }
-  const dadosRenovCancel = {
-    cancelamentos_m3: leiturasRenovCancel[0].valor, cancelamentos_m2: leiturasRenovCancel[1].valor, cancelamentos_m1: leiturasRenovCancel[2].valor, cancelamentos_atual: leiturasRenovCancel[3].valor,
-  };
-
-  // 4) Só depois de validar tudo, gravar no Supabase
+  // 3) Só depois de validar tudo, gravar as metas de vendas.
   try {
     await salvarMetaFilial(dadosFilial);
     for (const v of vendedoresParaSalvar) {
       await salvarMetaVendedor(v.vendedor_id, v.dados);
     }
-    await salvarMetaRenovCancel(dadosRenovCancel);
-    // 5) Só depois de tudo salvo com sucesso, recarregar os dados reais
+    // Só depois de tudo salvo com sucesso, recarregar os dados reais.
     await carregarDados();
     showToast(`Metas aplicadas a ${internos.length} interno(s) e ${externos.length} externo(s).`, 'success');
   } catch (err) {
     console.error('[handleSalvarMetas]', err);
     showToast((err && err.message) ? err.message : 'Não foi possível salvar as metas. Verifique a conexão com o Supabase.', 'error');
+  }
+}
+
+async function handleSalvarCancelamentos() {
+  if (!_dadosCarregados) { showToast('Os dados ainda não foram carregados do Supabase.', 'warning'); return; }
+  const periodoSelecionado = periodoSelecionadoCancelamentos();
+  if (!periodoSelecionado || periodoSelecionado.mes < 1 || periodoSelecionado.mes > 12) {
+    showToast('Selecione um mês válido para registrar os cancelamentos.', 'warning');
+    return;
+  }
+  const periodoAtual = _cache.mes || calcularPeriodoMes();
+  const chaveAtual = `${periodoAtual.ano}-${String(periodoAtual.mesNum || periodoAtual.mes).padStart(2, '0')}`;
+  if (periodoSelecionado.chave > chaveAtual) {
+    showToast('Não é possível registrar cancelamentos para um mês futuro.', 'warning');
+    return;
+  }
+
+  const campos = ['cfg-cancel-m1', 'cfg-cancel-m2', 'cfg-cancel-m3', 'cfg-cancel-atual'];
+  const leituras = campos.map(lerMetaInput);
+  if (leituras.some(item => !item.ok)) {
+    showToast('Preencha metas e total de cancelamentos com números inteiros maiores ou iguais a zero (ou deixe em branco).', 'warning');
+    return;
+  }
+
+  const botao = document.getElementById('cfg-cancel-salvar');
+  const textoOriginal = botao?.textContent || 'Salvar cancelamentos deste mês';
+  if (botao) { botao.disabled = true; botao.textContent = 'Salvando…'; }
+  try {
+    const { data: linhaExistente, error: erroBusca } = await window._supabase
+      .from('metas_renovacao_cancelamento')
+      .select('*')
+      .eq('filial_id', window.FILIAL_ATUAL_ID)
+      .eq('mes', periodoSelecionado.mes)
+      .eq('ano', periodoSelecionado.ano)
+      .maybeSingle();
+    if (erroBusca) throw new Error('Não foi possível consultar o mês selecionado: ' + erroBusca.message);
+    const existente = linhaExistente ? {
+      id: linhaExistente.id,
+      mes: linhaExistente.mes,
+      ano: linhaExistente.ano,
+      renovacoes_m3: linhaExistente.renovacoes_meta_m3,
+      renovacoes_m2: linhaExistente.renovacoes_meta_m2,
+      renovacoes_m1: linhaExistente.renovacoes_meta_m1,
+      renovacoes_atual: linhaExistente.renovacoes_atual,
+      cancelamentos_m3: linhaExistente.cancelamentos_meta_m3,
+      cancelamentos_m2: linhaExistente.cancelamentos_meta_m2,
+      cancelamentos_m1: linhaExistente.cancelamentos_meta_m1,
+      cancelamentos_atual: linhaExistente.cancelamentos_atual,
+    } : null;
+    const dados = {
+      cancelamentos_m1: leituras[0].valor,
+      cancelamentos_m2: leituras[1].valor,
+      cancelamentos_m3: leituras[2].valor,
+      cancelamentos_atual: leituras[3].valor,
+    };
+    await salvarMetaRenovCancel(dados, { mes: periodoSelecionado.mes, mesNum: periodoSelecionado.mes, ano: periodoSelecionado.ano }, existente);
+    await carregarDados();
+    const nomeMes = new Date(periodoSelecionado.ano, periodoSelecionado.mes - 1, 1)
+      .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    showToast(`Cancelamentos de ${nomeMes} salvos.`, 'success');
+  } catch (erro) {
+    console.error('[handleSalvarCancelamentos]', erro);
+    showToast(erro?.message || 'Não foi possível salvar os cancelamentos deste mês.', 'error');
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = textoOriginal; }
   }
 }
 
