@@ -3983,7 +3983,10 @@ function adm_navigateTo(sectionId) {
   if (sectionId === 'admins') carregarAdminsGerenciados();
   if (sectionId === 'filiais-admin') carregarFiliaisGerenciadas();
   if (sectionId === 'rede') carregarDashboardRede();
-  if (sectionId === 'nova-venda' && typeof carregarPendenciasIxc === 'function') carregarPendenciasIxc();
+  if (sectionId === 'nova-venda' && typeof carregarPendenciasIxc === 'function') {
+    carregarPendenciasIxc();
+    if (typeof carregarRevisoesImportacaoIxc === 'function') carregarRevisoesImportacaoIxc();
+  }
   if (sectionId === 'renovacoes') carregarRelatorioResumoRenovacoes();
   if (sectionId === 'analitica') renderizarAnaliticaPerfis();
   if (sectionId === 'celebracoes') atualizarMetasCelebraveis();

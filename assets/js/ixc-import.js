@@ -3,6 +3,7 @@
 let _linhasImportacaoIxc = [];
 let _relatorioIxcParaSugestoes = [];
 let _pendenciasIxcCarregadas = [];
+let _revisoesImportacaoIxc = [];
 let _filiaisFiltroPendenciasIxc = null;
 let _importacaoIxcEmAndamento = false;
 let _conferenciaIxcEmAndamento = false;
@@ -379,7 +380,8 @@ function renderizarPreviaIxc() {
   const duplicadas = _linhasImportacaoIxc.filter(linha => linha.duplicada).length;
   const ignoradas = _linhasImportacaoIxc.filter(linha => !linha.podeImportar && !linha.duplicada).length;
   const selecionadas = _linhasImportacaoIxc.filter(linha => linha.podeImportar && !linha.importada && !linha.duplicada).length;
-  resumo.innerHTML = `<div class="adm-preview-status">${prontos.length} venda(s) selecionada(s) para importar · ${duplicadas} duplicada(s) ignorada(s) · ${ignoradas} linha(s) precisam de correção ou lançamento manual. ${selecionadas !== prontos.length ? `${selecionadas - prontos.length} desmarcada(s) para não importar.` : ''}</div>`;
+  const revisoes = _linhasImportacaoIxc.filter(linha => linha.aguardaRevisao && !linha.revisaoSalva && !linha.duplicada).length;
+  resumo.innerHTML = `<div class="adm-preview-status">${prontos.length} venda(s) selecionada(s) para importar · ${revisoes} linha(s) incompleta(s) irão para revisão sem entrar nas métricas · ${duplicadas} duplicada(s) ignorada(s). ${selecionadas !== prontos.length ? `${selecionadas - prontos.length} desmarcada(s) para não importar.` : ''}</div>`;
   corpo.innerHTML = _linhasImportacaoIxc.map((linha, indice) => {
     const situacao = linha.importada ? (linha.requerRevisaoValor ? 'Importada · enviada à conferência de valor' : 'Importada') : linha.duplicada ? 'Já cadastrada' : linha.erro || (linha.requerRevisaoValor ? 'Importar com R$ 0,00 e revisar valor/adicionais' : linha.podeImportar ? 'Pronta para importar' : 'Não importável');
     const selecionavel = linha.podeImportar && !linha.importada && !linha.duplicada;
@@ -397,7 +399,8 @@ function renderizarPreviaIxc() {
     renderizarPreviaIxc();
   }));
   wrapper.hidden = false;
-  botao.disabled = _importacaoIxcEmAndamento || prontos.length === 0;
+  botao.textContent = revisoes ? 'Importar prontas e enviar erros à revisão' : 'Importar vendas novas';
+  botao.disabled = _importacaoIxcEmAndamento || (prontos.length === 0 && revisoes === 0);
 }
 
 async function carregarVendedoresComIdIxc() {
@@ -801,6 +804,67 @@ async function carregarPendenciasIxc(relatorioAtivo = _relatorioIxcParaSugestoes
   }));
 }
 
+async function carregarRevisoesImportacaoIxc() {
+  const corpo = document.getElementById('ixc-import-review-body');
+  if (!corpo || !window.ADMIN_AUTENTICADO || !window._supabase) return;
+  const filialId = Number(window.FILIAL_ATUAL_ID);
+  if (!Number.isInteger(filialId) || filialId <= 0) return;
+  corpo.innerHTML = '<tr><td colspan="6" class="adm-empty-state">Carregando linhas para revisão…</td></tr>';
+  const { data, error } = await window._supabase.from('vendas_importacao_revisao_ixc')
+    .select('*').eq('filial_contexto_id', filialId).eq('situacao', 'pendente').order('criado_em', { ascending: false });
+  if (error) {
+    console.error('[carregarRevisoesImportacaoIxc]', error);
+    const mensagem = error.code === '42P01' || error.code === 'PGRST205'
+      ? 'Ative a fila de revisão executando supabase/revisao-importacao-vendas-ixc.sql no SQL Editor do Supabase.'
+      : error.message || 'Não foi possível carregar as linhas em revisão.';
+    corpo.innerHTML = `<tr><td colspan="6" class="adm-empty-state">${escapeHtmlText(mensagem)}</td></tr>`;
+    return;
+  }
+  _revisoesImportacaoIxc = data || [];
+  if (!_revisoesImportacaoIxc.length) {
+    corpo.innerHTML = '<tr><td colspan="6" class="adm-empty-state">Nenhuma linha incompleta aguardando correção.</td></tr>';
+    return;
+  }
+  const escapar = valor => escapeHtmlText(String(valor ?? '—'));
+  corpo.innerHTML = _revisoesImportacaoIxc.map(item => `<tr>
+    <td>${escapar(item.numero_venda || 'Não identificado')}</td>
+    <td>${escapar(item.cliente || 'Cliente não identificado')}</td>
+    <td>${escapar(item.descricao_plano || 'Plano não identificado')}</td>
+    <td>${escapar(item.vendedor_ixc_id || 'Sem código')}</td>
+    <td>${escapar(item.motivo)}</td>
+    <td><button type="button" class="adm-btn adm-btn-primary adm-btn-small" data-ixc-review-edit="${Number(item.id)}">Corrigir e importar</button></td>
+  </tr>`).join('');
+  corpo.querySelectorAll('[data-ixc-review-edit]').forEach(button => button.addEventListener('click', () => {
+    abrirEdicaoRevisaoImportacaoIxc(Number(button.dataset.ixcReviewEdit));
+  }));
+}
+
+async function enfileirarLinhasImportacaoIxc(linhas) {
+  const filialId = Number(window.FILIAL_ATUAL_ID);
+  if (!Number.isInteger(filialId) || filialId <= 0) throw new Error('Abra uma filial antes de enviar linhas incompletas à revisão.');
+  const linhasFila = linhas.map(linha => {
+    const dadosOrigem = {
+      contrato: linha.contrato, cliente: linha.cliente, descricaoPlano: linha.descricaoPlano,
+      ixcVendedorId: linha.ixcVendedorId, codigoFilialIxc: linha.codigoFilialIxc,
+      dataAtivacao: linha.dataAtivacao, ultimaAtualizacao: linha.ultimaAtualizacao,
+      status: linha.status, linha: linha.linha,
+    };
+    const chave = linha.contrato ? `contrato:${linha.contrato}` : `linha:${linha.linha}:${JSON.stringify(dadosOrigem)}`;
+    return {
+      filial_contexto_id: filialId, chave_origem: chave,
+      numero_venda: linha.contrato || null, cliente: linha.cliente || null,
+      descricao_plano: linha.descricaoPlano || null, vendedor_ixc_id: linha.ixcVendedorId || null,
+      filial_ixc_id: linha.codigoFilialIxc || null, motivo: linha.erro || 'Dados incompletos no relatório.',
+      dados_origem: dadosOrigem, situacao: 'pendente',
+    };
+  });
+  if (!linhasFila.length) return 0;
+  const { error } = await window._supabase.from('vendas_importacao_revisao_ixc')
+    .upsert(linhasFila, { onConflict: 'filial_contexto_id,chave_origem', ignoreDuplicates: true });
+  if (error) throw error;
+  return linhasFila.length;
+}
+
 function definirOpcoesSelectIxc(id, itens, valorAtual, rotulo, placeholder) {
   const select = document.getElementById(id);
   if (!select) return;
@@ -858,12 +922,12 @@ function adicionarAdicionalEdicaoIxc() {
   renderizarAdicionaisEdicaoIxc(atuais);
 }
 
-async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '') {
+async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', revisaoImportacao = null) {
   if (!window.ADMIN_AUTENTICADO || !window._supabase) return;
   const backdrop = document.getElementById('ixc-edit-backdrop');
   try {
     const [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult] = await Promise.all([
-      window._supabase.from('vendas_admin').select('*').eq('id', vendaId).maybeSingle(),
+      revisaoImportacao ? Promise.resolve({ data: null, error: null }) : window._supabase.from('vendas_admin').select('*').eq('id', vendaId).maybeSingle(),
       window._supabase.from('filiais').select('id, nome, ativo').order('nome'),
       window._supabase.from('vendedores').select('id, nome, filial_id, ativo').order('nome'),
       window._supabase.from('planos').select('*').order('nome'),
@@ -873,7 +937,24 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '') 
     for (const result of [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult]) {
       if (result.error) throw result.error;
     }
-    const venda = vendaResult.data;
+    const venda = revisaoImportacao ? (() => {
+      const bruto = revisaoImportacao.dados_origem || {};
+      const vendedor = (vendedoresResult.data || []).find(item => String(item.ixc_vendedor_id || '').trim() === String(revisaoImportacao.vendedor_ixc_id || ''));
+      const plano = resolverPlanoIxc(revisaoImportacao.descricao_plano || '', planosResult.data || []);
+      const dataAtivacao = bruto.dataAtivacao || String(bruto.ultimaAtualizacao || '').match(/^\d{1,2}\/\d{1,2}\/\d{4}/)?.[0] || '';
+      const dataVenda = converterAtivacaoComHoraAtualizacaoIxcParaIso(dataAtivacao, bruto.ultimaAtualizacao) || '';
+      const filiais = filiaisResult.data || [];
+      const destino = resolverFilialDestinoIxc(revisaoImportacao.filial_ixc_id, filiais, Boolean(revisaoImportacao.filial_ixc_id));
+      const valor = obterValorExplicitoRelatorioIxc(revisaoImportacao.descricao_plano || '') ?? obterValorPlanoIxc(plano);
+      return {
+        id: null, vendedor_id: vendedor?.id || null, vendedor_nome: vendedor?.nome || '',
+        plano_id: plano?.id || null, filial_origem_id: vendedor?.filial_id || '',
+        filial_destino_id: destino.filial?.id || (revisaoImportacao.filial_ixc_id ? '' : Number(window.FILIAL_ATUAL_ID)),
+        numero_venda: revisaoImportacao.numero_venda || '', cliente: revisaoImportacao.cliente || '',
+        data_venda: dataVenda, valor: valor ?? 0, fora_filial: false,
+        observacao: `Importado do IXC; descrição original do plano: ${revisaoImportacao.descricao_plano || 'não identificada'}`,
+      };
+    })() : vendaResult.data;
     if (!venda) throw new Error('A venda não foi encontrada ou sua conta não tem acesso a ela.');
     _opcoesEdicaoVendaIxc = {
       filiais: filiaisResult.data || [],
@@ -895,8 +976,16 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '') 
     document.getElementById('ixc-edit-observacao').value = venda.observacao || '';
     const subtitulo = document.getElementById('ixc-edit-subtitle');
     if (subtitulo) subtitulo.textContent = `${venda.cliente || 'Venda sem cliente'} · ${venda.vendedor_nome || 'Sem vendedor'} · ${formatarMoedaCurtaIxc(venda.valor_total || venda.valor_plano || venda.valor || 0)}. Corrija os campos necessários antes de salvar.`;
-    renderizarAdicionaisEdicaoIxc(_opcoesEdicaoVendaIxc.adicionais);
-    _edicaoVendaPendenteIxc = { pendenciaId, vendaId };
+    const blocoAdicionais = document.querySelector('.ixc-edit-additions');
+    if (blocoAdicionais) blocoAdicionais.hidden = Boolean(revisaoImportacao);
+    const titulo = document.getElementById('ixc-edit-title');
+    if (titulo) titulo.textContent = revisaoImportacao ? 'Corrigir linha do relatório IXC' : 'Editar venda pendente';
+    const botaoSalvar = document.getElementById('ixc-edit-save');
+    const botaoVincular = document.getElementById('ixc-edit-link');
+    if (botaoSalvar) botaoSalvar.hidden = Boolean(revisaoImportacao);
+    if (botaoVincular) botaoVincular.textContent = revisaoImportacao ? 'Corrigir e importar venda' : 'Salvar e vincular contrato';
+    renderizarAdicionaisEdicaoIxc(revisaoImportacao ? [] : _opcoesEdicaoVendaIxc.adicionais);
+    _edicaoVendaPendenteIxc = { pendenciaId, vendaId, revisaoImportacaoId: revisaoImportacao?.id || null };
     backdrop.hidden = false;
     document.body.classList.add('adm-modal-open');
     document.getElementById('ixc-edit-numero')?.focus();
@@ -904,6 +993,12 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '') 
     console.error('[abrirEdicaoVendaIxc]', error);
     showToast(error.message || 'Não foi possível abrir a venda para edição.', 'error');
   }
+}
+
+async function abrirEdicaoRevisaoImportacaoIxc(id) {
+  const item = _revisoesImportacaoIxc.find(revisao => Number(revisao.id) === Number(id));
+  if (!item) return;
+  await abrirEdicaoVendaIxc(null, null, '', item);
 }
 
 function fecharEdicaoVendaIxc() {
@@ -944,17 +1039,23 @@ async function salvarEdicaoVendaIxc(vincular) {
   const botoes = ['ixc-edit-save', 'ixc-edit-link'].map(id => document.getElementById(id)).filter(Boolean);
   botoes.forEach(botao => { botao.disabled = true; });
   try {
-    const { error } = await window._supabase.rpc('editar_venda_pendente_ixc', {
-      p_pendencia_id: edicao.pendenciaId,
-      p_venda: dados,
-      p_adicionais: adicionais,
-      p_vincular: vincular,
-    });
+    const { error } = edicao.revisaoImportacaoId
+      ? await window._supabase.rpc('importar_revisao_venda_ixc', {
+        p_revisao_id: edicao.revisaoImportacaoId,
+        p_venda: dados,
+      })
+      : await window._supabase.rpc('editar_venda_pendente_ixc', {
+        p_pendencia_id: edicao.pendenciaId,
+        p_venda: dados,
+        p_adicionais: adicionais,
+        p_vincular: vincular,
+      });
     if (error) throw error;
     fecharEdicaoVendaIxc();
-    showToast(vincular ? 'Venda corrigida e contrato vinculado.' : 'Correções da venda salvas; ela continua pendente de conferência.', 'success');
+    showToast(edicao.revisaoImportacaoId ? 'Linha corrigida e venda importada para os indicadores.' : vincular ? 'Venda corrigida e contrato vinculado.' : 'Correções da venda salvas; ela continua pendente de conferência.', 'success');
     await carregarDados();
     await carregarPendenciasIxc();
+    await carregarRevisoesImportacaoIxc();
   } catch (error) {
     console.error('[salvarEdicaoVendaIxc]', error);
     const mensagem = error.code === 'PGRST202'
@@ -1116,6 +1217,9 @@ async function analisarImportacaoIxc(event) {
       resultado.incluir = true;
       return resultado;
     });
+    _linhasImportacaoIxc.forEach(linha => {
+      if (linha.erro && !linha.duplicada && normalizarTextoIxc(linha.status) === 'ativo') linha.aguardaRevisao = true;
+    });
     renderizarPreviaIxc();
     atualizarBotaoConferenciaIxc();
     await carregarPendenciasIxc();
@@ -1136,7 +1240,8 @@ async function confirmarImportacaoIxc() {
     return;
   }
   const selecionadas = _linhasImportacaoIxc.filter(linha => linha.podeImportar && linha.incluir && !linha.importada && !linha.duplicada);
-  if (!selecionadas.length) { showToast('Não há vendas selecionadas para importar.', 'warning'); return; }
+  const paraRevisao = _linhasImportacaoIxc.filter(linha => linha.aguardaRevisao && !linha.revisaoSalva && !linha.duplicada);
+  if (!selecionadas.length && !paraRevisao.length) { showToast('Não há vendas selecionadas nem linhas incompletas para enviar à revisão.', 'warning'); return; }
   botao.disabled = true;
   botao.textContent = 'Importando…';
   _importacaoIxcEmAndamento = true;
@@ -1145,9 +1250,15 @@ async function confirmarImportacaoIxc() {
   if (inputArquivo) inputArquivo.disabled = true;
   let importadas = 0;
   let revisoesValor = 0;
+  let linhasEmRevisao = 0;
   let duplicadas = 0;
   let falhas = 0;
   try {
+    if (paraRevisao.length) {
+      linhasEmRevisao = await enfileirarLinhasImportacaoIxc(paraRevisao);
+      paraRevisao.forEach(linha => { linha.revisaoSalva = true; });
+      await carregarRevisoesImportacaoIxc();
+    }
     // Revalida no momento da confirmação, pois outro usuário pode ter
     // importado o mesmo contrato depois que a prévia foi carregada.
     const existentesAgora = await carregarContratosExistentesIxc(selecionadas.map(linha => linha.contrato));
@@ -1213,12 +1324,15 @@ async function confirmarImportacaoIxc() {
       _filiaisFiltroPendenciasIxc = [...filiaisParaRevisao].map(([id, nome]) => ({ id: Number(id), nome }));
       await carregarPendenciasIxc();
     }
-    if (resumo) resumo.innerHTML = `<div class="adm-preview-status">Importação concluída: ${importadas} venda(s) registrada(s), ${revisoesValor} enviada(s) para conferência de valor, ${duplicadas} duplicada(s) ignorada(s), ${falhas} falha(s).</div>`;
+    if (resumo) resumo.innerHTML = `<div class="adm-preview-status">Importação concluída: ${importadas} venda(s) registrada(s), ${linhasEmRevisao} linha(s) enviada(s) à fila de correção, ${revisoesValor} venda(s) aguardando conferência de valor, ${duplicadas} duplicada(s) ignorada(s), ${falhas} falha(s).</div>`;
     const mensagemRevisao = revisoesValor ? ` ${revisoesValor} venda(s) enviada(s) para conferência de valor.` : '';
-    showToast(`${importadas} venda(s) importada(s).${mensagemRevisao}`, falhas ? 'warning' : 'success');
+    showToast(`${importadas} venda(s) importada(s), ${linhasEmRevisao} linha(s) na fila de correção.${mensagemRevisao}`, falhas ? 'warning' : 'success');
   } catch (error) {
     console.error('[confirmarImportacaoIxc]', error);
-    showToast(error.message || 'A importação não foi concluída.', 'error');
+    const mensagem = ['42P01', 'PGRST205'].includes(error.code)
+      ? 'A fila de revisão ainda não foi criada. Execute supabase/revisao-importacao-vendas-ixc.sql no SQL Editor do Supabase e tente novamente.'
+      : error.message || 'A importação não foi concluída.';
+    showToast(mensagem, 'error');
   } finally {
     _importacaoIxcEmAndamento = false;
     atualizarBotaoLimparImportacaoIxc();

@@ -311,7 +311,7 @@
 <script src="assets/js/config-data.js"></script>
   <script src="assets/js/dashboard.js?v=20261104-ranking-vendas-semanais-v1"></script>
   <script src="assets/js/supabase-admin.js?v=20261104-renovacoes-meta-compartilhada-v1"></script>
-  <script src="assets/js/ixc-import.js?v=20261023-ixc-missing-sales-2"></script>
+  <script src="assets/js/ixc-import.js?v=20261106-ixc-import-review-1"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -724,12 +724,26 @@
             </div>
             <details class="adm-help-details">
               <summary>Como tratar uma venda pendente</summary>
-              <p>Vendas que não aparecem no relatório mensal da filial e vendas de planos sem preço fixo ficam aqui para revisão. Em Telefonia NBS, Padrão UNI e Serviço, edite o valor do plano e os adicionais; R$ 0,00 também é válido. Depois, clique em “Manter válida”. A ausência no arquivo não cancela a venda automaticamente; enquanto estiver pendente, ela continua contando nos indicadores. Para contratos ausentes, o sistema também pode sugerir vínculos com base em cliente, vendedor e plano; a comparação roda no navegador e só vincula após sua confirmação.</p>
+              <p>Esta lista reúne vendas já cadastradas que não aparecem no relatório completo ou precisam de revisão de valor; enquanto aguardam, continuam contando nos indicadores. Linhas do CSV com vendedor, plano, filial, data ou valor não reconhecido ficam na fila abaixo e não contam até você corrigir e importar. Contratos ausentes podem receber sugestões de vínculo, sempre com confirmação manual.</p>
             </details>
             <div class="adm-table-wrap">
               <table class="adm-table">
                 <thead><tr><th>Data</th><th>Contrato</th><th>Cliente</th><th>Vendedor</th><th>Filial</th><th>Valor</th><th>Ações</th></tr></thead>
                 <tbody id="ixc-pending-body"><tr><td colspan="7" class="adm-empty-state">Abra esta área para carregar as pendências.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="adm-form-card ixc-pending-card" id="ixc-import-review-card">
+            <div class="ixc-pending-heading">
+              <div class="ixc-pending-title-group">
+                <div class="adm-section-title adm-subsection-title">Linhas do IXC aguardando correção</div>
+                <span class="ixc-pending-scope adm-vendedor-cadastro-hint">Itens incompletos não entram nas métricas até serem corrigidos e importados.</span>
+              </div>
+            </div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Contrato</th><th>Cliente</th><th>Plano informado</th><th>Vendedor IXC</th><th>Motivo</th><th>Ação</th></tr></thead>
+                <tbody id="ixc-import-review-body"><tr><td colspan="6" class="adm-empty-state">Carregando linhas para revisão…</td></tr></tbody>
               </table>
             </div>
           </div>
