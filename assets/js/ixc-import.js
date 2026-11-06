@@ -869,15 +869,23 @@ async function enfileirarLinhasImportacaoIxc(linhas) {
   return linhasFila.length;
 }
 
+function idNumericoIxc(id) {
+  const valor = document.getElementById(id)?.value?.trim() || '';
+  return /^\d+$/.test(valor) ? valor : null;
+}
+
 function definirOpcoesSelectIxc(id, itens, valorAtual, rotulo, placeholder) {
   const select = document.getElementById(id);
   if (!select) return;
+  const idAtual = valorAtual == null || String(valorAtual).trim().toLowerCase() === 'null'
+    ? ''
+    : String(valorAtual).trim();
   select.replaceChildren(new Option(placeholder, ''));
   (itens || []).forEach(item => select.add(new Option(rotulo(item), String(item.id))));
-  if (valorAtual && ![...select.options].some(option => option.value === String(valorAtual))) {
-    select.add(new Option(`Cadastro atual (${valorAtual})`, String(valorAtual)));
+  if (idAtual && ![...select.options].some(option => option.value === idAtual)) {
+    select.add(new Option(`Cadastro atual (${idAtual})`, idAtual));
   }
-  select.value = valorAtual == null ? '' : String(valorAtual);
+  select.value = idAtual;
 }
 
 function dataHoraLocalInputIxc(valor) {
@@ -1038,15 +1046,19 @@ async function salvarEdicaoVendaIxc(vincular) {
   const dados = {
     numero_venda: numero,
     cliente: document.getElementById('ixc-edit-cliente').value.trim(),
-    vendedor_id: document.getElementById('ixc-edit-vendedor').value || null,
-    filial_origem_id: document.getElementById('ixc-edit-origem').value,
-    filial_destino_id: document.getElementById('ixc-edit-destino').value,
-    plano_id: document.getElementById('ixc-edit-plano').value,
+    vendedor_id: idNumericoIxc('ixc-edit-vendedor'),
+    filial_origem_id: idNumericoIxc('ixc-edit-origem'),
+    filial_destino_id: idNumericoIxc('ixc-edit-destino'),
+    plano_id: idNumericoIxc('ixc-edit-plano'),
     data_venda: new Date(dataLocal).toISOString(),
     valor,
     observacao: document.getElementById('ixc-edit-observacao').value.trim(),
     fora_filial: document.getElementById('ixc-edit-fora-filial').checked,
   };
+  if (!dados.filial_origem_id || !dados.filial_destino_id || !dados.plano_id || !dados.vendedor_id) {
+    showToast('Selecione vendedor, plano e filiais usando as opções da lista.', 'warning');
+    return;
+  }
   const botoes = ['ixc-edit-save', 'ixc-edit-link'].map(id => document.getElementById(id)).filter(Boolean);
   botoes.forEach(botao => { botao.disabled = true; });
   try {

@@ -93,11 +93,11 @@ declare
   v_revisao_existente public.vendas_importacao_revisao_ixc%rowtype;
 begin
   if auth.uid() is null then raise exception 'É necessário entrar no painel administrativo.'; end if;
-  v_filial_contexto := nullif(p_revisao->>'filial_contexto_id', '')::bigint;
-  v_vendedor_id := nullif(p_venda->>'vendedor_id', '')::bigint;
-  v_origem := nullif(p_venda->>'filial_origem_id', '')::bigint;
-  v_destino := nullif(p_venda->>'filial_destino_id', '')::bigint;
-  v_plano := nullif(p_venda->>'plano_id', '')::bigint;
+  v_filial_contexto := nullif(nullif(lower(btrim(p_revisao->>'filial_contexto_id')), 'null'), '')::bigint;
+  v_vendedor_id := nullif(nullif(lower(btrim(p_venda->>'vendedor_id')), 'null'), '')::bigint;
+  v_origem := nullif(nullif(lower(btrim(p_venda->>'filial_origem_id')), 'null'), '')::bigint;
+  v_destino := nullif(nullif(lower(btrim(p_venda->>'filial_destino_id')), 'null'), '')::bigint;
+  v_plano := nullif(nullif(lower(btrim(p_venda->>'plano_id')), 'null'), '')::bigint;
   v_data := nullif(p_venda->>'data_venda', '')::timestamptz;
   v_valor := nullif(p_venda->>'valor', '')::numeric;
   v_numero := nullif(btrim(coalesce(p_venda->>'numero_venda', '')), '');
@@ -200,10 +200,10 @@ begin
     raise exception 'Sua conta não tem acesso a esta filial.';
   end if;
 
-  v_vendedor_id := nullif(p_venda->>'vendedor_id', '')::bigint;
-  v_origem := nullif(p_venda->>'filial_origem_id', '')::bigint;
-  v_destino := nullif(p_venda->>'filial_destino_id', '')::bigint;
-  v_plano := nullif(p_venda->>'plano_id', '')::bigint;
+  v_vendedor_id := nullif(nullif(lower(btrim(p_venda->>'vendedor_id')), 'null'), '')::bigint;
+  v_origem := nullif(nullif(lower(btrim(p_venda->>'filial_origem_id')), 'null'), '')::bigint;
+  v_destino := nullif(nullif(lower(btrim(p_venda->>'filial_destino_id')), 'null'), '')::bigint;
+  v_plano := nullif(nullif(lower(btrim(p_venda->>'plano_id')), 'null'), '')::bigint;
   v_data := nullif(p_venda->>'data_venda', '')::timestamptz;
   v_valor := nullif(p_venda->>'valor', '')::numeric;
   v_numero := nullif(btrim(coalesce(p_venda->>'numero_venda', '')), '');
