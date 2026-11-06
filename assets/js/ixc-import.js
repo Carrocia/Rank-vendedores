@@ -376,15 +376,16 @@ function renderizarPreviaIxc() {
   const botao = document.getElementById('ixc-import-submit');
   if (!corpo || !resumo || !wrapper || !botao) return;
   const escapar = valor => escapeHtmlText(String(valor ?? '—'));
-  const prontos = _linhasImportacaoIxc.filter(linha => linha.podeImportar && linha.incluir && !linha.importada && !linha.duplicada);
+  const ehImportavel = linha => linha.podeImportar || linha.podeImportarComRevisao;
+  const prontos = _linhasImportacaoIxc.filter(linha => ehImportavel(linha) && linha.incluir && !linha.importada && !linha.duplicada);
   const duplicadas = _linhasImportacaoIxc.filter(linha => linha.duplicada).length;
-  const ignoradas = _linhasImportacaoIxc.filter(linha => !linha.podeImportar && !linha.duplicada).length;
-  const selecionadas = _linhasImportacaoIxc.filter(linha => linha.podeImportar && !linha.importada && !linha.duplicada).length;
-  const revisoes = _linhasImportacaoIxc.filter(linha => linha.aguardaRevisao && !linha.revisaoSalva && !linha.duplicada).length;
-  resumo.innerHTML = `<div class="adm-preview-status">${prontos.length} venda(s) selecionada(s) para importar · ${revisoes} linha(s) incompleta(s) irão para revisão sem entrar nas métricas · ${duplicadas} duplicada(s) ignorada(s). ${selecionadas !== prontos.length ? `${selecionadas - prontos.length} desmarcada(s) para não importar.` : ''}</div>`;
+  const selecionadas = _linhasImportacaoIxc.filter(linha => ehImportavel(linha) && !linha.importada && !linha.duplicada).length;
+  const revisoes = _linhasImportacaoIxc.filter(linha => linha.podeImportarComRevisao && !linha.importada && !linha.duplicada).length;
+  const bloqueadas = _linhasImportacaoIxc.filter(linha => linha.aguardaRevisao && !linha.podeImportarComRevisao && !linha.duplicada).length;
+  resumo.innerHTML = `<div class="adm-preview-status">${prontos.length} venda(s) para importar · ${revisoes} será(ão) contabilizada(s) agora com vendedor ou plano pendente de vínculo · ${bloqueadas} linha(s) com dados essenciais inválidos aguardam correção antes de importar · ${duplicadas} duplicada(s) ignorada(s). ${selecionadas !== prontos.length ? `${selecionadas - prontos.length} desmarcada(s) para não importar.` : ''}</div>`;
   corpo.innerHTML = _linhasImportacaoIxc.map((linha, indice) => {
-    const situacao = linha.importada ? (linha.requerRevisaoValor ? 'Importada · enviada à conferência de valor' : 'Importada') : linha.duplicada ? 'Já cadastrada' : linha.erro || (linha.requerRevisaoValor ? 'Importar com R$ 0,00 e revisar valor/adicionais' : linha.podeImportar ? 'Pronta para importar' : 'Não importável');
-    const selecionavel = linha.podeImportar && !linha.importada && !linha.duplicada;
+    const situacao = linha.importada ? (linha.podeImportarComRevisao ? 'Importada · vendedor/plano aguardando vínculo' : linha.requerRevisaoValor ? 'Importada · enviada à conferência de valor' : 'Importada') : linha.duplicada ? 'Já cadastrada' : linha.podeImportarComRevisao ? `Importar e revisar: ${linha.erro}` : linha.erro || (linha.requerRevisaoValor ? 'Importar com R$ 0,00 e revisar valor/adicionais' : linha.podeImportar ? 'Pronta para importar' : 'Não importável');
+    const selecionavel = ehImportavel(linha) && !linha.importada && !linha.duplicada;
     return `<tr>
       <td>${escapar(linha.contrato)}</td><td>${escapar(linha.cliente)}</td>
       <td>${escapar(linha.plano?.nome || linha.descricaoPlano)}</td><td>${linha.valor == null ? '—' : `R$ ${Number(linha.valor).toFixed(2).replace('.', ',')}`}</td>
@@ -399,8 +400,11 @@ function renderizarPreviaIxc() {
     renderizarPreviaIxc();
   }));
   wrapper.hidden = false;
-  botao.textContent = revisoes ? 'Importar prontas e enviar erros à revisão' : 'Importar vendas novas';
-  botao.disabled = _importacaoIxcEmAndamento || (prontos.length === 0 && revisoes === 0);
+  botao.textContent = revisoes && bloqueadas
+    ? 'Importar vendas e organizar revisões'
+    : revisoes ? 'Importar vendas com vínculos pendentes'
+      : bloqueadas ? 'Enviar linhas incompletas à revisão' : 'Importar vendas novas';
+  botao.disabled = _importacaoIxcEmAndamento || (prontos.length === 0 && bloqueadas === 0);
 }
 
 async function carregarVendedoresComIdIxc() {
@@ -832,7 +836,7 @@ async function carregarRevisoesImportacaoIxc() {
     <td>${escapar(item.descricao_plano || 'Plano não identificado')}</td>
     <td>${escapar(item.vendedor_ixc_id || 'Sem código')}</td>
     <td>${escapar(item.motivo)}</td>
-    <td><button type="button" class="adm-btn adm-btn-primary adm-btn-small" data-ixc-review-edit="${Number(item.id)}">Corrigir e importar</button></td>
+    <td><button type="button" class="adm-btn adm-btn-primary adm-btn-small" data-ixc-review-edit="${Number(item.id)}">${item.venda_id ? 'Vincular e atualizar venda' : 'Corrigir e importar'}</button></td>
   </tr>`).join('');
   corpo.querySelectorAll('[data-ixc-review-edit]').forEach(button => button.addEventListener('click', () => {
     abrirEdicaoRevisaoImportacaoIxc(Number(button.dataset.ixcReviewEdit));
@@ -927,7 +931,9 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
   const backdrop = document.getElementById('ixc-edit-backdrop');
   try {
     const [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult] = await Promise.all([
-      revisaoImportacao ? Promise.resolve({ data: null, error: null }) : window._supabase.from('vendas_admin').select('*').eq('id', vendaId).maybeSingle(),
+      revisaoImportacao?.venda_id
+        ? window._supabase.from('vendas_admin').select('*').eq('id', revisaoImportacao.venda_id).maybeSingle()
+        : revisaoImportacao ? Promise.resolve({ data: null, error: null }) : window._supabase.from('vendas_admin').select('*').eq('id', vendaId).maybeSingle(),
       window._supabase.from('filiais').select('id, nome, ativo').order('nome'),
       window._supabase.from('vendedores').select('id, nome, filial_id, ativo').order('nome'),
       window._supabase.from('planos').select('*').order('nome'),
@@ -937,7 +943,7 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
     for (const result of [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult]) {
       if (result.error) throw result.error;
     }
-    const venda = revisaoImportacao ? (() => {
+    const venda = revisaoImportacao && !vendaResult.data ? (() => {
       const bruto = revisaoImportacao.dados_origem || {};
       const vendedor = (vendedoresResult.data || []).find(item => String(item.ixc_vendedor_id || '').trim() === String(revisaoImportacao.vendedor_ixc_id || ''));
       const plano = resolverPlanoIxc(revisaoImportacao.descricao_plano || '', planosResult.data || []);
@@ -968,6 +974,11 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
     definirOpcoesSelectIxc('ixc-edit-plano', _opcoesEdicaoVendaIxc.planos, venda.plano_id, formatarPlano, 'Selecione o plano');
     definirOpcoesSelectIxc('ixc-edit-origem', _opcoesEdicaoVendaIxc.filiais, venda.filial_origem_id, f => `${f.nome}${f.ativo === false ? ' (inativa)' : ''}`, 'Selecione a origem');
     definirOpcoesSelectIxc('ixc-edit-destino', _opcoesEdicaoVendaIxc.filiais, venda.filial_destino_id, f => `${f.nome}${f.ativo === false ? ' (inativa)' : ''}`, 'Selecione o destino');
+    document.getElementById('ixc-edit-vendedor').onchange = event => {
+      const vendedor = _opcoesEdicaoVendaIxc.vendedores.find(item => String(item.id) === event.target.value);
+      const origem = document.getElementById('ixc-edit-origem');
+      if (vendedor && origem) origem.value = String(vendedor.filial_id);
+    };
     document.getElementById('ixc-edit-numero').value = contratoSugerido || venda.numero_venda || '';
     document.getElementById('ixc-edit-cliente').value = venda.cliente || '';
     document.getElementById('ixc-edit-data').value = dataHoraLocalInputIxc(venda.data_venda);
@@ -983,9 +994,9 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
     const botaoSalvar = document.getElementById('ixc-edit-save');
     const botaoVincular = document.getElementById('ixc-edit-link');
     if (botaoSalvar) botaoSalvar.hidden = Boolean(revisaoImportacao);
-    if (botaoVincular) botaoVincular.textContent = revisaoImportacao ? 'Corrigir e importar venda' : 'Salvar e vincular contrato';
+    if (botaoVincular) botaoVincular.textContent = revisaoImportacao?.venda_id ? 'Salvar vínculos da venda' : revisaoImportacao ? 'Corrigir e importar venda' : 'Salvar e vincular contrato';
     renderizarAdicionaisEdicaoIxc(revisaoImportacao ? [] : _opcoesEdicaoVendaIxc.adicionais);
-    _edicaoVendaPendenteIxc = { pendenciaId, vendaId, revisaoImportacaoId: revisaoImportacao?.id || null };
+    _edicaoVendaPendenteIxc = { pendenciaId, vendaId: revisaoImportacao?.venda_id || vendaId, revisaoImportacaoId: revisaoImportacao?.id || null };
     backdrop.hidden = false;
     document.body.classList.add('adm-modal-open');
     document.getElementById('ixc-edit-numero')?.focus();
@@ -1052,7 +1063,9 @@ async function salvarEdicaoVendaIxc(vincular) {
       });
     if (error) throw error;
     fecharEdicaoVendaIxc();
-    showToast(edicao.revisaoImportacaoId ? 'Linha corrigida e venda importada para os indicadores.' : vincular ? 'Venda corrigida e contrato vinculado.' : 'Correções da venda salvas; ela continua pendente de conferência.', 'success');
+    showToast(edicao.revisaoImportacaoId
+      ? edicao.vendaId ? 'Vínculos da venda atualizados; ela já estava contabilizada.' : 'Linha corrigida e venda importada para os indicadores.'
+      : vincular ? 'Venda corrigida e contrato vinculado.' : 'Correções da venda salvas; ela continua pendente de conferência.', 'success');
     await carregarDados();
     await carregarPendenciasIxc();
     await carregarRevisoesImportacaoIxc();
@@ -1195,11 +1208,13 @@ async function analisarImportacaoIxc(event) {
       }
       if (vistosNoArquivo.has(chaveContrato)) { resultado.duplicada = true; resultado.erro = 'Contrato repetido no CSV; cada contrato pode ser importado uma única vez'; return resultado; }
       if (!linha.ixcVendedorId || vendedoresDoCodigo.length !== 1) {
-        resultado.erro = vendedoresDoCodigo.length > 1 ? 'ID IXC associado a mais de um vendedor' : 'Vendedor IXC sem cadastro único';
-        return resultado;
+        resultado.vendedorPendente = true;
+        resultado.motivoVendedor = vendedoresDoCodigo.length > 1 ? 'ID IXC associado a mais de um vendedor' : 'Vendedor IXC sem cadastro único';
+      } else {
+        resultado.vendedor = vendedoresDoCodigo[0];
       }
-      resultado.vendedor = vendedoresDoCodigo[0];
-      resultado.filialOrigemNome = filiais.find(f => String(f.id) === String(resultado.vendedor.filial_id))?.nome || '';
+      resultado.filialOrigemId = resultado.vendedor?.filial_id || resultado.filialDestinoId || Number(window.FILIAL_ATUAL_ID);
+      resultado.filialOrigemNome = filiais.find(f => String(f.id) === String(resultado.filialOrigemId))?.nome || '';
       const dataAtivacao = linha.dataAtivacao || String(linha.ultimaAtualizacao).trim().match(/^\d{1,2}\/\d{1,2}\/\d{4}/)?.[0] || '';
       const horaAtualizacao = extrairHoraAtualizacaoIxc(linha.ultimaAtualizacao);
       const instante = converterAtivacaoComHoraAtualizacaoIxcParaIso(dataAtivacao, linha.ultimaAtualizacao);
@@ -1207,13 +1222,22 @@ async function analisarImportacaoIxc(event) {
       resultado.dataAtivacao = dataAtivacao;
       resultado.horaAtualizacao = horaAtualizacao;
       resultado.dataVenda = instante;
-      if (!resultado.plano) { resultado.erro = diagnosticarPlanoIxc(linha.descricaoPlano, planos); return resultado; }
+      if (!resultado.plano) {
+        resultado.planoPendente = true;
+        resultado.motivoPlano = diagnosticarPlanoIxc(linha.descricaoPlano, planos);
+      }
       resultado.valor = resultado.requerRevisaoValor
         ? 0
         : obterValorExplicitoRelatorioIxc(linha.descricaoPlano) ?? obterValorPlanoIxc(resultado.plano);
-      if (resultado.valor == null) { resultado.erro = 'Plano sem valor cadastrado'; return resultado; }
+      if (resultado.valor == null) {
+        resultado.valorPendente = true;
+        resultado.valor = 0;
+      }
+      const motivosVinculo = [resultado.motivoVendedor, resultado.motivoPlano, resultado.valorPendente ? 'Valor iniciado em R$ 0,00; revisar o valor praticado' : ''].filter(Boolean);
       vistosNoArquivo.add(chaveContrato);
-      resultado.podeImportar = true;
+      resultado.podeImportarComRevisao = Boolean(motivosVinculo.length);
+      resultado.erro = motivosVinculo.join(' · ');
+      resultado.podeImportar = !resultado.podeImportarComRevisao;
       resultado.incluir = true;
       return resultado;
     });
@@ -1239,8 +1263,8 @@ async function confirmarImportacaoIxc() {
     showToast('Entre no painel administrativo antes de importar vendas.', 'error');
     return;
   }
-  const selecionadas = _linhasImportacaoIxc.filter(linha => linha.podeImportar && linha.incluir && !linha.importada && !linha.duplicada);
-  const paraRevisao = _linhasImportacaoIxc.filter(linha => linha.aguardaRevisao && !linha.revisaoSalva && !linha.duplicada);
+  const selecionadas = _linhasImportacaoIxc.filter(linha => (linha.podeImportar || linha.podeImportarComRevisao) && linha.incluir && !linha.importada && !linha.duplicada);
+  const paraRevisao = _linhasImportacaoIxc.filter(linha => linha.aguardaRevisao && !linha.podeImportarComRevisao && !linha.revisaoSalva && !linha.duplicada);
   if (!selecionadas.length && !paraRevisao.length) { showToast('Não há vendas selecionadas nem linhas incompletas para enviar à revisão.', 'warning'); return; }
   botao.disabled = true;
   botao.textContent = 'Importando…';
@@ -1250,6 +1274,7 @@ async function confirmarImportacaoIxc() {
   if (inputArquivo) inputArquivo.disabled = true;
   let importadas = 0;
   let revisoesValor = 0;
+  let vinculosPendentes = 0;
   let linhasEmRevisao = 0;
   let duplicadas = 0;
   let falhas = 0;
@@ -1276,12 +1301,12 @@ async function confirmarImportacaoIxc() {
     const paraImportar = selecionadas.filter(linha => !linha.duplicada);
     for (const linha of paraImportar) {
       try {
-        const filialOrigemId = Number(linha.vendedor.filial_id);
+        const filialOrigemId = Number(linha.filialOrigemId || linha.vendedor?.filial_id || window.FILIAL_ATUAL_ID);
         const dadosVenda = {
-          vendedor_id: linha.vendedor.id,
+          vendedor_id: linha.vendedor?.id || null,
           filial_origem_id: filialOrigemId,
           filial_destino_id: Number(linha.filialDestinoId),
-          plano_id: linha.plano.id,
+          plano_id: linha.plano?.id || null,
           data_venda: linha.dataVenda,
           valor: linha.valor,
           cliente: linha.cliente,
@@ -1289,7 +1314,26 @@ async function confirmarImportacaoIxc() {
           observacao: `Importado do IXC${linha.codigoFilialIxc ? `; filial IXC ${linha.codigoFilialIxc}` : ''}; descrição original do plano: ${linha.descricaoPlano}`,
           fora_filial: false,
         };
-        if (linha.requerRevisaoValor) {
+        if (linha.podeImportarComRevisao) {
+          const dadosOrigem = {
+            contrato: linha.contrato, cliente: linha.cliente, descricaoPlano: linha.descricaoPlano,
+            ixcVendedorId: linha.ixcVendedorId, codigoFilialIxc: linha.codigoFilialIxc,
+            dataAtivacao: linha.dataAtivacao, ultimaAtualizacao: linha.ultimaAtualizacao,
+            status: linha.status, linha: linha.linha,
+          };
+          const revisao = {
+            filial_contexto_id: Number(window.FILIAL_ATUAL_ID),
+            chave_origem: linha.contrato ? `contrato:${linha.contrato}` : `linha:${linha.linha}:${JSON.stringify(dadosOrigem)}`,
+            descricao_plano: linha.descricaoPlano,
+            vendedor_ixc_id: linha.ixcVendedorId,
+            filial_ixc_id: linha.codigoFilialIxc,
+            motivo: linha.erro || 'Vínculo de vendedor ou plano pendente.',
+            dados_origem: dadosOrigem,
+          };
+          await window._supabase.rpc('registrar_venda_ixc_com_revisao', { p_venda: dadosVenda, p_revisao: revisao }).then(({ error }) => { if (error) throw error; });
+          linha.enviadaConferenciaVinculo = true;
+          vinculosPendentes++;
+        } else if (linha.requerRevisaoValor) {
           const { error } = await window._supabase.rpc('importar_venda_variavel_ixc', { p_venda: dadosVenda });
           if (error) throw error;
           linha.enviadaConferenciaValor = true;
@@ -1306,8 +1350,10 @@ async function confirmarImportacaoIxc() {
           linha.erro = 'Contrato já cadastrado';
           duplicadas++;
         } else {
-          linha.erro = linha.requerRevisaoValor && error.code === 'PGRST202'
-            ? 'Ative a função de importação especial: execute supabase/revisao-valor-planos-ixc.sql no SQL Editor.'
+          linha.erro = linha.podeImportarComRevisao && error.code === 'PGRST202'
+            ? 'Ative a revisão sem vínculo: execute supabase/revisao-importacao-vendas-ixc.sql no SQL Editor.'
+            : linha.requerRevisaoValor && error.code === 'PGRST202'
+              ? 'Ative a função de importação especial: execute supabase/revisao-valor-planos-ixc.sql no SQL Editor.'
             : error.message || 'Falha ao gravar a venda';
           falhas++;
         }
@@ -1315,7 +1361,7 @@ async function confirmarImportacaoIxc() {
       renderizarPreviaIxc();
     }
     if (importadas) await carregarDados();
-    const revisoesImportadas = paraImportar.filter(linha => linha.importada && linha.requerRevisaoValor);
+    const revisoesImportadas = paraImportar.filter(linha => linha.importada && (linha.requerRevisaoValor || linha.podeImportarComRevisao));
     if (revisoesImportadas.length) {
       const filiaisParaRevisao = new Map(revisoesImportadas.map(linha => [
         String(linha.filialDestinoId),
@@ -1323,10 +1369,12 @@ async function confirmarImportacaoIxc() {
       ]));
       _filiaisFiltroPendenciasIxc = [...filiaisParaRevisao].map(([id, nome]) => ({ id: Number(id), nome }));
       await carregarPendenciasIxc();
+      await carregarRevisoesImportacaoIxc();
     }
-    if (resumo) resumo.innerHTML = `<div class="adm-preview-status">Importação concluída: ${importadas} venda(s) registrada(s), ${linhasEmRevisao} linha(s) enviada(s) à fila de correção, ${revisoesValor} venda(s) aguardando conferência de valor, ${duplicadas} duplicada(s) ignorada(s), ${falhas} falha(s).</div>`;
-    const mensagemRevisao = revisoesValor ? ` ${revisoesValor} venda(s) enviada(s) para conferência de valor.` : '';
-    showToast(`${importadas} venda(s) importada(s), ${linhasEmRevisao} linha(s) na fila de correção.${mensagemRevisao}`, falhas ? 'warning' : 'success');
+    if (resumo) resumo.innerHTML = `<div class="adm-preview-status">Importação concluída: ${importadas} venda(s) registrada(s), ${linhasEmRevisao} linha(s) com dados essenciais aguardando correção, ${revisoesValor} venda(s) já contabilizada(s) e aguardando vínculo ou revisão de valor, ${duplicadas} duplicada(s) ignorada(s), ${falhas} falha(s).</div>`;
+    const mensagemRevisao = vinculosPendentes ? ` ${vinculosPendentes} já contam nas vendas e aguardam vínculo de vendedor/plano.` : '';
+    const mensagemValor = revisoesValor ? ` ${revisoesValor} venda(s) aguardam conferência de valor.` : '';
+    showToast(`${importadas} venda(s) importada(s), ${linhasEmRevisao} linha(s) aguardam dados essenciais.${mensagemRevisao}${mensagemValor}`, falhas ? 'warning' : 'success');
   } catch (error) {
     console.error('[confirmarImportacaoIxc]', error);
     const mensagem = ['42P01', 'PGRST205'].includes(error.code)
