@@ -1377,12 +1377,13 @@
               <div><span class="adm-card-eyebrow">EQUIPE INTERNA · META COMPARTILHADA</span><h2>Metas de renovação — <span id="cfg-renov-periodo">mês/ano atual</span></h2></div>
             </div>
             <p class="adm-description">Defina as metas uma vez. M3, M2 e M1 serão aplicadas igualmente a todos os vendedores internos desta filial.</p>
+            <div class="adm-field" style="max-width:320px;margin:0 0 14px"><label for="cfg-renov-mes">Mês das metas de renovação</label><input type="month" id="cfg-renov-mes" min="2026-10" aria-label="Mês das metas de renovação" onchange="carregarMetasRenovacaoPeriodoSelecionado()"></div>
             <div class="adm-form-grid cfg-renov-meta-grid">
               <div class="adm-field"><label for="cfg-renov-m3">M3 · Base</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label for="cfg-renov-m2">M2 · Intermediária</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label for="cfg-renov-m1">M1 · Avançada</label><input type="number" id="cfg-renov-m1" min="0" step="1" placeholder="Não configurado"></div>
             </div>
-            <div class="adm-form-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Aplicar metas à equipe interna</button></div>
+            <div class="adm-form-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-renov-salvar" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Aplicar metas ao mês selecionado</button></div>
           </div>
         </section>
 
@@ -1613,6 +1614,7 @@
         <section class="adm-section" id="sec-config-metas">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg></span>Configuração de Metas</div>
           <p class="adm-page-lead">Configure metas da filial, metas padrão para cada tipo de vendedor e limites de cancelamento.</p>
+          <div class="adm-field" style="max-width:320px;margin-bottom:16px"><label for="cfg-vendas-mes">Mês das metas de vendas</label><input type="month" id="cfg-vendas-mes" min="2026-10" aria-label="Mês das metas de vendas" onchange="carregarMetasVendasPeriodoSelecionado()"><small class="adm-muted-copy">O período escolhido vale para as metas da filial e para as metas padrão dos vendedores.</small></div>
 
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Meta da Filial — <span id="cfg-fil-periodo">mês/ano atual</span></div>
@@ -1638,7 +1640,7 @@
 
           <div class="adm-form-card">
             <div class="adm-section-title adm-subsection-title">Metas padrão por tipo — <span id="cfg-ind-periodo">mês/ano atual</span></div>
-            <p class="adm-muted-copy cfg-meta-type-intro">Informe cada meta uma vez. Ao salvar, o sistema aplica os valores a todos os vendedores daquele tipo nesta filial e neste período.</p>
+            <p class="adm-muted-copy cfg-meta-type-intro">Informe cada meta uma vez. Ao salvar, o sistema aplica os valores a todos os vendedores daquele tipo nesta filial e no mês selecionado.</p>
             <div class="cfg-meta-type-grid">
               <section class="cfg-meta-type-card is-interno" aria-labelledby="cfg-meta-interno-title">
                 <div class="cfg-meta-type-heading"><div><span class="cfg-meta-type-kicker">Equipe interna</span><h3 id="cfg-meta-interno-title">Vendedores internos</h3></div><span class="cfg-meta-type-count"><strong id="cfg-meta-interno-count">—</strong> pessoas</span></div>
@@ -1672,7 +1674,7 @@
           </div>
 
           <div class="adm-form-full adm-form-actions">
-            <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" onclick="handleSalvarMetas()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas</button>
+            <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-vendas-salvar" onclick="handleSalvarMetas()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas do período selecionado</button>
           </div>
         </section>
 

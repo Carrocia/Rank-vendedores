@@ -35,6 +35,168 @@ function renderAdmMetasConfig(cache) {
 // ================================================================
 
 let _cancelamentosPeriodoReq = 0;
+let _metasVendasPeriodoReq = 0;
+let _metasRenovacaoPeriodoReq = 0;
+
+function periodoAtualMetas() {
+  const periodo = _cache?.mes || calcularPeriodoMes();
+  const mes = Number(periodo.mesNum || periodo.mes);
+  return { ano: Number(periodo.ano), mes, mesNum: mes, chave: `${periodo.ano}-${String(mes).padStart(2, '0')}` };
+}
+
+function lerPeriodoMetas(id) {
+  const chave = document.getElementById(id)?.value || '';
+  const partes = /^(\d{4})-(\d{2})$/.exec(chave);
+  if (!partes) return null;
+  const ano = Number(partes[1]);
+  const mes = Number(partes[2]);
+  if (mes < 1 || mes > 12) return null;
+  return { ano, mes, mesNum: mes, chave };
+}
+
+function rotuloPeriodoMeta(periodo) {
+  const nome = new Date(periodo.ano, periodo.mes - 1, 1)
+    .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return nome.charAt(0).toUpperCase() + nome.slice(1);
+}
+
+function preencherMetasVendas(cache, periodo) {
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val == null ? '' : String(val); };
+  const label = rotuloPeriodoMeta(periodo);
+  setText('cfg-fil-periodo', label);
+  setText('cfg-ind-periodo', label);
+
+  const mf = cache.metasFilial;
+  setVal('cfg-fil-sem-m3', mf?.semanal_m3);
+  setVal('cfg-fil-sem-m2', mf?.semanal_m2);
+  setVal('cfg-fil-sem-m1', mf?.semanal_m1);
+  setVal('cfg-fil-mes-m3', mf?.mensal_m3);
+  setVal('cfg-fil-mes-m2', mf?.mensal_m2);
+  setVal('cfg-fil-mes-m1', mf?.mensal_m1);
+
+  const vendedores = cache.vendedores || [];
+  const metas = cache.metas || [];
+  const internos = vendedores.filter(v => v.tipo === 'interno' && v.ativo !== false);
+  const externos = vendedores.filter(v => v.tipo === 'externo' && v.ativo !== false);
+  const setCount = (id, count) => { const el = document.getElementById(id); if (el) el.textContent = String(count); };
+  setCount('cfg-meta-interno-count', internos.length);
+  setCount('cfg-meta-externo-count', externos.length);
+  const obterMetaPadrao = (grupo, campo) => {
+    const valores = grupo.map(v => metas.find(m => String(m.vendedor_id) === String(v.id))?.[campo]).filter(v => v !== null && v !== undefined && v !== '');
+    if (!valores.length) return null;
+    const frequencias = new Map();
+    valores.forEach(valor => frequencias.set(String(valor), (frequencias.get(String(valor)) || 0) + 1));
+    return valores.find(valor => frequencias.get(String(valor)) === Math.max(...frequencias.values()));
+  };
+  setVal('cfg-meta-interno-m3', obterMetaPadrao(internos, 'meta_m3'));
+  setVal('cfg-meta-interno-m2', obterMetaPadrao(internos, 'meta_m2'));
+  setVal('cfg-meta-interno-m1', obterMetaPadrao(internos, 'meta_m1'));
+  setVal('cfg-meta-externo-vendas', obterMetaPadrao(externos, 'meta_vendas'));
+  const botao = document.getElementById('cfg-vendas-salvar');
+  if (botao) botao.disabled = false;
+}
+
+async function carregarMetasVendasPeriodoSelecionado() {
+  const entrada = document.getElementById('cfg-vendas-mes');
+  if (!entrada || !_dadosCarregados) return;
+  const periodo = lerPeriodoMetas('cfg-vendas-mes');
+  const atual = periodoAtualMetas();
+  if (!periodo || periodo.chave < '2026-10' || periodo.chave > atual.chave) {
+    showToast('Selecione um mês válido entre outubro de 2026 e o mês atual.', 'warning');
+    return;
+  }
+  const sequencia = ++_metasVendasPeriodoReq;
+  const botao = document.getElementById('cfg-vendas-salvar');
+  if (botao) botao.disabled = true;
+  ['cfg-fil-sem-m3', 'cfg-fil-sem-m2', 'cfg-fil-sem-m1', 'cfg-fil-mes-m3', 'cfg-fil-mes-m2', 'cfg-fil-mes-m1', 'cfg-meta-interno-m3', 'cfg-meta-interno-m2', 'cfg-meta-interno-m1', 'cfg-meta-externo-vendas']
+    .forEach(id => { const campo = document.getElementById(id); if (campo) campo.value = ''; });
+  const label = rotuloPeriodoMeta(periodo);
+  setVendasPeriodoLabel(label);
+  try {
+    let cache;
+    if (periodo.chave === atual.chave) {
+      cache = _cache;
+    } else {
+      const vendedores = _cache.vendedores || [];
+      const ids = vendedores.map(v => v.id);
+      const [filialResult, metasResult] = await Promise.all([
+        window._supabase.from('metas_filial').select('*')
+          .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', periodo.mes).eq('ano', periodo.ano).maybeSingle(),
+        ids.length
+          ? window._supabase.from('metas').select('*').in('vendedor_id', ids).eq('mes', periodo.mes).eq('ano', periodo.ano)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (filialResult.error) throw filialResult.error;
+      if (metasResult.error) throw metasResult.error;
+      const row = filialResult.data;
+      cache = {
+        ..._cache,
+        metasFilial: row ? {
+          id: row.id, mes: row.mes, ano: row.ano,
+          semanal_m3: row.meta_semanal_m3, semanal_m2: row.meta_semanal_m2, semanal_m1: row.meta_semanal_m1,
+          mensal_m3: row.meta_mensal_m3, mensal_m2: row.meta_mensal_m2, mensal_m1: row.meta_mensal_m1,
+        } : null,
+        metas: metasResult.data || [],
+      };
+    }
+    if (sequencia !== _metasVendasPeriodoReq || entrada.value !== periodo.chave) return;
+    preencherMetasVendas(cache, periodo);
+  } catch (erro) {
+    console.error('[carregarMetasVendasPeriodoSelecionado]', erro);
+    showToast('Não foi possível carregar as metas de vendas deste mês.', 'error');
+  }
+}
+
+function setVendasPeriodoLabel(label) {
+  ['cfg-fil-periodo', 'cfg-ind-periodo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+}
+
+async function carregarMetasRenovacaoPeriodoSelecionado() {
+  const entrada = document.getElementById('cfg-renov-mes');
+  if (!entrada || !_dadosCarregados) return;
+  const periodo = lerPeriodoMetas('cfg-renov-mes');
+  const atual = periodoAtualMetas();
+  if (!periodo || periodo.chave < '2026-10' || periodo.chave > atual.chave) {
+    showToast('Selecione um mês válido entre outubro de 2026 e o mês atual.', 'warning');
+    return;
+  }
+  const sequencia = ++_metasRenovacaoPeriodoReq;
+  const label = rotuloPeriodoMeta(periodo);
+  const titulo = document.getElementById('cfg-renov-periodo');
+  if (titulo) titulo.textContent = label;
+  const botao = document.getElementById('cfg-renov-salvar');
+  if (botao) botao.disabled = true;
+  ['m3', 'm2', 'm1'].forEach(nivel => { const campo = document.getElementById(`cfg-renov-${nivel}`); if (campo) campo.value = ''; });
+  try {
+    let metas;
+    if (periodo.chave === atual.chave) {
+      metas = _cache.metasRenovacaoFilial || {
+        meta_m3: _cache.metasRenovCancel?.renovacoes_m3,
+        meta_m2: _cache.metasRenovCancel?.renovacoes_m2,
+        meta_m1: _cache.metasRenovCancel?.renovacoes_m1,
+      };
+    } else {
+      const { data, error } = await window._supabase.from('metas_renovacao_filial')
+        .select('meta_m3,meta_m2,meta_m1')
+        .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', periodo.mes).eq('ano', periodo.ano).maybeSingle();
+      if (error) throw error;
+      metas = data;
+    }
+    if (sequencia !== _metasRenovacaoPeriodoReq || entrada.value !== periodo.chave) return;
+    ['m3', 'm2', 'm1'].forEach(nivel => {
+      const campo = document.getElementById(`cfg-renov-${nivel}`);
+      if (campo) campo.value = metas?.[`meta_${nivel}`] == null ? '' : String(metas[`meta_${nivel}`]);
+    });
+    if (botao) botao.disabled = false;
+  } catch (erro) {
+    console.error('[carregarMetasRenovacaoPeriodoSelecionado]', erro);
+    showToast('Não foi possível carregar as metas de renovação deste mês.', 'error');
+  }
+}
 
 function periodoSelecionadoCancelamentos() {
   const valor = document.getElementById('cfg-cancel-mes')?.value || '';
@@ -81,36 +243,55 @@ function renderConfigMetas(cache) {
   const mesLabel = (cache.mes && cache.mes.mesNome)
     ? (cache.mes.mesNome.charAt(0).toUpperCase() + cache.mes.mesNome.slice(1)) + '/' + cache.mes.ano
     : '—';
-  const periodoEls = [document.getElementById('cfg-fil-periodo'), document.getElementById('cfg-ind-periodo'), document.getElementById('cfg-renov-periodo'), document.getElementById('cfg-cancel-periodo')];
-  periodoEls.forEach(el => { if (el) el.textContent = mesLabel; });
-  const seletorCancel = document.getElementById('cfg-cancel-mes');
-  if (seletorCancel) {
-    const chaveAtual = `${cache.mes.ano}-${String(cache.mes.mesNum || cache.mes.mes).padStart(2, '0')}`;
-    seletorCancel.max = chaveAtual;
-    if (!seletorCancel.value) seletorCancel.value = chaveAtual;
+  const periodoActual = periodoAtualMetas();
+  const selectorVendas = document.getElementById('cfg-vendas-mes');
+  if (selectorVendas) {
+    selectorVendas.max = periodoActual.chave;
+    selectorVendas.min = '2026-10';
+    if (!selectorVendas.value) selectorVendas.value = periodoActual.chave;
+    const periodoVendas = lerPeriodoMetas('cfg-vendas-mes');
+    if (periodoVendas?.chave === periodoActual.chave) preencherMetasVendas(cache, periodoVendas);
+    else if (periodoVendas) carregarMetasVendasPeriodoSelecionado();
+  } else {
+    preencherMetasVendas(cache, periodoActual);
   }
 
-  // Meta da Filial
-  const mf = cache.metasFilial;
-  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val === null || val === undefined) ? '' : val; };
-  setVal('cfg-fil-sem-m3', mf ? mf.semanal_m3 : null);
-  setVal('cfg-fil-sem-m2', mf ? mf.semanal_m2 : null);
-  setVal('cfg-fil-sem-m1', mf ? mf.semanal_m1 : null);
-  setVal('cfg-fil-mes-m3', mf ? mf.mensal_m3 : null);
-  setVal('cfg-fil-mes-m2', mf ? mf.mensal_m2 : null);
-  setVal('cfg-fil-mes-m1', mf ? mf.mensal_m1 : null);
+  const selectorRenovacao = document.getElementById('cfg-renov-mes');
+  if (selectorRenovacao) {
+    selectorRenovacao.max = periodoActual.chave;
+    selectorRenovacao.min = '2026-10';
+    if (!selectorRenovacao.value) selectorRenovacao.value = periodoActual.chave;
+    const periodoRenovacao = lerPeriodoMetas('cfg-renov-mes');
+    const tituloRenovacao = document.getElementById('cfg-renov-periodo');
+    if (tituloRenovacao && periodoRenovacao) tituloRenovacao.textContent = rotuloPeriodoMeta(periodoRenovacao);
+    if (periodoRenovacao?.chave === periodoActual.chave) {
+      const metas = cache.metasRenovacaoFilial || {
+        meta_m3: cache.metasRenovCancel?.renovacoes_m3,
+        meta_m2: cache.metasRenovCancel?.renovacoes_m2,
+        meta_m1: cache.metasRenovCancel?.renovacoes_m1,
+      };
+      ['m3', 'm2', 'm1'].forEach(nivel => {
+        const campo = document.getElementById(`cfg-renov-${nivel}`);
+        if (campo) campo.value = metas?.[`meta_${nivel}`] == null ? '' : String(metas[`meta_${nivel}`]);
+      });
+      const botao = document.getElementById('cfg-renov-salvar');
+      if (botao) botao.disabled = false;
+    } else if (periodoRenovacao) carregarMetasRenovacaoPeriodoSelecionado();
+  }
 
-  // Uma meta compartilhada de renovação vale para toda a equipe interna.
+  const periodoCancelamento = document.getElementById('cfg-cancel-periodo');
+  if (periodoCancelamento) periodoCancelamento.textContent = mesLabel;
+  const seletorCancel = document.getElementById('cfg-cancel-mes');
+  if (seletorCancel) {
+    seletorCancel.max = periodoActual.chave;
+    if (!seletorCancel.value) seletorCancel.value = periodoActual.chave;
+  }
+
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val === null || val === undefined) ? '' : val; };
+
   const rc = cache.metasRenovCancel;
-  const metasRenovGeral = cache.metasRenovacaoFilial || {
-    meta_m3: rc?.renovacoes_m3, meta_m2: rc?.renovacoes_m2, meta_m1: rc?.renovacoes_m1,
-  };
-  setVal('cfg-renov-m3', metasRenovGeral.meta_m3);
-  setVal('cfg-renov-m2', metasRenovGeral.meta_m2);
-  setVal('cfg-renov-m1', metasRenovGeral.meta_m1);
   const periodoCancel = periodoSelecionadoCancelamentos();
-  const chaveAtualCancel = `${cache.mes.ano}-${String(cache.mes.mesNum || cache.mes.mes).padStart(2, '0')}`;
-  if (periodoCancel?.chave === chaveAtualCancel) {
+  if (periodoCancel?.chave === periodoActual.chave) {
     setVal('cfg-cancel-m3', rc?.cancelamentos_m3);
     setVal('cfg-cancel-m2', rc?.cancelamentos_m2);
     setVal('cfg-cancel-m1', rc?.cancelamentos_m1);
@@ -119,26 +300,6 @@ function renderConfigMetas(cache) {
     carregarCancelamentosPeriodoSelecionado();
   }
 
-  // Metas padrão por tipo: preenche uma única vez cada grupo e aplica
-  // depois o mesmo valor a todos os vendedores ativos daquele tipo.
-  const vendedores = cache.vendedores || [];
-  const metas = cache.metas || [];
-  const internos = vendedores.filter(v => v.tipo === 'interno' && v.ativo !== false);
-  const externos = vendedores.filter(v => v.tipo === 'externo' && v.ativo !== false);
-  const setCount = (id, count) => { const el = document.getElementById(id); if (el) el.textContent = String(count); };
-  setCount('cfg-meta-interno-count', internos.length);
-  setCount('cfg-meta-externo-count', externos.length);
-  const obterMetaPadrao = (grupo, campo) => {
-    const valores = grupo.map(v => metas.find(m => String(m.vendedor_id) === String(v.id))?.[campo]).filter(v => v !== null && v !== undefined && v !== '');
-    if (!valores.length) return null;
-    const frequencias = new Map();
-    valores.forEach(valor => frequencias.set(String(valor), (frequencias.get(String(valor)) || 0) + 1));
-    return valores.find(valor => frequencias.get(String(valor)) === Math.max(...frequencias.values()));
-  };
-  setVal('cfg-meta-interno-m3', obterMetaPadrao(internos, 'meta_m3'));
-  setVal('cfg-meta-interno-m2', obterMetaPadrao(internos, 'meta_m2'));
-  setVal('cfg-meta-interno-m1', obterMetaPadrao(internos, 'meta_m1'));
-  setVal('cfg-meta-externo-vendas', obterMetaPadrao(externos, 'meta_vendas'));
 }
 
 // Lê um <input> numérico e valida: vazio é permitido (= "não definir"),
@@ -153,11 +314,8 @@ function lerMetaInput(id) {
   return { ok: true, valor: num };
 }
 
-// Salva/atualiza a meta da filial do mês/ano atual (metas_filial).
-// Usa o registro já carregado em _cache.metasFilial para decidir entre
-// UPDATE (se já existir) ou INSERT (se ainda não existir) — equivalente
-// a um upsert, sem depender de um nome de constraint que não foi informado.
-async function salvarMetaFilial(dados) {
+// Salva/atualiza a meta da filial no período escolhido.
+async function salvarMetaFilial(dados, periodo = _cache.mes) {
   // dados chega com nomes internos (semanal_m3, mensal_m3, ...) —
   // convertidos aqui para os nomes reais das colunas do Supabase
   // (meta_semanal_m3, meta_mensal_m3, ...) antes de update/insert.
@@ -171,21 +329,23 @@ async function salvarMetaFilial(dados) {
     meta_mensal_m2: dados.mensal_m2 ?? 0,
     meta_mensal_m1: dados.mensal_m1 ?? 0,
   };
-  const existente = _cache.metasFilial;
-  if (existente && existente.id) {
+  const mes = Number(periodo.mesNum || periodo.mes);
+  const { data: existente, error: erroBusca } = await window._supabase.from('metas_filial')
+    .select('id').eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', periodo.ano).maybeSingle();
+  if (erroBusca) throw new Error('Não foi possível consultar a meta da filial: ' + erroBusca.message);
+  if (existente?.id) {
     const { error } = await window._supabase.from('metas_filial').update(dadosSupabase).eq('id', existente.id);
     if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível salvar a meta da filial: ' + error.message); }
   } else {
-    const payload = { filial_id: window.FILIAL_ATUAL_ID, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dadosSupabase };
+    const payload = { filial_id: window.FILIAL_ATUAL_ID, mes, ano: periodo.ano, ...dadosSupabase };
     const { error } = await window._supabase.from('metas_filial').insert([payload]);
     if (error) { console.error('[salvarMetaFilial]', error); throw new Error('Não foi possível criar a meta da filial: ' + error.message); }
   }
 }
 
-// Salva/atualiza a meta individual de um vendedor no mês/ano atual (metas).
-// Mesma lógica de UPDATE-ou-INSERT (equivalente a upsert) do item acima.
-async function salvarMetaVendedor(vendedor_id, dados) {
-  const payload = { vendedor_id, mes: _cache.mes.mesNum, ano: _cache.mes.ano, ...dados };
+// Salva/atualiza a meta individual de um vendedor no período escolhido.
+async function salvarMetaVendedor(vendedor_id, dados, periodo = _cache.mes) {
+  const payload = { vendedor_id, mes: Number(periodo.mesNum || periodo.mes), ano: periodo.ano, ...dados };
   // UPDATE-ou-INSERT (não depende de constraint única para o upsert):
   // procura a linha do vendedor no mês/ano; se existir atualiza, senão cria.
   const { data: existente, error: errBusca } = await window._supabase
@@ -238,11 +398,11 @@ async function salvarMetaRenovCancel(dados, periodo = _cache.mes, existentePerio
   }
 }
 
-async function salvarMetaRenovacaoFilial(dados) {
+async function salvarMetaRenovacaoFilial(dados, periodo = _cache.mes) {
   const payload = {
     filial_id: window.FILIAL_ATUAL_ID,
-    mes: _cache.mes.mesNum,
-    ano: _cache.mes.ano,
+    mes: Number(periodo.mesNum || periodo.mes),
+    ano: periodo.ano,
     meta_m3: dados.meta_m3 ?? null,
     meta_m2: dados.meta_m2 ?? null,
     meta_m1: dados.meta_m1 ?? null,
@@ -258,6 +418,10 @@ async function salvarMetaRenovacaoFilial(dados) {
 // valores em toda a interface (pública e administrativa).
 async function handleSalvarMetas() {
   if (!_dadosCarregados) { showToast('Os dados ainda não foram carregados do Supabase.', 'warning'); return; }
+  const periodo = document.getElementById('cfg-vendas-mes') ? lerPeriodoMetas('cfg-vendas-mes') : periodoAtualMetas();
+  if (!periodo) { showToast('Selecione um mês válido para as metas de vendas.', 'warning'); return; }
+  const periodoAtual = periodoAtualMetas();
+  if (periodo.chave < '2026-10' || periodo.chave > periodoAtual.chave) { showToast('Selecione um mês entre outubro de 2026 e o mês atual.', 'warning'); return; }
 
   // 1) Ler e validar a Meta da Filial
   const camposFilial = ['cfg-fil-sem-m3', 'cfg-fil-sem-m2', 'cfg-fil-sem-m1', 'cfg-fil-mes-m3', 'cfg-fil-mes-m2', 'cfg-fil-mes-m1'];
@@ -285,17 +449,21 @@ async function handleSalvarMetas() {
   externos.forEach(v => vendedoresParaSalvar.push({ vendedor_id: v.id, dados: { meta_vendas: metasTipo[3].valor } }));
 
   // 3) Só depois de validar tudo, gravar as metas de vendas.
+  const botao = document.getElementById('cfg-vendas-salvar');
+  if (botao) botao.disabled = true;
   try {
-    await salvarMetaFilial(dadosFilial);
+    await salvarMetaFilial(dadosFilial, periodo);
     for (const v of vendedoresParaSalvar) {
-      await salvarMetaVendedor(v.vendedor_id, v.dados);
+      await salvarMetaVendedor(v.vendedor_id, v.dados, periodo);
     }
-    // Só depois de tudo salvo com sucesso, recarregar os dados reais.
-    await carregarDados();
-    showToast(`Metas aplicadas a ${internos.length} interno(s) e ${externos.length} externo(s).`, 'success');
+    if (periodo.chave === periodoAtual.chave) await carregarDados();
+    else await carregarMetasVendasPeriodoSelecionado();
+    showToast(`Metas de vendas de ${rotuloPeriodoMeta(periodo)} aplicadas a ${internos.length} interno(s) e ${externos.length} externo(s).`, 'success');
   } catch (err) {
     console.error('[handleSalvarMetas]', err);
     showToast((err && err.message) ? err.message : 'Não foi possível salvar as metas. Verifique a conexão com o Supabase.', 'error');
+  } finally {
+    if (botao) botao.disabled = false;
   }
 }
 
@@ -366,20 +534,26 @@ async function handleSalvarCancelamentos() {
 
 async function handleSalvarMetasRenovacao() {
   if (!_dadosCarregados) { showToast('Os dados ainda não foram carregados do Supabase.', 'warning'); return; }
+  const periodo = document.getElementById('cfg-renov-mes') ? lerPeriodoMetas('cfg-renov-mes') : periodoAtualMetas();
+  if (!periodo) { showToast('Selecione um mês válido para as metas de renovação.', 'warning'); return; }
+  const periodoAtual = periodoAtualMetas();
+  if (periodo.chave < '2026-10' || periodo.chave > periodoAtual.chave) { showToast('Selecione um mês entre outubro de 2026 e o mês atual.', 'warning'); return; }
   const ids = ['cfg-renov-m3', 'cfg-renov-m2', 'cfg-renov-m1'];
   const valores = ids.map(lerMetaInput);
   if (valores.some(item => !item.ok)) {
     showToast('Informe metas de renovação como números inteiros iguais ou maiores que zero.', 'warning');
     return;
   }
+  const botao = document.getElementById('cfg-renov-salvar');
+  if (botao) botao.disabled = true;
   try {
-    await salvarMetaRenovacaoFilial({ meta_m3: valores[0].valor, meta_m2: valores[1].valor, meta_m1: valores[2].valor });
+    await salvarMetaRenovacaoFilial({ meta_m3: valores[0].valor, meta_m2: valores[1].valor, meta_m1: valores[2].valor }, periodo);
     const internos = (_cache.vendedores || []).filter(v => v.tipo === 'interno' && v.ativo !== false);
     const metasCompartilhadas = internos.map(v => ({
       filial_id: Number(v.filial_id || window.FILIAL_ATUAL_ID),
       vendedor_id: Number(v.id),
-      mes: _cache.mes.mesNum,
-      ano: _cache.mes.ano,
+      mes: periodo.mesNum || periodo.mes,
+      ano: periodo.ano,
       meta_m3: valores[0].valor,
       meta_m2: valores[1].valor,
       meta_m1: valores[2].valor,
@@ -390,8 +564,9 @@ async function handleSalvarMetasRenovacao() {
         .upsert(metasCompartilhadas, { onConflict: 'vendedor_id,mes,ano' });
       if (error) throw new Error('As metas gerais foram salvas, mas não foi possível aplicá-las a todos os vendedores: ' + error.message);
     }
-    await carregarDados();
-    showToast(`Metas de renovação aplicadas igualmente a ${internos.length} vendedor(es) interno(s).`, 'success');
+    if (periodo.chave === periodoAtual.chave) await carregarDados();
+    else await carregarMetasRenovacaoPeriodoSelecionado();
+    showToast(`Metas de renovação de ${rotuloPeriodoMeta(periodo)} aplicadas igualmente a ${internos.length} vendedor(es) interno(s).`, 'success');
   } catch (err) {
     console.error('[handleSalvarMetasRenovacao]', err);
     const msg = String((err && err.message) || err);
@@ -400,6 +575,8 @@ async function handleSalvarMetasRenovacao() {
       : /metas_renovacao_filial|schema cache|does not exist/i.test(msg)
       ? 'A tabela de metas gerais ainda não existe. Execute supabase/renovacoes-mensais.sql no SQL Editor.'
       : 'Não foi possível salvar as metas de renovação: ' + msg, 'error', 9000);
+  } finally {
+    if (botao) botao.disabled = false;
   }
 }
 
