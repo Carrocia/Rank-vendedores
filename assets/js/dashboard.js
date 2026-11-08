@@ -195,15 +195,19 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
           ].filter(etapa => Number.isFinite(etapa.meta) && etapa.meta > 0).sort((a, b) => a.meta - b.meta)
         : [{ tier: 'm2', label: 'M2', meta: META_M2_EXTERNO_VENDAS }, { tier: 'm1', label: 'M1', meta: META_M2_EXTERNO_VENDAS + 1 }];
       const proximaMeta = metasVendedor.find(etapa => vendasMes < etapa.meta);
+      const metaEmExibicao = proximaMeta || metasVendedor[metasVendedor.length - 1];
       const proximaConquista = document.createElement('span');
       proximaConquista.className = 'ranking-full-next';
       if (!metaBaseConfigurada && vendedor.tipo === 'interno') {
         proximaConquista.textContent = 'Metas individuais não configuradas';
+      } else if (!metaEmExibicao) {
+        proximaConquista.textContent = 'Metas individuais não configuradas';
       } else if (!proximaMeta) {
-        proximaConquista.textContent = 'Todas as metas individuais atingidas';
+        proximaConquista.textContent = `100% da meta ${metaEmExibicao.label} · todas as metas atingidas`;
         proximaConquista.classList.add('is-complete');
       } else {
-        proximaConquista.textContent = `Próxima conquista: ${proximaMeta.label}`;
+        const percentual = Math.min(100, Math.round((vendasMes / metaEmExibicao.meta) * 100));
+        proximaConquista.textContent = `${percentual}% da meta ${metaEmExibicao.label}`;
       }
       identidade.appendChild(proximaConquista);
     }
