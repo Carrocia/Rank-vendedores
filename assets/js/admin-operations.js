@@ -97,17 +97,22 @@ async function carregarContagensPendentesDashboard(d) {
     if (status) status.textContent = 'Acesse como administrador para consultar as filas';
     return;
   }
-  const [vendas, renovacoes] = await Promise.all([
+  const [vendas, revisoesImportacao, renovacoes] = await Promise.all([
     window._supabase.from('vendas_conferencia_ixc').select('id', { count: 'exact', head: true }).eq('filial_id', filialId).eq('situacao', 'pendente'),
+    window._supabase.from('vendas_importacao_revisao_ixc').select('id', { count: 'exact', head: true }).eq('filial_contexto_id', filialId).eq('situacao', 'pendente'),
     window._supabase.from('renovacoes_registros').select('id', { count: 'exact', head: true }).eq('filial_id', filialId).eq('mes', mes).eq('ano', ano).eq('conferencia_pendente', true),
   ]);
   if (requestId !== _dashboardPendenciasRequestId) return;
   if (vendas.error) console.warn('[carregarContagensPendentesDashboard] vendas IXC:', vendas.error.message);
+  if (revisoesImportacao.error) console.warn('[carregarContagensPendentesDashboard] revisão de importação IXC:', revisoesImportacao.error.message);
   if (renovacoes.error) console.warn('[carregarContagensPendentesDashboard] renovações:', renovacoes.error.message);
-  const quantidadeVendas = vendas.error ? null : Number(vendas.count || 0);
+  const quantidadeVendas = vendas.error || revisoesImportacao.error
+    ? null
+    : Number(vendas.count || 0) + Number(revisoesImportacao.count || 0);
+  const detalheVendas = quantidadeVendas == null ? '' : ` (${Number(vendas.count || 0)} ausente(s) do relatório · ${Number(revisoesImportacao.count || 0)} com vínculo pendente)`;
   const quantidadeRenovacoes = renovacoes.error ? null : Number(renovacoes.count || 0);
   renderContagem('dash-pending-sales', 'dash-pending-sales-note', 'dash-pending-sales-card', quantidadeVendas,
-    `${fmtDashboard(quantidadeVendas)} venda(s) aguardando conferência`);
+    `${fmtDashboard(quantidadeVendas)} item(ns) aguardando revisão${detalheVendas}`);
   renderContagem('dash-pending-renewals', 'dash-pending-renewals-note', 'dash-pending-renewals-card', quantidadeRenovacoes,
     `${fmtDashboard(quantidadeRenovacoes)} renovação(ões) aguardando conferência`);
   if (status) {

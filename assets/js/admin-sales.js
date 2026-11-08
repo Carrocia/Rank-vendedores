@@ -980,6 +980,14 @@ function adm_navigateTo(sectionId) {
   if (sectionId === 'nova-venda' && typeof carregarPendenciasIxc === 'function') {
     carregarPendenciasIxc();
     if (typeof carregarRevisoesImportacaoIxc === 'function') carregarRevisoesImportacaoIxc();
+    // Atualiza a lista ao voltar do cadastro/edição de vendedores, sem exigir
+    // recarregar a página. A proteção evita aplicar dados de uma filial trocada.
+    const filialId = Number(window.FILIAL_ATUAL_ID);
+    loadVendedores().then(vendedores => {
+      if (filialId !== Number(window.FILIAL_ATUAL_ID)) return;
+      _cache.vendedores = vendedores;
+      popularSelectVendedores(vendedores);
+    }).catch(error => console.warn('[adm_navigateTo] não foi possível atualizar vendedores:', error));
   }
   if (sectionId === 'renovacoes') carregarRelatorioResumoRenovacoes();
   if (sectionId === 'analitica') renderizarAnaliticaPerfis();
