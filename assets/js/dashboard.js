@@ -151,7 +151,7 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
     nome.textContent = vendedor.nome || 'Vendedor';
     identidade.appendChild(nome);
 
-    // Os selos e o progresso representam metas mensais; a lista semanal mantém contexto só da semana.
+    // Os selos mostram conquistas sem expor quantidades individuais; a lista semanal mantém contexto só da semana.
     if (mode === 'mensal' && (vendedor.tipo === 'interno' || vendedor.tipo === 'externo')) {
       const metas = options.metasIndividuais || [];
       const metaVendedor = metas.find(m => String(m.vendedor_id) === String(vendedor.id));
@@ -195,18 +195,17 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
           ].filter(etapa => Number.isFinite(etapa.meta) && etapa.meta > 0).sort((a, b) => a.meta - b.meta)
         : [{ tier: 'm2', label: 'M2', meta: META_M2_EXTERNO_VENDAS }, { tier: 'm1', label: 'M1', meta: META_M2_EXTERNO_VENDAS + 1 }];
       const proximaMeta = metasVendedor.find(etapa => vendasMes < etapa.meta);
-      const progresso = document.createElement('span');
-      progresso.className = 'ranking-full-progress';
+      const proximaConquista = document.createElement('span');
+      proximaConquista.className = 'ranking-full-next';
       if (!metaBaseConfigurada && vendedor.tipo === 'interno') {
-        progresso.textContent = 'Metas individuais não configuradas';
+        proximaConquista.textContent = 'Metas individuais não configuradas';
       } else if (!proximaMeta) {
-        progresso.textContent = 'Todas as metas individuais atingidas';
-        progresso.classList.add('is-complete');
+        proximaConquista.textContent = 'Todas as metas individuais atingidas';
+        proximaConquista.classList.add('is-complete');
       } else {
-        const percentual = Math.min(100, Math.round((vendasMes / proximaMeta.meta) * 100));
-        progresso.innerHTML = `<span class="ranking-full-progress-copy">${vendasMes.toLocaleString('pt-BR')} de ${proximaMeta.meta.toLocaleString('pt-BR')} vendas · próxima ${proximaMeta.label}</span><span class="ranking-full-progress-track" aria-hidden="true"><span style="width:${percentual}%"></span></span>`;
+        proximaConquista.textContent = `Próxima conquista: ${proximaMeta.label}`;
       }
-      identidade.appendChild(progresso);
+      identidade.appendChild(proximaConquista);
     }
 
     item.append(posicao, identidade);
@@ -371,8 +370,8 @@ function renderHistorico() {
         ${h.emAndamento ? '<span class="mural-month-status">Em andamento</span>' : ''}
       </div>
       <div class="mural-winners${h.renovacao || h.emAndamento ? '' : ' mural-winners-two'}">
-        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno', quantidade => `${Number(quantidade).toLocaleString('pt-BR')} ${Number(quantidade) === 1 ? 'venda' : 'vendas'}`)}
-        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo', quantidade => `${Number(quantidade).toLocaleString('pt-BR')} ${Number(quantidade) === 1 ? 'venda' : 'vendas'}`)}
+        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno')}
+        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo')}
         ${h.renovacao || h.emAndamento
           ? renderMuralPerson(h.renovacao, 'Destaque em renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
           : ''}

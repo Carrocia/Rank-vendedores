@@ -471,10 +471,8 @@
   .ranking-full-badges { display: flex; grid-column: 2; grid-row: 1 / span 2; align-items: center; gap: 3px; }
   .ranking-full-tier-badge { display: block; flex: 0 0 auto; width: 43px; height: 31px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
   .ranking-full-tier-badge[src*="meta-nao-atingida"] { opacity: .46; filter: grayscale(1); }
-  .ranking-full-progress { display: grid; grid-column: 1 / -1; gap: 3px; color: var(--text-muted); font-size: .66rem; line-height: 1.35; }
-  .ranking-full-progress.is-complete { color: var(--green); font-weight: 700; }
-  .ranking-full-progress-track { display: block; width: min(220px, 100%); height: 4px; overflow: hidden; border-radius: 999px; background: var(--border); }
-  .ranking-full-progress-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .45s ease; }
+  .ranking-full-next { grid-column: 1 / -1; color: var(--text-muted); font-size: .66rem; line-height: 1.35; }
+  .ranking-full-next.is-complete { color: var(--green); font-weight: 700; }
 
   .meta-pace { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 11px; background: rgba(255,255,255,.025); }
   .meta-pace[hidden] { display: none; }
