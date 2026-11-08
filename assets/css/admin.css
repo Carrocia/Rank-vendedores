@@ -820,6 +820,34 @@ body.an-modal-open { overflow:hidden; }
 #sec-config-metas .cfg-meta-type-note { margin:16px 0 10px; }
 #sec-config-metas > .adm-form-actions { padding:14px 18px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
 #cfg-vendas-mes { display:block; width:min(100%, 360px); min-width:0; color-scheme:dark; }
+#sec-config-metas {
+  --accent:#c63cff;
+  --accent2:#ff694f;
+  --accent-rgb:198,60,255;
+  --accent2-rgb:255,105,79;
+  --accent-text:#fff;
+}
+#sec-config-metas > .adm-section-title { border-bottom-color:rgba(198,60,255,.2); }
+#sec-config-metas > .adm-page-lead { color:var(--text-muted); }
+html:not([data-theme="light"]) #sec-config-metas > .adm-form-card {
+  border-color:rgba(198,60,255,.17);
+  border-radius:20px;
+  background:radial-gradient(ellipse at 100% 0,rgba(198,60,255,.09),transparent 42%),linear-gradient(155deg,#191022,#12111b 72%);
+  box-shadow:0 14px 42px rgba(5,2,12,.18),inset 0 1px rgba(255,255,255,.035);
+}
+html:not([data-theme="light"]) #sec-config-metas .cfg-filial-target-group { border-color:rgba(202,169,221,.14); background:rgba(255,255,255,.025); }
+html:not([data-theme="light"]) #sec-config-metas .cfg-meta-type-card { border-color:rgba(202,169,221,.14); background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.012)); }
+#sec-config-metas .cfg-meta-type-card.is-interno { border-top-color:#c63cff; }
+#sec-config-metas .cfg-meta-type-card.is-externo { border-top-color:#ff694f; }
+#sec-config-metas .cfg-meta-type-kicker { color:#d58aff; }
+#sec-config-metas .cfg-meta-type-card.is-externo .cfg-meta-type-kicker { color:#ff967f; }
+#sec-config-metas .adm-field input { border-color:rgba(202,169,221,.3); border-radius:13px; }
+html:not([data-theme="light"]) #sec-config-metas .adm-field input { border-color:rgba(202,169,221,.17); background:rgba(255,255,255,.055); }
+#sec-config-metas .adm-field input:focus { border-color:#c63cff; box-shadow:0 0 0 3px rgba(198,60,255,.14); }
+#sec-config-metas .adm-btn-primary { color:#fff; background:linear-gradient(105deg,#a91fff 0%,#d336d8 48%,#ff694f 100%); box-shadow:0 7px 22px rgba(184,43,243,.24); }
+#sec-config-metas .adm-btn-primary:hover { box-shadow:0 10px 28px rgba(220,65,202,.34); }
+#sec-config-metas .adm-callout { border-color:rgba(198,60,255,.2); border-left-color:#c63cff; background:linear-gradient(105deg,rgba(198,60,255,.09),rgba(255,105,79,.045)); }
+#sec-config-metas .adm-callout strong { color:var(--heading-color); }
 #sec-renovacoes .cfg-renov-meta-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
 #sec-renovacoes .cfg-renov-meta-grid input { width:100%; }
 #sec-admins > .adm-table-wrap .adm-table,
