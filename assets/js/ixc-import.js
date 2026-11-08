@@ -938,6 +938,16 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
   if (!window.ADMIN_AUTENTICADO || !window._supabase) return;
   const backdrop = document.getElementById('ixc-edit-backdrop');
   try {
+    // A tela de revisão do relatório não edita adicionais. Ela é aberta com
+    // vendaId=null, e consultar .eq('venda_id', null) tenta comparar um bigint
+    // com o texto "null" no PostgREST, causando o erro visto pelo usuário.
+    const adicionaisResultPromise = revisaoImportacao
+      ? Promise.resolve({ data: [], error: null })
+      : Number.isInteger(Number(vendaId)) && Number(vendaId) > 0
+        ? window._supabase.from('venda_adicionais')
+          .select('produto_adicional_id, quantidade, valor_unitario, produtos_adicionais(nome)')
+          .eq('venda_id', Number(vendaId)).order('id')
+        : Promise.resolve({ data: [], error: null });
     const [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult] = await Promise.all([
       revisaoImportacao?.venda_id
         ? window._supabase.from('vendas_admin').select('*').eq('id', revisaoImportacao.venda_id).maybeSingle()
@@ -946,7 +956,7 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
       window._supabase.from('vendedores').select('id, nome, filial_id, ativo').order('nome'),
       window._supabase.from('planos').select('*').order('nome'),
       window._supabase.from('produtos_adicionais').select('*').order('nome'),
-      window._supabase.from('venda_adicionais').select('produto_adicional_id, quantidade, valor_unitario, produtos_adicionais(nome)').eq('venda_id', vendaId).order('id'),
+      adicionaisResultPromise,
     ]);
     for (const result of [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult]) {
       if (result.error) throw result.error;
