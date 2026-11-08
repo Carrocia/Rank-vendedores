@@ -131,6 +131,8 @@ function renderPodium(containerId, entries, options = {}) {
   });
 }
 
+let _rankingPerformanceCardsBound = false;
+
 function renderListaClassificacao(containerId, entries, mode, options = {}) {
   const lista = document.getElementById(containerId);
   if (!lista) return;
@@ -144,11 +146,17 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
     const posicao = document.createElement('span');
     posicao.className = 'ranking-full-position';
     posicao.textContent = `${index + 1}º`;
-    const identidade = document.createElement('span');
+    const identidade = document.createElement('div');
     identidade.className = 'ranking-full-person';
-    const nome = document.createElement('span');
+    const nome = document.createElement(mode === 'mensal' ? 'button' : 'span');
     nome.className = 'ranking-full-name';
     nome.textContent = vendedor.nome || 'Vendedor';
+    if (mode === 'mensal') {
+      nome.type = 'button';
+      nome.setAttribute('aria-expanded', 'false');
+      nome.setAttribute('aria-label', `Ver desempenho mensal de ${vendedor.nome || 'Vendedor'}`);
+      nome.setAttribute('aria-controls', `${containerId}-desempenho-${index}`);
+    }
     identidade.appendChild(nome);
 
     // Os selos mostram conquistas sem expor quantidades individuais; a lista semanal mantém contexto só da semana.
@@ -227,6 +235,101 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
       }
       identidade.appendChild(proximaConquista);
       identidade.appendChild(barraProgresso);
+
+      const cartaoDesempenho = document.createElement('div');
+      cartaoDesempenho.className = 'ranking-performance-card';
+      cartaoDesempenho.id = `${containerId}-desempenho-${index}`;
+      cartaoDesempenho.setAttribute('role', 'group');
+      cartaoDesempenho.setAttribute('aria-label', `Desempenho mensal de ${vendedor.nome || 'Vendedor'}`);
+      cartaoDesempenho.hidden = true;
+      const tituloCartao = document.createElement('strong');
+      tituloCartao.className = 'ranking-performance-title';
+      tituloCartao.textContent = 'Desempenho no mês';
+      cartaoDesempenho.appendChild(tituloCartao);
+
+      const resumoCartao = document.createElement('span');
+      resumoCartao.className = 'ranking-performance-summary';
+      resumoCartao.textContent = !metaBaseConfigurada && vendedor.tipo === 'interno'
+        ? 'As metas individuais ainda não estão configuradas.'
+        : proximaMeta
+          ? `Próxima conquista: ${metaEmExibicao.label} · ${Math.min(100, Math.round((vendasMes / metaEmExibicao.meta) * 100))}% do caminho.`
+          : 'Todas as metas individuais foram conquistadas.';
+      cartaoDesempenho.appendChild(resumoCartao);
+
+      if (tiers.achievedTiers.length) {
+        const conquistas = document.createElement('span');
+        conquistas.className = 'ranking-performance-achievements';
+        conquistas.textContent = `Selos conquistados: ${tiers.achievedTiers.map(tier => tier.label).join(' · ')}`;
+        cartaoDesempenho.appendChild(conquistas);
+      } else if (metaBaseConfigurada) {
+        const primeiraConquista = document.createElement('span');
+        primeiraConquista.className = 'ranking-performance-achievements';
+        primeiraConquista.textContent = 'O primeiro selo está em progresso.';
+        cartaoDesempenho.appendChild(primeiraConquista);
+      }
+
+      const wrapperCartao = document.createElement('div');
+      wrapperCartao.className = 'ranking-person-card-wrap';
+      wrapperCartao.appendChild(nome);
+      wrapperCartao.appendChild(cartaoDesempenho);
+      identidade.insertBefore(wrapperCartao, proximaConquista);
+
+      const alternarCartao = aberto => {
+        wrapperCartao.classList.toggle('is-open', aberto);
+        item.classList.toggle('has-performance-open', aberto);
+        nome.setAttribute('aria-expanded', String(aberto));
+        cartaoDesempenho.hidden = !aberto;
+      };
+      nome.addEventListener('click', event => {
+        event.stopPropagation();
+        const abrir = !wrapperCartao.classList.contains('is-pinned');
+        document.querySelectorAll('.ranking-person-card-wrap.is-pinned').forEach(outro => {
+          outro.classList.remove('is-pinned', 'is-open');
+          outro.closest('.ranking-full-row')?.classList.remove('has-performance-open');
+          const outroBotao = outro.querySelector('.ranking-full-name');
+          const outroCartao = outro.querySelector('.ranking-performance-card');
+          outroBotao?.setAttribute('aria-expanded', 'false');
+          if (outroCartao) outroCartao.hidden = true;
+        });
+        if (abrir) {
+          wrapperCartao.classList.add('is-pinned');
+          alternarCartao(true);
+        } else {
+          wrapperCartao.classList.remove('is-pinned');
+          alternarCartao(false);
+        }
+      });
+      wrapperCartao.addEventListener('mouseenter', () => alternarCartao(true));
+      wrapperCartao.addEventListener('mouseleave', () => {
+        if (!wrapperCartao.classList.contains('is-pinned') && !wrapperCartao.contains(document.activeElement)) alternarCartao(false);
+      });
+      wrapperCartao.addEventListener('focusin', () => alternarCartao(true));
+      wrapperCartao.addEventListener('focusout', event => {
+        if (!wrapperCartao.classList.contains('is-pinned') && !wrapperCartao.contains(event.relatedTarget)) alternarCartao(false);
+      });
+      if (!_rankingPerformanceCardsBound) {
+        _rankingPerformanceCardsBound = true;
+        document.addEventListener('click', event => {
+          if (event.target.closest('.ranking-person-card-wrap')) return;
+          document.querySelectorAll('.ranking-person-card-wrap.is-pinned').forEach(aberto => {
+            aberto.classList.remove('is-pinned', 'is-open');
+            aberto.closest('.ranking-full-row')?.classList.remove('has-performance-open');
+            aberto.querySelector('.ranking-full-name')?.setAttribute('aria-expanded', 'false');
+            const cartao = aberto.querySelector('.ranking-performance-card');
+            if (cartao) cartao.hidden = true;
+          });
+        });
+        document.addEventListener('keydown', event => {
+          if (event.key !== 'Escape') return;
+          document.querySelectorAll('.ranking-person-card-wrap.is-open').forEach(aberto => {
+            aberto.classList.remove('is-pinned', 'is-open');
+            aberto.closest('.ranking-full-row')?.classList.remove('has-performance-open');
+            aberto.querySelector('.ranking-full-name')?.setAttribute('aria-expanded', 'false');
+            const cartao = aberto.querySelector('.ranking-performance-card');
+            if (cartao) cartao.hidden = true;
+          });
+        });
+      }
     }
 
     item.append(posicao, identidade);

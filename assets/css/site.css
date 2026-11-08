@@ -467,9 +467,20 @@
     transition: background .18s ease, border-color .18s ease;
   }
   .ranking-full-row:hover { background: rgba(var(--accent-rgb),.045); }
+  .ranking-full-row.has-performance-open { position: relative; z-index: 6; }
   .ranking-full-position { color: var(--accent); font-weight: 900; }
   .ranking-full-person { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; min-width: 0; }
-  .ranking-full-name { grid-column: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .ranking-full-name { grid-column: 1; display: block; width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; font-weight: 700; color: var(--heading-color); text-align: left; }
+  button.ranking-full-name { padding: 0; border: 0; background: transparent; cursor: pointer; }
+  button.ranking-full-name::after { content: 'ⓘ'; margin-left: 6px; color: var(--accent); font-size: .76em; opacity: .72; }
+  button.ranking-full-name:hover { color: var(--accent); }
+  .ranking-person-card-wrap { position: relative; grid-column: 1; min-width: 0; }
+  .ranking-person-card-wrap.is-open { z-index: 8; }
+  .ranking-performance-card { position: absolute; top: calc(100% + 9px); left: 0; z-index: 20; display: grid; gap: 8px; width: min(300px, calc(100vw - 100px)); padding: 14px 16px; border: 1px solid rgba(var(--accent-rgb),.32); border-radius: 13px; background: var(--surface-solid); color: var(--text); box-shadow: 0 14px 38px rgba(0,0,0,.34); animation: fadeUp .16s ease-out; }
+  .ranking-performance-card[hidden] { display: none; }
+  .ranking-performance-title { color: var(--heading-color); font-size: .8rem; }
+  .ranking-performance-summary, .ranking-performance-achievements { color: var(--text-muted); font-size: .72rem; line-height: 1.45; }
+  .ranking-performance-achievements { color: var(--green); font-weight: 700; }
   .ranking-full-badges { display: flex; grid-column: 2; grid-row: 1 / span 2; align-items: center; gap: 3px; }
   .ranking-full-tier-badge { display: block; flex: 0 0 auto; width: 43px; height: 31px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
   .ranking-full-tier-badge[src*="meta-nao-atingida"] { opacity: .46; filter: grayscale(1); }
