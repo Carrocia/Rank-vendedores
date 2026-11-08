@@ -1,0 +1,251 @@
+<Window x:Class="RankVendedores.Admin.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UNI Gestão" Height="760" Width="1180" MinHeight="620" MinWidth="900"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBackground}">
+  <Grid>
+    <Grid.Resources>
+      <Style TargetType="DataGrid">
+        <Setter Property="Background" Value="{StaticResource BrushSurface}"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushText}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BrushBorder}"/>
+        <Setter Property="RowBackground" Value="#111722"/>
+        <Setter Property="AlternatingRowBackground" Value="#0D131D"/>
+        <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="RowHeaderWidth" Value="0"/>
+        <Setter Property="CanUserAddRows" Value="False"/>
+        <Setter Property="CanUserDeleteRows" Value="False"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="AutoGenerateColumns" Value="False"/>
+        <Setter Property="RowHeight" Value="44"/>
+      </Style>
+      <Style TargetType="DataGridColumnHeader">
+        <Setter Property="Background" Value="#182231"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushMuted}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+      </Style>
+      <Style TargetType="DataGridCell">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushText}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Style.Triggers>
+          <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#17313D"/><Setter Property="Foreground" Value="{StaticResource BrushText}"/></Trigger>
+        </Style.Triggers>
+      </Style>
+      <Style x:Key="AppNavButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushMuted}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="12,9"/>
+        <Setter Property="Margin" Value="0,2"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="NavBorder" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="NavBorder" Property="Background" Value="#182231"/><Setter Property="Foreground" Value="{StaticResource BrushText}"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+    </Grid.Resources>
+    <Grid x:Name="LoginView" Visibility="Visible">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="0.85*"/></Grid.ColumnDefinitions>
+      <Border Grid.Column="0" Margin="32" Padding="42" CornerRadius="20" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <StackPanel VerticalAlignment="Center" MaxWidth="470">
+          <TextBlock Text="UNI  /  GESTÃO" Foreground="{StaticResource BrushAccent}" FontSize="13" FontWeight="Bold"/>
+          <TextBlock Text="Seu painel de gestão, em um só lugar." FontSize="32" FontWeight="Bold" TextWrapping="Wrap" Margin="0,18,0,10"/>
+          <TextBlock Text="Entre com sua conta administrativa para acessar o ranking e as ferramentas da sua regional." Foreground="{StaticResource BrushMuted}" FontSize="15" TextWrapping="Wrap" LineHeight="24"/>
+          <Border Margin="0,34,0,0" Padding="18" CornerRadius="14" Background="#151E2C">
+            <StackPanel>
+              <TextBlock Text="ACESSO PROTEGIDO" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+              <TextBlock Text="O acesso e os dados continuam controlados pelas permissões do Supabase." Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="1" Margin="0,32,32,32" Padding="38" CornerRadius="20" Background="#0D111A" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="Entrar no painel" FontSize="24" FontWeight="Bold"/>
+          <TextBlock Text="Use seu e-mail e senha administrativos." Foreground="{StaticResource BrushMuted}" Margin="0,7,0,28"/>
+          <TextBlock Text="E-mail" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,7"/>
+          <TextBox x:Name="EmailInput" Height="44" VerticalContentAlignment="Center"/>
+          <TextBlock Text="Senha" FontSize="12" FontWeight="SemiBold" Margin="0,18,0,7"/>
+          <PasswordBox x:Name="PasswordInput" Height="44" VerticalContentAlignment="Center" KeyDown="PasswordInput_KeyDown"/>
+          <TextBlock x:Name="LoginError" Foreground="#FF7B86" TextWrapping="Wrap" Margin="0,14,0,0" Visibility="Collapsed"/>
+          <Button x:Name="LoginButton" Content="Entrar" Height="46" Margin="0,22,0,0" Click="LoginButton_Click"/>
+          <TextBlock Text="Conexão direta e segura com o Supabase" Foreground="{StaticResource BrushMuted}" FontSize="11" HorizontalAlignment="Center" Margin="0,18,0,0"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Grid x:Name="DashboardView" Visibility="Collapsed" Margin="16">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Border Grid.Column="0" Margin="0,0,14,0" Padding="12" CornerRadius="16" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <TextBlock Text="UNI  /  GESTÃO" Foreground="{StaticResource BrushAccent}" FontSize="12" FontWeight="Bold" Margin="8,7,8,16"/>
+            <TextBlock Text="INÍCIO" Foreground="{StaticResource BrushMuted}" FontSize="10" FontWeight="Bold" Margin="8,4,8,5"/>
+            <Button Content="Painel e ranking" Tag="ranking" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <TextBlock Text="OPERAÇÃO COMERCIAL" Foreground="{StaticResource BrushMuted}" FontSize="10" FontWeight="Bold" Margin="8,16,8,5"/>
+            <Button Content="Nova venda / IXC" Tag="nova-venda" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Vendas adicionais" Tag="adicionais" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Vendas recebidas (entre filiais)" Tag="vendas-recebidas" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Renovações" Tag="renovacoes" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <TextBlock Text="EQUIPE E RESULTADOS" Foreground="{StaticResource BrushMuted}" FontSize="10" FontWeight="Bold" Margin="8,16,8,5"/>
+            <Button Content="Vendedores" Tag="vendedores" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Analítica" Tag="analitica" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Metas" Tag="metas" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Configuração de metas" Tag="config-metas" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Ranking da filial" Tag="ranking-adm" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Celebrações" Tag="celebracoes" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button Content="Relatórios" Tag="relatorios" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <TextBlock Text="GESTÃO DA REDE" Foreground="{StaticResource BrushMuted}" FontSize="10" FontWeight="Bold" Margin="8,16,8,5"/>
+            <Button x:Name="NavNetwork" Content="Visão da rede" Tag="rede" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button x:Name="NavPlans" Content="Planos e categorias" Tag="planos" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button x:Name="NavTheme" Content="Tema do site" Tag="tema" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button x:Name="NavAdmins" Content="Contas regionais" Tag="admins" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+            <Button x:Name="NavBranches" Content="Filiais e regionais" Tag="filiais" Style="{StaticResource AppNavButton}" Click="NavigationButton_Click"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+      <Grid Grid.Column="1">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <Grid Grid.Row="0" Margin="6,0,6,22">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0">
+          <TextBlock Text="UNI  /  GESTÃO" Foreground="{StaticResource BrushAccent}" FontSize="12" FontWeight="Bold"/>
+          <TextBlock Text="Painel administrativo" FontSize="25" FontWeight="Bold" Margin="0,5,0,0"/>
+        </StackPanel>
+        <TextBlock Grid.Column="1" x:Name="SignedInEmail" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,18,0"/>
+        <Button Grid.Column="2" Content="Sair" Background="#202A38" Foreground="{StaticResource BrushText}" Padding="20,9" Click="SignOutButton_Click"/>
+      </Grid>
+      <Border Grid.Row="1" Padding="16" Margin="0,0,0,18" CornerRadius="14" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <DockPanel>
+          <TextBlock Text="REGIONAL" Foreground="{StaticResource BrushMuted}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,16,0"/>
+          <ComboBox x:Name="BranchSelector" MinWidth="250" Height="38" DisplayMemberPath="Name" SelectionChanged="BranchSelector_SelectionChanged"/>
+          <TextBlock x:Name="AccessType" Text="Acesso administrativo validado" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="18,0,0,0"/>
+        </DockPanel>
+      </Border>
+      <Grid Grid.Row="2">
+      <Border x:Name="RankingContent" Padding="20" CornerRadius="18" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <Grid>
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Grid Grid.Row="0" Margin="4,0,4,12">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="RANKING DA REGIONAL" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+              <TextBlock x:Name="RankingPeriodLabel" Text="Carregando período…" FontSize="21" FontWeight="Bold" Margin="0,4,0,0"/>
+            </StackPanel>
+            <TextBlock Grid.Column="1" x:Name="SelectedBranchLabel" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center"/>
+          </Grid>
+          <TextBlock Grid.Row="1" x:Name="DashboardMessage" Text="Buscando o ranking no Supabase…" Foreground="{StaticResource BrushMuted}" Margin="4,0,4,14"/>
+          <Grid Grid.Row="2">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <UniformGrid Grid.Row="0" Columns="3" Margin="0,0,0,14">
+              <Border Background="#0D141E" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,8,0">
+                <StackPanel><TextBlock Text="VENDAS NO RANKING" Foreground="{StaticResource BrushMuted}" FontSize="10" FontWeight="Bold"/><TextBlock x:Name="TotalSalesMetric" Text="—" FontSize="24" FontWeight="Bold" Margin="0,6,0,0"/></StackPanel>
+              </Border>
+              <Border Background="#0D141E" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="4,0">
+                <StackPanel><TextBlock Text="PESSOAS NO RANKING" Foreground="{StaticResource BrushMuted}" FontSize="10" FontWeight="Bold"/><TextBlock x:Name="VendorCountMetric" Text="—" FontSize="24" FontWeight="Bold" Margin="0,6,0,0"/></StackPanel>
+              </Border>
+              <Border Background="#0D141E" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="8,0,0,0">
+                <StackPanel><TextBlock Text="LÍDER DO MÊS" Foreground="{StaticResource BrushMuted}" FontSize="10" FontWeight="Bold"/><TextBlock x:Name="MonthlyLeaderMetric" Text="—" FontSize="18" FontWeight="Bold" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+              </Border>
+            </UniformGrid>
+            <DataGrid Grid.Row="1" x:Name="RankingGrid" AlternationCount="2" CanUserSortColumns="True" MinHeight="220">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="58"/>
+                <DataGridTextColumn Header="VENDEDOR" Binding="{Binding VendorName}" Width="2.2*"/>
+                <DataGridTextColumn Header="EQUIPE" Binding="{Binding TypeLabel}" Width="*"/>
+                <DataGridTextColumn Header="VENDAS" Binding="{Binding Sales}" Width="90"/>
+                <DataGridTextColumn Header="META" Binding="{Binding TargetLabel}" Width="90"/>
+                <DataGridTextColumn Header="% DA META" Binding="{Binding GoalProgressLabel}" Width="100"/>
+                <DataGridTextColumn Header="RENOVAÇÕES" Binding="{Binding Renewals}" Width="110"/>
+                <DataGridTextColumn Header="RANK" Binding="{Binding RankLabel}" Width="85"/>
+              </DataGrid.Columns>
+            </DataGrid>
+          </Grid>
+          <TextBlock Grid.Row="3" Text="Os dados seguem as regras de classificação já usadas pelo site e são consultados na regional selecionada." Foreground="{StaticResource BrushMuted}" FontSize="11" Margin="4,12,4,0" TextWrapping="Wrap"/>
+        </Grid>
+      </Border>
+      <Border x:Name="ModuleContent" Visibility="Collapsed" Padding="32" CornerRadius="18" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+          <TextBlock Text="MÓDULO ADMINISTRATIVO" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+          <TextBlock x:Name="ModuleTitle" Text="" FontSize="28" FontWeight="Bold" TextAlignment="Center" Margin="0,10,0,0"/>
+          <TextBlock x:Name="ModuleDescription" Text="" Foreground="{StaticResource BrushMuted}" FontSize="15" TextWrapping="Wrap" TextAlignment="Center" LineHeight="24" Margin="0,12,0,0"/>
+          <Border Background="#0D141E" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,24,0,0">
+            <TextBlock x:Name="ModuleStatus" Text="Esta tela está na fila de migração para o aplicativo nativo. O site continua funcionando normalmente." Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" TextAlignment="Center"/>
+          </Border>
+        </StackPanel>
+      </Border>
+      <Border x:Name="SaleEntryContent" Visibility="Collapsed" Padding="26" CornerRadius="18" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel MaxWidth="920" HorizontalAlignment="Left">
+            <TextBlock Text="OPERAÇÃO COMERCIAL" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+            <TextBlock Text="Registrar venda" FontSize="26" FontWeight="Bold" Margin="0,5,0,4"/>
+            <TextBlock x:Name="SaleBranchHint" Foreground="{StaticResource BrushMuted}" Margin="0,0,0,22"/>
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+              <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,16">
+                <TextBlock Text="Vendedor" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <ComboBox x:Name="SaleVendorSelector" Height="40" DisplayMemberPath="Name"/>
+              </StackPanel>
+              <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,16">
+                <TextBlock Text="Plano" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <ComboBox x:Name="SalePlanSelector" Height="40" DisplayMemberPath="Label" SelectionChanged="SalePlanSelector_SelectionChanged"/>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,16">
+                <TextBlock Text="Número do contrato" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <TextBox x:Name="SaleContractInput" Height="40" VerticalContentAlignment="Center"/>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,16">
+                <TextBlock Text="Data e hora da venda" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+                  <DatePicker x:Name="SaleDateInput" Height="40"/>
+                  <TextBox x:Name="SaleTimeInput" Grid.Column="1" Height="40" Margin="8,0,0,0" VerticalContentAlignment="Center" Text="12:00" ToolTip="Hora no formato 24 h"/>
+                </Grid>
+              </StackPanel>
+              <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,10,16">
+                <TextBlock Text="Valor praticado (R$)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <TextBox x:Name="SaleValueInput" Height="40" VerticalContentAlignment="Center"/>
+              </StackPanel>
+              <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,0,0,16" VerticalAlignment="Bottom">
+                <CheckBox x:Name="SaleOutsideBranch" Content="Venda fora da filial do vendedor" Foreground="{StaticResource BrushText}" VerticalAlignment="Center" Margin="0,0,0,12"/>
+              </StackPanel>
+              <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Margin="0,0,0,16">
+                <TextBlock Text="Cliente (opcional)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <TextBox x:Name="SaleClientInput" Height="40" VerticalContentAlignment="Center"/>
+              </StackPanel>
+              <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Margin="0,0,0,16">
+                <TextBlock Text="Observação (opcional)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <TextBox x:Name="SaleNotesInput" MinHeight="76" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="10"/>
+              </StackPanel>
+            </Grid>
+            <TextBlock x:Name="SaleFormMessage" Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+              <Button Content="Limpar" Padding="18,10" Margin="0,0,10,0" Click="ResetSaleButton_Click"/>
+              <Button x:Name="SaveSaleButton" Content="Registrar venda" Padding="22,10" Click="SaveSaleButton_Click"/>
+            </StackPanel>
+            <Border Background="#0D141E" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,22,0,0">
+              <TextBlock Text="O registro manual de venda já está disponível. Importação em lote e conferência de vínculos do IXC serão migradas em uma etapa própria." Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap"/>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+      </Grid>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>
