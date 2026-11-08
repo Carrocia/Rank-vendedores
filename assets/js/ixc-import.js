@@ -1083,11 +1083,15 @@ async function salvarEdicaoVendaIxc(vincular) {
     await carregarRevisoesImportacaoIxc();
   } catch (error) {
     console.error('[salvarEdicaoVendaIxc]', error);
-    const mensagem = error.code === 'PGRST202'
-      ? 'O Supabase não encontrou a função no cache da API. Execute o arquivo supabase/editar-venda-pendente-ixc.sql por completo no projeto correto e atualize a página.'
-      : error.code === '42501'
-        ? 'O banco negou a permissão para editar esta venda. Confirme que você está autenticado como administrador e execute o GRANT do arquivo supabase/editar-venda-pendente-ixc.sql.'
-        : error.message || 'Não foi possível salvar as correções da venda.';
+    const mensagemBanco = String(error.message || '');
+    const erroBigintNulo = /invalid input syntax for type bigint:\s*"null"/i.test(mensagemBanco);
+    const mensagem = erroBigintNulo
+      ? 'A função de revisão no Supabase está desatualizada e tentou converter "null" em número. Execute o arquivo supabase/revisao-importacao-vendas-ixc.sql por completo no projeto correto e tente novamente.'
+      : error.code === 'PGRST202'
+        ? 'O Supabase não encontrou a função no cache da API. Execute o arquivo supabase/editar-venda-pendente-ixc.sql por completo no projeto correto e atualize a página.'
+        : error.code === '42501'
+          ? 'O banco negou a permissão para editar esta venda. Confirme que você está autenticado como administrador e execute o GRANT do arquivo SQL da função correspondente.'
+          : mensagemBanco || 'Não foi possível salvar as correções da venda.';
     showToast(mensagem, 'error');
   } finally {
     botoes.forEach(botao => { botao.disabled = false; });
