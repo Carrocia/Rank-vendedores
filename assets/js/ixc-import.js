@@ -1086,7 +1086,7 @@ async function salvarEdicaoVendaIxc(vincular) {
     const mensagemBanco = String(error.message || '');
     const erroBigintNulo = /invalid input syntax for type bigint:\s*"null"/i.test(mensagemBanco);
     const mensagem = erroBigintNulo
-      ? 'A função de revisão no Supabase está desatualizada e tentou converter "null" em número. Execute o arquivo supabase/revisao-importacao-vendas-ixc.sql por completo no projeto correto e tente novamente.'
+      ? 'O Supabase tentou converter o texto "null" em um ID numérico. Atualize a página e confira se supabase/revisao-importacao-vendas-ixc.sql foi executado no projeto correto. Se já executou, o erro está em outra função/trigger do banco; consulte os logs do Supabase para identificar qual.'
       : error.code === 'PGRST202'
         ? 'O Supabase não encontrou a função no cache da API. Execute o arquivo supabase/editar-venda-pendente-ixc.sql por completo no projeto correto e atualize a página.'
         : error.code === '42501'
