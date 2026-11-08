@@ -1086,7 +1086,7 @@ async function salvarEdicaoVendaIxc(vincular) {
     const mensagemBanco = String(error.message || '');
     const erroBigintNulo = /invalid input syntax for type bigint:\s*"null"/i.test(mensagemBanco);
     const mensagem = erroBigintNulo
-      ? 'O Supabase tentou converter o texto "null" em um ID numérico. Atualize a página e confira se supabase/revisao-importacao-vendas-ixc.sql foi executado no projeto correto. Se já executou, o erro está em outra função/trigger do banco; consulte os logs do Supabase para identificar qual.'
+      ? 'O Supabase está executando uma versão antiga da função de importação. Execute novamente supabase/revisao-importacao-vendas-ixc.sql e supabase/revisao-valor-planos-ixc.sql no projeto correto; depois recarregue a página.'
       : error.code === 'PGRST202'
         ? 'O Supabase não encontrou a função no cache da API. Execute o arquivo supabase/editar-venda-pendente-ixc.sql por completo no projeto correto e atualize a página.'
         : error.code === '42501'
@@ -1366,7 +1366,9 @@ async function confirmarImportacaoIxc() {
           linha.erro = 'Contrato já cadastrado';
           duplicadas++;
         } else {
-          linha.erro = linha.podeImportarComRevisao && error.code === 'PGRST202'
+          linha.erro = /invalid input syntax for type bigint:\s*"null"/i.test(error.message || '')
+            ? 'A função SQL de importação ainda converte "null" em bigint. Execute novamente supabase/revisao-valor-planos-ixc.sql e supabase/revisao-importacao-vendas-ixc.sql.'
+            : linha.podeImportarComRevisao && error.code === 'PGRST202'
             ? 'Ative a revisão sem vínculo: execute supabase/revisao-importacao-vendas-ixc.sql no SQL Editor.'
             : linha.requerRevisaoValor && error.code === 'PGRST202'
               ? 'Ative a função de importação especial: execute supabase/revisao-valor-planos-ixc.sql no SQL Editor.'

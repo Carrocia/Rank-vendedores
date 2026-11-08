@@ -29,10 +29,13 @@ begin
     raise exception 'Os dados da venda enviados não são válidos.';
   end if;
 
-  v_vendedor_id := nullif(p_venda->>'vendedor_id', '')::bigint;
-  v_filial_origem_id := nullif(p_venda->>'filial_origem_id', '')::bigint;
-  v_filial_destino_id := nullif(p_venda->>'filial_destino_id', '')::bigint;
-  v_plano_id := nullif(p_venda->>'plano_id', '')::bigint;
+  -- Alguns clientes antigos enviam o texto "null" (em vez de JSON null)
+  -- quando um vínculo opcional ainda não foi selecionado. Normalize antes
+  -- do cast para evitar "invalid input syntax for type bigint: \"null\"".
+  v_vendedor_id := nullif(nullif(lower(btrim(p_venda->>'vendedor_id')), 'null'), '')::bigint;
+  v_filial_origem_id := nullif(nullif(lower(btrim(p_venda->>'filial_origem_id')), 'null'), '')::bigint;
+  v_filial_destino_id := nullif(nullif(lower(btrim(p_venda->>'filial_destino_id')), 'null'), '')::bigint;
+  v_plano_id := nullif(nullif(lower(btrim(p_venda->>'plano_id')), 'null'), '')::bigint;
   v_data_venda := nullif(p_venda->>'data_venda', '')::timestamptz;
   v_cliente := nullif(btrim(coalesce(p_venda->>'cliente', '')), '');
   v_numero := nullif(btrim(coalesce(p_venda->>'numero_venda', '')), '');
