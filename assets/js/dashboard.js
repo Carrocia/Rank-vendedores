@@ -198,18 +198,35 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
       const metaEmExibicao = proximaMeta || metasVendedor[metasVendedor.length - 1];
       const proximaConquista = document.createElement('span');
       proximaConquista.className = 'ranking-full-next';
+      const barraProgresso = document.createElement('span');
+      barraProgresso.className = 'ranking-full-progress';
+      barraProgresso.setAttribute('role', 'progressbar');
+      barraProgresso.setAttribute('aria-valuemin', '0');
+      barraProgresso.setAttribute('aria-valuemax', '100');
+      const preenchimentoProgresso = document.createElement('span');
+      preenchimentoProgresso.className = 'ranking-full-progress-fill';
+      barraProgresso.appendChild(preenchimentoProgresso);
       if (!metaBaseConfigurada && vendedor.tipo === 'interno') {
         proximaConquista.textContent = 'Metas individuais não configuradas';
+        barraProgresso.hidden = true;
       } else if (!metaEmExibicao) {
         proximaConquista.textContent = 'Metas individuais não configuradas';
+        barraProgresso.hidden = true;
       } else if (!proximaMeta) {
         proximaConquista.textContent = `100% da meta ${metaEmExibicao.label} · todas as metas atingidas`;
         proximaConquista.classList.add('is-complete');
+        preenchimentoProgresso.style.width = '100%';
+        barraProgresso.setAttribute('aria-valuenow', '100');
+        barraProgresso.setAttribute('aria-label', 'Todas as metas individuais atingidas');
       } else {
         const percentual = Math.min(100, Math.round((vendasMes / metaEmExibicao.meta) * 100));
-        proximaConquista.textContent = `${percentual}% da meta ${metaEmExibicao.label}`;
+        proximaConquista.textContent = `Próxima conquista: ${metaEmExibicao.label} · ${percentual}% da meta`;
+        preenchimentoProgresso.style.width = `${percentual}%`;
+        barraProgresso.setAttribute('aria-valuenow', String(percentual));
+        barraProgresso.setAttribute('aria-label', `${percentual}% da meta ${metaEmExibicao.label}`);
       }
       identidade.appendChild(proximaConquista);
+      identidade.appendChild(barraProgresso);
     }
 
     item.append(posicao, identidade);
@@ -2357,19 +2374,27 @@ function verificarConquistasDeMetas(d) {
   try { avisadas = JSON.parse(localStorage.getItem(chave) || '{}'); } catch (e) { avisadas = {}; }
 
   const todos = [...(d.extMes || []), ...(d.intMes || [])];
+  const vendasMesPorId = Object.fromEntries(todos.map(v => [v.id, v.vendas]));
   todos.forEach(v => {
-    if (!v.meta || avisadas[v.id]) return;
-    if (v.vendas >= v.meta) {
-      showToast(`${v.nome} bateu a meta do mês!`, 'celebration', 8000);
-      avisadas[v.id] = true;
-    }
+    const marco = calcularTiersIndividuais(v.id, v.tipo, _cache.metas || [], vendasMesPorId).badgeTier;
+    if (!marco) return;
+    const chaveMarco = `${v.id}_${marco.tier}`;
+    // Exibe só a conquista mais alta pendente, evitando uma sequência de toasts
+    // quando a página abre com mais de um marco já alcançado.
+    if (avisadas[chaveMarco] || avisadas[v.id]) return;
+    showToast(`${v.nome} conquistou a meta ${marco.label} do mês!`, 'celebration', 6500);
+    avisadas[chaveMarco] = true;
   });
 
-  if (d.metasFilial && d.metasFilial.mensal_m1 && !avisadas['__filial_m1']) {
-    if (d.totalMes >= d.metasFilial.mensal_m1) {
-      showToast(`A filial bateu a Meta Mensal M1! (${d.totalMes}/${d.metasFilial.mensal_m1} vendas)`, 'celebration', 8000);
-      avisadas['__filial_m1'] = true;
-    }
+  const metasFilial = d.metasFilial || {};
+  const marcoFilial = [
+    { tier: 'm1', label: 'M1', meta: Number(metasFilial.mensal_m1) },
+    { tier: 'm2', label: 'M2', meta: Number(metasFilial.mensal_m2) },
+    { tier: 'm3', label: 'M3', meta: Number(metasFilial.mensal_m3) },
+  ].find(marco => Number.isFinite(marco.meta) && marco.meta > 0 && d.totalMes >= marco.meta);
+  if (marcoFilial && !avisadas[`__filial_${marcoFilial.tier}`]) {
+    showToast(`A filial conquistou a Meta ${marcoFilial.label} do mês!`, 'celebration', 6500);
+    avisadas[`__filial_${marcoFilial.tier}`] = true;
   }
 
   try { localStorage.setItem(chave, JSON.stringify(avisadas)); } catch (e) { /* localStorage indisponível — só não avisa de novo nesta sessão */ }
