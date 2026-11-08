@@ -90,6 +90,50 @@ function configurarFilialAtual(filiais) {
   return filial;
 }
 
+function atualizarSeletorRegionalADM(filiais) {
+  const wrap = document.getElementById('adm-region-switch-wrap');
+  const select = document.getElementById('adm-region-switch');
+  if (!wrap || !select) return;
+  const disponivel = window.ADMIN_AUTENTICADO && window.ADMIN_FILIAL_ID == null;
+  wrap.hidden = !disponivel;
+  if (!disponivel) return;
+
+  const regionais = (filiais || []).filter(f => f.ativo !== false && f.site_habilitado === true);
+  select.replaceChildren(...regionais.map(f => new Option(f.nome, String(f.id))));
+  select.value = String(window.FILIAL_ATUAL_ID);
+  if (select.dataset.bound) return;
+  select.dataset.bound = 'true';
+  select.addEventListener('change', async () => {
+    if (!ehSuperAdminAtual()) return;
+    const filial = (_cache.filiais || regionais).find(f => f.ativo !== false && f.site_habilitado === true && Number(f.id) === Number(select.value));
+    if (!filial || Number(filial.id) === Number(window.FILIAL_ATUAL_ID)) return;
+    const filialAnterior = window.FILIAL_ATUAL;
+    const url = new URL(window.location.href);
+    url.searchParams.set('filial', filial.slug);
+    window.history.replaceState({}, '', url.toString());
+    select.disabled = true;
+    document.getElementById('adm-panel')?.setAttribute('aria-busy', 'true');
+    try {
+      await carregarDados();
+      if (!_dadosCarregados || Number(window.FILIAL_ATUAL_ID) !== Number(filial.id)) throw new Error('A regional não carregou.');
+      showToast(`Regional alterada para ${filial.nome}.`, 'success');
+    } catch (err) {
+      console.error('[trocaRegionalADM]', err);
+      if (filialAnterior?.slug) {
+        const urlAnterior = new URL(window.location.href);
+        urlAnterior.searchParams.set('filial', filialAnterior.slug);
+        window.history.replaceState({}, '', urlAnterior.toString());
+        await carregarDados();
+      }
+      showToast('Não foi possível carregar essa regional.', 'error');
+    } finally {
+      select.disabled = false;
+      document.getElementById('adm-panel')?.removeAttribute('aria-busy');
+      select.value = String(window.FILIAL_ATUAL_ID);
+    }
+  });
+}
+
 function abrirFilialSite(slug) {
   if (!slug || !window.FILIAL_ATUAL || slug === window.FILIAL_ATUAL.slug) return;
   if (document.documentElement.classList.contains('filial-page-exiting')) return;

@@ -954,6 +954,12 @@ body.an-modal-open { overflow:hidden; }
 .adm-panel-title { margin-top: 2px; color: var(--heading-color); font-size: 1.1rem; font-weight: 800; }
 .adm-panel-user { color: var(--text-muted); font-size: 0.78rem; }
 .adm-panel-user .skeleton-bar { width: 140px; }
+.adm-region-switch { display: grid; gap: 4px; min-width: min(230px, 28vw); color: var(--text-muted); font-size: .65rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.adm-region-switch[hidden] { display: none; }
+.adm-region-switch select { width: 100%; min-height: 38px; padding: 7px 32px 7px 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface, #171a24); color: var(--text); font: inherit; font-size: .78rem; letter-spacing: normal; text-transform: none; }
+.adm-region-switch select:disabled { opacity: .65; cursor: progress; }
+#adm-panel[aria-busy="true"] .adm-content { opacity: .58; pointer-events: none; transition: opacity .18s ease; }
+#adm-panel .adm-content { transition: opacity .18s ease; }
 .adm-subsection-title { padding-bottom: 12px; font-size: 0.95rem; }
 .adm-subsection-title.is-plain { padding: 0; border: 0; }
 .adm-subsection-title.has-bottom-space { margin-bottom: 16px; }
@@ -1196,6 +1202,9 @@ html::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.34); }
   }
   .adm-panel-title { font-size: .9rem; }
   .adm-panel-user { max-width: 42%; overflow: hidden; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+  .adm-region-switch { min-width: 0; width: min(38vw, 180px); }
+  .adm-region-switch span { display: none; }
+  .adm-region-switch select { min-height: 34px; padding: 5px 24px 5px 8px; font-size: .7rem; }
   .adm-panel-inner {
     position: relative; display: block; flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
     overscroll-behavior: contain; padding-bottom: calc(86px + env(safe-area-inset-bottom));

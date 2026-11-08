@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261108-card-desempenho-v1">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261108-file-control-v1">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261108-regional-switch-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -328,8 +328,8 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261108-card-desempenho-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261108-month-picker-v1"></script>
+  <script src="assets/js/dashboard.js?v=20261108-regional-switch-v1"></script>
+  <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-month-picker-v1"></script>
   <script src="assets/js/admin-analytics.js?v=20261108-month-picker-v1"></script>
@@ -378,6 +378,10 @@
         <div class="adm-panel-kicker">Painel Administrativo</div>
         <div class="adm-panel-title">UNI Internet — <span id="filial-atual-admin-titulo">Alta Floresta D'Oeste</span></div>
       </div>
+      <label class="adm-region-switch" id="adm-region-switch-wrap" for="adm-region-switch" hidden>
+        <span>Regional ativa</span>
+        <select id="adm-region-switch" aria-label="Trocar regional no painel administrativo"></select>
+      </label>
       <div class="adm-panel-user" id="adm-user-info"><span class="skeleton-bar"></span></div>
     </div>
 

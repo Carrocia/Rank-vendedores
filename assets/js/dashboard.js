@@ -1214,8 +1214,8 @@ async function carregarDados() {
     // Restaura a sessão só depois de resolver a filial da URL para validar
     // o escopo do administrador antes de consultar os dados regionais.
     if (typeof checkAdminSession === 'function') await checkAdminSession();
-    const vendedores = await loadVendedores();
-    const vendedorIds = vendedores.map(v => v.id);
+    const pVendedores = loadVendedores();
+    if (typeof atualizarSeletorRegionalADM === 'function') atualizarSeletorRegionalADM(filiais);
     const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate)));
     const pFechadosOrigem = Promise.all(mesesFechados.map(m => loadVendasOrigem(m.de, m.ate)));
     const pRenovacoesFechadas = Promise.all(mesesFechados.map(m =>
@@ -1225,16 +1225,13 @@ async function carregarDados() {
       })
     ));
 
-    // Carregar os dados da filial selecionada em paralelo.
-    const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
-           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
-           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
-           conquistasGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas] = await Promise.all([
+    // Dispara as consultas independentes enquanto a equipe é carregada.
+    // Assim, a busca de vendedores deixa de atrasar o início das demais.
+    const pCargaBase = Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
       loadAdicionais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
-      loadMetas(_cache.mes.mesNum, _cache.mes.ano, vendedorIds),
       loadMetasRenovCancel(_cache.mes.mesNum, _cache.mes.ano),
       loadVendas(_cache.semana.de, _cache.semana.ate),
       loadVendas(_cache.mes.de, _cache.mes.ate),
@@ -1257,6 +1254,13 @@ async function carregarDados() {
       pFechadosOrigem,
       pRenovacoesFechadas,
     ]);
+    const vendedores = await pVendedores;
+    const vendedorIds = vendedores.map(v => v.id);
+    const pMetas = loadMetas(_cache.mes.mesNum, _cache.mes.ano, vendedorIds);
+    const [[planos, categoriasPlanos, adicionais, metasFilial, metasRenovCancel,
+           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
+           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
+           conquistasGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas], metas] = await Promise.all([pCargaBase, pMetas]);
 
     const [metasRenovacaoFilial, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
       loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
