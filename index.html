@@ -29,7 +29,7 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261027-ranking-sem-volume-individual-v1">
+<link rel="stylesheet" href="assets/css/site.css?v=20261108-resumo-mensal-v1">
 
   <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261108-metas-flow-v1">
 
@@ -105,17 +105,17 @@
         <div class="header-copy">
           <span class="season-badge" id="seasonBadge" hidden></span>
           <h1><span class="header-title-main">Ranking de Vendas</span><span class="header-title-filial">— <span id="filial-atual-nome">Alta Floresta D'Oeste</span></span></h1>
-          <p id="rankingIntro">Acompanhe o ritmo da equipe, as lideranças por categoria e o avanço da filial.</p>
+          <p id="rankingIntro">Acompanhe o resultado do mês, o avanço da meta da filial e as lideranças da equipe.</p>
         </div>
       </div>
       <div class="header-kpis">
         <div class="header-kpi">
-          <span class="header-kpi-label" id="kpiPeriodoLabel">Vendas na semana</span>
+          <span class="header-kpi-label" id="kpiPeriodoLabel">Vendas no mês</span>
           <span class="header-kpi-value" id="kpiSemana">—</span>
         </div>
         <div class="header-kpi-divider"></div>
         <div class="header-kpi">
-          <span class="header-kpi-label" id="kpiMetaLabel">Meta mensal</span>
+          <span class="header-kpi-label" id="kpiMetaLabel">Progresso da meta</span>
           <span class="header-kpi-value" id="kpiMensal">—</span>
         </div>
         <div class="header-kpi-divider"></div>
@@ -135,11 +135,21 @@
     <button type="button" class="filial-link-copy" onclick="copiarLinkFilial()" aria-label="Copiar link desta filial" title="Copiar link desta filial"><span aria-hidden="true">⧉</span></button>
   </div>
 
+  <nav class="public-section-nav" aria-label="Atalhos do painel público">
+    <a href="#metaCardSection">Resultado do mês</a>
+    <a href="#publicRanking">Equipe e ranking</a>
+    <a href="#publicRenovacoes">Renovações e cancelamentos</a>
+    <a href="#muralSection">Destaques</a>
+    <a href="#publicEvolution">Evolução</a>
+    <a href="#publicPlanSales">Vendas por plano</a>
+    <a href="#publicConquistas">Conquistas</a>
+  </nav>
+
   <!-- ===== ABAS NO TOPO ===== -->
-  <div class="tabs-row">
+  <div class="tabs-row" id="publicRanking">
     <div class="tab-bar anim-in" role="tablist">
-      <button type="button" class="tab-button active" data-tab="semanal" role="tab" aria-selected="true">📅 Ranking Semanal</button>
-      <button type="button" class="tab-button" data-tab="mensal" role="tab" aria-selected="false">📆 Ranking Mensal</button>
+      <button type="button" class="tab-button" data-tab="semanal" role="tab" aria-selected="false">📅 Ranking Semanal</button>
+      <button type="button" class="tab-button active" data-tab="mensal" role="tab" aria-selected="true">📆 Ranking Mensal</button>
     </div>
     <button type="button" class="celebrate-btn anim-in" id="celebrateBtn" style="display:none">🎉 Anunciar Destaque</button>
   </div>
@@ -147,7 +157,7 @@
   <!-- ===== CARD DE META (muda conforme a aba ativa) ===== -->
   <!-- CARD ÚNICO — os dados mudam via JS ao trocar de aba -->
   <section class="podium-section" id="metaCardSection">
-    <h2 id="metaCardTitle">Meta da Semana</h2>
+    <h2 id="metaCardTitle">Meta do Mês</h2>
     <div class="week-progress-card anim-in" id="metaCardUnico">
       <div class="week-ring-wrap" id="metaRingWrap">
         <div class="week-ring-content">
@@ -156,14 +166,18 @@
         </div>
       </div>
       <div class="week-col week-col-main">
-        <span class="week-col-title" id="metaColTitle">Progresso da semana</span>
+        <span class="week-col-title" id="metaColTitle">Progresso do mês</span>
         <div class="week-main-numbers">
           <span class="week-atual" id="weekAtual">0</span>
           <span class="week-sep">/ <span id="weekMeta">0</span></span>
         </div>
-        <span class="week-sub-label" id="metaSubLabel">vendas realizadas / meta da semana</span>
+        <span class="week-sub-label" id="metaSubLabel">vendas realizadas / meta do mês</span>
         <div class="week-bar-track"><div class="week-bar-fill" id="weekBarFill"></div></div>
         <span class="week-bar-caption" id="weekBarMetaCaption">Meta: 25 vendas</span>
+        <div class="meta-pace" id="metaPace" hidden aria-live="polite">
+          <span class="meta-pace-status" id="metaPaceStatus"></span>
+          <span class="meta-pace-copy" id="metaPaceCopy"></span>
+        </div>
       </div>
       <div class="week-col week-col-side">
         <span class="week-date" id="weekDataLabel">—</span>
@@ -173,7 +187,7 @@
         </div>
         <div class="week-side-block">
           <span class="week-side-value-pct" id="weekBarPct">0% concluído</span>
-          <span class="week-side-label" id="metaPctLabel">Seu desempenho semanal</span>
+          <span class="week-side-label" id="metaPctLabel">Progresso da meta mensal</span>
         </div>
         <div class="week-side-block" id="metaSideBlock3">
           <span class="week-side-label">📈 Média diária: <strong id="weekMedia">0</strong> vendas</span>
@@ -182,7 +196,7 @@
     </div>
   </section>
 
-  <main class="ranking-panel anim-in" data-tab-panel="semanal">
+  <main class="ranking-panel hidden" data-tab-panel="semanal">
     <div class="podium-cols">
     <section class="podium-section">
       <h2>🏆 Ranking Vendedores Externos (Semana)</h2>
@@ -203,7 +217,7 @@
     </section>
   </main>
 
-  <main class="ranking-panel hidden" data-tab-panel="mensal">
+  <main class="ranking-panel anim-in" data-tab-panel="mensal">
     <div class="podium-cols">
     <section class="podium-section">
       <h2>🏆 Ranking Vendedores Externos (Mês)</h2>
@@ -215,6 +229,10 @@
       <div class="podium podium-3" id="podium-mensal-interno"></div>
     </section>
     </div>
+    <section class="monthly-team-pulse" id="monthlyTeamPulse" hidden aria-label="Progresso coletivo das metas individuais">
+      <div class="monthly-team-pulse-copy"><span class="team-pulse-kicker">CONQUISTA DA EQUIPE</span><strong id="monthlyTeamPulseTitle">Metas individuais do mês</strong><span id="monthlyTeamPulseText">—</span></div>
+      <div class="monthly-team-pulse-track" role="progressbar" aria-label="Vendedores que alcançaram uma meta individual" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="monthlyTeamPulseBar"></span></div>
+    </section>
     <div class="ranking-full-controls">
       <button type="button" class="ranking-full-toggle" data-ranking-toggle="mensal" aria-expanded="false" aria-controls="ranking-lista-mensal" hidden>👥 Ver classificação completa</button>
     </div>
@@ -271,7 +289,8 @@
 
   <!-- ===== CONQUISTAS RECENTES ===== -->
   <section class="podium-section" id="publicConquistas">
-    <h2>🏆 Conquistas do mês e campeões de meses fechados · todas as filiais</h2>
+    <h2>🏆 Metas batidas e conquistas</h2>
+    <p class="public-section-lead">Veja quem alcançou metas neste mês e os destaques dos meses já encerrados, em todas as filiais.</p>
     <div class="conquistas-grid" id="conquistasGrid"></div>
   </section>
 
@@ -309,7 +328,7 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261104-ranking-vendas-semanais-v1"></script>
+  <script src="assets/js/dashboard.js?v=20261108-resumo-mensal-v1"></script>
   <script src="assets/js/supabase-admin.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-split-v2"></script>

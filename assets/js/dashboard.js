@@ -4,21 +4,20 @@ function escapeHtmlText(value) {
   })[char]);
 }
 
-// Calcula apenas o selo da meta mensal atingida:
-// metas M1/M2/M3 cadastradas para internos e faixa fixa de 14 vendas
-// para M2 dos externos (M1 começa acima desse marco).
+// Calcula os selos mensais conquistados. O podium mantém um selo de maior
+// nível; a classificação completa pode mostrar cada marco já alcançado.
 function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesPorId) {
-  const vazio = { badgeTier: null };
+  const vazio = { badgeTier: null, achievedTiers: [] };
   const linha = (metasIndividuais || []).find(m => String(m.vendedor_id) === String(vendedorId));
   const vendasMes = Number(vendasMesPorId[vendedorId] || 0);
 
   if (tipo === 'externo') {
+    const achievedTiers = [];
+    if (vendasMes >= META_M2_EXTERNO_VENDAS) achievedTiers.push({ tier: 'm2', label: 'M2' });
+    if (vendasMes > META_M2_EXTERNO_VENDAS) achievedTiers.push({ tier: 'm1', label: 'M1' });
     return {
-      badgeTier: vendasMes > META_M2_EXTERNO_VENDAS
-        ? { tier: 'm1', label: 'M1' }
-        : vendasMes >= META_M2_EXTERNO_VENDAS
-          ? { tier: 'm2', label: 'M2' }
-          : null,
+      badgeTier: achievedTiers[achievedTiers.length - 1] || null,
+      achievedTiers,
     };
   }
   if (!linha) return vazio;
@@ -29,16 +28,16 @@ function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesP
       { tier: 'm2', label: 'M2', meta: linha.meta_m2 },
       { tier: 'm1', label: 'M1', meta: linha.meta_m1 },
     ].map(t => ({ ...t, meta: Number(t.meta) }))
-      .filter(t => Number.isFinite(t.meta) && t.meta > 0)
-      .sort((a, b) => a.meta - b.meta); // metas válidas em ordem de alcance
+      .filter(t => Number.isFinite(t.meta) && t.meta > 0);
     if (!tiers.length) return vazio;
 
+    const achievedTiers = tiers.filter(t => vendasMes >= t.meta);
     let badgeTier = null;
-    tiers.forEach(t => {
+    [...tiers].sort((a, b) => a.meta - b.meta).forEach(t => {
       if (vendasMes >= t.meta) badgeTier = t;             // meta batida de verdade (100%)
     });
 
-    return { badgeTier };
+    return { badgeTier, achievedTiers };
   }
 
   return vazio;
@@ -152,35 +151,62 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
     nome.textContent = vendedor.nome || 'Vendedor';
     identidade.appendChild(nome);
 
-    // Os selos representam metas mensais; a lista semanal mantém contexto só da semana.
+    // Os selos e o progresso representam metas mensais; a lista semanal mantém contexto só da semana.
     if (mode === 'mensal' && (vendedor.tipo === 'interno' || vendedor.tipo === 'externo')) {
       const metas = options.metasIndividuais || [];
       const metaVendedor = metas.find(m => String(m.vendedor_id) === String(vendedor.id));
-      const tier = calcularTiersIndividuais(
+      const vendasMes = Number(options.vendasMesPorId?.[vendedor.id] ?? vendedor.vendas ?? 0);
+      const tiers = calcularTiersIndividuais(
         vendedor.id,
         vendedor.tipo,
         metas,
         options.vendasMesPorId || {}
-      ).badgeTier;
-      const metaM3 = Number(metaVendedor?.meta_m3);
+      );
       const metaBaseConfigurada = vendedor.tipo === 'externo'
         ? true
-        : Number.isFinite(metaM3) && metaM3 > 0;
-      const seloTier = tier || (metaBaseConfigurada
-        ? { tier: 'naoAtingida', label: 'Meta não atingida' }
-        : null);
-      const assetSelo = seloTier && LIST_TIER_ASSETS[seloTier.tier];
-      if (assetSelo) {
-        const selo = document.createElement('img');
-        selo.className = 'ranking-full-tier-badge';
-        selo.src = assetSelo;
-        selo.alt = seloTier.tier === 'naoAtingida'
-          ? (vendedor.tipo === 'externo' ? 'Meta M2 ainda não atingida' : 'Meta M3 ainda não atingida')
-          : `Meta ${seloTier.label} atingida`;
-        selo.title = selo.alt;
-        selo.loading = 'lazy';
-        identidade.appendChild(selo);
+        : [metaVendedor?.meta_m3, metaVendedor?.meta_m2, metaVendedor?.meta_m1]
+            .some(meta => Number.isFinite(Number(meta)) && Number(meta) > 0);
+      const selos = tiers.achievedTiers.length
+        ? tiers.achievedTiers
+        : (metaBaseConfigurada ? [{ tier: 'naoAtingida', label: vendedor.tipo === 'externo' ? 'M2' : 'M3' }] : []);
+      if (selos.length) {
+        const grupoSelos = document.createElement('span');
+        grupoSelos.className = 'ranking-full-badges';
+        grupoSelos.setAttribute('aria-label', 'Selos das metas individuais');
+        selos.forEach(seloTier => {
+          const selo = document.createElement('img');
+          selo.className = 'ranking-full-tier-badge';
+          selo.src = LIST_TIER_ASSETS[seloTier.tier];
+          selo.alt = seloTier.tier === 'naoAtingida'
+            ? `Meta ${seloTier.label} ainda não atingida`
+            : `Meta ${seloTier.label} atingida`;
+          selo.title = selo.alt;
+          selo.loading = 'lazy';
+          grupoSelos.appendChild(selo);
+        });
+        identidade.appendChild(grupoSelos);
       }
+
+      const metasVendedor = vendedor.tipo === 'interno'
+        ? [
+            { tier: 'm3', label: 'M3', meta: Number(metaVendedor?.meta_m3) },
+            { tier: 'm2', label: 'M2', meta: Number(metaVendedor?.meta_m2) },
+            { tier: 'm1', label: 'M1', meta: Number(metaVendedor?.meta_m1) },
+          ].filter(etapa => Number.isFinite(etapa.meta) && etapa.meta > 0).sort((a, b) => a.meta - b.meta)
+        : [{ tier: 'm2', label: 'M2', meta: META_M2_EXTERNO_VENDAS }, { tier: 'm1', label: 'M1', meta: META_M2_EXTERNO_VENDAS + 1 }];
+      const proximaMeta = metasVendedor.find(etapa => vendasMes < etapa.meta);
+      const progresso = document.createElement('span');
+      progresso.className = 'ranking-full-progress';
+      if (!metaBaseConfigurada && vendedor.tipo === 'interno') {
+        progresso.textContent = 'Metas individuais não configuradas';
+      } else if (!proximaMeta) {
+        progresso.textContent = 'Todas as metas individuais atingidas';
+        progresso.classList.add('is-complete');
+      } else {
+        const percentual = Math.min(100, Math.round((vendasMes / proximaMeta.meta) * 100));
+        progresso.innerHTML = `<span class="ranking-full-progress-copy">${vendasMes.toLocaleString('pt-BR')} de ${proximaMeta.meta.toLocaleString('pt-BR')} vendas · próxima ${proximaMeta.label}</span><span class="ranking-full-progress-track" aria-hidden="true"><span style="width:${percentual}%"></span></span>`;
+      }
+      identidade.appendChild(progresso);
     }
 
     item.append(posicao, identidade);
@@ -515,6 +541,8 @@ function renderWeekProgress(d) {
   const media = (vendas / diasCorridos).toFixed(1).replace('.', ',');
 
   document.getElementById('metaCardTitle').textContent = 'Meta da Semana';
+  const metaPace = document.getElementById('metaPace');
+  if (metaPace) metaPace.hidden = true;
   document.getElementById('metaColTitle').textContent = 'Progresso da semana';
   document.getElementById('metaSubLabel').textContent = 'vendas realizadas / meta da semana';
   document.getElementById('metaPctLabel').textContent = 'Seu desempenho semanal';
@@ -543,6 +571,28 @@ function renderMensalProgress(d) {
   const faltam = progressoMeta ? progressoMeta.faltam : '—';
   const pct = progressoMeta?.percentual || 0;
   const mesNome = mes.mesNome ? (mes.mesNome.charAt(0).toUpperCase() + mes.mesNome.slice(1)) : '—';
+  const metaPace = document.getElementById('metaPace');
+  const paceStatus = document.getElementById('metaPaceStatus');
+  const paceCopy = document.getElementById('metaPaceCopy');
+
+  if (metaPace && paceStatus && paceCopy && progressoMeta) {
+    const dia = Math.max(1, Number(mes.diaAtual) || new Date().getDate());
+    const diasNoMes = Math.max(dia, Number(mes.diasNoMes) || new Date().getDate());
+    const esperado = Math.ceil(metaMensal * Math.min(dia, diasNoMes) / diasNoMes);
+    const diferenca = vendas - esperado;
+    const tolerancia = Math.max(1, Math.ceil(esperado * 0.1));
+    const situacao = diferenca > tolerancia ? 'acima' : diferenca < -tolerancia ? 'atencao' : 'ritmo';
+    metaPace.dataset.status = situacao;
+    paceStatus.textContent = situacao === 'acima' ? 'Acima do ritmo' : situacao === 'atencao' ? 'Atenção ao ritmo' : 'No ritmo esperado';
+    paceCopy.textContent = situacao === 'acima'
+      ? `${diferenca} ${diferenca === 1 ? 'venda acima' : 'vendas acima'} do esperado até hoje (${esperado}).`
+      : situacao === 'atencao'
+        ? `${Math.abs(diferenca)} ${Math.abs(diferenca) === 1 ? 'venda abaixo' : 'vendas abaixo'} do esperado até hoje (${esperado}).`
+        : `Esperado até hoje: ${esperado} ${esperado === 1 ? 'venda' : 'vendas'} · projeção proporcional aos dias do mês.`;
+    metaPace.hidden = false;
+  } else if (metaPace) {
+    metaPace.hidden = true;
+  }
 
   document.getElementById('metaCardTitle').textContent = 'Meta do Mês de ' + mesNome;
   document.getElementById('metaColTitle').textContent = 'Progresso do mês';
@@ -950,16 +1000,23 @@ function renderEstadoSemDados() {
   setText('kpiSemana', '—');
   setText('kpiMensal', '—');
   setText('kpiLider', '—');
+  const resumoEquipe = document.getElementById('monthlyTeamPulse');
+  if (resumoEquipe) resumoEquipe.hidden = true;
 
   // Card de meta (semanal/mensal) em estado vazio
-  document.getElementById('metaCardTitle').textContent = 'Meta da Semana';
-  setText('metaColTitle', 'Progresso da semana');
-  setText('metaSubLabel', 'vendas realizadas / meta da semana');
+  document.getElementById('metaCardTitle').textContent = 'Meta do mês';
+  setText('metaColTitle', 'Progresso do mês');
+  setText('metaSubLabel', 'vendas realizadas / meta do mês');
+  setText('metaPctLabel', 'Meta mensal não configurada');
+  const metaPace = document.getElementById('metaPace');
+  if (metaPace) metaPace.hidden = true;
+  const mediaSemanal = document.getElementById('metaSideBlock3');
+  if (mediaSemanal) mediaSemanal.style.display = 'none';
   setText('weekDataLabel', '—');
   setText('weekAtual', '—');
   setText('weekMeta', '—');
   setText('weekFaltam', '—');
-  setText('weekBarMetaCaption', 'Sem dados disponíveis');
+  setText('weekBarMetaCaption', 'Metas mensais não configuradas');
   const ringEl = document.getElementById('weekRingPct');
   if (ringEl) ringEl.textContent = '—';
   const barFillEl = document.getElementById('weekBarFill');
@@ -2315,6 +2372,36 @@ function verificarConquistasDeMetas(d) {
   try { localStorage.setItem(chave, JSON.stringify(avisadas)); } catch (e) { /* localStorage indisponível — só não avisa de novo nesta sessão */ }
 }
 
+function renderResumoMetasEquipe(d) {
+  const card = document.getElementById('monthlyTeamPulse');
+  if (!card || !d) return;
+  const metas = _cache.metas || [];
+  const vendedores = [...(d.intMes || []), ...(d.extMes || [])];
+  const acompanhados = vendedores.filter(v => v.tipo === 'externo' || metas.some(m =>
+    String(m.vendedor_id) === String(v.id)
+      && [m.meta_m3, m.meta_m2, m.meta_m1].some(meta => Number.isFinite(Number(meta)) && Number(meta) > 0)
+  ));
+  if (!acompanhados.length) {
+    card.hidden = true;
+    return;
+  }
+
+  const vendasMesPorId = Object.fromEntries(vendedores.map(v => [v.id, v.vendas]));
+  const conquistaram = acompanhados.filter(v => calcularTiersIndividuais(
+    v.id, v.tipo, metas, vendasMesPorId
+  ).achievedTiers.length > 0).length;
+  const percentual = Math.round((conquistaram / acompanhados.length) * 100);
+  const titulo = document.getElementById('monthlyTeamPulseTitle');
+  const texto = document.getElementById('monthlyTeamPulseText');
+  const barra = document.getElementById('monthlyTeamPulseBar');
+  const trilho = card.querySelector('[role="progressbar"]');
+  if (titulo) titulo.textContent = `${conquistaram} de ${acompanhados.length} vendedores já conquistaram uma meta`;
+  if (texto) texto.textContent = 'Cada pessoa conta para o resultado coletivo da filial.';
+  if (barra) barra.style.width = `${percentual}%`;
+  if (trilho) trilho.setAttribute('aria-valuenow', String(percentual));
+  card.hidden = false;
+}
+
 function renderAll(cache) {
   document.getElementById('celebrateBtn').style.display = CONFIG.mostrarBotaoDestaque ? 'inline-flex' : 'none';
 
@@ -2323,6 +2410,7 @@ function renderAll(cache) {
   const d = processarDadosParaRender(cache);
   _ultimoProcessado = d;
   verificarConquistasDeMetas(d);
+  renderResumoMetasEquipe(d);
 
   const periodoDestaques = document.documentElement.getAttribute('data-active-tab') || 'semanal';
   const isMensal = periodoDestaques === 'mensal';
@@ -2402,13 +2490,19 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     btn.classList.add('active');
     btn.setAttribute('aria-selected','true');
     const tab = btn.dataset.tab;
+    const isMensal = tab === 'mensal';
+    const periodoLabel = document.getElementById('kpiPeriodoLabel');
+    const metaLabel = document.getElementById('kpiMetaLabel');
+    const liderLabel = document.getElementById('kpiLiderLabel');
+    if (periodoLabel) periodoLabel.textContent = isMensal ? 'Vendas no mês' : 'Vendas na semana';
+    if (metaLabel) metaLabel.textContent = isMensal ? 'Progresso da meta' : 'Meta da semana';
+    if (liderLabel) liderLabel.textContent = isMensal ? 'Líder do mês' : 'Líder da semana';
     document.querySelectorAll('[data-tab-panel]').forEach(panel => {
       panel.classList.toggle('hidden', panel.dataset.tabPanel !== tab);
     });
 
     // troca o card de meta e as metas da filial conforme a aba ativa
     document.documentElement.setAttribute('data-active-tab', tab);
-    const isMensal = tab === 'mensal';
     if (_dadosCarregados) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
@@ -2517,7 +2611,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') hideCelebration();
 });
 
-document.documentElement.setAttribute('data-active-tab', 'semanal');
+document.documentElement.setAttribute('data-active-tab', 'mensal');
 
 // ================================================================
 // ÁREA ADMINISTRATIVA — JavaScript
