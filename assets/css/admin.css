@@ -1521,3 +1521,176 @@ html::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.34); }
     text-align: left;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   LINGUAGEM VISUAL ADM — superfícies, controles e pop-ups
+   Camada de acabamento: preserva a estrutura e os estados atuais.
+   ═══════════════════════════════════════════════════════════════ */
+.adm-overlay {
+  --adm-surface: #151922;
+  --adm-surface-raised: #1b202b;
+  --adm-border: rgba(226,232,240,.095);
+  --adm-border-soft: rgba(226,232,240,.065);
+  --surface: #171b24;
+  --surface-solid: #151922;
+  --surface-hover: #202633;
+  --border: var(--adm-border);
+  color-scheme: dark;
+}
+.adm-overlay:not(#adm-login-overlay) { background: rgba(5,7,12,.82); backdrop-filter: blur(12px); }
+#adm-login-overlay { background: rgba(5,7,12,.78); backdrop-filter: blur(12px); }
+#adm-login { background: var(--adm-surface); border-color: var(--adm-border); border-radius: 20px; box-shadow: 0 28px 80px rgba(0,0,0,.38); }
+#adm-panel-overlay { background: rgba(5,7,12,.82); }
+
+/* Base de cartões e hierarquia de conteúdo */
+.adm-card:not(#adm-login),
+.adm-form-card,
+.adm-dashboard-panel,
+.adm-meta-group,
+.adm-report-card,
+.adm-ranking-item,
+.adm-vendedores-inativos,
+.adm-totalizer-card,
+.adm-readonly-note,
+.adm-empty-panel {
+  border-color: var(--adm-border);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.12);
+}
+.adm-card:not(#adm-login), .adm-form-card { background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01)), var(--adm-surface); }
+.adm-dashboard-panel, .adm-meta-group, .adm-totalizer-card, .adm-vendedores-inativos { background: var(--adm-surface); }
+.adm-report-card { border-style: solid; background: var(--adm-surface); }
+.adm-stat-card { border: 1px solid var(--adm-border); border-top: 2px solid color-mix(in srgb, var(--card-accent, var(--accent)) 65%, transparent); border-radius: 15px; background: var(--adm-surface); box-shadow: 0 8px 24px rgba(0,0,0,.1); }
+.adm-stat-card:hover, .adm-meta-group:hover, .adm-report-card:hover { transform: none; box-shadow: 0 10px 28px rgba(0,0,0,.16); }
+.adm-stat-card::after { opacity: .035; }
+.adm-dashboard-intro { border-color: rgba(var(--accent-rgb),.15); border-radius: 17px; background: linear-gradient(110deg, rgba(var(--accent-rgb),.055), rgba(255,255,255,.012) 60%, rgba(var(--accent2-rgb),.04)); }
+.adm-dashboard-attention { border-color: rgba(251,191,36,.18); border-radius: 16px; background: rgba(255,255,255,.018); }
+.adm-dashboard-attention-item { border-color: var(--adm-border-soft); border-radius: 12px; background: rgba(8,11,18,.28); }
+.adm-ranking-note, .adm-callout, .adm-carreira-vinculo, .adm-rank-fechamento { border-color: var(--adm-border); border-radius: 14px; background: var(--adm-surface-raised); }
+.adm-ranking-item { background: linear-gradient(110deg, rgba(255,255,255,.018), rgba(var(--accent-rgb),.012)), var(--adm-surface); }
+.adm-totalizer-card.is-local, .adm-totalizer-card.is-branches, .adm-totalizer-card.is-total { border-color: var(--adm-border); background: rgba(255,255,255,.022); }
+.adm-totalizer-card.is-local .adm-totalizer-value { color: var(--accent); }
+.adm-totalizer-card.is-branches .adm-totalizer-value { color: #a99af4; }
+.adm-totalizer-card.is-total .adm-totalizer-value { color: #6dd9ab; }
+.adm-section { scroll-margin-top: 20px; }
+.adm-section.active { gap: 18px; }
+.adm-section-title { padding-bottom: 12px; border-color: var(--adm-border); font-size: 1.22rem; letter-spacing: -.02em; }
+.adm-page-lead { max-width: 880px; color: #aab2c0; }
+.adm-subsection-title { border-color: var(--adm-border); }
+.adm-card-heading { border-color: var(--adm-border); }
+.adm-card-heading-icon { border-radius: 12px; background: rgba(var(--accent-rgb),.07); }
+.adm-help-details { border-color: var(--adm-border-soft); border-radius: 13px; background: rgba(255,255,255,.018); }
+.adm-help-details[open] { border-color: rgba(var(--accent-rgb),.22); background: rgba(var(--accent-rgb),.025); }
+
+/* Campos, seletores, datas e caixas de pesquisa */
+.adm-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+.adm-field select, .adm-field textarea,
+.an-period-select {
+  min-height: 44px; border: 1px solid var(--adm-border); border-radius: 10px;
+  background-color: #10141c; color: var(--text); font-size: .86rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+}
+.adm-field select { border-color: rgba(226,232,240,.12); background-color: #121721; }
+.adm-field select:hover { border-color: rgba(var(--accent-rgb),.34); background-color: #151b26; }
+.adm-field input:focus, .adm-field select:focus, .adm-field textarea:focus,
+.an-period-select:focus, .custom-select-search:focus { border-color: rgba(var(--accent-rgb),.72); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.12); }
+.adm-field input::placeholder, .adm-field textarea::placeholder, .custom-select-search::placeholder { color: #737d8e; }
+.adm-field select option, .custom-select-panel, .custom-select-search-wrap { background-color: #151922; }
+.adm-month-picker { position: relative; display: block; width: 100%; min-width: 0; }
+.adm-month-picker.is-open { z-index: 90; }
+.adm-month-trigger { display: flex; width: 100%; min-height: 42px; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--adm-border); border-radius: 10px; background: #11151e; color: var(--heading-color); font: 600 .84rem 'Poppins', sans-serif; text-align: left; cursor: pointer; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
+.adm-month-trigger:hover, .adm-month-picker.is-open .adm-month-trigger { border-color: rgba(var(--accent-rgb),.42); background: #171c26; }
+.adm-month-trigger:focus-visible { outline: 2px solid rgba(var(--accent-rgb),.72); outline-offset: 2px; }
+.adm-month-trigger:disabled { opacity: .55; cursor: not-allowed; }
+.adm-month-trigger svg { width: 17px; height: 17px; flex: 0 0 auto; fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.adm-month-trigger-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-month-chevron { color: var(--text-muted); font-size: 1rem; line-height: 1; transition: transform .16s ease; }
+.adm-month-picker.is-open .adm-month-chevron { transform: rotate(180deg); }
+.adm-month-popover { position: absolute; z-index: 91; top: calc(100% + 7px); left: 0; width: min(272px, calc(100vw - 40px)); padding: 12px; border: 1px solid rgba(226,232,240,.13); border-radius: 14px; background: #171b24; box-shadow: 0 18px 48px rgba(0,0,0,.42); animation: admMonthPickerIn .14s ease-out both; }
+.adm-month-popover[hidden] { display: none !important; }
+.adm-month-popover-head { display: grid; grid-template-columns: 34px minmax(0,1fr) 34px; align-items: center; gap: 8px; margin-bottom: 10px; }
+.adm-month-popover-head strong { color: var(--heading-color); font-size: .9rem; text-align: center; font-variant-numeric: tabular-nums; }
+.adm-month-popover-head button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--adm-border-soft); border-radius: 9px; background: rgba(255,255,255,.025); color: #c7ced8; font: 500 1.35rem/1 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+.adm-month-popover-head button:hover:not(:disabled) { border-color: rgba(var(--accent-rgb),.32); background: rgba(var(--accent-rgb),.07); color: var(--accent); }
+.adm-month-popover-head button:disabled { opacity: .3; cursor: default; }
+.adm-month-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px; }
+.adm-month-option { min-height: 36px; padding: 5px 4px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #abb3c1; font: 600 .72rem 'Poppins', sans-serif; text-transform: capitalize; cursor: pointer; }
+.adm-month-option:hover:not(:disabled) { background: rgba(var(--accent-rgb),.075); color: var(--heading-color); }
+.adm-month-option.is-selected { border-color: rgba(var(--accent-rgb),.35); background: rgba(var(--accent-rgb),.12); color: var(--accent); font-weight: 800; }
+.adm-month-option:disabled { opacity: .28; cursor: not-allowed; }
+.adm-month-option:focus-visible, .adm-month-current:focus-visible { outline: 2px solid rgba(var(--accent-rgb),.72); outline-offset: 1px; }
+.adm-month-current { width: 100%; margin-top: 10px; padding: 8px 10px; border: 0; border-top: 1px solid var(--adm-border-soft); background: transparent; color: var(--accent); font: 700 .72rem 'Poppins', sans-serif; text-align: center; cursor: pointer; }
+.adm-month-current:hover:not(:disabled) { color: var(--heading-color); }
+.adm-month-current:disabled { opacity: .35; cursor: not-allowed; }
+.an-period-block > .an-period { display: none; }
+@keyframes admMonthPickerIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.custom-select-trigger { min-height: 44px; border-color: var(--adm-border); border-radius: 10px; background-color: #121721; font-size: .86rem; }
+.custom-select-trigger:hover, .custom-select.open .custom-select-trigger { border-color: rgba(var(--accent2-rgb),.5); background-color: #171b26; }
+.custom-select-panel { border-color: rgba(226,232,240,.14); border-radius: 13px; box-shadow: 0 18px 44px rgba(0,0,0,.42); }
+.custom-select-group-label { color: #a9a0df; }
+.custom-select-option { min-height: 40px; border-radius: 8px; }
+.custom-select-option:hover { background: rgba(var(--accent2-rgb),.1); }
+.custom-select-option.selected { background: rgba(var(--accent2-rgb),.17); }
+.an-search { min-height: 44px; border-color: var(--adm-border); border-radius: 11px; background: #10141c; }
+.an-search:focus-within { border-color: rgba(var(--accent-rgb),.65); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.11); }
+.an-period-select { padding: 7px 11px; }
+.adm-inline-checkbox input, .adm-form-checks-row input, .tema-check input { accent-color: var(--accent); }
+
+/* Botões e retorno de interação */
+.adm-btn, .adm-dashboard-action, .adm-sidebar-toggle, .adm-dashboard-week-arrow,
+.ixc-edit-close, .an-profile-actions button, .adm-nav-item, .tema-opt {
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease, opacity .16s ease;
+}
+.adm-btn { min-height: 42px; border-radius: 10px; font-size: .84rem; box-shadow: none; }
+.adm-btn-primary { background: var(--accent); color: #061018; box-shadow: 0 4px 12px rgba(var(--accent-rgb),.12); }
+.adm-btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, white); box-shadow: 0 6px 16px rgba(var(--accent-rgb),.18); transform: translateY(-1px); }
+.adm-btn-secondary { border-color: var(--adm-border); background: rgba(255,255,255,.025); color: #c1c7d2; }
+.adm-btn-secondary:hover { border-color: rgba(var(--accent-rgb),.38); background: rgba(var(--accent-rgb),.055); color: var(--heading-color); }
+.adm-btn-danger { border-color: rgba(255,100,125,.22); background: rgba(255,100,125,.035); }
+.adm-btn-danger:hover, .adm-btn-danger-solid:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.adm-btn:disabled, .adm-dashboard-action:disabled { opacity: .48; cursor: not-allowed; transform: none; box-shadow: none; }
+.adm-dashboard-action { min-height: 40px; border-color: var(--adm-border); border-radius: 10px; background: rgba(255,255,255,.025); }
+.adm-dashboard-action.primary { border-color: transparent; background: var(--accent); color: #061018; }
+.adm-dashboard-action.primary:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
+.adm-nav-item { border-radius: 10px; }
+.adm-nav-item.active { background: rgba(var(--accent-rgb),.095); box-shadow: inset 2px 0 0 var(--accent); }
+.adm-nav-item.active .nav-icon { box-shadow: none; }
+.adm-nav-item:hover .nav-icon { transform: none; }
+.tema-opt { border-radius: 12px; background: rgba(255,255,255,.022); }
+.tema-opt.selected { box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.12); }
+.adm-dashboard-week-arrow, .adm-sidebar-toggle { border-radius: 9px; }
+.adm-form-actions { gap: 9px; }
+
+/* Tabelas, listas e filtros */
+.adm-table-wrap, #sec-renovacoes .renov-table-scroll { border-color: var(--adm-border); border-radius: 13px; background: rgba(8,11,18,.22); }
+.adm-table { font-size: .81rem; }
+.adm-table th { border-color: var(--adm-border); background: #1a1f29; color: #aeb7c6; letter-spacing: .055em; }
+.adm-table td { border-color: rgba(226,232,240,.055); }
+.adm-table tbody tr:nth-child(even) td { background: rgba(255,255,255,.012); }
+.adm-table tr:hover td { background: rgba(var(--accent-rgb),.035); }
+.adm-badge, .adm-plano-status { border: 1px solid rgba(226,232,240,.06); }
+.adm-pagination button, .adm-vendedor-actions .adm-btn { border-radius: 9px; }
+.adm-vendedores-inativos summary, .adm-help-details summary, .ixc-suggestion-details summary { transition: color .16s ease; }
+.adm-vendedores-inativos summary:hover, .adm-help-details summary:hover, .ixc-suggestion-details summary:hover { color: var(--heading-color); }
+
+/* Login, diálogos, menu de seleção e notificações */
+.adm-overlay.active { animation: admOverlayIn .18s ease-out both; }
+@keyframes admOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+.an-modal-backdrop, .ixc-edit-backdrop { background: rgba(5,7,12,.76); backdrop-filter: blur(10px); }
+.an-profile-dialog, .ixc-edit-dialog { border-color: var(--adm-border); border-radius: 19px; background: #151922; box-shadow: 0 26px 80px rgba(0,0,0,.45); }
+.an-profile-header { border-color: var(--adm-border); border-radius: 14px; background: #1a1f29; }
+.ixc-edit-additions { border-color: var(--adm-border); border-radius: 12px; background: rgba(255,255,255,.018); }
+.ixc-edit-close { border-color: var(--adm-border); border-radius: 9px; }
+.ixc-edit-close:hover { color: var(--heading-color); background: rgba(255,255,255,.06); }
+.ixc-pending-card { border-color: var(--adm-border); border-radius: 15px; background: var(--adm-surface); }
+body.adm-modal-open #toast-container { gap: 8px; }
+body.adm-modal-open .toast { border-color: rgba(226,232,240,.1); border-radius: 13px; background: #171b24; box-shadow: 0 14px 36px rgba(0,0,0,.34); }
+body.adm-modal-open .toast.celebration { background: #1b1a17; box-shadow: 0 14px 36px rgba(0,0,0,.34); }
+body.adm-modal-open .toast-close { border-radius: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-overlay.active { animation: none; }
+  .adm-month-popover { animation: none; }
+  .adm-stat-card, .adm-meta-group, .adm-report-card, .adm-btn, .adm-dashboard-action,
+  .adm-sidebar-toggle, .adm-dashboard-week-arrow, .adm-nav-item, .tema-opt { transition: none; }
+}

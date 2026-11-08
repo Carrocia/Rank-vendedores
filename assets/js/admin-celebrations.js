@@ -112,6 +112,7 @@ function atualizarMetasCelebraveis() {
   if (periodoInput) {
     periodoInput.max = mesAtual;
     if (!periodoInput.value) periodoInput.value = mesAtual;
+    window.atualizarSeletorMesADM?.(periodoInput);
   }
   const slug = vendedorSelect.value;
   const metaSelect = document.getElementById('cel-meta');

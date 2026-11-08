@@ -1305,6 +1305,7 @@ async function carregarRelatorioResumoRenovacoes() {
     const hoje = new Date();
     periodoInput.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   }
+  if (periodoInput) window.atualizarSeletorMesADM?.(periodoInput);
   const periodo = periodoInput?.value || '';
   if (!periodo) return;
   const [ano, mes] = periodo.split('-').map(Number);

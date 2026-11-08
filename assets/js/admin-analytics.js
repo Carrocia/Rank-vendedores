@@ -129,6 +129,162 @@ let _analiticaContextoPeriodo = null;
 let _celebracaoContextoPeriodo = null;
 const _contextosPeriodoHistorico = new Map();
 
+const ADM_MONTH_LABELS = Array.from({ length: 12 }, (_, mes) =>
+  new Date(2026, mes, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+);
+function formatarMesSeletorADM(chave) {
+  const correspondencia = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(chave || ''));
+  if (!correspondencia) return 'Selecionar mês';
+  const nomeMes = new Date(Number(correspondencia[1]), Number(correspondencia[2]) - 1, 1)
+    .toLocaleDateString('pt-BR', { month: 'long' });
+  return `${nomeMes.charAt(0).toLocaleUpperCase('pt-BR')}${nomeMes.slice(1)} de ${correspondencia[1]}`;
+}
+function chaveMesAtualLocalADM() {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function atualizarSeletorMesADM(input) {
+  const wrapper = input?.closest('.adm-month-picker');
+  if (!wrapper) return;
+  const botao = wrapper.querySelector('.adm-month-trigger');
+  const rotulo = wrapper.querySelector('.adm-month-trigger-label');
+  const anoEl = wrapper.querySelector('.adm-month-year');
+  const grade = wrapper.querySelector('.adm-month-grid');
+  if (!botao || !rotulo || !anoEl || !grade) return;
+
+  const selecionado = input.value;
+  const max = input.max || '9999-12';
+  const min = input.min || '0001-01';
+  const anoVisual = Number(wrapper.dataset.year || selecionado.slice(0, 4) || new Date().getFullYear());
+  const indice = chave => Number(chave.slice(0, 4)) * 12 + Number(chave.slice(5, 7));
+  const minimo = indice(min);
+  const maximo = indice(max);
+  const anoDisponivel = ano => (ano * 12 + 12) >= minimo && (ano * 12 + 1) <= maximo;
+
+  rotulo.textContent = formatarMesSeletorADM(selecionado);
+  botao.setAttribute('aria-label', `${input.dataset.monthLabel || 'Mês'}: ${formatarMesSeletorADM(selecionado)}`);
+  botao.disabled = input.disabled;
+  anoEl.textContent = String(anoVisual);
+  wrapper.querySelectorAll('[data-adm-month-year-step]').forEach(controle => {
+    const proximoAno = anoVisual + Number(controle.dataset.admMonthYearStep);
+    controle.disabled = input.disabled || proximoAno < 1 || proximoAno > 9999 || !anoDisponivel(proximoAno);
+  });
+  const botaoAtual = wrapper.querySelector('[data-adm-month-current]');
+  const mesAtual = chaveMesAtualLocalADM();
+  if (botaoAtual) botaoAtual.disabled = input.disabled || indice(mesAtual) < minimo || indice(mesAtual) > maximo;
+
+  grade.replaceChildren();
+  ADM_MONTH_LABELS.forEach((label, index) => {
+    const chave = `${anoVisual}-${String(index + 1).padStart(2, '0')}`;
+    const valor = indice(chave);
+    const opcao = document.createElement('button');
+    opcao.type = 'button';
+    opcao.className = 'adm-month-option';
+    opcao.dataset.monthValue = chave;
+    opcao.textContent = label;
+    opcao.disabled = input.disabled || valor < minimo || valor > maximo;
+    opcao.setAttribute('aria-pressed', String(chave === selecionado));
+    if (chave === selecionado) opcao.classList.add('is-selected');
+    grade.appendChild(opcao);
+  });
+}
+
+function inicializarSeletoresMesADM() {
+  document.querySelectorAll('#adm-panel input[type="month"]').forEach(input => {
+    if (input.closest('.adm-month-picker')) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'adm-month-picker';
+    wrapper.dataset.year = String(Number(input.value.slice(0, 4)) || new Date().getFullYear());
+    const label = [...document.querySelectorAll('label[for]')].find(item => item.htmlFor === input.id)
+      || input.closest('.adm-field')?.querySelector('label');
+    wrapper.dataset.monthLabel = input.getAttribute('aria-label') || label?.textContent.trim() || 'Mês';
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+    input.hidden = true;
+    input.setAttribute('aria-hidden', 'true');
+    input.tabIndex = -1;
+
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'adm-month-trigger';
+    botao.id = `adm-month-trigger-${input.id}`;
+    botao.setAttribute('aria-haspopup', 'dialog');
+    botao.setAttribute('aria-expanded', 'false');
+    botao.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M6 2.5v3M14 2.5v3M3 8h14"/></svg><span class="adm-month-trigger-label"></span><span class="adm-month-chevron" aria-hidden="true">⌄</span>';
+    const popover = document.createElement('div');
+    popover.className = 'adm-month-popover';
+    popover.id = `adm-month-popover-${input.id}`;
+    popover.hidden = true;
+    popover.setAttribute('role', 'dialog');
+    popover.setAttribute('aria-label', `Selecionar ${wrapper.dataset.monthLabel.toLowerCase()}`);
+    botao.setAttribute('aria-controls', popover.id);
+    popover.innerHTML = '<div class="adm-month-popover-head"><button type="button" data-adm-month-year-step="-1" aria-label="Ano anterior">‹</button><strong class="adm-month-year"></strong><button type="button" data-adm-month-year-step="1" aria-label="Próximo ano">›</button></div><div class="adm-month-grid" role="group" aria-label="Meses disponíveis"></div><button type="button" class="adm-month-current" data-adm-month-current>Este mês</button>';
+    wrapper.append(botao, popover);
+
+    if (label) label.htmlFor = botao.id;
+    botao.addEventListener('click', () => {
+      atualizarSeletorMesADM(input);
+      popover.hidden = !popover.hidden;
+      botao.setAttribute('aria-expanded', String(!popover.hidden));
+      wrapper.classList.toggle('is-open', !popover.hidden);
+      if (!popover.hidden) popover.querySelector('.adm-month-option[aria-pressed="true"]:not(:disabled), .adm-month-option:not(:disabled)')?.focus({ preventScroll: true });
+    });
+    popover.addEventListener('click', event => {
+      const passo = event.target.closest('[data-adm-month-year-step]');
+      if (passo) {
+        wrapper.dataset.year = String(Number(wrapper.dataset.year) + Number(passo.dataset.admMonthYearStep));
+        atualizarSeletorMesADM(input);
+        return;
+      }
+      let valor = event.target.closest('[data-month-value]')?.dataset.monthValue;
+      if (event.target.closest('[data-adm-month-current]')) valor = chaveMesAtualLocalADM();
+      if (!valor) return;
+      input.value = valor;
+      wrapper.dataset.year = valor.slice(0, 4);
+      atualizarSeletorMesADM(input);
+      popover.hidden = true;
+      botao.setAttribute('aria-expanded', 'false');
+      wrapper.classList.remove('is-open');
+      botao.focus({ preventScroll: true });
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    input.addEventListener('change', () => atualizarSeletorMesADM(input));
+    new MutationObserver(() => atualizarSeletorMesADM(input)).observe(input, { attributes: true, attributeFilter: ['disabled', 'min', 'max'] });
+    atualizarSeletorMesADM(input);
+  });
+
+  if (!document.documentElement.dataset.admMonthPickerEvents) {
+    document.documentElement.dataset.admMonthPickerEvents = 'bound';
+    document.addEventListener('click', event => {
+      if (event.target.closest('.adm-month-picker')) return;
+      document.querySelectorAll('.adm-month-picker.is-open').forEach(wrapper => {
+        wrapper.classList.remove('is-open');
+        const popover = wrapper.querySelector('.adm-month-popover');
+        const botao = wrapper.querySelector('.adm-month-trigger');
+        if (popover) popover.hidden = true;
+        botao?.setAttribute('aria-expanded', 'false');
+      });
+      if (event.target.closest('#adm-panel')) {
+        setTimeout(() => document.querySelectorAll('#adm-panel input[type="month"]').forEach(atualizarSeletorMesADM), 0);
+      }
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      document.querySelectorAll('.adm-month-picker.is-open').forEach(wrapper => {
+        wrapper.classList.remove('is-open');
+        const popover = wrapper.querySelector('.adm-month-popover');
+        const botao = wrapper.querySelector('.adm-month-trigger');
+        if (popover) popover.hidden = true;
+        botao?.setAttribute('aria-expanded', 'false');
+        botao?.focus();
+      });
+    });
+  }
+}
+window.atualizarSeletorMesADM = atualizarSeletorMesADM;
+document.addEventListener('DOMContentLoaded', inicializarSeletoresMesADM);
+
 function chaveMesPeriodo(mes) { return `${Number(mes?.ano)}-${String(Number(mes?.mesNum)).padStart(2, '0')}`; }
 
 function periodoMesPorChave(chave) {
@@ -649,6 +805,7 @@ async function renderizarAnaliticaPerfis() {
   if (seletorPeriodo) {
     seletorPeriodo.max = chaveMesPeriodo(_cache.mes || calcularPeriodoMes());
     if (!seletorPeriodo.value) seletorPeriodo.value = chaveMesPeriodo(_cache.mes || calcularPeriodoMes());
+    atualizarSeletorMesADM(seletorPeriodo);
   }
   renderizarGradeAnalitica(vendedores);
   if (!vendedores.length) {

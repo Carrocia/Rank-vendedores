@@ -423,6 +423,7 @@ function configurarNavegacaoAdmin() {
     const hoje = new Date();
     mesInput.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   }
+  if (mesInput) window.atualizarSeletorMesADM?.(mesInput);
 }
 
 function formatarQuantidadeRede(valor) {

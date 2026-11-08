@@ -249,6 +249,7 @@ function renderConfigMetas(cache) {
     selectorVendas.max = periodoActual.chave;
     selectorVendas.min = '2026-10';
     if (!selectorVendas.value) selectorVendas.value = periodoActual.chave;
+    window.atualizarSeletorMesADM?.(selectorVendas);
     const periodoVendas = lerPeriodoMetas('cfg-vendas-mes');
     if (periodoVendas?.chave === periodoActual.chave) preencherMetasVendas(cache, periodoVendas);
     else if (periodoVendas) carregarMetasVendasPeriodoSelecionado();
@@ -261,6 +262,7 @@ function renderConfigMetas(cache) {
     selectorRenovacao.max = periodoActual.chave;
     selectorRenovacao.min = '2026-10';
     if (!selectorRenovacao.value) selectorRenovacao.value = periodoActual.chave;
+    window.atualizarSeletorMesADM?.(selectorRenovacao);
     const periodoRenovacao = lerPeriodoMetas('cfg-renov-mes');
     const tituloRenovacao = document.getElementById('cfg-renov-periodo');
     if (tituloRenovacao && periodoRenovacao) tituloRenovacao.textContent = rotuloPeriodoMeta(periodoRenovacao);
@@ -285,6 +287,7 @@ function renderConfigMetas(cache) {
   if (seletorCancel) {
     seletorCancel.max = periodoActual.chave;
     if (!seletorCancel.value) seletorCancel.value = periodoActual.chave;
+    window.atualizarSeletorMesADM?.(seletorCancel);
   }
 
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val === null || val === undefined) ? '' : val; };
@@ -593,6 +596,7 @@ if (renovMesInput && !renovMesInput.value) {
   const agora = new Date();
   renovMesInput.value = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
 }
+if (renovMesInput) window.atualizarSeletorMesADM?.(renovMesInput);
 if (renovMesInput) renovMesInput.addEventListener('change', () => { analisarLinhasRelatorioRenovacao(); carregarRelatorioResumoRenovacoes(); });
 
 document.getElementById('adm-trigger').addEventListener('click', adm_showLogin);
