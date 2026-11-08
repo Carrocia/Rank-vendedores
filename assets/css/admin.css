@@ -792,6 +792,9 @@ body.an-modal-open { overflow:hidden; }
 #sec-filiais-admin .tema-check input { accent-color:var(--accent); }
 
 #sec-config-metas > .adm-form-card { padding:22px 24px 8px; }
+#sec-config-metas,
+#sec-config-metas > * { width:100%; min-width:0; max-width:100%; box-sizing:border-box; }
+#sec-config-metas > .adm-form-card { min-width:0; }
 #sec-config-metas > .adm-form-card .adm-subsection-title { display:flex; align-items:center; gap:8px; }
 #sec-config-metas .cfg-filial-target-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
 #sec-config-metas .cfg-filial-target-group { min-width:0; padding:16px; border:1px solid var(--border); border-radius:13px; background:rgba(255,255,255,.018); }
@@ -816,6 +819,7 @@ body.an-modal-open { overflow:hidden; }
 #sec-config-metas .cfg-meta-externo-field { max-width:320px; }
 #sec-config-metas .cfg-meta-type-note { margin:16px 0 10px; }
 #sec-config-metas > .adm-form-actions { padding:14px 18px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+#cfg-vendas-mes { display:block; width:min(100%, 360px); min-width:0; color-scheme:dark; }
 #sec-renovacoes .cfg-renov-meta-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
 #sec-renovacoes .cfg-renov-meta-grid input { width:100%; }
 #sec-admins > .adm-table-wrap .adm-table,
@@ -824,6 +828,26 @@ body.an-modal-open { overflow:hidden; }
 #sec-filiais-admin > .adm-form-card { padding:22px 24px 8px; }
 #sec-admins > .adm-section-title.is-plain,
 #sec-filiais-admin > .adm-section-title.is-plain { margin:8px 0 -6px; }
+
+/* Metas: reorganiza antes que a coluna da navegação aperte os cartões. */
+@media (max-width: 1180px) {
+  #sec-config-metas .cfg-filial-target-groups,
+  #sec-config-metas .cfg-meta-type-grid { grid-template-columns:minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  #sec-config-metas > .adm-form-card { padding:18px; }
+  #sec-config-metas .cfg-filial-target-fields,
+  #sec-config-metas .cfg-meta-type-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #sec-config-metas .cfg-meta-type-description { min-height:0; }
+  #sec-config-metas .adm-form-grid { min-width:0; }
+}
+@media (max-width: 520px) {
+  #sec-config-metas .cfg-filial-target-fields,
+  #sec-config-metas .cfg-meta-type-fields,
+  #sec-config-metas .adm-form-grid { grid-template-columns:minmax(0,1fr); }
+  #sec-config-metas .cfg-meta-type-heading { align-items:flex-start; }
+  #cfg-vendas-mes { width:100%; }
+}
 
 .adm-btn-status {
   font-size: 0.72rem; font-weight: 700; white-space: nowrap;
