@@ -237,7 +237,7 @@
   .page-shell { position: relative; z-index: 1; max-width: 1560px; margin: 0 auto; padding: 90px 32px 60px; }
 
   @keyframes riseIn { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
-  .anim-in { animation: riseIn 0.7s cubic-bezier(0.22,1,0.36,1) both; }
+  .anim-in { animation: riseIn 0.48s cubic-bezier(0.22,1,0.36,1) both; }
 
   /* ---------- ticker ---------- */
   .ticker-wrap {
@@ -552,13 +552,14 @@
     display: flex; align-items: flex-start; justify-content: center; padding-top: 10px;
     box-shadow: 0 -6px 26px var(--rank-glow);
     height: 0px;
-    transition: height 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: scaleY(0); transform-origin: center bottom;
+    transition: transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .podium-base::after {
     content: ''; position: absolute; top: 0; left: -40%; width: 40%; height: 100%;
     background: linear-gradient(120deg, transparent, rgba(255,255,255,0.4), transparent);
     transform: skewX(-20deg);
-    animation: shimmer 3.6s ease-in-out infinite;
+    animation: shimmer 5.2s ease-in-out infinite;
     animation-delay: var(--shimmer-delay, 0s);
   }
   @keyframes shimmer { 0% { transform: translateX(0) skewX(-20deg); } 100% { transform: translateX(480%) skewX(-20deg); } }
@@ -752,14 +753,16 @@
   .signal-rings span {
     position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px;
     border: 2px solid var(--accent); border-radius: 50%;
-    animation: signalPulse 3s ease-out infinite;
+    transform: scale(0.1); transform-origin: center;
+    animation: signalPulse 3s ease-out infinite paused;
     opacity: 0;
   }
+  .celebration-overlay.active .signal-rings span { animation-play-state: running; }
   .signal-rings span:nth-child(2) { animation-delay: 1s; border-color: var(--accent2); }
   .signal-rings span:nth-child(3) { animation-delay: 2s; border-color: var(--gold); }
   @keyframes signalPulse {
-    0% { width: 10px; height: 10px; margin: -5px; opacity: 0.8; }
-    100% { width: 900px; height: 900px; margin: -450px; opacity: 0; }
+    0% { transform: scale(0.1); opacity: 0.8; }
+    100% { transform: scale(90); opacity: 0; }
   }
 
   /* ---------- card Meta da Semana ---------- */

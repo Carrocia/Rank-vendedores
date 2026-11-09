@@ -127,6 +127,7 @@ function renderPodium(containerId, entries, options = {}) {
     const base = stand.querySelector('.podium-base');
     setTimeout(() => {
       base.style.height = base.dataset.finalHeight + 'px';
+      base.style.transform = 'scaleY(1)';
     }, reduceMotion ? 0 : delayByRank[rank] || 0);
   });
 }
