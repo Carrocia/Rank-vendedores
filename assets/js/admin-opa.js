@@ -26,32 +26,37 @@
     if (!body) return;
     if (!window._supabase || !window.ADMIN_AUTENTICADO) {
       setStatus('Entre como administrador da filial para editar os resultados.', true);
-      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Acesso administrativo necessário.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Acesso administrativo necessário.</td></tr>';
       return;
     }
     const sellers = (_cache.vendedores || []).filter(v => v.ativo !== false && isOpaParticipant(v));
     if (!sellers.length) {
-      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Não há vendedores internos participantes ativos nesta filial.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Não há vendedores internos participantes ativos nesta filial.</td></tr>';
       setStatus('Nenhum vendedor interno participante ativo nesta filial.');
+      const teamCount = $('#opa-admin-team-count');
+      if (teamCount) teamCount.textContent = '';
       return;
     }
     const { year, month } = readMonth();
     setStatus('Carregando lançamentos…');
-    body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Carregando equipe e resultados…</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Carregando equipe e resultados…</td></tr>';
     const { data, error } = await window._supabase.from('opa_resultados_mensais')
-      .select('vendedor_id, iniciados, encerrados, transferidos')
+      .select('vendedor_id, iniciados, encerrados, transferidos, nota_atendimento')
       .eq('filial_id', Number(window.FILIAL_ATUAL_ID)).eq('mes', month).eq('ano', year);
     if (error) {
       console.error('[admin-opa] loadMonth', error);
-      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Não foi possível carregar. Confirme se supabase/atendimentos-opa.sql foi executado.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Não foi possível carregar. Execute a versão atualizada de supabase/atendimentos-opa.sql.</td></tr>';
       setStatus('Falha ao carregar dados do Opa.', true);
       return;
     }
     const bySeller = new Map((data || []).map(row => [String(row.vendedor_id), row]));
     body.innerHTML = sellers.map(seller => {
       const row = bySeller.get(String(seller.id)) || {};
-      return `<tr data-opa-row="${Number(seller.id)}"><td><strong>${safe(seller.nome)}</strong></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="iniciados" value="${Number(row.iniciados || 0)}" aria-label="Atendimentos iniciados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="encerrados" value="${Number(row.encerrados || 0)}" aria-label="Atendimentos encerrados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="transferidos" value="${Number(row.transferidos || 0)}" aria-label="Atendimentos transferidos de ${safe(seller.nome)}"></td><td><strong data-opa-total>${Number(row.encerrados || 0) + Number(row.transferidos || 0)}</strong></td></tr>`;
+      const rating = row.nota_atendimento == null ? '' : Number(row.nota_atendimento);
+      return `<tr data-opa-row="${Number(seller.id)}"><td class="opa-admin-seller"><span class="opa-admin-avatar" aria-hidden="true">${safe(String(seller.nome || '?').trim().charAt(0).toLocaleUpperCase('pt-BR'))}</span><strong>${safe(seller.nome)}</strong></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="iniciados" value="${Number(row.iniciados || 0)}" aria-label="Atendimentos iniciados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="encerrados" value="${Number(row.encerrados || 0)}" aria-label="Atendimentos encerrados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="transferidos" value="${Number(row.transferidos || 0)}" aria-label="Atendimentos transferidos de ${safe(seller.nome)}"></td><td><strong class="opa-admin-total" data-opa-total>${Number(row.encerrados || 0) + Number(row.transferidos || 0)}</strong></td><td><input type="number" min="0" step="0.01" inputmode="decimal" data-opa-rating value="${rating}" placeholder="—" aria-label="Nota média do Opa para ${safe(seller.nome)}"></td></tr>`;
     }).join('');
+    const teamCount = $('#opa-admin-team-count');
+    if (teamCount) teamCount.textContent = `${sellers.length} ${sellers.length === 1 ? 'colaborador' : 'colaboradores'}`;
     body.querySelectorAll('[data-opa-count]').forEach(input => input.addEventListener('input', () => {
       const row = input.closest('[data-opa-row]');
       const closed = Number($('[data-opa-count="encerrados"]', row)?.value || 0);
@@ -75,9 +80,11 @@
       iniciados: Number($('[data-opa-count="iniciados"]', row)?.value || 0),
       encerrados: Number($('[data-opa-count="encerrados"]', row)?.value || 0),
       transferidos: Number($('[data-opa-count="transferidos"]', row)?.value || 0),
+      nota_atendimento: $('[data-opa-rating]', row)?.value === '' ? null : Number($('[data-opa-rating]', row)?.value),
     }));
-    if (!rows.length || rows.some(row => ![row.iniciados, row.encerrados, row.transferidos].every(value => Number.isInteger(value) && value >= 0))) {
-      setStatus('Use apenas números inteiros iguais ou maiores que zero.', true);
+    if (!rows.length || rows.some(row => ![row.iniciados, row.encerrados, row.transferidos].every(value => Number.isInteger(value) && value >= 0)
+      || (row.nota_atendimento !== null && (!Number.isFinite(row.nota_atendimento) || row.nota_atendimento < 0)))) {
+      setStatus('Use contagens inteiras e uma nota válida igual ou maior que zero.', true);
       return;
     }
     button.disabled = true;

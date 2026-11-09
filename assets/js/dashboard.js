@@ -2574,7 +2574,7 @@ async function renderResumoAtendimentoOpa(dados) {
   }
   const idsInternos = vendedoresInternos.map(p => Number(p.id));
   const { data, error } = await window._supabase.from('opa_resultados_mensais')
-    .select('vendedor_id, iniciados, encerrados, transferidos')
+    .select('vendedor_id, iniciados, encerrados, transferidos, nota_atendimento')
     .eq('filial_id', Number(window.FILIAL_ATUAL_ID)).eq('mes', Number(periodo.mesNum)).eq('ano', Number(periodo.ano))
     .in('vendedor_id', idsInternos);
   if (requestId !== _opaResumoRequest) return;
@@ -2649,7 +2649,8 @@ async function renderResumoAtendimentoOpa(dados) {
     const avatar = person.foto_url
       ? `<img src="${escapeHtmlText(person.foto_url)}" alt="" loading="lazy">`
       : `<span aria-hidden="true">${escapeHtmlText(name.trim().charAt(0).toUpperCase())}</span>`;
-    return `<article class="opa-summary-row"><span class="opa-summary-rank">${index + 1}</span><span class="opa-summary-avatar">${avatar}</span><span class="opa-summary-person"><strong>${name}</strong><small>${Number(r.encerrados || 0)} encerrados · ${Number(r.transferidos || 0)} transferidos · ${Number(r.iniciados || 0)} iniciados</small></span><strong class="opa-summary-count">${r.atendimentos} ${r.atendimentos === 1 ? 'atendimento' : 'atendimentos'}</strong></article>`;
+    const rating = r.nota_atendimento == null ? '' : ` · Nota Opa ${Number(r.nota_atendimento).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
+    return `<article class="opa-summary-row"><span class="opa-summary-rank">${index + 1}</span><span class="opa-summary-avatar">${avatar}</span><span class="opa-summary-person"><strong>${name}</strong><small>${Number(r.encerrados || 0)} encerrados · ${Number(r.transferidos || 0)} transferidos · ${Number(r.iniciados || 0)} iniciados${rating}</small></span><strong class="opa-summary-count">${r.atendimentos} ${r.atendimentos === 1 ? 'atendimento' : 'atendimentos'}</strong></article>`;
   }).join('');
 }
 
