@@ -294,8 +294,6 @@ function adm_showLogin() {
   adm_lockBackgroundScroll();
   document.getElementById('adm-login-overlay').classList.add('active');
   document.getElementById('adm-login-error').classList.remove('visible');
-  document.getElementById('adm-email').value = '';
-  document.getElementById('adm-password').value = '';
 }
 
 function adm_hideLogin() {

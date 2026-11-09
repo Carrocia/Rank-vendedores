@@ -331,11 +331,11 @@
   <script src="assets/js/dashboard.js?v=20261108-seasonal-theme-v2"></script>
   <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
-  <script src="assets/js/admin-sales.js?v=20261108-refresh-vendedores-v1"></script>
+  <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>
   <script src="assets/js/admin-analytics.js?v=20261108-month-picker-v1"></script>
   <script src="assets/js/admin-operations.js?v=20261108-pending-counts-v1"></script>
   <script src="assets/js/admin-celebrations.js?v=20261108-month-picker-v1"></script>
-  <script src="assets/js/admin-goals.js?v=20261108-month-picker-v1"></script>
+  <script src="assets/js/admin-goals.js?v=20261108-login-autofill-v2"></script>
   <script src="assets/js/ixc-import.js?v=20261108-ixc-review-no-null-id-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -352,17 +352,19 @@
       <h2>Painel Administrativo</h2>
       <span>UNI Internet — Filial <span id="filial-atual-admin-nome">Alta Floresta D'Oeste</span></span>
     </div>
-    <div class="adm-field">
-      <label>E-mail</label>
-      <input type="email" id="adm-email" placeholder="admin@uniinternet.com.br" autocomplete="email">
-    </div>
-    <div class="adm-field">
-      <label>Senha</label>
-      <input type="password" id="adm-password" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <div class="adm-error" id="adm-login-error">E-mail ou senha incorretos.</div>
-    <button class="adm-btn adm-btn-primary" id="adm-login-btn">Entrar</button>
-    <button class="adm-btn adm-btn-secondary" id="adm-login-back">Voltar</button>
+    <form id="adm-login-form" autocomplete="on">
+      <div class="adm-field">
+        <label for="adm-email">E-mail</label>
+        <input type="email" id="adm-email" name="username" placeholder="seu@email.com" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </div>
+      <div class="adm-field">
+        <label for="adm-password">Senha</label>
+        <input type="password" id="adm-password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <div class="adm-error" id="adm-login-error">E-mail ou senha incorretos.</div>
+      <button type="submit" class="adm-btn adm-btn-primary" id="adm-login-btn">Entrar</button>
+      <button type="button" class="adm-btn adm-btn-secondary" id="adm-login-back">Voltar</button>
+    </form>
   </div>
 </div>
 

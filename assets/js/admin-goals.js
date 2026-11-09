@@ -645,7 +645,8 @@ document.getElementById('adm-trigger').addEventListener('click', adm_showLogin);
 
 document.getElementById('adm-login-back').addEventListener('click', adm_hideLogin);
 
-document.getElementById('adm-login-btn').addEventListener('click', async () => {
+document.getElementById('adm-login-form').addEventListener('submit', async event => {
+  event.preventDefault();
   const email = document.getElementById('adm-email').value.trim();
   const password = document.getElementById('adm-password').value;
   const errEl = document.getElementById('adm-login-error');
@@ -680,11 +681,6 @@ document.getElementById('adm-login-btn').addEventListener('click', async () => {
     btn.textContent = 'Entrar';
     btn.classList.remove('adm-loading');
   }
-});
-
-// Enter no campo de senha faz login
-document.getElementById('adm-password').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('adm-login-btn').click();
 });
 
 document.getElementById('adm-logout-btn').addEventListener('click', async () => {
