@@ -2544,6 +2544,8 @@ let _opaResumoRequest = 0;
 async function renderResumoAtendimentoOpa(dados) {
   const lista = document.getElementById('opaSummaryLeaderboard');
   if (!lista) return;
+  const highlightCard = document.getElementById('opaMonthlyHighlight');
+  if (highlightCard) highlightCard.hidden = true;
   const requestId = ++_opaResumoRequest;
   const periodo = dados?.mes || _cache.mes;
   const participantes = dados?.intMes || [];
@@ -2587,6 +2589,46 @@ async function renderResumoAtendimentoOpa(dados) {
   const rows = (data || []).filter(r => nomes.get(String(r.vendedor_id))
     && String(nomes.get(String(r.vendedor_id)).tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno'
     && nomes.get(String(r.vendedor_id)).participa_ranking !== false);
+  const highlight = document.getElementById('opaMonthlyHighlight');
+  const highlightPeriod = document.getElementById('opaMonthlyHighlightPeriod');
+  const highlightWinners = document.getElementById('opaMonthlyHighlightWinners');
+  if (highlight && highlightWinners) {
+    highlight.hidden = true;
+    highlightWinners.innerHTML = '';
+    const now = new Date();
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const closedMonth = previousMonth.getMonth() + 1;
+    const closedYear = previousMonth.getFullYear();
+    const { data: closedData, error: closedError } = await window._supabase.from('opa_resultados_mensais')
+      .select('vendedor_id, encerrados, transferidos')
+      .eq('filial_id', Number(window.FILIAL_ATUAL_ID)).eq('mes', closedMonth).eq('ano', closedYear)
+      .in('vendedor_id', vendedoresInternos.map(p => Number(p.id)));
+    if (requestId !== _opaResumoRequest) return;
+    if (!closedError && (closedData || []).length) {
+      const closedRows = closedData.filter(r => {
+        const person = nomes.get(String(r.vendedor_id));
+        return person && String(person.tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno' && person.participa_ranking !== false;
+      }).map(r => ({
+        person: nomes.get(String(r.vendedor_id)),
+        atendimentos: Number(r.encerrados || 0) + Number(r.transferidos || 0),
+      })).filter(r => r.atendimentos > 0);
+      const topTotal = Math.max(0, ...closedRows.map(r => r.atendimentos));
+      const winners = closedRows.filter(r => r.atendimentos === topTotal);
+      if (winners.length) {
+        if (highlightPeriod) highlightPeriod.textContent = previousMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        highlightWinners.innerHTML = winners.map(({ person, atendimentos }) => {
+          const name = escapeHtmlText(person.nome || 'Colaborador');
+          const avatar = person.foto_url
+            ? `<img src="${escapeHtmlText(person.foto_url)}" alt="" loading="lazy">`
+            : `<span aria-hidden="true">${escapeHtmlText(name.trim().charAt(0).toUpperCase())}</span>`;
+          return `<article class="opa-monthly-highlight-winner"><span class="opa-summary-avatar">${avatar}</span><span><strong>${name}</strong><small>Interno · destaque do mês</small></span><b>${atendimentos} ${atendimentos === 1 ? 'atendimento' : 'atendimentos'}</b></article>`;
+        }).join('');
+        highlight.hidden = false;
+      }
+    } else if (closedError) {
+      console.warn('[renderResumoAtendimentoOpa] falha ao consultar destaque do mês fechado', closedError);
+    }
+  }
   const totalIniciados = rows.reduce((s, r) => s + Number(r.iniciados || 0), 0);
   const totalEncerrados = rows.reduce((s, r) => s + Number(r.encerrados || 0), 0);
   const totalTransferidos = rows.reduce((s, r) => s + Number(r.transferidos || 0), 0);

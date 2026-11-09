@@ -29,7 +29,7 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-summary-v3">
+<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-summary-v4">
 
   <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261109-opa-summary-v3">
 
@@ -261,6 +261,10 @@
           <div id="opaSummaryLeaderboard" aria-live="polite"><p class="opa-summary-empty">Carregando resultados…</p></div>
         </div>
       </div>
+      <section class="opa-monthly-highlight" id="opaMonthlyHighlight" hidden aria-live="polite">
+        <div class="opa-monthly-highlight-heading"><span aria-hidden="true">🏆</span><div><strong>Destaque Opa do mês</strong><small id="opaMonthlyHighlightPeriod"></small></div></div>
+        <div class="opa-monthly-highlight-winners" id="opaMonthlyHighlightWinners"></div>
+      </section>
       <p class="opa-summary-note" id="opaSummaryNote" hidden></p>
     </section>
   </main>

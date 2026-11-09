@@ -388,6 +388,20 @@
   .opa-summary-person small { overflow:hidden; color:var(--text-muted); font-size:.64rem; text-overflow:ellipsis; white-space:nowrap; }
   .opa-summary-count { color:var(--accent); font-size:.77rem; white-space:nowrap; }
   .opa-summary-empty { margin:0; padding:17px 14px; border:1px dashed var(--border); border-radius:12px; color:var(--text-muted); font-size:.78rem; text-align:center; }
+  .opa-monthly-highlight { display:grid; grid-template-columns:minmax(180px,.42fr) minmax(0,1fr); align-items:center; gap:18px; margin:0 26px 22px; padding:14px 16px; border:1px solid rgba(var(--accent-rgb),.28); border-top:2px solid var(--accent); border-radius:14px; background:linear-gradient(110deg,rgba(var(--accent-rgb),.09),rgba(255,255,255,.018)); }
+  .opa-monthly-highlight[hidden] { display:none; }
+  .opa-monthly-highlight-heading { display:flex; align-items:center; gap:10px; color:var(--heading-color); }
+  .opa-monthly-highlight-heading > span { font-size:1.2rem; }
+  .opa-monthly-highlight-heading div { display:grid; gap:3px; }
+  .opa-monthly-highlight-heading strong { font-size:.84rem; }
+  .opa-monthly-highlight-heading small { color:var(--text-muted); font-size:.68rem; }
+  .opa-monthly-highlight-winners { display:flex; flex-wrap:wrap; gap:8px; }
+  .opa-monthly-highlight-winner { display:flex; align-items:center; gap:9px; min-width:190px; padding:7px 10px; border:1px solid var(--border); border-radius:11px; background:rgba(0,0,0,.12); }
+  .opa-monthly-highlight-winner .opa-summary-avatar { width:32px; height:32px; }
+  .opa-monthly-highlight-winner > span:nth-child(2) { display:grid; min-width:0; gap:2px; }
+  .opa-monthly-highlight-winner strong { overflow:hidden; color:var(--heading-color); font-size:.75rem; text-overflow:ellipsis; white-space:nowrap; }
+  .opa-monthly-highlight-winner small { color:var(--text-muted); font-size:.65rem; }
+  .opa-monthly-highlight-winner > b { margin-left:auto; color:var(--accent); font-size:.74rem; white-space:nowrap; }
   .opa-summary-note { margin:0 26px 20px; color:var(--text-muted); font-size:.68rem; }
   @media (max-width:640px) {
     .tabs-row .tab-bar { grid-template-columns: repeat(3, minmax(0,1fr)); }
@@ -401,6 +415,8 @@
     .opa-summary-row { grid-template-columns:28px 34px minmax(0,1fr) auto; gap:7px; padding:7px; }
     .opa-summary-avatar { width:32px; height:32px; }
     .opa-summary-count { font-size:.68rem; }
+    .opa-monthly-highlight { grid-template-columns:1fr; gap:11px; margin:0 16px 16px; padding:12px; }
+    .opa-monthly-highlight-winner { flex:1 1 100%; }
     .opa-summary-note { margin:0 16px 16px; }
   }
   /* ---------- meta card (anel) ---------- */
