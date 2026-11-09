@@ -29,7 +29,7 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261108-natal-guirlanda-v3">
+<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-arcade-circuit-v2">
 
   <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261108-regional-switch-v1">
 
@@ -248,22 +248,48 @@
       <header class="opa-race-heading">
         <div>
           <span class="opa-race-kicker">🏁 CORRIDA DE ATENDIMENTO</span>
-          <h2>Pista Opa</h2>
-          <p>Uma prévia da equipe na pista. As posições serão exibidas quando os resultados mensais do Opa forem lançados.</p>
+          <h2>Grande Prêmio Opa</h2>
+          <p>A equipe na pista. A classificação e os números aparecem quando os resultados mensais forem lançados.</p>
         </div>
-        <span class="opa-race-status"><i aria-hidden="true"></i> Aguardando resultados</span>
+        <span class="opa-race-status"><i aria-hidden="true"></i><span id="opaRaceStatusText">Temporada em preparação</span></span>
       </header>
-      <div class="opa-race-scene" aria-label="Prévia animada da pista com os karts da equipe">
-        <div class="opa-race-sky" aria-hidden="true"><span>UNI GRAND PRIX</span><b>START</b></div>
-        <div class="opa-race-road" id="opaRaceGrid">
-          <div class="opa-race-empty">Carregando karts da equipe…</div>
+      <div class="opa-race-scene">
+        <div class="opa-race-svg-scroll" tabindex="0" aria-label="Pista animada. Deslize horizontalmente para ver o circuito completo.">
+          <svg class="opa-track-svg" viewBox="0 0 1200 600" role="img" aria-labelledby="opaTrackTitle opaTrackDescription">
+            <title id="opaTrackTitle">Circuito da corrida de atendimento</title>
+            <desc id="opaTrackDescription">Karts personalizados percorrem um circuito oval. A posição visual é ilustrativa até os resultados mensais do Opa serem conectados.</desc>
+            <defs>
+              <pattern id="opaGrandstand" width="28" height="20" patternUnits="userSpaceOnUse"><path d="M0 20 14 0 28 20" fill="none" stroke="#34404e" stroke-width="2"/></pattern>
+              <pattern id="opaStartFinish" width="18" height="18" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="#f4f5f7"/><rect x="9" width="9" height="9" fill="#18202a"/><rect y="9" width="9" height="9" fill="#18202a"/><rect x="9" y="9" width="9" height="9" fill="#f4f5f7"/></pattern>
+              <path id="opaRacePath" d="M 250 120 H 950 Q 1080 120 1080 250 V 350 Q 1080 480 950 480 H 250 Q 120 480 120 350 V 250 Q 120 120 250 120 Z"/>
+            </defs>
+            <rect width="1200" height="600" fill="#111821"/>
+            <path d="M74 220h1052v160H74z" fill="url(#opaGrandstand)" opacity=".52"/>
+            <path d="M250 52H950Q1145 52 1145 247V353Q1145 548 950 548H250Q55 548 55 353V247Q55 52 250 52Z" fill="none" stroke="#d8e1eb" stroke-width="4" opacity=".86"/>
+            <path d="M250 188H950Q1012 188 1012 250V350Q1012 412 950 412H250Q188 412 188 350V250Q188 188 250 188Z" fill="none" stroke="#d8e1eb" stroke-width="4" opacity=".86"/>
+            <use href="#opaRacePath" fill="none" stroke="#080c11" stroke-width="166"/>
+            <use href="#opaRacePath" fill="none" stroke="#252d37" stroke-width="150"/>
+            <use href="#opaRacePath" fill="none" stroke="#596575" stroke-width="2" stroke-dasharray="3 16" opacity=".62"/>
+            <path d="M600 52v136" stroke="url(#opaStartFinish)" stroke-width="25"/>
+            <g class="opa-track-infield" aria-hidden="true">
+              <rect x="390" y="269" width="420" height="62" rx="10" fill="#172534" stroke="rgba(255,255,255,.12)"/>
+              <text x="600" y="294" text-anchor="middle" class="opa-track-brand">UNI INTERNET</text>
+              <text x="600" y="319" text-anchor="middle" class="opa-track-subbrand">CORRIDA DE ATENDIMENTO</text>
+            </g>
+            <g class="opa-track-lights" aria-hidden="true"><circle cx="560" cy="226" r="9"/><circle cx="585" cy="226" r="9"/><circle cx="610" cy="226" r="9"/><circle cx="635" cy="226" r="9"/></g>
+            <g id="opaRaceKarts"></g>
+            <g class="opa-track-markers" aria-hidden="true"><text x="610" y="78">LARGADA</text><text x="600" y="525" text-anchor="middle">CIRCUITO UNI · OPA</text></g>
+          </svg>
         </div>
-        <div class="opa-race-stand" aria-hidden="true"><span>OPA</span><span>🏁</span><span>OPA</span></div>
       </div>
       <footer class="opa-race-footer">
-        <span class="opa-race-legend"><i aria-hidden="true"></i> Grid visual, sem classificação</span>
-        <span id="opaRaceTeamCount">— colaboradores</span>
+        <span class="opa-race-legend"><i aria-hidden="true"></i> Circuito animado · posições ainda não classificadas</span>
+        <span id="opaRaceTeamCount">Carregando equipe…</span>
       </footer>
+      <section class="opa-race-roster" aria-labelledby="opaRosterTitle">
+        <div class="opa-race-roster-head"><div><span class="opa-race-kicker">BOX DA EQUIPE</span><h3 id="opaRosterTitle">Pilotos da temporada</h3></div><span>Toque em um piloto para abrir o resumo</span></div>
+        <div class="opa-race-leaderboard" id="opaRaceLeaderboard"><p class="opa-race-empty">Carregando equipe…</p></div>
+      </section>
     </section>
   </main>
 
@@ -353,7 +379,7 @@
 </div>
 
 <script src="assets/js/config-data.js?v=20261109-kart-assets-v1"></script>
-  <script src="assets/js/dashboard.js?v=20261109-opa-race-preview-v1"></script>
+  <script src="assets/js/dashboard.js?v=20261109-opa-arcade-circuit-v2"></script>
   <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>

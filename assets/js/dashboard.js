@@ -2539,12 +2539,13 @@ function renderResumoMetasEquipe(d) {
   card.hidden = false;
 }
 
-// Prévia visual da pista Opa. O grid é intencionalmente alfabético e não
-// representa posições: a classificação só será exibida quando houver dados Opa.
+// Pista arcade Opa. Até a origem dos resultados mensais existir, os karts
+// percorrem o circuito em ritmo igual e a lista não inventa colocação.
 function renderPistaOpa(participantes = []) {
-  const grid = document.getElementById('opaRaceGrid');
+  const pista = document.getElementById('opaRaceKarts');
+  const lista = document.getElementById('opaRaceLeaderboard');
   const total = document.getElementById('opaRaceTeamCount');
-  if (!grid) return;
+  if (!pista || !lista) return;
 
   const unicos = new Map();
   participantes.forEach(pessoa => {
@@ -2555,32 +2556,75 @@ function renderPistaOpa(participantes = []) {
     String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' })
   );
 
-  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'colaborador' : 'colaboradores'}`;
+  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'piloto' : 'pilotos'} no circuito`;
   if (!equipe.length) {
-    grid.innerHTML = '<div class="opa-race-empty">Os karts da equipe aparecerão aqui quando o ranking carregar.</div>';
+    pista.replaceChildren();
+    lista.innerHTML = '<p class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</p>';
     return;
   }
 
-  grid.innerHTML = equipe.map((pessoa, index) => {
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  pista.innerHTML = equipe.map((pessoa, index) => {
     const asset = kartDoColaborador(pessoa);
     const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
     const nome = pessoa.nome || perfil.nome || 'Colaborador';
     const foto = pessoa.foto_url || perfil.foto || '';
     const { x, y, size } = asset.portrait;
-    const left = `${(x - size / 2) * 100}%`;
-    const top = `${(y - size / 2) * 100}%`;
+    const cx = ((x - .5) * 144).toFixed(1);
+    const cy = ((y - .5) * 144).toFixed(1);
+    const radius = (size * 144 / 2).toFixed(1);
+    const diameter = (radius * 2).toFixed(1);
     const nomeSeguro = escapeHtmlText(nome);
+    const clipId = `opa-pilot-face-${index}`;
+    const driverPhoto = foto
+      ? `<image href="${escapeHtmlText(foto)}" x="${(Number(cx) - Number(radius)).toFixed(1)}" y="${(Number(cy) - Number(radius)).toFixed(1)}" width="${diameter}" height="${diameter}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>`
+      : `<text x="${cx}" y="${(Number(cy) + 5).toFixed(1)}" text-anchor="middle" class="opa-kart-initial">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</text>`;
+    const motion = reducedMotion
+      ? `transform="translate(${160 + (index % 6) * 165} ${index < 6 ? 120 : 480})"`
+      : '';
+    const animate = reducedMotion
+      ? ''
+      : `<animateMotion dur="42s" begin="-${(index * 42 / Math.max(equipe.length, 1)).toFixed(2)}s" rotate="auto" repeatCount="indefinite"><mpath href="#opaRacePath"/></animateMotion>`;
+    return `<g class="opa-track-kart" ${motion}>
+      <title>${nomeSeguro} · kart ${asset.id}</title>
+      <defs><clipPath id="${clipId}"><circle cx="${cx}" cy="${cy}" r="${radius}"/></clipPath></defs>
+      <image class="opa-kart-art" href="${asset.src}" x="-72" y="-72" width="144" height="144" preserveAspectRatio="xMidYMid meet"/>
+      <circle cx="${cx}" cy="${cy}" r="${radius}" class="opa-kart-face-ring"/>
+      ${driverPhoto.replace('<image ', '<image class="opa-kart-face" ')}
+      ${animate}
+    </g>`;
+  }).join('');
+
+  lista.innerHTML = equipe.map((pessoa, index) => {
+    const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
+    const nome = escapeHtmlText(pessoa.nome || perfil.nome || 'Colaborador');
+    const foto = pessoa.foto_url || perfil.foto || '';
     const fotoHTML = foto
       ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
       : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
-    return `<div class="opa-race-lane" style="--kart-delay:${(index % 6) * -0.22}s;--kart-left:${(index % 5) * 4}%">
-      <div class="opa-kart-wrap" title="Kart de ${nomeSeguro}">
-        <img class="opa-kart-sprite" src="${asset.src}" alt="" loading="lazy" draggable="false">
-        <span class="opa-kart-photo" style="--photo-left:${left};--photo-top:${top};--photo-size:${size * 100}%">${fotoHTML}</span>
-      </div>
-      <span class="opa-race-name">${nomeSeguro}</span>
-    </div>`;
+    return `<article class="opa-pilot-entry">
+      <button type="button" class="opa-pilot-summary" aria-expanded="false" aria-controls="opa-pilot-details-${index}">
+        <span class="opa-pilot-avatar">${fotoHTML}</span>
+        <span class="opa-pilot-name">${nome}</span>
+        <span class="opa-pilot-state">Dados do mês pendentes</span>
+        <span class="opa-pilot-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="opa-pilot-details" id="opa-pilot-details-${index}" hidden>Os atendimentos iniciados, encerrados e transferidos serão mostrados aqui após o lançamento mensal do Opa.</div>
+    </article>`;
   }).join('');
+
+  if (!lista.dataset.bound) {
+    lista.addEventListener('click', event => {
+      const button = event.target.closest('.opa-pilot-summary');
+      if (!button) return;
+      const details = document.getElementById(button.getAttribute('aria-controls'));
+      if (!details) return;
+      const expanded = button.getAttribute('aria-expanded') === 'true';
+      button.setAttribute('aria-expanded', String(!expanded));
+      details.hidden = expanded;
+    });
+    lista.dataset.bound = 'true';
+  }
 }
 
 function renderAll(cache) {
