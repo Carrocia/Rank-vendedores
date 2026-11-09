@@ -20,7 +20,7 @@
   } catch (_) {}
 </script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2321d9ff'/%3E%3Cstop offset='1' stop-color='%237c5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='800' text-anchor='middle' fill='%23060810'%3EU%3C/text%3E%3C/svg%3E">
-<script src="assets/js/bootstrap.js?v=20261020-motion-performance-1"></script>
+<script src="assets/js/bootstrap.js?v=20261108-natal-guirlanda-v3"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -29,9 +29,9 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261027-ranking-sem-volume-individual-v1">
+<link rel="stylesheet" href="assets/css/site.css?v=20261108-natal-guirlanda-v3">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261104-renovacoes-meta-compartilhada-v1">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261108-regional-switch-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -105,17 +105,17 @@
         <div class="header-copy">
           <span class="season-badge" id="seasonBadge" hidden></span>
           <h1><span class="header-title-main">Ranking de Vendas</span><span class="header-title-filial">— <span id="filial-atual-nome">Alta Floresta D'Oeste</span></span></h1>
-          <p id="rankingIntro">Acompanhe o ritmo da equipe, as lideranças por categoria e o avanço da filial.</p>
+          <p id="rankingIntro">Acompanhe o resultado do mês, o avanço da meta da filial e as lideranças da equipe.</p>
         </div>
       </div>
       <div class="header-kpis">
         <div class="header-kpi">
-          <span class="header-kpi-label" id="kpiPeriodoLabel">Vendas na semana</span>
+          <span class="header-kpi-label" id="kpiPeriodoLabel">Vendas no mês</span>
           <span class="header-kpi-value" id="kpiSemana">—</span>
         </div>
         <div class="header-kpi-divider"></div>
         <div class="header-kpi">
-          <span class="header-kpi-label" id="kpiMetaLabel">Meta mensal</span>
+          <span class="header-kpi-label" id="kpiMetaLabel">Progresso da meta</span>
           <span class="header-kpi-value" id="kpiMensal">—</span>
         </div>
         <div class="header-kpi-divider"></div>
@@ -135,11 +135,21 @@
     <button type="button" class="filial-link-copy" onclick="copiarLinkFilial()" aria-label="Copiar link desta filial" title="Copiar link desta filial"><span aria-hidden="true">⧉</span></button>
   </div>
 
+  <nav class="public-section-nav" aria-label="Atalhos do painel público">
+    <a href="#metaCardSection">Resultado do mês</a>
+    <a href="#publicRanking">Equipe e ranking</a>
+    <a href="#publicRenovacoes">Renovações e cancelamentos</a>
+    <a href="#muralSection">Destaques</a>
+    <a href="#publicEvolution">Evolução</a>
+    <a href="#publicPlanSales">Vendas por plano</a>
+    <a href="#publicConquistas">Conquistas</a>
+  </nav>
+
   <!-- ===== ABAS NO TOPO ===== -->
-  <div class="tabs-row">
+  <div class="tabs-row" id="publicRanking">
     <div class="tab-bar anim-in" role="tablist">
-      <button type="button" class="tab-button active" data-tab="semanal" role="tab" aria-selected="true">📅 Ranking Semanal</button>
-      <button type="button" class="tab-button" data-tab="mensal" role="tab" aria-selected="false">📆 Ranking Mensal</button>
+      <button type="button" class="tab-button" data-tab="semanal" role="tab" aria-selected="false">📅 Ranking Semanal</button>
+      <button type="button" class="tab-button active" data-tab="mensal" role="tab" aria-selected="true">📆 Ranking Mensal</button>
     </div>
     <button type="button" class="celebrate-btn anim-in" id="celebrateBtn" style="display:none">🎉 Anunciar Destaque</button>
   </div>
@@ -147,7 +157,7 @@
   <!-- ===== CARD DE META (muda conforme a aba ativa) ===== -->
   <!-- CARD ÚNICO — os dados mudam via JS ao trocar de aba -->
   <section class="podium-section" id="metaCardSection">
-    <h2 id="metaCardTitle">Meta da Semana</h2>
+    <h2 id="metaCardTitle">Meta do Mês</h2>
     <div class="week-progress-card anim-in" id="metaCardUnico">
       <div class="week-ring-wrap" id="metaRingWrap">
         <div class="week-ring-content">
@@ -156,14 +166,18 @@
         </div>
       </div>
       <div class="week-col week-col-main">
-        <span class="week-col-title" id="metaColTitle">Progresso da semana</span>
+        <span class="week-col-title" id="metaColTitle">Progresso do mês</span>
         <div class="week-main-numbers">
           <span class="week-atual" id="weekAtual">0</span>
           <span class="week-sep">/ <span id="weekMeta">0</span></span>
         </div>
-        <span class="week-sub-label" id="metaSubLabel">vendas realizadas / meta da semana</span>
+        <span class="week-sub-label" id="metaSubLabel">vendas realizadas / meta do mês</span>
         <div class="week-bar-track"><div class="week-bar-fill" id="weekBarFill"></div></div>
         <span class="week-bar-caption" id="weekBarMetaCaption">Meta: 25 vendas</span>
+        <div class="meta-pace" id="metaPace" hidden aria-live="polite">
+          <span class="meta-pace-status" id="metaPaceStatus"></span>
+          <span class="meta-pace-copy" id="metaPaceCopy"></span>
+        </div>
       </div>
       <div class="week-col week-col-side">
         <span class="week-date" id="weekDataLabel">—</span>
@@ -173,7 +187,7 @@
         </div>
         <div class="week-side-block">
           <span class="week-side-value-pct" id="weekBarPct">0% concluído</span>
-          <span class="week-side-label" id="metaPctLabel">Seu desempenho semanal</span>
+          <span class="week-side-label" id="metaPctLabel">Progresso da meta mensal</span>
         </div>
         <div class="week-side-block" id="metaSideBlock3">
           <span class="week-side-label">📈 Média diária: <strong id="weekMedia">0</strong> vendas</span>
@@ -182,7 +196,7 @@
     </div>
   </section>
 
-  <main class="ranking-panel anim-in" data-tab-panel="semanal">
+  <main class="ranking-panel hidden" data-tab-panel="semanal">
     <div class="podium-cols">
     <section class="podium-section">
       <h2>🏆 Ranking Vendedores Externos (Semana)</h2>
@@ -203,7 +217,7 @@
     </section>
   </main>
 
-  <main class="ranking-panel hidden" data-tab-panel="mensal">
+  <main class="ranking-panel anim-in" data-tab-panel="mensal">
     <div class="podium-cols">
     <section class="podium-section">
       <h2>🏆 Ranking Vendedores Externos (Mês)</h2>
@@ -215,6 +229,10 @@
       <div class="podium podium-3" id="podium-mensal-interno"></div>
     </section>
     </div>
+    <section class="monthly-team-pulse" id="monthlyTeamPulse" hidden aria-label="Progresso coletivo das metas individuais">
+      <div class="monthly-team-pulse-copy"><span class="team-pulse-kicker">CONQUISTA DA EQUIPE</span><strong id="monthlyTeamPulseTitle">Metas individuais do mês</strong><span id="monthlyTeamPulseText">—</span></div>
+      <div class="monthly-team-pulse-track" role="progressbar" aria-label="Vendedores que alcançaram uma meta individual" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="monthlyTeamPulseBar"></span></div>
+    </section>
     <div class="ranking-full-controls">
       <button type="button" class="ranking-full-toggle" data-ranking-toggle="mensal" aria-expanded="false" aria-controls="ranking-lista-mensal" hidden>👥 Ver classificação completa</button>
     </div>
@@ -271,7 +289,8 @@
 
   <!-- ===== CONQUISTAS RECENTES ===== -->
   <section class="podium-section" id="publicConquistas">
-    <h2>🏆 Conquistas do mês e campeões de meses fechados · todas as filiais</h2>
+    <h2>🏆 Metas batidas e conquistas</h2>
+    <p class="public-section-lead">Veja quem alcançou metas neste mês e os destaques dos meses já encerrados, em todas as filiais.</p>
     <div class="conquistas-grid" id="conquistasGrid"></div>
   </section>
 
@@ -309,9 +328,15 @@
 </div>
 
 <script src="assets/js/config-data.js"></script>
-  <script src="assets/js/dashboard.js?v=20261104-ranking-vendas-semanais-v1"></script>
-  <script src="assets/js/supabase-admin.js?v=20261109-gestao-vendedores-regional-v1"></script>
-  <script src="assets/js/ixc-import.js?v=20261106-ixc-import-review-3"></script>
+  <script src="assets/js/dashboard.js?v=20261108-seasonal-theme-v2"></script>
+  <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
+  <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
+  <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>
+  <script src="assets/js/admin-analytics.js?v=20261108-month-picker-v1"></script>
+  <script src="assets/js/admin-operations.js?v=20261108-pending-counts-v1"></script>
+  <script src="assets/js/admin-celebrations.js?v=20261108-month-picker-v1"></script>
+  <script src="assets/js/admin-goals.js?v=20261108-login-autofill-v2"></script>
+  <script src="assets/js/ixc-import.js?v=20261108-ixc-review-no-null-id-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
      ═══════════════════════════════════════════════════════════════ -->
@@ -327,17 +352,19 @@
       <h2>Painel Administrativo</h2>
       <span>UNI Internet — Filial <span id="filial-atual-admin-nome">Alta Floresta D'Oeste</span></span>
     </div>
-    <div class="adm-field">
-      <label>E-mail</label>
-      <input type="email" id="adm-email" placeholder="admin@uniinternet.com.br" autocomplete="email">
-    </div>
-    <div class="adm-field">
-      <label>Senha</label>
-      <input type="password" id="adm-password" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <div class="adm-error" id="adm-login-error">E-mail ou senha incorretos.</div>
-    <button class="adm-btn adm-btn-primary" id="adm-login-btn">Entrar</button>
-    <button class="adm-btn adm-btn-secondary" id="adm-login-back">Voltar</button>
+    <form id="adm-login-form" autocomplete="on">
+      <div class="adm-field">
+        <label for="adm-email">E-mail</label>
+        <input type="email" id="adm-email" name="username" placeholder="seu@email.com" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </div>
+      <div class="adm-field">
+        <label for="adm-password">Senha</label>
+        <input type="password" id="adm-password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <div class="adm-error" id="adm-login-error">E-mail ou senha incorretos.</div>
+      <button type="submit" class="adm-btn adm-btn-primary" id="adm-login-btn">Entrar</button>
+      <button type="button" class="adm-btn adm-btn-secondary" id="adm-login-back">Voltar</button>
+    </form>
   </div>
 </div>
 
@@ -353,6 +380,10 @@
         <div class="adm-panel-kicker">Painel Administrativo</div>
         <div class="adm-panel-title">UNI Internet — <span id="filial-atual-admin-titulo">Alta Floresta D'Oeste</span></div>
       </div>
+      <label class="adm-region-switch" id="adm-region-switch-wrap" for="adm-region-switch" hidden>
+        <span>Regional ativa</span>
+        <select id="adm-region-switch" aria-label="Trocar regional no painel administrativo"></select>
+      </label>
       <div class="adm-panel-user" id="adm-user-info"><span class="skeleton-bar"></span></div>
     </div>
 
@@ -1371,12 +1402,13 @@
               <div><span class="adm-card-eyebrow">EQUIPE INTERNA · META COMPARTILHADA</span><h2>Metas de renovação — <span id="cfg-renov-periodo">mês/ano atual</span></h2></div>
             </div>
             <p class="adm-description">Defina as metas uma vez. M3, M2 e M1 serão aplicadas igualmente a todos os vendedores internos desta filial.</p>
+            <div class="adm-field" style="max-width:320px;margin:0 0 14px"><label for="cfg-renov-mes">Mês das metas de renovação</label><input type="month" id="cfg-renov-mes" min="2026-10" aria-label="Mês das metas de renovação" onchange="carregarMetasRenovacaoPeriodoSelecionado()"></div>
             <div class="adm-form-grid cfg-renov-meta-grid">
               <div class="adm-field"><label for="cfg-renov-m3">M3 · Base</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label for="cfg-renov-m2">M2 · Intermediária</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label for="cfg-renov-m1">M1 · Avançada</label><input type="number" id="cfg-renov-m1" min="0" step="1" placeholder="Não configurado"></div>
             </div>
-            <div class="adm-form-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Aplicar metas à equipe interna</button></div>
+            <div class="adm-form-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-renov-salvar" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Aplicar metas ao mês selecionado</button></div>
           </div>
         </section>
 
@@ -1607,8 +1639,16 @@
         <section class="adm-section" id="sec-config-metas">
           <div class="adm-section-title"><span class="adm-title-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-settings"/></svg></span>Configuração de Metas</div>
           <p class="adm-page-lead">Configure metas da filial, metas padrão para cada tipo de vendedor e limites de cancelamento.</p>
+          <nav class="cfg-flow-nav" aria-label="Etapas da configuração de metas">
+            <a href="#cfg-periodo"><span>1</span> Período</a><a href="#cfg-filial"><span>2</span> Metas da filial</a><a href="#cfg-equipe"><span>3</span> Metas da equipe</a><a href="#cfg-cancelamentos"><span>4</span> Cancelamentos</a>
+          </nav>
+          <div class="cfg-period-card" id="cfg-periodo">
+            <div class="cfg-period-copy"><span class="cfg-step-kicker">ETAPA 1 · PERÍODO</span><strong>Escolha o mês que deseja configurar</strong><small>O período vale para as metas da filial e para as metas padrão dos vendedores.</small></div>
+            <div class="adm-field"><label for="cfg-vendas-mes">Mês das metas de vendas</label><input type="month" id="cfg-vendas-mes" min="2026-10" aria-label="Mês das metas de vendas" onchange="carregarMetasVendasPeriodoSelecionado()"></div>
+          </div>
 
-          <div class="adm-form-card">
+          <div class="adm-form-card cfg-flow-card" id="cfg-filial">
+            <span class="cfg-step-kicker">ETAPA 2 · FILIAL</span>
             <div class="adm-section-title adm-subsection-title">Meta da Filial — <span id="cfg-fil-periodo">mês/ano atual</span></div>
             <div class="cfg-filial-target-groups">
               <div class="cfg-filial-target-group">
@@ -1630,9 +1670,10 @@
             </div>
           </div>
 
-          <div class="adm-form-card">
+          <div class="adm-form-card cfg-flow-card" id="cfg-equipe">
+            <span class="cfg-step-kicker">ETAPA 3 · EQUIPE</span>
             <div class="adm-section-title adm-subsection-title">Metas padrão por tipo — <span id="cfg-ind-periodo">mês/ano atual</span></div>
-            <p class="adm-muted-copy cfg-meta-type-intro">Informe cada meta uma vez. Ao salvar, o sistema aplica os valores a todos os vendedores daquele tipo nesta filial e neste período.</p>
+            <p class="adm-muted-copy cfg-meta-type-intro">Informe cada meta uma vez. Ao salvar, o sistema aplica os valores a todos os vendedores daquele tipo nesta filial e no mês selecionado.</p>
             <div class="cfg-meta-type-grid">
               <section class="cfg-meta-type-card is-interno" aria-labelledby="cfg-meta-interno-title">
                 <div class="cfg-meta-type-heading"><div><span class="cfg-meta-type-kicker">Equipe interna</span><h3 id="cfg-meta-interno-title">Vendedores internos</h3></div><span class="cfg-meta-type-count"><strong id="cfg-meta-interno-count">—</strong> pessoas</span></div>
@@ -1650,9 +1691,14 @@
               </section>
             </div>
             <p class="adm-callout cfg-meta-type-note"><strong>Ao salvar, a meta padrão substitui os valores anteriores</strong> de todos os vendedores daquele tipo. As metas de renovação são compartilhadas pela equipe interna na seção Renovações.</p>
+            <div class="adm-form-actions cfg-save-metas-actions">
+              <span class="adm-muted-copy">Salva as metas da filial e da equipe para o período selecionado.</span>
+              <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-vendas-salvar" onclick="handleSalvarMetas()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas do período</button>
+            </div>
           </div>
 
-          <div class="adm-form-card">
+          <div class="adm-form-card cfg-flow-card cfg-cancel-card" id="cfg-cancelamentos">
+            <span class="cfg-step-kicker">ETAPA 4 · CANCELAMENTOS</span>
             <div class="adm-section-title adm-subsection-title"><span class="adm-title-icon is-warning"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-warning"/></svg></span>Cancelamentos — <span id="cfg-cancel-periodo">mês/ano atual</span></div>
             <p class="adm-muted-copy">Selecione o mês do registro. Você pode lançar ou corrigir os cancelamentos de um mês anterior antes de consolidá-lo.</p>
             <div class="adm-field" style="max-width:320px;margin-bottom:16px"><label for="cfg-cancel-mes">Mês do registro</label><input type="month" id="cfg-cancel-mes" min="2026-10" aria-label="Mês do registro de cancelamentos" onchange="carregarCancelamentosPeriodoSelecionado()"></div>
@@ -1663,10 +1709,6 @@
               <div class="adm-field"><label>Total de cancelamentos no mês</label><input type="number" id="cfg-cancel-atual" min="0" step="1" placeholder="0"></div>
             </div>
             <div class="adm-form-actions" style="margin-top:14px"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-cancel-salvar" onclick="handleSalvarCancelamentos()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar cancelamentos deste mês</button></div>
-          </div>
-
-          <div class="adm-form-full adm-form-actions">
-            <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" onclick="handleSalvarMetas()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas</button>
           </div>
         </section>
 

@@ -938,6 +938,16 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
   if (!window.ADMIN_AUTENTICADO || !window._supabase) return;
   const backdrop = document.getElementById('ixc-edit-backdrop');
   try {
+    // A tela de revisão do relatório não edita adicionais. Ela é aberta com
+    // vendaId=null, e consultar .eq('venda_id', null) tenta comparar um bigint
+    // com o texto "null" no PostgREST, causando o erro visto pelo usuário.
+    const adicionaisResultPromise = revisaoImportacao
+      ? Promise.resolve({ data: [], error: null })
+      : Number.isInteger(Number(vendaId)) && Number(vendaId) > 0
+        ? window._supabase.from('venda_adicionais')
+          .select('produto_adicional_id, quantidade, valor_unitario, produtos_adicionais(nome)')
+          .eq('venda_id', Number(vendaId)).order('id')
+        : Promise.resolve({ data: [], error: null });
     const [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult] = await Promise.all([
       revisaoImportacao?.venda_id
         ? window._supabase.from('vendas_admin').select('*').eq('id', revisaoImportacao.venda_id).maybeSingle()
@@ -946,7 +956,7 @@ async function abrirEdicaoVendaIxc(pendenciaId, vendaId, contratoSugerido = '', 
       window._supabase.from('vendedores').select('id, nome, filial_id, ativo').order('nome'),
       window._supabase.from('planos').select('*').order('nome'),
       window._supabase.from('produtos_adicionais').select('*').order('nome'),
-      window._supabase.from('venda_adicionais').select('produto_adicional_id, quantidade, valor_unitario, produtos_adicionais(nome)').eq('venda_id', vendaId).order('id'),
+      adicionaisResultPromise,
     ]);
     for (const result of [vendaResult, filiaisResult, vendedoresResult, planosResult, produtosResult, adicionaisResult]) {
       if (result.error) throw result.error;
@@ -1083,11 +1093,15 @@ async function salvarEdicaoVendaIxc(vincular) {
     await carregarRevisoesImportacaoIxc();
   } catch (error) {
     console.error('[salvarEdicaoVendaIxc]', error);
-    const mensagem = error.code === 'PGRST202'
-      ? 'O Supabase não encontrou a função no cache da API. Execute o arquivo supabase/editar-venda-pendente-ixc.sql por completo no projeto correto e atualize a página.'
-      : error.code === '42501'
-        ? 'O banco negou a permissão para editar esta venda. Confirme que você está autenticado como administrador e execute o GRANT do arquivo supabase/editar-venda-pendente-ixc.sql.'
-        : error.message || 'Não foi possível salvar as correções da venda.';
+    const mensagemBanco = String(error.message || '');
+    const erroBigintNulo = /invalid input syntax for type bigint:\s*"null"/i.test(mensagemBanco);
+    const mensagem = erroBigintNulo
+      ? 'O Supabase está executando uma versão antiga da função de importação. Execute novamente supabase/revisao-importacao-vendas-ixc.sql e supabase/revisao-valor-planos-ixc.sql no projeto correto; depois recarregue a página.'
+      : error.code === 'PGRST202'
+        ? 'O Supabase não encontrou a função no cache da API. Execute o arquivo supabase/editar-venda-pendente-ixc.sql por completo no projeto correto e atualize a página.'
+        : error.code === '42501'
+          ? 'O banco negou a permissão para editar esta venda. Confirme que você está autenticado como administrador e execute o GRANT do arquivo SQL da função correspondente.'
+          : mensagemBanco || 'Não foi possível salvar as correções da venda.';
     showToast(mensagem, 'error');
   } finally {
     botoes.forEach(botao => { botao.disabled = false; });
@@ -1362,7 +1376,9 @@ async function confirmarImportacaoIxc() {
           linha.erro = 'Contrato já cadastrado';
           duplicadas++;
         } else {
-          linha.erro = linha.podeImportarComRevisao && error.code === 'PGRST202'
+          linha.erro = /invalid input syntax for type bigint:\s*"null"/i.test(error.message || '')
+            ? 'A função SQL de importação ainda converte "null" em bigint. Execute novamente supabase/revisao-valor-planos-ixc.sql e supabase/revisao-importacao-vendas-ixc.sql.'
+            : linha.podeImportarComRevisao && error.code === 'PGRST202'
             ? 'Ative a revisão sem vínculo: execute supabase/revisao-importacao-vendas-ixc.sql no SQL Editor.'
             : linha.requerRevisaoValor && error.code === 'PGRST202'
               ? 'Ative a função de importação especial: execute supabase/revisao-valor-planos-ixc.sql no SQL Editor.'

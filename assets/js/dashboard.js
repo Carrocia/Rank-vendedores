@@ -4,21 +4,20 @@ function escapeHtmlText(value) {
   })[char]);
 }
 
-// Calcula apenas o selo da meta mensal atingida:
-// metas M1/M2/M3 cadastradas para internos e faixa fixa de 14 vendas
-// para M2 dos externos (M1 começa acima desse marco).
+// Calcula os selos mensais conquistados. O podium mantém um selo de maior
+// nível; a classificação completa pode mostrar cada marco já alcançado.
 function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesPorId) {
-  const vazio = { badgeTier: null };
+  const vazio = { badgeTier: null, achievedTiers: [] };
   const linha = (metasIndividuais || []).find(m => String(m.vendedor_id) === String(vendedorId));
   const vendasMes = Number(vendasMesPorId[vendedorId] || 0);
 
   if (tipo === 'externo') {
+    const achievedTiers = [];
+    if (vendasMes >= META_M2_EXTERNO_VENDAS) achievedTiers.push({ tier: 'm2', label: 'M2' });
+    if (vendasMes > META_M2_EXTERNO_VENDAS) achievedTiers.push({ tier: 'm1', label: 'M1' });
     return {
-      badgeTier: vendasMes > META_M2_EXTERNO_VENDAS
-        ? { tier: 'm1', label: 'M1' }
-        : vendasMes >= META_M2_EXTERNO_VENDAS
-          ? { tier: 'm2', label: 'M2' }
-          : null,
+      badgeTier: achievedTiers[achievedTiers.length - 1] || null,
+      achievedTiers,
     };
   }
   if (!linha) return vazio;
@@ -29,16 +28,16 @@ function calcularTiersIndividuais(vendedorId, tipo, metasIndividuais, vendasMesP
       { tier: 'm2', label: 'M2', meta: linha.meta_m2 },
       { tier: 'm1', label: 'M1', meta: linha.meta_m1 },
     ].map(t => ({ ...t, meta: Number(t.meta) }))
-      .filter(t => Number.isFinite(t.meta) && t.meta > 0)
-      .sort((a, b) => a.meta - b.meta); // metas válidas em ordem de alcance
+      .filter(t => Number.isFinite(t.meta) && t.meta > 0);
     if (!tiers.length) return vazio;
 
+    const achievedTiers = tiers.filter(t => vendasMes >= t.meta);
     let badgeTier = null;
-    tiers.forEach(t => {
+    [...tiers].sort((a, b) => a.meta - b.meta).forEach(t => {
       if (vendasMes >= t.meta) badgeTier = t;             // meta batida de verdade (100%)
     });
 
-    return { badgeTier };
+    return { badgeTier, achievedTiers };
   }
 
   return vazio;
@@ -128,9 +127,12 @@ function renderPodium(containerId, entries, options = {}) {
     const base = stand.querySelector('.podium-base');
     setTimeout(() => {
       base.style.height = base.dataset.finalHeight + 'px';
+      base.style.transform = 'scaleY(1)';
     }, reduceMotion ? 0 : delayByRank[rank] || 0);
   });
 }
+
+let _rankingPerformanceCardsBound = false;
 
 function renderListaClassificacao(containerId, entries, mode, options = {}) {
   const lista = document.getElementById(containerId);
@@ -145,41 +147,189 @@ function renderListaClassificacao(containerId, entries, mode, options = {}) {
     const posicao = document.createElement('span');
     posicao.className = 'ranking-full-position';
     posicao.textContent = `${index + 1}º`;
-    const identidade = document.createElement('span');
+    const identidade = document.createElement('div');
     identidade.className = 'ranking-full-person';
-    const nome = document.createElement('span');
+    const nome = document.createElement(mode === 'mensal' ? 'button' : 'span');
     nome.className = 'ranking-full-name';
     nome.textContent = vendedor.nome || 'Vendedor';
+    if (mode === 'mensal') {
+      nome.type = 'button';
+      nome.setAttribute('aria-expanded', 'false');
+      nome.setAttribute('aria-label', `Ver desempenho mensal de ${vendedor.nome || 'Vendedor'}`);
+      nome.setAttribute('aria-controls', `${containerId}-desempenho-${index}`);
+    }
     identidade.appendChild(nome);
 
-    // Os selos representam metas mensais; a lista semanal mantém contexto só da semana.
+    // Os selos mostram conquistas sem expor quantidades individuais; a lista semanal mantém contexto só da semana.
     if (mode === 'mensal' && (vendedor.tipo === 'interno' || vendedor.tipo === 'externo')) {
       const metas = options.metasIndividuais || [];
       const metaVendedor = metas.find(m => String(m.vendedor_id) === String(vendedor.id));
-      const tier = calcularTiersIndividuais(
+      const vendasMes = Number(options.vendasMesPorId?.[vendedor.id] ?? vendedor.vendas ?? 0);
+      const tiers = calcularTiersIndividuais(
         vendedor.id,
         vendedor.tipo,
         metas,
         options.vendasMesPorId || {}
-      ).badgeTier;
-      const metaM3 = Number(metaVendedor?.meta_m3);
+      );
       const metaBaseConfigurada = vendedor.tipo === 'externo'
         ? true
-        : Number.isFinite(metaM3) && metaM3 > 0;
-      const seloTier = tier || (metaBaseConfigurada
-        ? { tier: 'naoAtingida', label: 'Meta não atingida' }
-        : null);
-      const assetSelo = seloTier && LIST_TIER_ASSETS[seloTier.tier];
-      if (assetSelo) {
-        const selo = document.createElement('img');
-        selo.className = 'ranking-full-tier-badge';
-        selo.src = assetSelo;
-        selo.alt = seloTier.tier === 'naoAtingida'
-          ? (vendedor.tipo === 'externo' ? 'Meta M2 ainda não atingida' : 'Meta M3 ainda não atingida')
-          : `Meta ${seloTier.label} atingida`;
-        selo.title = selo.alt;
-        selo.loading = 'lazy';
-        identidade.appendChild(selo);
+        : [metaVendedor?.meta_m3, metaVendedor?.meta_m2, metaVendedor?.meta_m1]
+            .some(meta => Number.isFinite(Number(meta)) && Number(meta) > 0);
+      const selos = tiers.achievedTiers.length
+        ? tiers.achievedTiers
+        : (metaBaseConfigurada ? [{ tier: 'naoAtingida', label: vendedor.tipo === 'externo' ? 'M2' : 'M3' }] : []);
+      if (selos.length) {
+        const grupoSelos = document.createElement('span');
+        grupoSelos.className = 'ranking-full-badges';
+        grupoSelos.setAttribute('aria-label', 'Selos das metas individuais');
+        selos.forEach(seloTier => {
+          const selo = document.createElement('img');
+          selo.className = 'ranking-full-tier-badge';
+          selo.src = LIST_TIER_ASSETS[seloTier.tier];
+          selo.alt = seloTier.tier === 'naoAtingida'
+            ? `Meta ${seloTier.label} ainda não atingida`
+            : `Meta ${seloTier.label} atingida`;
+          selo.title = selo.alt;
+          selo.loading = 'lazy';
+          grupoSelos.appendChild(selo);
+        });
+        identidade.appendChild(grupoSelos);
+      }
+
+      const metasVendedor = vendedor.tipo === 'interno'
+        ? [
+            { tier: 'm3', label: 'M3', meta: Number(metaVendedor?.meta_m3) },
+            { tier: 'm2', label: 'M2', meta: Number(metaVendedor?.meta_m2) },
+            { tier: 'm1', label: 'M1', meta: Number(metaVendedor?.meta_m1) },
+          ].filter(etapa => Number.isFinite(etapa.meta) && etapa.meta > 0).sort((a, b) => a.meta - b.meta)
+        : [{ tier: 'm2', label: 'M2', meta: META_M2_EXTERNO_VENDAS }, { tier: 'm1', label: 'M1', meta: META_M2_EXTERNO_VENDAS + 1 }];
+      const proximaMeta = metasVendedor.find(etapa => vendasMes < etapa.meta);
+      const metaEmExibicao = proximaMeta || metasVendedor[metasVendedor.length - 1];
+      const proximaConquista = document.createElement('span');
+      proximaConquista.className = 'ranking-full-next';
+      const barraProgresso = document.createElement('span');
+      barraProgresso.className = 'ranking-full-progress';
+      barraProgresso.setAttribute('role', 'progressbar');
+      barraProgresso.setAttribute('aria-valuemin', '0');
+      barraProgresso.setAttribute('aria-valuemax', '100');
+      const preenchimentoProgresso = document.createElement('span');
+      preenchimentoProgresso.className = 'ranking-full-progress-fill';
+      barraProgresso.appendChild(preenchimentoProgresso);
+      if (!metaBaseConfigurada && vendedor.tipo === 'interno') {
+        proximaConquista.textContent = 'Metas individuais não configuradas';
+        barraProgresso.hidden = true;
+      } else if (!metaEmExibicao) {
+        proximaConquista.textContent = 'Metas individuais não configuradas';
+        barraProgresso.hidden = true;
+      } else if (!proximaMeta) {
+        proximaConquista.textContent = `100% da meta ${metaEmExibicao.label} · todas as metas atingidas`;
+        proximaConquista.classList.add('is-complete');
+        preenchimentoProgresso.style.width = '100%';
+        barraProgresso.setAttribute('aria-valuenow', '100');
+        barraProgresso.setAttribute('aria-label', 'Todas as metas individuais atingidas');
+      } else {
+        const percentual = Math.min(100, Math.round((vendasMes / metaEmExibicao.meta) * 100));
+        proximaConquista.textContent = `Próxima conquista: ${metaEmExibicao.label} · ${percentual}% da meta`;
+        preenchimentoProgresso.style.width = `${percentual}%`;
+        barraProgresso.setAttribute('aria-valuenow', String(percentual));
+        barraProgresso.setAttribute('aria-label', `${percentual}% da meta ${metaEmExibicao.label}`);
+      }
+      identidade.appendChild(proximaConquista);
+      identidade.appendChild(barraProgresso);
+
+      const cartaoDesempenho = document.createElement('div');
+      cartaoDesempenho.className = 'ranking-performance-card';
+      cartaoDesempenho.id = `${containerId}-desempenho-${index}`;
+      cartaoDesempenho.setAttribute('role', 'group');
+      cartaoDesempenho.setAttribute('aria-label', `Desempenho mensal de ${vendedor.nome || 'Vendedor'}`);
+      cartaoDesempenho.hidden = true;
+      const tituloCartao = document.createElement('strong');
+      tituloCartao.className = 'ranking-performance-title';
+      tituloCartao.textContent = 'Desempenho no mês';
+      cartaoDesempenho.appendChild(tituloCartao);
+
+      const resumoCartao = document.createElement('span');
+      resumoCartao.className = 'ranking-performance-summary';
+      resumoCartao.textContent = !metaBaseConfigurada && vendedor.tipo === 'interno'
+        ? 'As metas individuais ainda não estão configuradas.'
+        : proximaMeta
+          ? `Próxima conquista: ${metaEmExibicao.label} · ${Math.min(100, Math.round((vendasMes / metaEmExibicao.meta) * 100))}% do caminho.`
+          : 'Todas as metas individuais foram conquistadas.';
+      cartaoDesempenho.appendChild(resumoCartao);
+
+      if (tiers.achievedTiers.length) {
+        const conquistas = document.createElement('span');
+        conquistas.className = 'ranking-performance-achievements';
+        conquistas.textContent = `Selos conquistados: ${tiers.achievedTiers.map(tier => tier.label).join(' · ')}`;
+        cartaoDesempenho.appendChild(conquistas);
+      } else if (metaBaseConfigurada) {
+        const primeiraConquista = document.createElement('span');
+        primeiraConquista.className = 'ranking-performance-achievements';
+        primeiraConquista.textContent = 'O primeiro selo está em progresso.';
+        cartaoDesempenho.appendChild(primeiraConquista);
+      }
+
+      const wrapperCartao = document.createElement('div');
+      wrapperCartao.className = 'ranking-person-card-wrap';
+      wrapperCartao.appendChild(nome);
+      wrapperCartao.appendChild(cartaoDesempenho);
+      identidade.insertBefore(wrapperCartao, proximaConquista);
+
+      const alternarCartao = aberto => {
+        wrapperCartao.classList.toggle('is-open', aberto);
+        item.classList.toggle('has-performance-open', aberto);
+        nome.setAttribute('aria-expanded', String(aberto));
+        cartaoDesempenho.hidden = !aberto;
+      };
+      nome.addEventListener('click', event => {
+        event.stopPropagation();
+        const abrir = !wrapperCartao.classList.contains('is-pinned');
+        document.querySelectorAll('.ranking-person-card-wrap.is-pinned').forEach(outro => {
+          outro.classList.remove('is-pinned', 'is-open');
+          outro.closest('.ranking-full-row')?.classList.remove('has-performance-open');
+          const outroBotao = outro.querySelector('.ranking-full-name');
+          const outroCartao = outro.querySelector('.ranking-performance-card');
+          outroBotao?.setAttribute('aria-expanded', 'false');
+          if (outroCartao) outroCartao.hidden = true;
+        });
+        if (abrir) {
+          wrapperCartao.classList.add('is-pinned');
+          alternarCartao(true);
+        } else {
+          wrapperCartao.classList.remove('is-pinned');
+          alternarCartao(false);
+        }
+      });
+      wrapperCartao.addEventListener('mouseenter', () => alternarCartao(true));
+      wrapperCartao.addEventListener('mouseleave', () => {
+        if (!wrapperCartao.classList.contains('is-pinned') && !wrapperCartao.contains(document.activeElement)) alternarCartao(false);
+      });
+      wrapperCartao.addEventListener('focusin', () => alternarCartao(true));
+      wrapperCartao.addEventListener('focusout', event => {
+        if (!wrapperCartao.classList.contains('is-pinned') && !wrapperCartao.contains(event.relatedTarget)) alternarCartao(false);
+      });
+      if (!_rankingPerformanceCardsBound) {
+        _rankingPerformanceCardsBound = true;
+        document.addEventListener('click', event => {
+          if (event.target.closest('.ranking-person-card-wrap')) return;
+          document.querySelectorAll('.ranking-person-card-wrap.is-pinned').forEach(aberto => {
+            aberto.classList.remove('is-pinned', 'is-open');
+            aberto.closest('.ranking-full-row')?.classList.remove('has-performance-open');
+            aberto.querySelector('.ranking-full-name')?.setAttribute('aria-expanded', 'false');
+            const cartao = aberto.querySelector('.ranking-performance-card');
+            if (cartao) cartao.hidden = true;
+          });
+        });
+        document.addEventListener('keydown', event => {
+          if (event.key !== 'Escape') return;
+          document.querySelectorAll('.ranking-person-card-wrap.is-open').forEach(aberto => {
+            aberto.classList.remove('is-pinned', 'is-open');
+            aberto.closest('.ranking-full-row')?.classList.remove('has-performance-open');
+            aberto.querySelector('.ranking-full-name')?.setAttribute('aria-expanded', 'false');
+            const cartao = aberto.querySelector('.ranking-performance-card');
+            if (cartao) cartao.hidden = true;
+          });
+        });
       }
     }
 
@@ -345,8 +495,8 @@ function renderHistorico() {
         ${h.emAndamento ? '<span class="mural-month-status">Em andamento</span>' : ''}
       </div>
       <div class="mural-winners${h.renovacao || h.emAndamento ? '' : ' mural-winners-two'}">
-        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno', quantidade => `${Number(quantidade).toLocaleString('pt-BR')} ${Number(quantidade) === 1 ? 'venda' : 'vendas'}`)}
-        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo', quantidade => `${Number(quantidade).toLocaleString('pt-BR')} ${Number(quantidade) === 1 ? 'venda' : 'vendas'}`)}
+        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno')}
+        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo')}
         ${h.renovacao || h.emAndamento
           ? renderMuralPerson(h.renovacao, 'Destaque em renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
           : ''}
@@ -399,7 +549,7 @@ function popularAdmTema() {
     { id: 'padrao', nome: 'Padrão', sub: 'Visual limpo, sem decoração', icone: '🏢', grad: 'linear-gradient(135deg,#21d9ff,#7c5cff)' },
   ].concat(Object.keys(window.UNI_TEMAS).map(id => {
     const t = window.UNI_TEMAS[id];
-    return { id, nome: t.nome, sub: t.periodo, icone: t.icone, grad: `linear-gradient(135deg,${t.d[0]},${t.d[1]})` };
+    return { id, nome: t.nome, sub: t.periodo, icone: t.icone, grad: `linear-gradient(135deg,${t.d.accent},${t.d.accent2})` };
   }));
   grid.innerHTML = itens.map(it => `
     <button type="button" class="tema-opt${it.id === _temaAdm ? ' selected' : ''}" data-tema="${it.id}" onclick="escolherTemaAdm('${it.id}')">
@@ -515,6 +665,8 @@ function renderWeekProgress(d) {
   const media = (vendas / diasCorridos).toFixed(1).replace('.', ',');
 
   document.getElementById('metaCardTitle').textContent = 'Meta da Semana';
+  const metaPace = document.getElementById('metaPace');
+  if (metaPace) metaPace.hidden = true;
   document.getElementById('metaColTitle').textContent = 'Progresso da semana';
   document.getElementById('metaSubLabel').textContent = 'vendas realizadas / meta da semana';
   document.getElementById('metaPctLabel').textContent = 'Seu desempenho semanal';
@@ -543,6 +695,28 @@ function renderMensalProgress(d) {
   const faltam = progressoMeta ? progressoMeta.faltam : '—';
   const pct = progressoMeta?.percentual || 0;
   const mesNome = mes.mesNome ? (mes.mesNome.charAt(0).toUpperCase() + mes.mesNome.slice(1)) : '—';
+  const metaPace = document.getElementById('metaPace');
+  const paceStatus = document.getElementById('metaPaceStatus');
+  const paceCopy = document.getElementById('metaPaceCopy');
+
+  if (metaPace && paceStatus && paceCopy && progressoMeta) {
+    const dia = Math.max(1, Number(mes.diaAtual) || new Date().getDate());
+    const diasNoMes = Math.max(dia, Number(mes.diasNoMes) || new Date().getDate());
+    const esperado = Math.ceil(metaMensal * Math.min(dia, diasNoMes) / diasNoMes);
+    const diferenca = vendas - esperado;
+    const tolerancia = Math.max(1, Math.ceil(esperado * 0.1));
+    const situacao = diferenca > tolerancia ? 'acima' : diferenca < -tolerancia ? 'atencao' : 'ritmo';
+    metaPace.dataset.status = situacao;
+    paceStatus.textContent = situacao === 'acima' ? 'Acima do ritmo' : situacao === 'atencao' ? 'Atenção ao ritmo' : 'No ritmo esperado';
+    paceCopy.textContent = situacao === 'acima'
+      ? `${diferenca} ${diferenca === 1 ? 'venda acima' : 'vendas acima'} do esperado até hoje (${esperado}).`
+      : situacao === 'atencao'
+        ? `${Math.abs(diferenca)} ${Math.abs(diferenca) === 1 ? 'venda abaixo' : 'vendas abaixo'} do esperado até hoje (${esperado}).`
+        : `Esperado até hoje: ${esperado} ${esperado === 1 ? 'venda' : 'vendas'} · projeção proporcional aos dias do mês.`;
+    metaPace.hidden = false;
+  } else if (metaPace) {
+    metaPace.hidden = true;
+  }
 
   document.getElementById('metaCardTitle').textContent = 'Meta do Mês de ' + mesNome;
   document.getElementById('metaColTitle').textContent = 'Progresso do mês';
@@ -950,16 +1124,23 @@ function renderEstadoSemDados() {
   setText('kpiSemana', '—');
   setText('kpiMensal', '—');
   setText('kpiLider', '—');
+  const resumoEquipe = document.getElementById('monthlyTeamPulse');
+  if (resumoEquipe) resumoEquipe.hidden = true;
 
   // Card de meta (semanal/mensal) em estado vazio
-  document.getElementById('metaCardTitle').textContent = 'Meta da Semana';
-  setText('metaColTitle', 'Progresso da semana');
-  setText('metaSubLabel', 'vendas realizadas / meta da semana');
+  document.getElementById('metaCardTitle').textContent = 'Meta do mês';
+  setText('metaColTitle', 'Progresso do mês');
+  setText('metaSubLabel', 'vendas realizadas / meta do mês');
+  setText('metaPctLabel', 'Meta mensal não configurada');
+  const metaPace = document.getElementById('metaPace');
+  if (metaPace) metaPace.hidden = true;
+  const mediaSemanal = document.getElementById('metaSideBlock3');
+  if (mediaSemanal) mediaSemanal.style.display = 'none';
   setText('weekDataLabel', '—');
   setText('weekAtual', '—');
   setText('weekMeta', '—');
   setText('weekFaltam', '—');
-  setText('weekBarMetaCaption', 'Sem dados disponíveis');
+  setText('weekBarMetaCaption', 'Metas mensais não configuradas');
   const ringEl = document.getElementById('weekRingPct');
   if (ringEl) ringEl.textContent = '—';
   const barFillEl = document.getElementById('weekBarFill');
@@ -1034,8 +1215,8 @@ async function carregarDados() {
     // Restaura a sessão só depois de resolver a filial da URL para validar
     // o escopo do administrador antes de consultar os dados regionais.
     if (typeof checkAdminSession === 'function') await checkAdminSession();
-    const vendedores = await loadVendedores();
-    const vendedorIds = vendedores.map(v => v.id);
+    const pVendedores = loadVendedores();
+    if (typeof atualizarSeletorRegionalADM === 'function') atualizarSeletorRegionalADM(filiais);
     const pFechados = Promise.all(mesesFechados.map(m => loadVendas(m.de, m.ate)));
     const pFechadosOrigem = Promise.all(mesesFechados.map(m => loadVendasOrigem(m.de, m.ate)));
     const pRenovacoesFechadas = Promise.all(mesesFechados.map(m =>
@@ -1045,16 +1226,13 @@ async function carregarDados() {
       })
     ));
 
-    // Carregar os dados da filial selecionada em paralelo.
-    const [planos, categoriasPlanos, adicionais, metasFilial, metas, metasRenovCancel,
-           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
-           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
-           conquistasGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas] = await Promise.all([
+    // Dispara as consultas independentes enquanto a equipe é carregada.
+    // Assim, a busca de vendedores deixa de atrasar o início das demais.
+    const pCargaBase = Promise.all([
       loadPlanos(),
       loadCategoriasPlanos(),
       loadAdicionais(),
       loadMetasFilial(_cache.mes.mesNum, _cache.mes.ano),
-      loadMetas(_cache.mes.mesNum, _cache.mes.ano, vendedorIds),
       loadMetasRenovCancel(_cache.mes.mesNum, _cache.mes.ano),
       loadVendas(_cache.semana.de, _cache.semana.ate),
       loadVendas(_cache.mes.de, _cache.mes.ate),
@@ -1077,6 +1255,13 @@ async function carregarDados() {
       pFechadosOrigem,
       pRenovacoesFechadas,
     ]);
+    const vendedores = await pVendedores;
+    const vendedorIds = vendedores.map(v => v.id);
+    const pMetas = loadMetas(_cache.mes.mesNum, _cache.mes.ano, vendedorIds);
+    const [[planos, categoriasPlanos, adicionais, metasFilial, metasRenovCancel,
+           vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
+           vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
+           conquistasGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas], metas] = await Promise.all([pCargaBase, pMetas]);
 
     const [metasRenovacaoFilial, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
       loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
@@ -2297,22 +2482,60 @@ function verificarConquistasDeMetas(d) {
   try { avisadas = JSON.parse(localStorage.getItem(chave) || '{}'); } catch (e) { avisadas = {}; }
 
   const todos = [...(d.extMes || []), ...(d.intMes || [])];
+  const vendasMesPorId = Object.fromEntries(todos.map(v => [v.id, v.vendas]));
   todos.forEach(v => {
-    if (!v.meta || avisadas[v.id]) return;
-    if (v.vendas >= v.meta) {
-      showToast(`${v.nome} bateu a meta do mês!`, 'celebration', 8000);
-      avisadas[v.id] = true;
-    }
+    const marco = calcularTiersIndividuais(v.id, v.tipo, _cache.metas || [], vendasMesPorId).badgeTier;
+    if (!marco) return;
+    const chaveMarco = `${v.id}_${marco.tier}`;
+    // Exibe só a conquista mais alta pendente, evitando uma sequência de toasts
+    // quando a página abre com mais de um marco já alcançado.
+    if (avisadas[chaveMarco] || avisadas[v.id]) return;
+    showToast(`${v.nome} conquistou a meta ${marco.label} do mês!`, 'celebration', 6500);
+    avisadas[chaveMarco] = true;
   });
 
-  if (d.metasFilial && d.metasFilial.mensal_m1 && !avisadas['__filial_m1']) {
-    if (d.totalMes >= d.metasFilial.mensal_m1) {
-      showToast(`A filial bateu a Meta Mensal M1! (${d.totalMes}/${d.metasFilial.mensal_m1} vendas)`, 'celebration', 8000);
-      avisadas['__filial_m1'] = true;
-    }
+  const metasFilial = d.metasFilial || {};
+  const marcoFilial = [
+    { tier: 'm1', label: 'M1', meta: Number(metasFilial.mensal_m1) },
+    { tier: 'm2', label: 'M2', meta: Number(metasFilial.mensal_m2) },
+    { tier: 'm3', label: 'M3', meta: Number(metasFilial.mensal_m3) },
+  ].find(marco => Number.isFinite(marco.meta) && marco.meta > 0 && d.totalMes >= marco.meta);
+  if (marcoFilial && !avisadas[`__filial_${marcoFilial.tier}`]) {
+    showToast(`A filial conquistou a Meta ${marcoFilial.label} do mês!`, 'celebration', 6500);
+    avisadas[`__filial_${marcoFilial.tier}`] = true;
   }
 
   try { localStorage.setItem(chave, JSON.stringify(avisadas)); } catch (e) { /* localStorage indisponível — só não avisa de novo nesta sessão */ }
+}
+
+function renderResumoMetasEquipe(d) {
+  const card = document.getElementById('monthlyTeamPulse');
+  if (!card || !d) return;
+  const metas = _cache.metas || [];
+  const vendedores = [...(d.intMes || []), ...(d.extMes || [])];
+  const acompanhados = vendedores.filter(v => v.tipo === 'externo' || metas.some(m =>
+    String(m.vendedor_id) === String(v.id)
+      && [m.meta_m3, m.meta_m2, m.meta_m1].some(meta => Number.isFinite(Number(meta)) && Number(meta) > 0)
+  ));
+  if (!acompanhados.length) {
+    card.hidden = true;
+    return;
+  }
+
+  const vendasMesPorId = Object.fromEntries(vendedores.map(v => [v.id, v.vendas]));
+  const conquistaram = acompanhados.filter(v => calcularTiersIndividuais(
+    v.id, v.tipo, metas, vendasMesPorId
+  ).achievedTiers.length > 0).length;
+  const percentual = Math.round((conquistaram / acompanhados.length) * 100);
+  const titulo = document.getElementById('monthlyTeamPulseTitle');
+  const texto = document.getElementById('monthlyTeamPulseText');
+  const barra = document.getElementById('monthlyTeamPulseBar');
+  const trilho = card.querySelector('[role="progressbar"]');
+  if (titulo) titulo.textContent = `${conquistaram} de ${acompanhados.length} vendedores já conquistaram uma meta`;
+  if (texto) texto.textContent = 'Cada pessoa conta para o resultado coletivo da filial.';
+  if (barra) barra.style.width = `${percentual}%`;
+  if (trilho) trilho.setAttribute('aria-valuenow', String(percentual));
+  card.hidden = false;
 }
 
 function renderAll(cache) {
@@ -2323,6 +2546,7 @@ function renderAll(cache) {
   const d = processarDadosParaRender(cache);
   _ultimoProcessado = d;
   verificarConquistasDeMetas(d);
+  renderResumoMetasEquipe(d);
 
   const periodoDestaques = document.documentElement.getAttribute('data-active-tab') || 'semanal';
   const isMensal = periodoDestaques === 'mensal';
@@ -2402,13 +2626,19 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     btn.classList.add('active');
     btn.setAttribute('aria-selected','true');
     const tab = btn.dataset.tab;
+    const isMensal = tab === 'mensal';
+    const periodoLabel = document.getElementById('kpiPeriodoLabel');
+    const metaLabel = document.getElementById('kpiMetaLabel');
+    const liderLabel = document.getElementById('kpiLiderLabel');
+    if (periodoLabel) periodoLabel.textContent = isMensal ? 'Vendas no mês' : 'Vendas na semana';
+    if (metaLabel) metaLabel.textContent = isMensal ? 'Progresso da meta' : 'Meta da semana';
+    if (liderLabel) liderLabel.textContent = isMensal ? 'Líder do mês' : 'Líder da semana';
     document.querySelectorAll('[data-tab-panel]').forEach(panel => {
       panel.classList.toggle('hidden', panel.dataset.tabPanel !== tab);
     });
 
     // troca o card de meta e as metas da filial conforme a aba ativa
     document.documentElement.setAttribute('data-active-tab', tab);
-    const isMensal = tab === 'mensal';
     if (_dadosCarregados) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
@@ -2517,7 +2747,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') hideCelebration();
 });
 
-document.documentElement.setAttribute('data-active-tab', 'semanal');
+document.documentElement.setAttribute('data-active-tab', 'mensal');
 
 // ================================================================
 // ÁREA ADMINISTRATIVA — JavaScript
