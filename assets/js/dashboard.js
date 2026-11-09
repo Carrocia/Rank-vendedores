@@ -2558,42 +2558,37 @@ function renderPistaOpa(participantes = []) {
 
   if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'piloto' : 'pilotos'} no circuito`;
   if (!equipe.length) {
-    pista.replaceChildren();
+    pista.innerHTML = '<div class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</div>';
     lista.innerHTML = '<p class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</p>';
     return;
   }
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  pista.innerHTML = equipe.map((pessoa, index) => {
-    const asset = kartDoColaborador(pessoa);
-    const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
-    const nome = pessoa.nome || perfil.nome || 'Colaborador';
-    const foto = pessoa.foto_url || perfil.foto || '';
-    const { x, y, size } = asset.portrait;
-    const cx = ((x - .5) * 144).toFixed(1);
-    const cy = ((y - .5) * 144).toFixed(1);
-    const radius = (size * 144 / 2).toFixed(1);
-    const diameter = (radius * 2).toFixed(1);
-    const nomeSeguro = escapeHtmlText(nome);
-    const clipId = `opa-pilot-face-${index}`;
-    const driverPhoto = foto
-      ? `<image href="${escapeHtmlText(foto)}" x="${(Number(cx) - Number(radius)).toFixed(1)}" y="${(Number(cy) - Number(radius)).toFixed(1)}" width="${diameter}" height="${diameter}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>`
-      : `<text x="${cx}" y="${(Number(cy) + 5).toFixed(1)}" text-anchor="middle" class="opa-kart-initial">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</text>`;
-    const motion = reducedMotion
-      ? `transform="translate(${160 + (index % 6) * 165} ${index < 6 ? 120 : 480})"`
-      : '';
-    const animate = reducedMotion
-      ? ''
-      : `<animateMotion dur="42s" begin="-${(index * 42 / Math.max(equipe.length, 1)).toFixed(2)}s" rotate="auto" repeatCount="indefinite"><mpath href="#opaRacePath"/></animateMotion>`;
-    return `<g class="opa-track-kart" ${motion}>
-      <title>${nomeSeguro} · kart ${asset.id}</title>
-      <defs><clipPath id="${clipId}"><circle cx="${cx}" cy="${cy}" r="${radius}"/></clipPath></defs>
-      <image class="opa-kart-art" href="${asset.src}" x="-72" y="-72" width="144" height="144" preserveAspectRatio="xMidYMid meet"/>
-      <circle cx="${cx}" cy="${cy}" r="${radius}" class="opa-kart-face-ring"/>
-      ${driverPhoto.replace('<image ', '<image class="opa-kart-face" ')}
-      ${animate}
-    </g>`;
-  }).join('');
+  const quantidadePorPista = Math.ceil(equipe.length / Math.min(3, Math.ceil(equipe.length / 3)));
+  const pistas = [];
+  for (let i = 0; i < equipe.length; i += quantidadePorPista) pistas.push(equipe.slice(i, i + quantidadePorPista));
+  pista.innerHTML = pistas.map((pilotos, faixa) => `
+    <div class="opa-race-lane" data-lane="${faixa + 1}" aria-label="Faixa de corrida ${faixa + 1}">
+      <span class="opa-lane-start" aria-hidden="true">START</span>
+      <div class="opa-lane-cars">${pilotos.map((pessoa, index) => {
+        const asset = kartDoColaborador(pessoa);
+        const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
+        const nome = pessoa.nome || perfil.nome || 'Colaborador';
+        const foto = pessoa.foto_url || perfil.foto || '';
+        const { x, y, size } = asset.portrait;
+        const nomeSeguro = escapeHtmlText(nome);
+        const fotoHTML = foto
+          ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
+          : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
+        const delay = (index * 18 / Math.max(pilotos.length, 1)).toFixed(2);
+        const staticLeft = (8 + index * (76 / Math.max(pilotos.length, 1))).toFixed(2);
+        return `<div class="opa-race-vehicle" title="${nomeSeguro}" style="--kart-delay:-${delay}s;--kart-static-left:${staticLeft}%;--photo-left:${(x - size / 2) * 100}%;--photo-top:${(y - size / 2) * 100}%;--photo-size:${size * 100}%">
+          <img class="opa-kart-art" src="${asset.src}" alt="" draggable="false">
+          <span class="opa-kart-photo">${fotoHTML}</span>
+        </div>`;
+      }).join('')}</div>
+      <span class="opa-lane-finish" aria-hidden="true">🏁</span>
+    </div>`).join('');
 
   lista.innerHTML = equipe.map((pessoa, index) => {
     const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
