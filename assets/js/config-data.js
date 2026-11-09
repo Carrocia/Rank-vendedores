@@ -2,33 +2,6 @@
 // ============================================================
 // CONFIGURAÇÕES RÁPIDAS — mexa só aqui
 // ============================================================
-// Biblioteca dos karts da corrida de atendimento. O índice é estável por
-// colaborador; não muda quando a colocação no ranking muda.
-const KART_ASSETS = Object.freeze([
-  { id: '01', color: 'vermelho', src: 'assets/images/karts/kart-01.png', portrait: { x: 0.51, y: 0.24, size: 0.30 } },
-  { id: '02', color: 'azul', src: 'assets/images/karts/kart-02.png', portrait: { x: 0.49, y: 0.23, size: 0.31 } },
-  { id: '03', color: 'dourado', src: 'assets/images/karts/kart-03.png', portrait: { x: 0.49, y: 0.23, size: 0.32 } },
-  { id: '04', color: 'verde', src: 'assets/images/karts/kart-04.png', portrait: { x: 0.47, y: 0.23, size: 0.30 } },
-  { id: '05', color: 'roxo', src: 'assets/images/karts/kart-05.png', portrait: { x: 0.45, y: 0.22, size: 0.33 } },
-  { id: '06', color: 'laranja', src: 'assets/images/karts/kart-06.png', portrait: { x: 0.51, y: 0.24, size: 0.30 } },
-  { id: '07', color: 'rosa', src: 'assets/images/karts/kart-07.png', portrait: { x: 0.49, y: 0.24, size: 0.30 } },
-  { id: '08', color: 'ciano', src: 'assets/images/karts/kart-08.png', portrait: { x: 0.44, y: 0.24, size: 0.30 } },
-  { id: '09', color: 'azul-marinho', src: 'assets/images/karts/kart-09.png', portrait: { x: 0.43, y: 0.24, size: 0.30 } },
-  { id: '10', color: 'prata', src: 'assets/images/karts/kart-10.png', portrait: { x: 0.41, y: 0.23, size: 0.32 } },
-  { id: '11', color: 'lima', src: 'assets/images/karts/kart-11.png', portrait: { x: 0.51, y: 0.25, size: 0.30 } },
-  { id: '12', color: 'vermelho-escuro', src: 'assets/images/karts/kart-12.png', portrait: { x: 0.50, y: 0.24, size: 0.32 } },
-  { id: '13', color: 'turquesa-roxo', src: 'assets/images/karts/kart-13.png', portrait: { x: 0.51, y: 0.24, size: 0.32 } },
-  { id: '14', color: 'âmbar', src: 'assets/images/karts/kart-14.png', portrait: { x: 0.50, y: 0.23, size: 0.30 } },
-  { id: '15', color: 'magenta', src: 'assets/images/karts/kart-15.png', portrait: { x: 0.43, y: 0.23, size: 0.32 } },
-]);
-
-function kartDoColaborador(colaborador) {
-  const identidade = String(colaborador?.carreira_pessoa_id || colaborador?.id || colaborador?.slug || colaborador?.nome || '');
-  let hash = 0;
-  for (let i = 0; i < identidade.length; i++) hash = (hash * 31 + identidade.charCodeAt(i)) >>> 0;
-  return KART_ASSETS[hash % KART_ASSETS.length];
-}
-
 // ============================================================
 // CONFIGURACAO DO RANKING - edite tudo aqui, nada mais precisa
 // ser alterado em outra parte do arquivo.

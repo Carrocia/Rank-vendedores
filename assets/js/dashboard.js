@@ -2692,7 +2692,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     const introducaoPublica = document.getElementById('rankingIntro');
     if (tituloPublico) tituloPublico.textContent = isOpa ? 'Atendimento Opa' : 'Ranking de Vendas';
     if (introducaoPublica) introducaoPublica.textContent = isOpa
-      ? 'Acompanhe a corrida de atendimento da equipe desta filial.'
+      ? 'Veja os atendimentos iniciados, encerrados e transferidos pela equipe nesta filial.'
       : 'Acompanhe o resultado do mês, o avanço da meta da filial e as lideranças da equipe.';
     const periodoLabel = document.getElementById('kpiPeriodoLabel');
     const metaLabel = document.getElementById('kpiMetaLabel');
@@ -2708,7 +2708,6 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
     // troca o card de meta e as metas da filial conforme a aba ativa
     document.documentElement.setAttribute('data-active-tab', tab);
-    if (isOpa) posicionarPilotosNaPista();
     if (_dadosCarregados && !isOpa) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
