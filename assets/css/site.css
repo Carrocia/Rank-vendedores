@@ -386,8 +386,21 @@
     position: relative; margin: 20px 20px 0; overflow: hidden; border: 1px solid rgba(255,255,255,.1);
     border-radius: 16px; background: #101722; box-shadow: inset 0 0 36px rgba(0,0,0,.28);
   }
+  .opa-race-controls { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,.08); background: #131b26; }
+  .opa-race-zoom { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(0,0,0,.2); }
+  .opa-race-zoom button, .opa-race-arrows button { min-height: 34px; border: 0; border-radius: 7px; background: transparent; color: #b9c4d2; cursor: pointer; font: 700 .7rem 'Poppins', sans-serif; }
+  .opa-race-zoom button { padding: 0 12px; }
+  .opa-race-zoom button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+  .opa-drag-hint { display: inline-flex; align-items: center; gap: 8px; color: #aeb9c7; font-size: .7rem; }
+  .opa-drag-hint span { color: var(--accent); font-size: 1.05rem; }
+  .opa-race-arrows { display: inline-flex; gap: 5px; }
+  .opa-race-arrows button { width: 36px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-size: 1rem; }
+  .opa-race-arrows button:hover { border-color: var(--accent); color: var(--accent); }
+  .opa-race-viewport { overflow-x: auto; overflow-y: hidden; cursor: grab; scrollbar-color: var(--accent) #202833; scrollbar-width: thin; touch-action: pan-x; user-select: none; }
+  .opa-race-viewport.is-dragging { cursor: grabbing; scroll-behavior: auto; }
+  .opa-race-panorama { position: relative; height: 420px; min-width: 100%; overflow: hidden; background: #172235; }
   .opa-race-sky {
-    position: relative; height: 126px; overflow: hidden;
+    position: relative; height: 252px; overflow: hidden;
     background: linear-gradient(180deg, #132541 0%, #1c3856 62%, #597189 100%);
   }
   .opa-game-logo, .opa-game-hud { position: absolute; z-index: 3; top: 13px; color: #fff; font-size: .62rem; font-weight: 900; letter-spacing: .12em; text-shadow: 0 2px 4px #101722; }
@@ -407,34 +420,17 @@
     animation: opa-sky-scroll 19s linear infinite reverse;
   }
   @keyframes opa-sky-scroll { to { background-position-x: -540px; } }
-  .opa-race-track { position: relative; padding: 8px 0; overflow: hidden; background: #20242a; }
-  .opa-race-track::before, .opa-race-track::after {
-    display: block; height: 5px; content: ''; background: repeating-linear-gradient(90deg,#f0f2f3 0 18px,#232a32 18px 36px);
-    background-size: 72px 5px; animation: opa-rail-scroll 1.4s linear infinite;
-  }
-  .opa-race-track::after { margin-top: 0; }
-  @keyframes opa-rail-scroll { to { background-position-x: -72px; } }
-  .opa-race-lane {
-    position: relative; height: 144px; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,.08);
-    background-color: #30343a;
-    background-image: repeating-linear-gradient(90deg,transparent 0 43px,rgba(255,255,255,.44) 43px 70px,transparent 70px 112px);
-    background-size: 112px 3px; background-repeat: repeat-x; background-position: 0 76%;
-    animation: opa-road-scroll .72s linear infinite;
-  }
-  @keyframes opa-road-scroll { to { background-position-x: -112px; } }
-  .opa-lane-start, .opa-lane-finish {
-    position: absolute; z-index: 1; top: 0; bottom: 0; display: grid; width: 5px; place-items: center;
-    color: #d7e1ee; font-size: .48rem; font-weight: 900; writing-mode: vertical-rl; letter-spacing: .12em;
-  }
-  .opa-lane-start { left: 16px; border-left: 2px dashed rgba(255,255,255,.62); }
-  .opa-lane-finish { right: 18px; }
-  .opa-lane-cars { position: absolute; inset: 0; }
-  .opa-race-vehicle {
-    position: absolute; z-index: 2; top: 50%; left: -142px; width: 132px; height: 132px;
-    transform: translateY(-48%); animation: opa-kart-pass 18s linear var(--kart-delay) infinite;
-    filter: drop-shadow(0 4px 3px rgba(0,0,0,.55));
-  }
-  @keyframes opa-kart-pass { from { left: -142px; } to { left: calc(100% + 142px); } }
+  .opa-race-road { position: absolute; right: 0; bottom: 0; left: 0; height: 168px; overflow: hidden; border-top: 7px solid #e5e9ed; background-color: #30343a; background-image: repeating-linear-gradient(90deg,transparent 0 55px,rgba(255,255,255,.82) 55px 98px,transparent 98px 160px); background-size: 160px 4px; background-repeat: repeat-x; background-position: 0 68%; animation: opa-road-scroll .6s linear infinite; }
+  .opa-race-road::before, .opa-race-road::after { position: absolute; right: 0; left: 0; height: 5px; content: ''; background: repeating-linear-gradient(90deg,#f3f5f6 0 17px,#252b32 17px 34px); background-size: 68px 5px; animation: opa-rail-scroll 1.2s linear infinite; }
+  .opa-race-road::before { top: 0; } .opa-race-road::after { bottom: 0; }
+  @keyframes opa-road-scroll { to { background-position-x: -160px; } }
+  @keyframes opa-rail-scroll { to { background-position-x: -68px; } }
+  .opa-road-start, .opa-road-finish { position: absolute; z-index: 1; top: 12px; color: rgba(255,255,255,.65); font-size: .55rem; font-weight: 900; letter-spacing: .12em; }
+  .opa-road-start { left: 12px; } .opa-road-finish { right: 12px; font-size: 1.1rem; }
+  .opa-race-car-layer { position: absolute; z-index: 2; inset: 0; }
+  .opa-race-vehicle { position: absolute; top: 130px; left: var(--kart-center); display: flex; width: 184px; height: 198px; flex-direction: column; align-items: center; transform: translateX(-50%); filter: drop-shadow(0 5px 4px rgba(0,0,0,.54)); }
+  .opa-kart-bob { position: relative; flex: 0 0 148px; width: 148px; height: 148px; animation: opa-kart-bob 1.1s ease-in-out infinite alternate; }
+  @keyframes opa-kart-bob { from { transform: translateY(1px); } to { transform: translateY(-4px); } }
   .opa-kart-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; user-select: none; }
   .opa-kart-photo {
     position: absolute; top: var(--photo-top); left: var(--photo-left); display: grid; width: var(--photo-size); aspect-ratio: 1;
@@ -442,6 +438,7 @@
     background: #182331; box-shadow: 0 0 0 2px rgba(0,0,0,.75); color: white; font-size: .72rem; font-weight: 900;
   }
   .opa-kart-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .opa-racer-name { position: relative; z-index: 1; display: block; max-width: 174px; overflow: hidden; padding: 3px 8px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(10,16,24,.86); color: #fff; font-size: .6rem; font-weight: 800; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
   .opa-race-footer { display: flex; justify-content: space-between; gap: 12px; padding: 13px 26px 20px; color: var(--text-muted); font-size: .7rem; }
   .opa-race-legend { display: inline-flex; align-items: center; gap: 8px; }
   .opa-race-legend i { width: 8px; height: 8px; border-radius: 50%; background: #efbc4d; box-shadow: 0 0 10px rgba(239,188,77,.5); }
@@ -466,11 +463,18 @@
     .opa-race-heading h2 { font-size: 1.2rem; }
     .opa-race-heading p { font-size: .74rem; }
     .opa-race-scene { margin: 12px 12px 0; }
-    .opa-race-sky { height: 92px; }
+    .opa-race-controls { min-height: 48px; padding: 7px 8px; }
+    .opa-race-zoom button { padding: 0 8px; font-size: .62rem; }
+    .opa-drag-hint { font-size: .58rem; }
+    .opa-race-arrows { display: none; }
+    .opa-race-panorama { height: 360px; }
+    .opa-race-sky { height: 210px; }
     .opa-skyline { height: 56px; }
     .skyline-near { height: 42px; }
-    .opa-race-lane { height: 118px; }
-    .opa-race-vehicle { width: 112px; height: 112px; }
+    .opa-race-road { height: 150px; }
+    .opa-race-vehicle { top: 99px; width: 168px; height: 184px; }
+    .opa-kart-bob { flex-basis: 132px; width: 132px; height: 132px; }
+    .opa-racer-name { max-width: 158px; font-size: .56rem; }
     .opa-race-footer { align-items: flex-start; flex-direction: column; padding: 12px 14px 16px; font-size: .64rem; }
     .opa-race-roster { padding: 20px 14px; }
     .opa-race-roster-head { align-items: flex-start; flex-direction: column; gap: 5px; }
@@ -483,8 +487,7 @@
     .tabs-row .tab-button { font-size: .64rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .opa-skyline, .opa-race-track::before, .opa-race-lane { animation: none !important; }
-    .opa-race-vehicle { animation: none !important; left: var(--kart-static-left); }
+    .opa-skyline, .opa-race-road, .opa-race-road::before, .opa-race-road::after, .opa-kart-bob { animation: none !important; }
   }
 
   /* ---------- meta card (anel) ---------- */

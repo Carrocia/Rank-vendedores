@@ -29,7 +29,7 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-side-scroll-v3">
+<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-pan-and-zoom-v4">
 
   <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261108-regional-switch-v1">
 
@@ -254,14 +254,28 @@
         <span class="opa-race-status"><i aria-hidden="true"></i><span id="opaRaceStatusText">Temporada em preparação</span></span>
       </header>
       <div class="opa-race-scene" aria-label="Corrida arcade com os karts da equipe passando horizontalmente">
-        <div class="opa-race-sky" aria-hidden="true">
-          <span class="opa-game-logo">UNI <b>ARCADE</b></span>
-          <span class="opa-skyline skyline-far"></span>
-          <span class="opa-skyline skyline-near"></span>
-          <span class="opa-game-hud">TRACK 01 <i>● ● ●</i></span>
+        <div class="opa-race-controls" aria-label="Controles de visualização da pista">
+          <div class="opa-race-zoom" role="group" aria-label="Quantidade de karts visíveis">
+            <button type="button" data-opa-view="1" aria-pressed="false">1 kart</button>
+            <button type="button" data-opa-view="2" aria-pressed="true">2 karts</button>
+          </div>
+          <span class="opa-drag-hint"><span aria-hidden="true">↔</span> Arraste a pista para acompanhar a corrida</span>
+          <div class="opa-race-arrows">
+            <button type="button" id="opaRaceBack" aria-label="Voltar na pista">←</button>
+            <button type="button" id="opaRaceForward" aria-label="Avançar na pista">→</button>
+          </div>
         </div>
-        <div class="opa-race-track" id="opaRaceKarts" aria-live="off">
-          <div class="opa-race-empty">Carregando os pilotos…</div>
+        <div class="opa-race-viewport" id="opaRaceViewport" tabindex="0" role="region" aria-label="Pista lateral; arraste ou use as setas para percorrer os pilotos">
+          <div class="opa-race-panorama" id="opaRaceKarts">
+            <div class="opa-race-sky" aria-hidden="true">
+              <span class="opa-game-logo">UNI <b>ARCADE</b></span>
+              <span class="opa-skyline skyline-far"></span>
+              <span class="opa-skyline skyline-near"></span>
+              <span class="opa-game-hud">TRACK 01 <i>● ● ●</i></span>
+            </div>
+            <div class="opa-race-road" aria-hidden="true"><span class="opa-road-start">LARGADA</span><span class="opa-road-finish">🏁</span></div>
+            <div class="opa-race-car-layer" id="opaRaceVehicles"><div class="opa-race-empty">Carregando os pilotos…</div></div>
+          </div>
         </div>
         <div class="opa-race-ground" aria-hidden="true"><span>UNI INTERNET · CORRIDA DE ATENDIMENTO</span><span>🏁</span></div>
       </div>
@@ -362,7 +376,7 @@
 </div>
 
 <script src="assets/js/config-data.js?v=20261109-kart-assets-v1"></script>
-  <script src="assets/js/dashboard.js?v=20261109-opa-side-scroll-v3"></script>
+  <script src="assets/js/dashboard.js?v=20261109-opa-pan-and-zoom-v4"></script>
   <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>

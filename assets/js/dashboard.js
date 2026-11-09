@@ -2541,8 +2541,42 @@ function renderResumoMetasEquipe(d) {
 
 // Pista arcade Opa. Até a origem dos resultados mensais existir, os karts
 // percorrem o circuito em ritmo igual e a lista não inventa colocação.
+let _opaPilotosNaPista = [];
+let _opaQuantidadeVisivel = 2;
+let _opaControlesPistaLigados = false;
+
+function posicionarPilotosNaPista() {
+  const viewport = document.getElementById('opaRaceViewport');
+  const panorama = document.getElementById('opaRaceKarts');
+  const camada = document.getElementById('opaRaceVehicles');
+  if (!viewport || !panorama || !camada) return;
+  const larguraVisivel = viewport.clientWidth;
+  if (!larguraVisivel) return;
+
+  const espacamento = larguraVisivel / _opaQuantidadeVisivel;
+  panorama.style.width = `${Math.max(larguraVisivel, espacamento * _opaPilotosNaPista.length)}px`;
+  camada.innerHTML = _opaPilotosNaPista.map((pessoa, index) => {
+    const asset = kartDoColaborador(pessoa);
+    const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
+    const nome = pessoa.nome || perfil.nome || 'Colaborador';
+    const foto = pessoa.foto_url || perfil.foto || '';
+    const { x, y, size } = asset.portrait;
+    const fotoHTML = foto
+      ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
+      : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
+    const centro = espacamento * (index + .5);
+    return `<div class="opa-race-vehicle" title="${escapeHtmlText(nome)}" style="--kart-center:${centro}px;--photo-left:${(x - size / 2) * 100}%;--photo-top:${(y - size / 2) * 100}%;--photo-size:${size * 100}%">
+      <div class="opa-kart-bob">
+        <img class="opa-kart-art" src="${asset.src}" alt="" draggable="false">
+        <span class="opa-kart-photo">${fotoHTML}</span>
+      </div>
+      <span class="opa-racer-name">${escapeHtmlText(nome)}</span>
+    </div>`;
+  }).join('');
+}
+
 function renderPistaOpa(participantes = []) {
-  const pista = document.getElementById('opaRaceKarts');
+  const pista = document.getElementById('opaRaceVehicles');
   const lista = document.getElementById('opaRaceLeaderboard');
   const total = document.getElementById('opaRaceTeamCount');
   if (!pista || !lista) return;
@@ -2556,39 +2590,59 @@ function renderPistaOpa(participantes = []) {
     String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' })
   );
 
-  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'piloto' : 'pilotos'} no circuito`;
+  _opaPilotosNaPista = equipe;
+  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'piloto' : 'pilotos'} · ordem ilustrativa`;
   if (!equipe.length) {
     pista.innerHTML = '<div class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</div>';
     lista.innerHTML = '<p class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</p>';
     return;
   }
 
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const quantidadePorPista = Math.ceil(equipe.length / Math.min(3, Math.ceil(equipe.length / 3)));
-  const pistas = [];
-  for (let i = 0; i < equipe.length; i += quantidadePorPista) pistas.push(equipe.slice(i, i + quantidadePorPista));
-  pista.innerHTML = pistas.map((pilotos, faixa) => `
-    <div class="opa-race-lane" data-lane="${faixa + 1}" aria-label="Faixa de corrida ${faixa + 1}">
-      <span class="opa-lane-start" aria-hidden="true">START</span>
-      <div class="opa-lane-cars">${pilotos.map((pessoa, index) => {
-        const asset = kartDoColaborador(pessoa);
-        const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
-        const nome = pessoa.nome || perfil.nome || 'Colaborador';
-        const foto = pessoa.foto_url || perfil.foto || '';
-        const { x, y, size } = asset.portrait;
-        const nomeSeguro = escapeHtmlText(nome);
-        const fotoHTML = foto
-          ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
-          : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
-        const delay = (index * 18 / Math.max(pilotos.length, 1)).toFixed(2);
-        const staticLeft = (8 + index * (76 / Math.max(pilotos.length, 1))).toFixed(2);
-        return `<div class="opa-race-vehicle" title="${nomeSeguro}" style="--kart-delay:-${delay}s;--kart-static-left:${staticLeft}%;--photo-left:${(x - size / 2) * 100}%;--photo-top:${(y - size / 2) * 100}%;--photo-size:${size * 100}%">
-          <img class="opa-kart-art" src="${asset.src}" alt="" draggable="false">
-          <span class="opa-kart-photo">${fotoHTML}</span>
-        </div>`;
-      }).join('')}</div>
-      <span class="opa-lane-finish" aria-hidden="true">🏁</span>
-    </div>`).join('');
+  posicionarPilotosNaPista();
+  if (!_opaControlesPistaLigados) {
+    const btnVoltar = document.getElementById('opaRaceBack');
+    const btnAvancar = document.getElementById('opaRaceForward');
+    const atualizarZoom = () => document.querySelectorAll('[data-opa-view]').forEach(btn =>
+      btn.setAttribute('aria-pressed', String(Number(btn.dataset.opaView) === _opaQuantidadeVisivel))
+    );
+    document.querySelectorAll('[data-opa-view]').forEach(btn => btn.addEventListener('click', () => {
+      _opaQuantidadeVisivel = Number(btn.dataset.opaView) === 1 ? 1 : 2;
+      posicionarPilotosNaPista();
+      atualizarZoom();
+    }));
+    if (btnVoltar) btnVoltar.addEventListener('click', () => document.getElementById('opaRaceViewport')?.scrollBy({ left: -document.getElementById('opaRaceViewport').clientWidth * .82, behavior: 'smooth' }));
+    if (btnAvancar) btnAvancar.addEventListener('click', () => document.getElementById('opaRaceViewport')?.scrollBy({ left: document.getElementById('opaRaceViewport').clientWidth * .82, behavior: 'smooth' }));
+
+    const viewport = document.getElementById('opaRaceViewport');
+    if (viewport) {
+      let pointerStart = null;
+      viewport.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || event.target.closest('button')) return;
+        pointerStart = { x: event.clientX, scroll: viewport.scrollLeft, id: event.pointerId };
+        viewport.classList.add('is-dragging');
+        viewport.setPointerCapture(event.pointerId);
+      });
+      viewport.addEventListener('pointermove', event => {
+        if (pointerStart) viewport.scrollLeft = pointerStart.scroll - (event.clientX - pointerStart.x);
+      });
+      const terminarArraste = event => {
+        if (!pointerStart) return;
+        viewport.classList.remove('is-dragging');
+        if (viewport.hasPointerCapture(pointerStart.id)) viewport.releasePointerCapture(pointerStart.id);
+        pointerStart = null;
+      };
+      viewport.addEventListener('pointerup', terminarArraste);
+      viewport.addEventListener('pointercancel', terminarArraste);
+      viewport.addEventListener('keydown', event => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+          event.preventDefault();
+          viewport.scrollBy({ left: (event.key === 'ArrowRight' ? 1 : -1) * viewport.clientWidth * .7, behavior: 'smooth' });
+        }
+      });
+    }
+    window.addEventListener('resize', posicionarPilotosNaPista, { passive: true });
+    _opaControlesPistaLigados = true;
+  }
 
   lista.innerHTML = equipe.map((pessoa, index) => {
     const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
@@ -2733,6 +2787,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
     // troca o card de meta e as metas da filial conforme a aba ativa
     document.documentElement.setAttribute('data-active-tab', tab);
+    if (isOpa) posicionarPilotosNaPista();
     if (_dadosCarregados && !isOpa) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
