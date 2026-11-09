@@ -1154,6 +1154,7 @@ function renderEstadoSemDados() {
   renderEvolucaoChart(null);
   renderDonutChart(null);
   renderConquistas();
+  renderPistaOpa([]);
 
   // Pódios
   ['podium-semanal-externo', 'podium-semanal-interno', 'podium-mensal-externo', 'podium-mensal-interno'].forEach(id => {
@@ -2538,6 +2539,50 @@ function renderResumoMetasEquipe(d) {
   card.hidden = false;
 }
 
+// Prévia visual da pista Opa. O grid é intencionalmente alfabético e não
+// representa posições: a classificação só será exibida quando houver dados Opa.
+function renderPistaOpa(participantes = []) {
+  const grid = document.getElementById('opaRaceGrid');
+  const total = document.getElementById('opaRaceTeamCount');
+  if (!grid) return;
+
+  const unicos = new Map();
+  participantes.forEach(pessoa => {
+    const id = String(pessoa?.id || pessoa?.carreira_pessoa_id || pessoa?.slug || pessoa?.nome || '');
+    if (id && !unicos.has(id)) unicos.set(id, pessoa);
+  });
+  const equipe = [...unicos.values()].sort((a, b) =>
+    String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' })
+  );
+
+  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'colaborador' : 'colaboradores'}`;
+  if (!equipe.length) {
+    grid.innerHTML = '<div class="opa-race-empty">Os karts da equipe aparecerão aqui quando o ranking carregar.</div>';
+    return;
+  }
+
+  grid.innerHTML = equipe.map((pessoa, index) => {
+    const asset = kartDoColaborador(pessoa);
+    const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
+    const nome = pessoa.nome || perfil.nome || 'Colaborador';
+    const foto = pessoa.foto_url || perfil.foto || '';
+    const { x, y, size } = asset.portrait;
+    const left = `${(x - size / 2) * 100}%`;
+    const top = `${(y - size / 2) * 100}%`;
+    const nomeSeguro = escapeHtmlText(nome);
+    const fotoHTML = foto
+      ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
+      : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
+    return `<div class="opa-race-lane" style="--kart-delay:${(index % 6) * -0.22}s;--kart-left:${(index % 5) * 4}%">
+      <div class="opa-kart-wrap" title="Kart de ${nomeSeguro}">
+        <img class="opa-kart-sprite" src="${asset.src}" alt="" loading="lazy" draggable="false">
+        <span class="opa-kart-photo" style="--photo-left:${left};--photo-top:${top};--photo-size:${size * 100}%">${fotoHTML}</span>
+      </div>
+      <span class="opa-race-name">${nomeSeguro}</span>
+    </div>`;
+  }).join('');
+}
+
 function renderAll(cache) {
   document.getElementById('celebrateBtn').style.display = CONFIG.mostrarBotaoDestaque ? 'inline-flex' : 'none';
 
@@ -2545,6 +2590,7 @@ function renderAll(cache) {
 
   const d = processarDadosParaRender(cache);
   _ultimoProcessado = d;
+  renderPistaOpa([...(d.intMes || []), ...(d.extMes || [])]);
   verificarConquistasDeMetas(d);
   renderResumoMetasEquipe(d);
 
@@ -2627,19 +2673,28 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     btn.setAttribute('aria-selected','true');
     const tab = btn.dataset.tab;
     const isMensal = tab === 'mensal';
+    const isOpa = tab === 'opa';
+    const tituloPublico = document.querySelector('.header-title-main');
+    const introducaoPublica = document.getElementById('rankingIntro');
+    if (tituloPublico) tituloPublico.textContent = isOpa ? 'Atendimento Opa' : 'Ranking de Vendas';
+    if (introducaoPublica) introducaoPublica.textContent = isOpa
+      ? 'Acompanhe a corrida de atendimento da equipe desta filial.'
+      : 'Acompanhe o resultado do mês, o avanço da meta da filial e as lideranças da equipe.';
     const periodoLabel = document.getElementById('kpiPeriodoLabel');
     const metaLabel = document.getElementById('kpiMetaLabel');
     const liderLabel = document.getElementById('kpiLiderLabel');
-    if (periodoLabel) periodoLabel.textContent = isMensal ? 'Vendas no mês' : 'Vendas na semana';
-    if (metaLabel) metaLabel.textContent = isMensal ? 'Progresso da meta' : 'Meta da semana';
-    if (liderLabel) liderLabel.textContent = isMensal ? 'Líder do mês' : 'Líder da semana';
+    if (!isOpa) {
+      if (periodoLabel) periodoLabel.textContent = isMensal ? 'Vendas no mês' : 'Vendas na semana';
+      if (metaLabel) metaLabel.textContent = isMensal ? 'Progresso da meta' : 'Meta da semana';
+      if (liderLabel) liderLabel.textContent = isMensal ? 'Líder do mês' : 'Líder da semana';
+    }
     document.querySelectorAll('[data-tab-panel]').forEach(panel => {
       panel.classList.toggle('hidden', panel.dataset.tabPanel !== tab);
     });
 
     // troca o card de meta e as metas da filial conforme a aba ativa
     document.documentElement.setAttribute('data-active-tab', tab);
-    if (_dadosCarregados) {
+    if (_dadosCarregados && !isOpa) {
       // reprocessa o cache já carregado (sem nova chamada de rede)
       const d = processarDadosParaRender(_cache);
       renderContextoCabecalho(d, tab);

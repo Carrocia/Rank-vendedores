@@ -150,6 +150,7 @@
     <div class="tab-bar anim-in" role="tablist">
       <button type="button" class="tab-button" data-tab="semanal" role="tab" aria-selected="false">📅 Ranking Semanal</button>
       <button type="button" class="tab-button active" data-tab="mensal" role="tab" aria-selected="true">📆 Ranking Mensal</button>
+      <button type="button" class="tab-button" data-tab="opa" role="tab" aria-selected="false" aria-controls="opa-race-panel">🏁 Atendimento Opa</button>
     </div>
     <button type="button" class="celebrate-btn anim-in" id="celebrateBtn" style="display:none">🎉 Anunciar Destaque</button>
   </div>
@@ -242,6 +243,30 @@
     </section>
   </main>
 
+  <main class="ranking-panel opa-race-panel hidden" id="opa-race-panel" data-tab-panel="opa" role="tabpanel" aria-label="Pista de atendimento Opa">
+    <section class="opa-race-card">
+      <header class="opa-race-heading">
+        <div>
+          <span class="opa-race-kicker">🏁 CORRIDA DE ATENDIMENTO</span>
+          <h2>Pista Opa</h2>
+          <p>Uma prévia da equipe na pista. As posições serão exibidas quando os resultados mensais do Opa forem lançados.</p>
+        </div>
+        <span class="opa-race-status"><i aria-hidden="true"></i> Aguardando resultados</span>
+      </header>
+      <div class="opa-race-scene" aria-label="Prévia animada da pista com os karts da equipe">
+        <div class="opa-race-sky" aria-hidden="true"><span>UNI GRAND PRIX</span><b>START</b></div>
+        <div class="opa-race-road" id="opaRaceGrid">
+          <div class="opa-race-empty">Carregando karts da equipe…</div>
+        </div>
+        <div class="opa-race-stand" aria-hidden="true"><span>OPA</span><span>🏁</span><span>OPA</span></div>
+      </div>
+      <footer class="opa-race-footer">
+        <span class="opa-race-legend"><i aria-hidden="true"></i> Grid visual, sem classificação</span>
+        <span id="opaRaceTeamCount">— colaboradores</span>
+      </footer>
+    </section>
+  </main>
+
   <!-- ===== RENOVAÇÕES E RISCO DE CHURN DO MÊS (sempre mensal) ===== -->
   <div class="churn-dash" id="publicRenovacoes">
     <section class="churn-panel churn-panel-renov">
@@ -328,7 +353,7 @@
 </div>
 
 <script src="assets/js/config-data.js?v=20261109-kart-assets-v1"></script>
-  <script src="assets/js/dashboard.js?v=20261108-seasonal-theme-v2"></script>
+  <script src="assets/js/dashboard.js?v=20261109-opa-race-preview-v1"></script>
   <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>
