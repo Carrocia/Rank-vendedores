@@ -29,9 +29,9 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-summary-v5">
+<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-clean-v7">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261109-opa-summary-v4">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261109-opa-clean-v5">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -148,11 +148,11 @@
   <!-- ===== ABAS NO TOPO ===== -->
   <div class="tabs-row" id="publicRanking">
     <div class="tab-bar anim-in" role="tablist">
-      <button type="button" class="tab-button" data-tab="semanal" role="tab" aria-selected="false">📅 Ranking Semanal</button>
-      <button type="button" class="tab-button active" data-tab="mensal" role="tab" aria-selected="true">📆 Ranking Mensal</button>
-      <button type="button" class="tab-button" data-tab="opa" role="tab" aria-selected="false" aria-controls="opa-summary-panel">📞 Atendimento Opa</button>
+      <button type="button" class="tab-button" data-tab="semanal" role="tab" aria-selected="false">Ranking semanal</button>
+      <button type="button" class="tab-button active" data-tab="mensal" role="tab" aria-selected="true">Ranking mensal</button>
+      <button type="button" class="tab-button" data-tab="opa" role="tab" aria-selected="false" aria-controls="opa-summary-panel">Atendimento Opa</button>
     </div>
-    <button type="button" class="celebrate-btn anim-in" id="celebrateBtn" style="display:none">🎉 Anunciar Destaque</button>
+    <button type="button" class="celebrate-btn anim-in" id="celebrateBtn" style="display:none">Anunciar destaque</button>
   </div>
 
   <!-- ===== CARD DE META (muda conforme a aba ativa) ===== -->
@@ -249,20 +249,18 @@
         <div><span class="opa-summary-kicker">ATENDIMENTO OPA</span><h2 id="opaSummaryTitle">Desempenho do mês</h2><p>Resumo da equipe com base nos atendimentos lançados.</p></div>
         <span class="opa-summary-period" id="opaSummaryPeriod">—</span>
       </header>
-      <div class="opa-summary-content">
-        <div class="opa-summary-total">
-          <span class="opa-summary-label">ATENDIMENTOS DA EQUIPE</span>
-          <strong id="opaSummaryTotal">—</strong>
-          <span class="opa-summary-caption">Encerrados e transferidos</span>
-          <div class="opa-summary-breakdown"><span>Encerrados <b id="opaSummaryClosed">—</b></span><span>Transferidos <b id="opaSummaryTransferred">—</b></span><span>Iniciados <b id="opaSummaryStarted">—</b></span></div>
-        </div>
-        <div class="opa-summary-leaders">
-          <h3>Atendimentos por colaborador</h3>
-          <div id="opaSummaryLeaderboard" aria-live="polite"><p class="opa-summary-empty">Carregando resultados…</p></div>
-        </div>
+      <div class="opa-summary-metrics" aria-label="Indicadores mensais da equipe">
+        <article class="opa-summary-metric is-total"><span class="opa-summary-label">ATENDIMENTOS CONTABILIZADOS</span><strong id="opaSummaryTotal">—</strong><small>Encerrados + transferidos</small></article>
+        <article class="opa-summary-metric"><span class="opa-summary-label">ENCERRADOS</span><strong id="opaSummaryClosed">—</strong><small>Atendimentos finalizados</small></article>
+        <article class="opa-summary-metric"><span class="opa-summary-label">TRANSFERIDOS</span><strong id="opaSummaryTransferred">—</strong><small>Atendimentos encaminhados</small></article>
+        <article class="opa-summary-metric"><span class="opa-summary-label">INICIADOS</span><strong id="opaSummaryStarted">—</strong><small>Atendimentos abertos</small></article>
       </div>
+      <section class="opa-summary-leaders">
+        <div class="opa-summary-section-heading"><div><span class="opa-summary-kicker">EQUIPE</span><h3>Atendimentos por colaborador</h3></div><span class="opa-summary-sort-note">Ordenado por atendimentos concluídos</span></div>
+        <div id="opaSummaryLeaderboard" aria-live="polite"><p class="opa-summary-empty">Carregando resultados…</p></div>
+      </section>
       <section class="opa-monthly-highlight" id="opaMonthlyHighlight" hidden aria-live="polite">
-        <div class="opa-monthly-highlight-heading"><span aria-hidden="true">🏆</span><div><strong>Destaque Opa do mês</strong><small id="opaMonthlyHighlightPeriod"></small></div></div>
+        <div class="opa-monthly-highlight-heading"><span class="opa-monthly-award-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v2a4 4 0 0 0 4 4M16 6h3v2a4 4 0 0 1-4 4M12 12v5m-4 3h8m-7 0v-3h6v3"/></svg></span><div><strong>Destaque do Opa</strong><small id="opaMonthlyHighlightPeriod"></small></div></div>
         <div class="opa-monthly-highlight-winners" id="opaMonthlyHighlightWinners"></div>
       </section>
       <p class="opa-summary-note" id="opaSummaryNote" hidden></p>
@@ -355,7 +353,7 @@
 </div>
 
 <script src="assets/js/config-data.js?v=20261109-opa-clean-v2"></script>
-  <script src="assets/js/dashboard.js?v=20261109-opa-summary-v5"></script>
+  <script src="assets/js/dashboard.js?v=20261109-opa-summary-v6"></script>
   <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>
@@ -363,7 +361,7 @@
   <script src="assets/js/admin-operations.js?v=20261108-pending-counts-v1"></script>
   <script src="assets/js/admin-opa.js?v=20261109-opa-summary-v5"></script>
   <script src="assets/js/admin-celebrations.js?v=20261108-month-picker-v1"></script>
-  <script src="assets/js/admin-goals.js?v=20261108-login-autofill-v2"></script>
+  <script src="assets/js/admin-goals.js?v=20261109-opa-clean-v3"></script>
   <script src="assets/js/ixc-import.js?v=20261108-ixc-review-no-null-id-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE

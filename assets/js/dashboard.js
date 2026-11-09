@@ -2621,7 +2621,7 @@ async function renderResumoAtendimentoOpa(dados) {
           const avatar = person.foto_url
             ? `<img src="${escapeHtmlText(person.foto_url)}" alt="" loading="lazy">`
             : `<span aria-hidden="true">${escapeHtmlText(name.trim().charAt(0).toUpperCase())}</span>`;
-          return `<article class="opa-monthly-highlight-winner"><span class="opa-summary-avatar">${avatar}</span><span><strong>${name}</strong><small>Interno · destaque do mês</small></span><b>${atendimentos} ${atendimentos === 1 ? 'atendimento' : 'atendimentos'}</b></article>`;
+          return `<article class="opa-monthly-highlight-winner"><span class="opa-summary-avatar">${avatar}</span><span><strong>${name}</strong><small>Interno · maior total no período</small></span><b>${atendimentos} ${atendimentos === 1 ? 'atendimento' : 'atendimentos'}</b></article>`;
         }).join('');
         highlight.hidden = false;
       }

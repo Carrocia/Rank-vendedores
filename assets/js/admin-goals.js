@@ -764,7 +764,7 @@ carregarDados();
       const u = new URL(location.href); u.searchParams.set('tv', '1');
       const a = document.createElement('a');
       a.className = 'tv-enter-btn'; a.href = u.toString();
-      a.title = 'Apresentação automática para a TV da loja'; a.textContent = '📺 Modo TV';
+      a.title = 'Apresentação automática para a TV da loja'; a.textContent = 'Modo TV';
       linha.appendChild(a);
     }
     return;
