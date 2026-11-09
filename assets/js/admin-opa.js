@@ -12,7 +12,8 @@
     const [year, month] = value.split('-').map(Number);
     return { year, month };
   };
-  const isInternalSeller = seller => String(seller?.tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno';
+  const isOpaParticipant = seller => String(seller?.tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno'
+    && seller?.participa_ranking !== false;
   const setStatus = (message, isError = false) => {
     const status = $('#opa-admin-status');
     if (!status) return;
@@ -28,10 +29,10 @@
       body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Acesso administrativo necessário.</td></tr>';
       return;
     }
-    const sellers = (_cache.vendedores || []).filter(v => v.ativo !== false && isInternalSeller(v));
+    const sellers = (_cache.vendedores || []).filter(v => v.ativo !== false && isOpaParticipant(v));
     if (!sellers.length) {
-      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Não há vendedores internos ativos nesta filial.</td></tr>';
-      setStatus('Nenhum vendedor interno ativo nesta filial.');
+      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Não há vendedores internos participantes ativos nesta filial.</td></tr>';
+      setStatus('Nenhum vendedor interno participante ativo nesta filial.');
       return;
     }
     const { year, month } = readMonth();
@@ -57,7 +58,7 @@
       const transferred = Number($('[data-opa-count="transferidos"]', row)?.value || 0);
       $('[data-opa-total]', row).textContent = String(closed + transferred);
     }));
-    setStatus(`${sellers.length} vendedores internos carregados.`);
+    setStatus(`${sellers.length} vendedores internos participantes carregados.`);
   }
 
   async function saveMonth() {

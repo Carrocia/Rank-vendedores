@@ -21,7 +21,16 @@ alter table public.opa_resultados_mensais enable row level security;
 
 drop policy if exists opa_resultados_mensais_public_read on public.opa_resultados_mensais;
 create policy opa_resultados_mensais_public_read on public.opa_resultados_mensais
-  for select to anon, authenticated using (true);
+  for select to anon, authenticated using (
+    exists (
+      select 1
+      from public.vendedores v
+      where v.id = vendedor_id
+        and v.filial_id = opa_resultados_mensais.filial_id
+        and lower(coalesce(v.tipo, '')) = 'interno'
+        and v.participa_ranking is distinct from false
+    )
+  );
 
 drop policy if exists opa_resultados_mensais_admin_write on public.opa_resultados_mensais;
 create policy opa_resultados_mensais_admin_write on public.opa_resultados_mensais
@@ -35,6 +44,7 @@ create policy opa_resultados_mensais_admin_write on public.opa_resultados_mensai
       where v.id = vendedor_id
         and v.filial_id = opa_resultados_mensais.filial_id
         and lower(coalesce(v.tipo, '')) = 'interno'
+        and v.participa_ranking is distinct from false
     )
   );
 
@@ -43,6 +53,6 @@ grant insert, update, delete on public.opa_resultados_mensais to authenticated;
 grant usage, select on sequence public.opa_resultados_mensais_id_seq to authenticated;
 
 comment on table public.opa_resultados_mensais is
-  'Contagens mensais de atendimento Opa por vendedor interno; total exibido é encerrados + transferidos.';
+  'Contagens mensais de atendimento Opa por vendedor interno participante do ranking; total exibido é encerrados + transferidos.';
 
 notify pgrst, 'reload schema';

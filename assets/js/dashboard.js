@@ -2549,7 +2549,9 @@ async function renderResumoAtendimentoOpa(dados) {
   const participantes = dados?.intMes || [];
   const nomes = new Map((_cache.vendedores || []).map(p => [String(p.id), p]));
   participantes.forEach(p => nomes.set(String(p.id), { ...nomes.get(String(p.id)), ...p }));
-  const vendedoresInternos = (_cache.vendedores || []).filter(p => String(p.tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno');
+  const vendedoresInternos = (_cache.vendedores || []).filter(p =>
+    String(p.tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno' && p.participa_ranking !== false
+  );
   const periodoEl = document.getElementById('opaSummaryPeriod');
   const titulo = document.getElementById('opaSummaryTitle');
   if (!periodo || !window._supabase || !window.FILIAL_ATUAL_ID) {
@@ -2583,7 +2585,8 @@ async function renderResumoAtendimentoOpa(dados) {
   }
   if (note) note.hidden = true;
   const rows = (data || []).filter(r => nomes.get(String(r.vendedor_id))
-    && String(nomes.get(String(r.vendedor_id)).tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno');
+    && String(nomes.get(String(r.vendedor_id)).tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno'
+    && nomes.get(String(r.vendedor_id)).participa_ranking !== false);
   const totalIniciados = rows.reduce((s, r) => s + Number(r.iniciados || 0), 0);
   const totalEncerrados = rows.reduce((s, r) => s + Number(r.encerrados || 0), 0);
   const totalTransferidos = rows.reduce((s, r) => s + Number(r.transferidos || 0), 0);
