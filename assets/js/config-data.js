@@ -169,7 +169,7 @@ const HISTORICO_DESTAQUES = [
   },
 ];
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 function formatVendas(v) {
   return `${v} ${v === 1 ? 'venda' : 'vendas'}`;

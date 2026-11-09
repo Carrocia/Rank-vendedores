@@ -5,7 +5,7 @@
   const tvEntry = document.querySelector('.tabs-row .tv-enter-btn');
   const tvEntryParent = tvEntry?.parentNode;
   const tvEntryNextSibling = tvEntry?.nextSibling;
-  const mobileViewport = window.matchMedia('(max-width: 640px)');
+  const mobileViewport = window.matchMedia ? window.matchMedia('(max-width: 640px)') : { matches: false, addEventListener() {} };
 
   const syncTvEntryLocation = () => {
     if (!tvEntry || !moreMenu || !tvEntryParent) return;
@@ -30,7 +30,7 @@
     const target = typeof targetOrId === 'string' ? document.getElementById(targetOrId) : targetOrId;
     if (!target) return;
     target.scrollIntoView({
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      behavior: (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth',
       block: 'start',
     });
   };

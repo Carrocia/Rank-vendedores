@@ -139,7 +139,7 @@ function abrirFilialSite(slug) {
   if (document.documentElement.classList.contains('filial-page-exiting')) return;
   const url = new URL(window.location.href);
   url.searchParams.set('filial', slug);
-  const reduzirMovimento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reduzirMovimento = Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   if (reduzirMovimento) {
     window.location.assign(url.toString());
     return;

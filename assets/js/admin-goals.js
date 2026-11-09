@@ -27,11 +27,9 @@ function renderAdmMetasConfig(cache) {
 
 // ================================================================
 // CONFIGURAÇÃO DE METAS (área administrativa editável)
-// Usa exatamente os mesmos nomes de campo que renderMetasFilial(),
-// renderWeekProgress(), renderMensalProgress() e processarDadosParaRender()
-// já leem (semanal_m1/m2/m3, mensal_m1/m2/m3, meta_m1/m2/m3, meta_vendas),
-// para garantir que o valor salvo apareça automaticamente nos cards
-// públicos depois de carregarDados() — sem tocar em nenhuma dessas funções.
+// Mantém os nomes de campo usados pelos cards públicos. Ao salvar o mês
+// atual, os valores entram no cache e a interface reflete a mudança sem
+// refazer todas as consultas do painel.
 // ================================================================
 
 let _cancelamentosPeriodoReq = 0;
@@ -203,6 +201,31 @@ function periodoSelecionadoCancelamentos() {
   const partes = /^(\d{4})-(\d{2})$/.exec(valor);
   if (!partes) return null;
   return { ano: Number(partes[1]), mes: Number(partes[2]), chave: valor };
+}
+
+// Atualiza a interface com os valores que acabaram de ser gravados, sem
+// reler vendas, gráficos e demais tabelas do painel.
+function aplicarMetasVendasNoCache(periodo, dadosFilial, vendedoresSalvos) {
+  const mes = Number(periodo.mesNum || periodo.mes);
+  _cache.metasFilial = {
+    ...(_cache.metasFilial || {}),
+    ...dadosFilial,
+    mes,
+    ano: Number(periodo.ano),
+  };
+  const metasPorId = new Map((_cache.metas || []).map(meta => [String(meta.vendedor_id), meta]));
+  vendedoresSalvos.forEach(({ vendedor_id, dados }) => {
+    const chave = String(vendedor_id);
+    metasPorId.set(chave, {
+      ...(metasPorId.get(chave) || {}),
+      vendedor_id,
+      mes,
+      ano: Number(periodo.ano),
+      ...dados,
+    });
+  });
+  _cache.metas = [...metasPorId.values()];
+  renderAll(_cache);
 }
 
 async function carregarCancelamentosPeriodoSelecionado() {
@@ -459,8 +482,9 @@ async function handleSalvarMetas() {
     for (const v of vendedoresParaSalvar) {
       await salvarMetaVendedor(v.vendedor_id, v.dados, periodo);
     }
-    if (periodo.chave === periodoAtual.chave) await carregarDados();
-    else await carregarMetasVendasPeriodoSelecionado();
+    if (periodo.chave === periodoAtual.chave) {
+      aplicarMetasVendasNoCache(periodo, dadosFilial, vendedoresParaSalvar);
+    } else await carregarMetasVendasPeriodoSelecionado();
     showToast(`Metas de vendas de ${rotuloPeriodoMeta(periodo)} aplicadas a ${internos.length} interno(s) e ${externos.length} externo(s).`, 'success');
   } catch (err) {
     console.error('[handleSalvarMetas]', err);
@@ -523,7 +547,16 @@ async function handleSalvarCancelamentos() {
       cancelamentos_atual: leituras[3].valor,
     };
     await salvarMetaRenovCancel(dados, { mes: periodoSelecionado.mes, mesNum: periodoSelecionado.mes, ano: periodoSelecionado.ano }, existente);
-    await carregarDados();
+    const periodoAtualEhSelecionado = periodoSelecionado.chave === chaveAtual;
+    if (periodoAtualEhSelecionado) {
+      _cache.metasRenovCancel = {
+        ...(existente || {}),
+        ...dados,
+        mes: periodoSelecionado.mes,
+        ano: periodoSelecionado.ano,
+      };
+      renderAll(_cache);
+    } else await carregarCancelamentosPeriodoSelecionado();
     const nomeMes = new Date(periodoSelecionado.ano, periodoSelecionado.mes - 1, 1)
       .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     showToast(`Cancelamentos de ${nomeMes} salvos.`, 'success');
@@ -567,8 +600,17 @@ async function handleSalvarMetasRenovacao() {
         .upsert(metasCompartilhadas, { onConflict: 'vendedor_id,mes,ano' });
       if (error) throw new Error('As metas gerais foram salvas, mas não foi possível aplicá-las a todos os vendedores: ' + error.message);
     }
-    if (periodo.chave === periodoAtual.chave) await carregarDados();
-    else await carregarMetasRenovacaoPeriodoSelecionado();
+    if (periodo.chave === periodoAtual.chave) {
+      _cache.metasRenovacaoFilial = {
+        ...(_cache.metasRenovacaoFilial || {}),
+        meta_m3: valores[0].valor,
+        meta_m2: valores[1].valor,
+        meta_m1: valores[2].valor,
+        mes: Number(periodo.mesNum || periodo.mes),
+        ano: Number(periodo.ano),
+      };
+      renderAll(_cache);
+    } else await carregarMetasRenovacaoPeriodoSelecionado();
     showToast(`Metas de renovação de ${rotuloPeriodoMeta(periodo)} aplicadas igualmente a ${internos.length} vendedor(es) interno(s).`, 'success');
   } catch (err) {
     console.error('[handleSalvarMetasRenovacao]', err);
