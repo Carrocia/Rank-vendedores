@@ -2541,6 +2541,23 @@ function renderResumoMetasEquipe(d) {
 
 // Resumo público do Opa: o total considera encerrados + transferidos.
 let _opaResumoRequest = 0;
+function opaAvatarMarkup(person = {}) {
+  const name = String(person.nome || '').trim();
+  const initial = escapeHtmlText(name.charAt(0).toLocaleUpperCase('pt-BR') || '?');
+  const localPhoto = (typeof PHOTOS !== 'undefined' && (PHOTOS[person.slug] || PHOTOS[person.id]))
+    || (typeof PESSOAS !== 'undefined' && (PESSOAS[person.slug] || PESSOAS[person.id])?.foto)
+    || '';
+  const photo = person.foto_url || localPhoto;
+  return `<span class="opa-summary-avatar" data-fallback="${initial}">${photo ? `<img src="${escapeHtmlText(photo)}" alt="" loading="lazy">` : initial}</span>`;
+}
+
+function bindOpaAvatarFallbacks(root) {
+  root?.querySelectorAll('.opa-summary-avatar img').forEach(img => img.addEventListener('error', () => {
+    const avatar = img.parentElement;
+    if (avatar) avatar.textContent = avatar.dataset.fallback || '?';
+  }, { once: true }));
+}
+
 async function renderResumoAtendimentoOpa(dados) {
   const lista = document.getElementById('opaSummaryLeaderboard');
   if (!lista) return;
@@ -2618,11 +2635,9 @@ async function renderResumoAtendimentoOpa(dados) {
         if (highlightPeriod) highlightPeriod.textContent = previousMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
         highlightWinners.innerHTML = winners.map(({ person, atendimentos }) => {
           const name = escapeHtmlText(person.nome || 'Colaborador');
-          const avatar = person.foto_url
-            ? `<img src="${escapeHtmlText(person.foto_url)}" alt="" loading="lazy">`
-            : `<span aria-hidden="true">${escapeHtmlText(name.trim().charAt(0).toUpperCase())}</span>`;
-          return `<article class="opa-monthly-highlight-winner"><span class="opa-summary-avatar">${avatar}</span><span><strong>${name}</strong><small>Interno · maior total no período</small></span><b>${atendimentos} ${atendimentos === 1 ? 'atendimento' : 'atendimentos'}</b></article>`;
+          return `<article class="opa-monthly-highlight-winner">${opaAvatarMarkup(person)}<span><strong>${name}</strong><small>Interno · maior total no período</small></span><b>${atendimentos} ${atendimentos === 1 ? 'atendimento' : 'atendimentos'}</b></article>`;
         }).join('');
+        bindOpaAvatarFallbacks(highlightWinners);
         highlight.hidden = false;
       }
     } else if (closedError) {
@@ -2646,12 +2661,10 @@ async function renderResumoAtendimentoOpa(dados) {
   lista.innerHTML = ranked.map((r, index) => {
     const person = r.person || {};
     const name = escapeHtmlText(person.nome || 'Colaborador');
-    const avatar = person.foto_url
-      ? `<img src="${escapeHtmlText(person.foto_url)}" alt="" loading="lazy">`
-      : `<span aria-hidden="true">${escapeHtmlText(name.trim().charAt(0).toUpperCase())}</span>`;
     const rating = r.nota_atendimento == null ? '' : ` · Nota Opa ${Number(r.nota_atendimento).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
-    return `<article class="opa-summary-row"><span class="opa-summary-rank">${index + 1}</span><span class="opa-summary-avatar">${avatar}</span><span class="opa-summary-person"><strong>${name}</strong><small>${Number(r.encerrados || 0)} encerrados · ${Number(r.transferidos || 0)} transferidos · ${Number(r.iniciados || 0)} iniciados${rating}</small></span><strong class="opa-summary-count">${r.atendimentos} ${r.atendimentos === 1 ? 'atendimento' : 'atendimentos'}</strong></article>`;
+    return `<article class="opa-summary-row"><span class="opa-summary-rank">${index + 1}</span>${opaAvatarMarkup(person)}<span class="opa-summary-person"><strong>${name}</strong><small>${Number(r.encerrados || 0)} encerrados · ${Number(r.transferidos || 0)} transferidos · ${Number(r.iniciados || 0)} iniciados${rating}</small></span><strong class="opa-summary-count">${r.atendimentos} ${r.atendimentos === 1 ? 'atendimento' : 'atendimentos'}</strong></article>`;
   }).join('');
+  bindOpaAvatarFallbacks(lista);
 }
 
 function renderAll(cache) {
