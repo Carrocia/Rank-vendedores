@@ -165,16 +165,7 @@
       if (logo) logo.appendChild(imagemNatal('gorro.png', 'natal-gorro'));
       var painel = document.querySelector('.hero-panel');
       if (painel) {
-        var guirlanda = document.createElement('div');
-        guirlanda.className = 'natal-guirlanda';
-        guirlanda.setAttribute('aria-hidden', 'true');
-        for (var luz = 0; luz < 7; luz++) {
-          var lampada = document.createElement('span');
-          lampada.style.left = (12 + luz * 11) + '%';
-          lampada.style.top = (10 + Math.sin(luz / 6 * Math.PI) * 16) + 'px';
-          guirlanda.appendChild(lampada);
-        }
-        painel.appendChild(guirlanda);
+        painel.appendChild(imagemNatal('guirlanda.png', 'natal-guirlanda'));
       }
       agendarTreno();
     }

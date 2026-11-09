@@ -1177,36 +1177,11 @@
   .natal-arvore { left: clamp(8px, 2vw, 30px); bottom: 12px; width: clamp(68px, 8vw, 112px); opacity: 0.76; }
   .natal-presente { right: clamp(8px, 2vw, 30px); bottom: 10px; width: clamp(72px, 8vw, 112px); opacity: 0.76; }
   .hero-panel .natal-guirlanda {
-    position: absolute; z-index: 1; top: 0; right: 0; width: clamp(220px, 34%, 440px); height: 104px;
-    overflow: hidden; opacity: .88; pointer-events: none; user-select: none;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 90%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 22%, #000 90%, transparent);
+    position: absolute; z-index: 1; top: 0; right: 0; width: min(410px, 38%); height: 138px;
+    object-fit: contain; object-position: right top; opacity: .94;
+    filter: drop-shadow(0 5px 12px rgba(0,0,0,.2));
+    pointer-events: none; user-select: none;
   }
-  .natal-guirlanda::before {
-    content: ''; position: absolute; left: -5%; right: -5%; top: -56px; height: 116px;
-    border: 2px solid transparent; border-bottom-color: rgba(63,112,79,.9); border-radius: 0 0 50% 50%;
-    transform: rotate(-3deg); filter: drop-shadow(0 2px 2px rgba(0,0,0,.24));
-  }
-  .natal-guirlanda::after {
-    content: ''; position: absolute; left: 4%; right: 2%; top: 0; height: 52px;
-    background:
-      radial-gradient(ellipse 22px 10px at 7% 42%, #315e3e 35%, transparent 78%),
-      radial-gradient(ellipse 22px 10px at 19% 50%, #244d35 35%, transparent 78%),
-      radial-gradient(ellipse 22px 10px at 31% 45%, #386a45 35%, transparent 78%),
-      radial-gradient(ellipse 22px 10px at 43% 50%, #244d35 35%, transparent 78%),
-      radial-gradient(ellipse 22px 10px at 55% 45%, #386a45 35%, transparent 78%),
-      radial-gradient(ellipse 22px 10px at 67% 50%, #244d35 35%, transparent 78%),
-      radial-gradient(ellipse 22px 10px at 79% 45%, #386a45 35%, transparent 78%),
-      radial-gradient(ellipse 22px 10px at 91% 50%, #244d35 35%, transparent 78%);
-    opacity: .82; transform: rotate(-4deg);
-  }
-  .natal-guirlanda span {
-    position: absolute; z-index: 2; width: 8px; height: 8px; border-radius: 50%;
-    background: #f6d887; box-shadow: 0 0 8px 2px rgba(246,216,135,.62);
-    animation: natalLuz 3.8s ease-in-out infinite alternate;
-  }
-  .natal-guirlanda span:nth-child(2n) { background: #d97969; box-shadow: 0 0 8px 2px rgba(217,121,105,.5); animation-delay: -1.6s; }
-  .natal-guirlanda span:nth-child(3n) { background: #a8c58d; box-shadow: 0 0 8px 2px rgba(168,197,141,.45); animation-delay: -2.4s; }
   html[data-season="natal"] .header-logo { position: relative; }
   html[data-season="natal"] .natal-gorro { position: absolute; z-index: 2; width: 38%; top: -18%; left: -8%; transform: rotate(-22deg); filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); pointer-events: none; }
   .natal-treno {
@@ -1215,7 +1190,6 @@
     animation: natalTreno 24s linear both; filter: drop-shadow(0 4px 8px rgba(0,0,0,.22));
   }
   @keyframes natalTreno { from { transform: translateX(105vw); } to { transform: translateX(-105%); } }
-  @keyframes natalLuz { from { opacity: .42; } to { opacity: 1; } }
   html[data-season="outubro-rosa"] .season-fx span {
     color: #ffb7d5; opacity: 0.18; text-shadow: 0 0 12px rgba(255,105,166,0.25);
     font-family: Georgia, serif;
@@ -1230,14 +1204,12 @@
     .natal-neve { height: 48px; }
     .natal-arvore { left: 3px; bottom: 6px; width: 62px; opacity: .68; }
     .natal-presente { right: 3px; bottom: 6px; width: 64px; opacity: .68; }
-    .hero-panel .natal-guirlanda { width: 54%; height: 74px; opacity: .62; }
-    .natal-guirlanda span { width: 6px; height: 6px; }
+    .hero-panel .natal-guirlanda { width: min(270px, 58%); height: 92px; opacity: .78; }
     html[data-season="natal"] .natal-gorro { width: 38%; top: -18%; left: -8%; }
     .natal-treno { top: 76px; width: min(250px, 58vw); }
   }
   @media (prefers-reduced-motion: reduce) {
     .season-fx { display: none; }
-    .hero-panel .natal-guirlanda span { animation: none; }
     .natal-treno { animation: none; }
   }
 
