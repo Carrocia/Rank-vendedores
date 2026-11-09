@@ -106,11 +106,9 @@
     fxSalvoInicial = localStorage.getItem('uni-tema-particulas') !== '0';
   } catch (_) {}
   var natalTimer = null;
-  var papaiNoelTimer = null;
   function limparNatal() {
     if (natalTimer) { window.clearTimeout(natalTimer); natalTimer = null; }
-    if (papaiNoelTimer) { window.clearTimeout(papaiNoelTimer); papaiNoelTimer = null; }
-    document.querySelectorAll('.natal-decor, .natal-treno, .natal-papai-noel-pass, .natal-gorro, .natal-enfeites').forEach(function (el) { el.remove(); });
+    document.querySelectorAll('.natal-decor, .natal-treno, .natal-gorro, .natal-enfeites').forEach(function (el) { el.remove(); });
   }
   function imagemNatal(src, classe, alt) {
     var img = document.createElement('img');
@@ -119,7 +117,6 @@
     img.alt = alt || '';
     img.setAttribute('aria-hidden', 'true');
     img.draggable = false;
-    img.decoding = 'async';
     return img;
   }
   function agendarTreno() {
@@ -130,21 +127,6 @@
       document.body.appendChild(treno);
       treno.addEventListener('animationend', function () { treno.remove(); agendarTreno(); }, { once: true });
     }, 56000 + Math.random() * 26000);
-  }
-  function agendarPapaiNoel(intervalo) {
-    if (estado.id !== 'natal' || !estado.fx || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-    papaiNoelTimer = window.setTimeout(function () {
-      if (estado.id !== 'natal' || !estado.fx) return;
-      var passagem = document.createElement('div');
-      passagem.className = 'natal-papai-noel-pass';
-      passagem.setAttribute('aria-hidden', 'true');
-      passagem.appendChild(imagemNatal('papai-noel.png', 'natal-papai-noel'));
-      document.body.appendChild(passagem);
-      passagem.addEventListener('animationend', function () {
-        passagem.remove();
-        agendarPapaiNoel(85000 + Math.random() * 25000);
-      }, { once: true });
-    }, intervalo == null ? 14000 + Math.random() * 10000 : intervalo);
   }
   function decorar() {
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', decorar, { once: true }); return; }
@@ -173,7 +155,6 @@
       var painel = document.querySelector('.hero-panel');
       if (painel) painel.appendChild(imagemNatal('enfeites.png', 'natal-enfeites'));
       agendarTreno();
-      agendarPapaiNoel();
     }
     var box = document.createElement('div'); box.className = 'season-fx'; box.setAttribute('aria-hidden', 'true');
     var qtd = estado.id === 'natal' ? (window.innerWidth < 640 ? 5 : 10) : (window.innerWidth < 640 ? 6 : 10);

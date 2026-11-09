@@ -1160,17 +1160,6 @@
     animation: natalTreno 24s linear both; filter: drop-shadow(0 4px 8px rgba(0,0,0,.22));
   }
   @keyframes natalTreno { from { transform: translateX(105vw); } to { transform: translateX(-105%); } }
-  .natal-papai-noel-pass {
-    position: fixed; z-index: 29; left: 0; bottom: clamp(8px, 3vh, 30px);
-    pointer-events: none; user-select: none;
-    animation: natalSantaWalk 27s linear both;
-  }
-  .natal-papai-noel { display: block; width: clamp(88px, 12vw, 148px); height: auto; filter: drop-shadow(0 5px 12px rgba(0,0,0,.22)); animation: natalSantaBob 1.3s ease-in-out infinite; }
-  @keyframes natalSantaWalk {
-    from { transform: translate3d(-120%, 0, 0); }
-    to { transform: translate3d(calc(100vw + 120%), 0, 0); }
-  }
-  @keyframes natalSantaBob { 0%,100% { transform: translateY(0) rotate(-.5deg); } 50% { transform: translateY(-3px) rotate(.5deg); } }
   @keyframes natalBalanco { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   html[data-season="outubro-rosa"] .season-fx span {
     color: #ffb7d5; opacity: 0.18; text-shadow: 0 0 12px rgba(255,105,166,0.25);
@@ -1189,13 +1178,11 @@
     .hero-panel .natal-enfeites { right: 4px; width: 32px; opacity: .42; }
     html[data-season="natal"] .natal-gorro { width: 38%; top: -18%; left: -8%; }
     .natal-treno { top: 76px; width: min(250px, 58vw); }
-    .natal-papai-noel-pass { bottom: 56px; }
-    .natal-papai-noel { width: clamp(76px, 20vw, 112px); }
   }
   @media (prefers-reduced-motion: reduce) {
     .season-fx { display: none; }
     .hero-panel .natal-enfeites { animation: none; }
-    .natal-treno, .natal-papai-noel-pass, .natal-papai-noel { animation: none; }
+    .natal-treno { animation: none; }
   }
 
   /* Murais lado a lado (destaques do mês + renovações) */
