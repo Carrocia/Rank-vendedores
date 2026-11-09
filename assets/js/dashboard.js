@@ -2542,7 +2542,6 @@ function renderResumoMetasEquipe(d) {
 // Pista arcade Opa. Até a origem dos resultados mensais existir, os karts
 // percorrem o circuito em ritmo igual e a lista não inventa colocação.
 let _opaPilotosNaPista = [];
-let _opaQuantidadeVisivel = 2;
 let _opaControlesPistaLigados = false;
 
 function posicionarPilotosNaPista() {
@@ -2553,8 +2552,9 @@ function posicionarPilotosNaPista() {
   const larguraVisivel = viewport.clientWidth;
   if (!larguraVisivel) return;
 
-  const espacamento = larguraVisivel / _opaQuantidadeVisivel;
-  panorama.style.width = `${Math.max(larguraVisivel, espacamento * _opaPilotosNaPista.length)}px`;
+  const espacamento = Math.max(360, larguraVisivel * .48);
+  const margemPista = 170;
+  panorama.style.width = `${Math.max(larguraVisivel, margemPista * 2 + espacamento * Math.max(0, _opaPilotosNaPista.length - 1))}px`;
   camada.innerHTML = _opaPilotosNaPista.map((pessoa, index) => {
     const asset = kartDoColaborador(pessoa);
     const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
@@ -2564,8 +2564,9 @@ function posicionarPilotosNaPista() {
     const fotoHTML = foto
       ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
       : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
-    const centro = espacamento * (index + .5);
-    return `<div class="opa-race-vehicle" title="${escapeHtmlText(nome)}" style="--kart-center:${centro}px;--photo-left:${(x - size / 2) * 100}%;--photo-top:${(y - size / 2) * 100}%;--photo-size:${size * 100}%">
+    const centro = margemPista + espacamento * index;
+    const faixa = index % 3;
+    return `<div class="opa-race-vehicle" title="${escapeHtmlText(nome)}" style="--kart-center:${centro}px;--kart-lane:${faixa};--photo-left:${(x - size / 2) * 100}%;--photo-top:${(y - size / 2) * 100}%;--photo-size:${size * 100}%">
       <div class="opa-kart-bob">
         <img class="opa-kart-art" src="${asset.src}" alt="" draggable="false">
         <span class="opa-kart-photo">${fotoHTML}</span>
@@ -2591,7 +2592,7 @@ function renderPistaOpa(participantes = []) {
   );
 
   _opaPilotosNaPista = equipe;
-  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'piloto' : 'pilotos'} · ordem ilustrativa`;
+  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'piloto' : 'pilotos'} · aguardando dados do Opa`;
   if (!equipe.length) {
     pista.innerHTML = '<div class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</div>';
     lista.innerHTML = '<p class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</p>';
@@ -2602,14 +2603,6 @@ function renderPistaOpa(participantes = []) {
   if (!_opaControlesPistaLigados) {
     const btnVoltar = document.getElementById('opaRaceBack');
     const btnAvancar = document.getElementById('opaRaceForward');
-    const atualizarZoom = () => document.querySelectorAll('[data-opa-view]').forEach(btn =>
-      btn.setAttribute('aria-pressed', String(Number(btn.dataset.opaView) === _opaQuantidadeVisivel))
-    );
-    document.querySelectorAll('[data-opa-view]').forEach(btn => btn.addEventListener('click', () => {
-      _opaQuantidadeVisivel = Number(btn.dataset.opaView) === 1 ? 1 : 2;
-      posicionarPilotosNaPista();
-      atualizarZoom();
-    }));
     if (btnVoltar) btnVoltar.addEventListener('click', () => document.getElementById('opaRaceViewport')?.scrollBy({ left: -document.getElementById('opaRaceViewport').clientWidth * .82, behavior: 'smooth' }));
     if (btnAvancar) btnAvancar.addEventListener('click', () => document.getElementById('opaRaceViewport')?.scrollBy({ left: document.getElementById('opaRaceViewport').clientWidth * .82, behavior: 'smooth' }));
 
