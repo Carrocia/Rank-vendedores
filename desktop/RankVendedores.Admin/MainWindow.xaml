@@ -233,16 +233,143 @@
                 <TextBox x:Name="SaleNotesInput" MinHeight="76" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="10"/>
               </StackPanel>
             </Grid>
+            <TextBlock Text="Produtos adicionais desta venda (opcional)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <ListBox x:Name="SaleAdditionalSelector" Height="112" SelectionMode="Multiple" DisplayMemberPath="Label" Background="#0D111A" BorderBrush="{StaticResource BrushBorder}" Margin="0,0,0,14"/>
             <TextBlock x:Name="SaleFormMessage" Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
               <Button Content="Limpar" Padding="18,10" Margin="0,0,10,0" Click="ResetSaleButton_Click"/>
               <Button x:Name="SaveSaleButton" Content="Registrar venda" Padding="22,10" Click="SaveSaleButton_Click"/>
             </StackPanel>
-            <Border Background="#0D141E" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,22,0,0">
-              <TextBlock Text="O registro manual de venda já está disponível. Importação em lote e conferência de vínculos do IXC serão migradas em uma etapa própria." Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap"/>
+            <Border Background="#101722" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="14" Padding="18" Margin="0,24,0,0">
+              <StackPanel>
+                <TextBlock Text="IMPORTAÇÃO DO IXC" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+                <TextBlock Text="Importe o relatório de contratos ativos" FontSize="18" FontWeight="Bold" Margin="0,5,0,4"/>
+                <TextBlock Text="Selecione o CSV exportado pelo IXC. O app valida contratos repetidos, filial, vendedor e plano antes de gravar." Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                <StackPanel Orientation="Horizontal">
+                  <Button x:Name="ChooseIxcFileButton" Content="Selecionar relatório CSV" Padding="16,9" Click="ChooseIxcFileButton_Click"/>
+                  <TextBlock x:Name="IxcFileNameLabel" Text="Nenhum arquivo selecionado" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                  <Button x:Name="AnalyzeIxcButton" Content="Analisar relatório" Padding="16,9" Margin="10,0,0,0" Click="AnalyzeIxcButton_Click" IsEnabled="False"/>
+                  <Button x:Name="ImportIxcButton" Content="Importar vendas novas" Padding="16,9" Margin="10,0,0,0" Click="ImportIxcButton_Click" IsEnabled="False"/>
+                  <Button x:Name="QueueIxcReviewButton" Content="Enviar bloqueadas à revisão" Padding="16,9" Margin="10,0,0,0" Click="QueueIxcReviewButton_Click" IsEnabled="False"/>
+                </StackPanel>
+                <TextBlock x:Name="IxcImportMessage" Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,12,0,8"/>
+                <DataGrid x:Name="IxcPreviewGrid" Height="300" Visibility="Collapsed" CanUserSortColumns="True">
+                  <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Header="IMPORTAR" Binding="{Binding Include, UpdateSourceTrigger=PropertyChanged}" Width="85"/>
+                    <DataGridTextColumn Header="CONTRATO" Binding="{Binding Contract}" Width="100"/>
+                    <DataGridTextColumn Header="CLIENTE" Binding="{Binding Client}" Width="1.4*"/>
+                    <DataGridTextColumn Header="PLANO" Binding="{Binding PlanLabel}" Width="1.5*"/>
+                    <DataGridTextColumn Header="VENDEDOR IXC" Binding="{Binding VendorLabel}" Width="*"/>
+                    <DataGridTextColumn Header="FILIAL / DESTINO" Binding="{Binding BranchLabel}" Width="1.1*"/>
+                    <DataGridTextColumn Header="DATA" Binding="{Binding DateLabel}" Width="130"/>
+                    <DataGridTextColumn Header="VALOR" Binding="{Binding ValueLabel}" Width="100"/>
+                    <DataGridTextColumn Header="VALIDAÇÃO" Binding="{Binding StatusLabel}" Width="2*"/>
+                  </DataGrid.Columns>
+                </DataGrid>
+              </StackPanel>
             </Border>
           </StackPanel>
         </ScrollViewer>
+      </Border>
+      <Border x:Name="RenewalContent" Visibility="Collapsed" Padding="26" CornerRadius="18" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <StackPanel>
+          <TextBlock Text="OPERAÇÃO COMERCIAL" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+          <TextBlock Text="Importar renovações" FontSize="26" FontWeight="Bold" Margin="0,5,0,4"/>
+          <TextBlock x:Name="RenewalBranchHint" Foreground="{StaticResource BrushMuted}" Margin="0,0,0,20"/>
+          <Border Background="#101722" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="14" Padding="18">
+            <StackPanel>
+              <TextBlock Text="RELATÓRIO DE RENOVAÇÕES" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+              <TextBlock Text="Selecione o mês e o arquivo CSV de eventos de renovação." Foreground="{StaticResource BrushMuted}" Margin="0,5,0,14"/>
+              <StackPanel Orientation="Horizontal">
+                <DatePicker x:Name="RenewalMonthInput" Width="180" Height="40"/>
+                <Button x:Name="ChooseRenewalFileButton" Content="Selecionar CSV" Padding="16,9" Margin="10,0,0,0" Click="ChooseRenewalFileButton_Click"/>
+                <TextBlock x:Name="RenewalFileNameLabel" Text="Nenhum arquivo selecionado" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="12,0" MaxWidth="330" TextTrimming="CharacterEllipsis"/>
+                <Button x:Name="AnalyzeRenewalButton" Content="Analisar" Padding="16,9" Margin="10,0,0,0" Click="AnalyzeRenewalButton_Click" IsEnabled="False"/>
+                <Button x:Name="ImportRenewalButton" Content="Importar renovações" Padding="16,9" Margin="10,0,0,0" Click="ImportRenewalButton_Click" IsEnabled="False"/>
+              </StackPanel>
+              <TextBlock x:Name="RenewalImportMessage" Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,12,0,0"/>
+            </StackPanel>
+          </Border>
+          <DataGrid x:Name="RenewalPreviewGrid" Margin="0,16,0,0" Visibility="Collapsed">
+            <DataGrid.Columns>
+              <DataGridCheckBoxColumn Header="IMPORTAR" Binding="{Binding Include, UpdateSourceTrigger=PropertyChanged}" Width="85"/>
+              <DataGridTextColumn Header="CONTRATO" Binding="{Binding Contract}" Width="100"/>
+              <DataGridTextColumn Header="CLIENTE" Binding="{Binding Client}" Width="1.5*"/>
+              <DataGridTextColumn Header="PLANO" Binding="{Binding PlanName}" Width="1.4*"/>
+              <DataGridTextColumn Header="VENDEDOR" Binding="{Binding VendorName}" Width="*"/>
+              <DataGridTextColumn Header="DATA" Binding="{Binding DateLabel}" Width="110"/>
+              <DataGridTextColumn Header="VALOR" Binding="{Binding ValueLabel}" Width="110"/>
+              <DataGridTextColumn Header="SITUAÇÃO" Binding="{Binding Error}" Width="2*"/>
+            </DataGrid.Columns>
+          </DataGrid>
+        </StackPanel>
+      </Border>
+      <Border x:Name="AdditionalContent" Visibility="Collapsed" Padding="26" CornerRadius="18" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <StackPanel MaxWidth="760" HorizontalAlignment="Left" VerticalAlignment="Top">
+          <TextBlock Text="OPERAÇÃO COMERCIAL" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+          <TextBlock Text="Registrar adicional avulso" FontSize="26" FontWeight="Bold" Margin="0,5,0,4"/>
+          <TextBlock x:Name="AdditionalBranchHint" Foreground="{StaticResource BrushMuted}" Margin="0,0,0,22"/>
+          <TextBlock Text="Vendedor (opcional)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <ComboBox x:Name="AdditionalVendorSelector" Height="40" DisplayMemberPath="Name" Margin="0,0,0,16"/>
+          <TextBlock Text="Produto adicional" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <ComboBox x:Name="AdditionalProductSelector" Height="40" DisplayMemberPath="Label" SelectionChanged="AdditionalProductSelector_SelectionChanged" Margin="0,0,0,16"/>
+          <Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,10,0"><TextBlock Text="Data" FontWeight="SemiBold" Margin="0,0,0,6"/><DatePicker x:Name="AdditionalDateInput" Height="40"/></StackPanel>
+            <StackPanel Grid.Column="1" Margin="10,0,0,0"><TextBlock Text="Quantidade" FontWeight="SemiBold" Margin="0,0,0,6"/><TextBox x:Name="AdditionalQuantityInput" Height="40" VerticalContentAlignment="Center" Text="1"/></StackPanel>
+          </Grid>
+          <TextBlock Text="Valor unitário (R$)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBox x:Name="AdditionalValueInput" Height="40" VerticalContentAlignment="Center" Margin="0,0,0,16"/>
+          <TextBlock Text="Observação (opcional)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBox x:Name="AdditionalNotesInput" MinHeight="70" AcceptsReturn="True" TextWrapping="Wrap" Padding="10"/>
+          <TextBlock x:Name="AdditionalMessage" Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,12,0,10"/>
+          <Button x:Name="SaveAdditionalButton" Content="Registrar adicional" HorizontalAlignment="Right" Padding="20,10" Click="SaveAdditionalButton_Click"/>
+        </StackPanel>
+      </Border>
+      <Border x:Name="ReceivedSalesContent" Visibility="Collapsed" Padding="26" CornerRadius="18" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <StackPanel MaxWidth="760" HorizontalAlignment="Left" VerticalAlignment="Top">
+          <TextBlock Text="OPERAÇÃO COMERCIAL" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+          <TextBlock Text="Venda recebida de outra filial" FontSize="26" FontWeight="Bold" Margin="0,5,0,4"/>
+          <TextBlock x:Name="ReceivedBranchHint" Foreground="{StaticResource BrushMuted}" Margin="0,0,0,22"/>
+          <TextBlock Text="Plano" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <ComboBox x:Name="ReceivedPlanSelector" Height="40" DisplayMemberPath="Label" SelectionChanged="ReceivedPlanSelector_SelectionChanged" Margin="0,0,0,16"/>
+          <Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,8,0"><TextBlock Text="Data" FontWeight="SemiBold" Margin="0,0,0,6"/><DatePicker x:Name="ReceivedDateInput" Height="40"/></StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0"><TextBlock Text="Quantidade" FontWeight="SemiBold" Margin="0,0,0,6"/><TextBox x:Name="ReceivedQuantityInput" Height="40" VerticalContentAlignment="Center" Text="1"/></StackPanel>
+            <StackPanel Grid.Column="2" Margin="8,0,0,0"><TextBlock Text="Valor unitário (R$)" FontWeight="SemiBold" Margin="0,0,0,6"/><TextBox x:Name="ReceivedValueInput" Height="40" VerticalContentAlignment="Center"/></StackPanel>
+          </Grid>
+          <TextBlock Text="Observação (opcional)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBox x:Name="ReceivedNotesInput" MinHeight="70" AcceptsReturn="True" TextWrapping="Wrap" Padding="10"/>
+          <TextBlock x:Name="ReceivedMessage" Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,12,0,10"/>
+          <Button x:Name="SaveReceivedButton" Content="Registrar venda recebida" HorizontalAlignment="Right" Padding="20,10" Click="SaveReceivedButton_Click"/>
+        </StackPanel>
+      </Border>
+      <Border x:Name="VendorsContent" Visibility="Collapsed" Padding="26" CornerRadius="18" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <StackPanel>
+          <TextBlock Text="EQUIPE E RESULTADOS" Foreground="{StaticResource BrushAccent}" FontSize="11" FontWeight="Bold"/>
+          <TextBlock Text="Vendedores da filial" FontSize="26" FontWeight="Bold" Margin="0,5,0,4"/>
+          <TextBlock x:Name="VendorsBranchHint" Foreground="{StaticResource BrushMuted}" Margin="0,0,0,18"/>
+          <TextBlock Text="Edite os campos e salve. Acesso para criar ou alterar vendedores é validado pelo Supabase." Foreground="{StaticResource BrushMuted}" Margin="0,0,0,12"/>
+          <Border Background="#101722" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,0,0,14">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="1.4*"/><ColumnDefinition Width="140"/><ColumnDefinition Width="160"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBox x:Name="NewVendorNameInput" Height="40" VerticalContentAlignment="Center" ToolTip="Nome do vendedor" Margin="0,0,8,0"/>
+              <ComboBox x:Name="NewVendorTypeSelector" Grid.Column="1" Height="40" SelectedIndex="0" Margin="8,0"><ComboBoxItem Content="interno"/><ComboBoxItem Content="externo"/></ComboBox>
+              <TextBox x:Name="NewVendorIxcInput" Grid.Column="2" Height="40" VerticalContentAlignment="Center" ToolTip="ID do vendedor no IXC" Margin="8,0"/>
+              <CheckBox x:Name="NewVendorRankingCheck" Grid.Column="3" Content="Participa do ranking" IsChecked="True" VerticalAlignment="Center" Margin="8,0"/>
+              <Button x:Name="CreateVendorButton" Grid.Column="4" Content="Adicionar vendedor" Padding="16,9" Margin="8,0,0,0" Click="CreateVendorButton_Click"/>
+            </Grid>
+          </Border>
+          <DataGrid x:Name="VendorsGrid" MinHeight="300">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="NOME" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="1.5*"/>
+              <DataGridTextColumn Header="TIPO (interno/externo)" Binding="{Binding Type, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+              <DataGridTextColumn Header="ID VENDEDOR IXC" Binding="{Binding IxcVendorId, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+              <DataGridCheckBoxColumn Header="ATIVO" Binding="{Binding Active, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+              <DataGridCheckBoxColumn Header="NO RANKING" Binding="{Binding ParticipatesInRanking, UpdateSourceTrigger=PropertyChanged}" Width="110"/>
+            </DataGrid.Columns>
+          </DataGrid>
+          <TextBlock x:Name="VendorsMessage" Foreground="{StaticResource BrushMuted}" TextWrapping="Wrap" Margin="0,12,0,10"/>
+          <Button x:Name="SaveVendorsButton" Content="Salvar alterações dos vendedores" HorizontalAlignment="Right" Padding="20,10" Click="SaveVendorsButton_Click"/>
+        </StackPanel>
       </Border>
       </Grid>
       </Grid>
