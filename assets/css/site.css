@@ -667,6 +667,14 @@
   /* ---------- mural de destaques (histórico — externo + interno) ---------- */
   .mural-section { margin-bottom: 40px; }
   .mural-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .mural-visible-months,.mural-archive-list { display:grid; gap:10px; }
+  .mural-archive { overflow:hidden; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.012); }
+  .mural-archive > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 15px; color:var(--text-muted); font-size:.74rem; font-weight:700; cursor:pointer; list-style:none; }
+  .mural-archive > summary::-webkit-details-marker { display:none; }
+  .mural-archive > summary::after { content:'+'; color:var(--accent); font-size:1rem; font-weight:600; }
+  .mural-archive[open] > summary::after { content:'−'; }
+  .mural-archive > summary span { margin-left:auto; padding:3px 8px; border:1px solid var(--border); border-radius:999px; font-size:.65rem; }
+  .mural-archive-list { padding:0 10px 10px; }
   .mural-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     display: grid; grid-template-columns: 145px minmax(0, 1fr); align-items: stretch;
@@ -674,6 +682,15 @@
     transition: border-color 0.2s ease, transform 0.2s ease;
   }
   .mural-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .mural-card-archive { grid-template-columns:125px minmax(0,1fr); padding:4px 11px; border-radius:10px; }
+  .mural-card-archive .mural-month { padding:5px 10px 5px 2px; }
+  .mural-card-archive .mural-month strong { font-size:.68rem; }
+  .mural-card-archive .mural-winner { grid-template-columns:30px minmax(0,1fr); gap:7px; padding:5px 9px; }
+  .mural-card-archive .mural-photo-wrap { width:30px; height:30px; }
+  .mural-card-archive .mural-role { font-size:.55rem; }
+  .mural-card-archive .mural-name { font-size:.74rem; }
+  .mural-card-archive .mural-value { font-size:.65rem; }
+  .mural-no-result { display:flex; align-items:center; padding:10px 16px; color:var(--text-muted); font-size:.74rem; }
   .mural-month {
     display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
     gap: 5px; padding: 8px 14px 8px 2px; border-right: 1px solid var(--border);
@@ -704,6 +721,7 @@
 
   @media (max-width: 760px) {
     .mural-card { grid-template-columns: 112px minmax(0, 1fr); padding: 7px 9px; }
+    .mural-card-archive { grid-template-columns:105px minmax(0,1fr); padding:4px 8px; }
     .mural-winner { grid-template-columns: 32px minmax(0, 1fr); gap: 7px; padding: 8px; }
     .mural-photo-wrap { width: 32px; height: 32px; }
     .mural-role { font-size: 0.56rem; }
@@ -712,7 +730,9 @@
   }
   @media (max-width: 560px) {
     .mural-card { grid-template-columns: 1fr; }
+    .mural-card-archive { grid-template-columns:1fr; }
     .mural-month { padding: 5px 4px 9px; border-right: 0; }
+    .mural-card-archive .mural-month { padding:5px 4px 7px; border-right:0; }
     .mural-winners { grid-template-columns: 1fr; }
     .mural-winners-two { grid-template-columns: 1fr; }
     .mural-winner { padding: 8px 4px; }

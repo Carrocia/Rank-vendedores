@@ -451,13 +451,26 @@ function calcularDestaqueMes(periodo, vendas, vendedores, vendasOrigemInternos =
       .sort((a, b) => (b.vendas - a.vendas) || (b.valor - a.valor));
     return lista.length ? { id: lista[0].id, nome: lista[0].nome, foto_url: lista[0].foto_url, vendas: lista[0].vendas } : null;
   };
-  return { mes: periodo.mesNome, interno: vencedor('interno'), externo: vencedor('externo') };
+  return { mes: periodo.mesNome, mesNum: periodo.mesNum, ano: periodo.ano, interno: vencedor('interno'), externo: vencedor('externo') };
 }
 
-// Mural = mês atual em andamento + últimos meses fechados, com campeões
-// de vendas e renovações, mais os registros históricos informados à mão.
+const muralMeses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+function chavePeriodoMural(item) {
+  const atual = calcularPeriodoMes();
+  const chaveNome = String(item.mes || '').trim().toLocaleLowerCase('pt-BR');
+  const mesNum = Number(item.mesNum) || muralMeses.indexOf(chaveNome) + 1;
+  if (!mesNum) return null;
+  let ano = Number(item.ano) || atual.ano;
+  if (!item.ano && mesNum > atual.mesNum) ano -= 1;
+  return { mesNum, ano, ordem: ano * 12 + mesNum };
+}
+
+// Mostra o mês em andamento e o último mês fechado; guarda o restante no histórico compacto.
 function historicoCompleto() {
-  const chave = h => String(h.mes).toLowerCase();
+  const chave = h => {
+    const periodo = chavePeriodoMural(h);
+    return periodo ? `${periodo.ano}-${String(periodo.mesNum).padStart(2, '0')}` : String(h.mes).toLowerCase();
+  };
   const manuais = window.FILIAL_ATUAL_ID === 10
     ? HISTORICO_DESTAQUES.filter(h => h.interno || h.externo)
     : [];
@@ -471,14 +484,40 @@ function historicoCompleto() {
   manuais.forEach(m => { if (!lista.some(x => chave(x) === chave(m))) lista.push(m); });
 
   // card do mês em andamento, sempre no topo, "A definir"
-  const nomeAtual = (() => { const n = calcularPeriodoMes().mesNome; return n.charAt(0).toUpperCase() + n.slice(1); })();
-  const itemAtual = lista.find(x => chave(x) === nomeAtual.toLowerCase());
+  const periodoAtual = calcularPeriodoMes();
+  const periodoAnterior = calcularPeriodoMesAnterior(1);
+  const nomeAtual = periodoAtual.mesNome.charAt(0).toUpperCase() + periodoAtual.mesNome.slice(1);
+  const itemAtual = lista.find(x => chave(x) === `${periodoAtual.ano}-${String(periodoAtual.mesNum).padStart(2, '0')}`);
   if (!itemAtual) {
-    lista.unshift({ mes: nomeAtual, interno: null, externo: null, renovacao: null, emAndamento: true });
+    lista.push({ mes: nomeAtual, mesNum: periodoAtual.mesNum, ano: periodoAtual.ano, interno: null, externo: null, renovacao: null, emAndamento: true });
   } else {
     itemAtual.emAndamento = true;
   }
-  return lista;
+  const chaveAnterior = `${periodoAnterior.ano}-${String(periodoAnterior.mesNum).padStart(2, '0')}`;
+  if (!lista.some(x => chave(x) === chaveAnterior)) {
+    lista.push({ mes: periodoAnterior.mesNome, mesNum: periodoAnterior.mesNum, ano: periodoAnterior.ano, semDados: true, interno: null, externo: null, renovacao: null });
+  }
+  return lista.sort((a, b) => (chavePeriodoMural(b)?.ordem || 0) - (chavePeriodoMural(a)?.ordem || 0));
+}
+
+function renderMuralCard(h, compacto = false) {
+  const tituloMes = `${String(h.mes || '').charAt(0).toUpperCase()}${String(h.mes || '').slice(1)}`;
+  return `
+    <div class="mural-card${compacto ? ' mural-card-archive' : ''}">
+      <div class="mural-month">
+        <strong>${escapeHtmlText(tituloMes)}${h.ano ? ` ${h.ano}` : ''}</strong>
+        ${h.emAndamento ? '<span class="mural-month-status">Em andamento</span>' : ''}
+      </div>
+      ${h.semDados
+        ? '<div class="mural-no-result">Nenhum destaque registrado para este mês.</div>'
+        : `<div class="mural-winners${h.renovacao || h.emAndamento ? '' : ' mural-winners-two'}">
+            ${renderMuralPerson(h.interno, 'Destaque em vendas · interno')}
+            ${renderMuralPerson(h.externo, 'Destaque em vendas · externo')}
+            ${h.renovacao || h.emAndamento
+              ? renderMuralPerson(h.renovacao, 'Destaque em renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
+              : ''}
+          </div>`}
+    </div>`;
 }
 
 function renderHistorico() {
@@ -488,21 +527,12 @@ function renderHistorico() {
     container.innerHTML = '<p class="mural-empty">Nenhum destaque registrado ainda.</p>';
     return;
   }
-  container.innerHTML = historico.map(h => `
-    <div class="mural-card">
-      <div class="mural-month">
-        <strong>${escapeHtmlText(h.mes)}</strong>
-        ${h.emAndamento ? '<span class="mural-month-status">Em andamento</span>' : ''}
-      </div>
-      <div class="mural-winners${h.renovacao || h.emAndamento ? '' : ' mural-winners-two'}">
-        ${renderMuralPerson(h.interno, 'Destaque em vendas · interno')}
-        ${renderMuralPerson(h.externo, 'Destaque em vendas · externo')}
-        ${h.renovacao || h.emAndamento
-          ? renderMuralPerson(h.renovacao, 'Destaque em renovações', quantidade => `${quantidade} ${Number(quantidade) === 1 ? 'renovação' : 'renovações'}`)
-          : ''}
-      </div>
-    </div>
-  `).join('');
+  const atual = historico.find(h => h.emAndamento);
+  const anterior = historico.filter(h => !h.emAndamento)[0];
+  const arquivo = historico.filter(h => !h.emAndamento).slice(1);
+  const visiveis = [atual, anterior].filter(Boolean);
+  container.innerHTML = `<div class="mural-visible-months">${visiveis.map(h => renderMuralCard(h)).join('')}</div>
+    ${arquivo.length ? `<details class="mural-archive"><summary>Ver destaques dos meses anteriores <span>${arquivo.length}</span></summary><div class="mural-archive-list">${arquivo.map(h => renderMuralCard(h, true)).join('')}</div></details>` : ''}`;
 }
 
 // Cor atual de uma variável de tema (gráficos/confete acompanham o tema sazonal)
