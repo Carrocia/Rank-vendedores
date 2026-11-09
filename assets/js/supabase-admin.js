@@ -246,6 +246,12 @@ function buscarVendedorGerenciado(id) {
     || null;
 }
 
+function podeGerenciarVendedor(vendedor) {
+  if (!window.ADMIN_AUTENTICADO || !vendedor) return false;
+  return ehSuperAdminAtual()
+    || (window.ADMIN_FILIAL_ID != null && Number(vendedor.filial_id) === Number(window.ADMIN_FILIAL_ID));
+}
+
 function limparEstadoEdicaoVendedor() {
   const idEl = document.getElementById('adm-vendedor-edit-id');
   const titulo = document.getElementById('adm-vendedor-form-title');
@@ -268,11 +274,11 @@ function cancelarEdicaoVendedor() {
 }
 
 function iniciarEdicaoVendedor(id) {
-  if (!ehSuperAdminAtual()) {
-    showToast('Somente o superadministrador pode editar vendedores.', 'error');
+  const vendedor = buscarVendedorGerenciado(id);
+  if (!podeGerenciarVendedor(vendedor)) {
+    showToast('Este acesso só pode editar vendedores da própria regional.', 'error');
     return;
   }
-  const vendedor = buscarVendedorGerenciado(id);
   if (!vendedor || !vendedor.ativo) {
     showToast('Este vendedor não está disponível para edição.', 'warning');
     return;
@@ -340,7 +346,7 @@ async function carregarVendedoresGerenciamento() {
     const tipo = document.createElement('td');
     tipo.textContent = v.tipo === 'interno' ? 'Interno' : 'Externo';
     const situacao = document.createElement('td');
-    if (ehSuperAdminAtual()) {
+    if (podeGerenciarVendedor(v)) {
       const reativar = document.createElement('button');
       reativar.type = 'button';
       reativar.className = 'adm-btn adm-btn-small';
@@ -567,12 +573,12 @@ async function vincularIdentidadeCarreira() {
 }
 
 async function alterarStatusVendedor(id, ativo) {
-  if (!ehSuperAdminAtual()) {
-    showToast('Somente o superadministrador pode alterar o status de vendedores.', 'error');
-    return;
-  }
   const vendedor = buscarVendedorGerenciado(id);
   if (!vendedor) return;
+  if (!podeGerenciarVendedor(vendedor)) {
+    showToast('Este acesso só pode alterar vendedores da própria regional.', 'error');
+    return;
+  }
   if (!ativo && !confirm(`Desativar ${vendedor.nome}? O histórico de vendas será preservado.`)) return;
   try {
     const { data, error } = await window._supabase
@@ -703,8 +709,8 @@ async function cadastrarVendedor(event) {
   const form = document.getElementById('adm-vendedor-form');
   const botao = document.getElementById('adm-vendedor-submit');
   const editId = Number(document.getElementById('adm-vendedor-edit-id')?.value || 0) || null;
-  if (!ehSuperAdminAtual() || !window._supabase) {
-    showToast('Somente o superadministrador pode cadastrar ou editar vendedores.', 'error');
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) {
+    showToast('Entre no painel administrativo para gerenciar vendedores.', 'error');
     return;
   }
 
@@ -729,6 +735,10 @@ async function cadastrarVendedor(event) {
 
   if (!isSuperAdmin && filialId !== Number(window.ADMIN_FILIAL_ID)) {
     showToast('Este acesso só pode gerenciar vendedores da própria regional.', 'error');
+    return;
+  }
+  if (editId && !podeGerenciarVendedor(vendedorExistente)) {
+    showToast('Este acesso só pode editar vendedores da própria regional.', 'error');
     return;
   }
   if (editId && (!vendedorExistente || !vendedorExistente.ativo)) {
@@ -3380,7 +3390,7 @@ function configurarNavegacaoAdmin() {
   const vendedorOutraFilialField = document.getElementById('filial-vendedor-field');
   const vendedorOutraFilialHint = document.getElementById('filial-vendedor-escopo-hint');
   if (vendedoresGlobaisCard) vendedoresGlobaisCard.hidden = !superAdmin;
-  if (formCadastroVendedor) formCadastroVendedor.hidden = !superAdmin;
+  if (formCadastroVendedor) formCadastroVendedor.hidden = !window.ADMIN_AUTENTICADO;
   if (vendedorOutraFilialField) vendedorOutraFilialField.hidden = !superAdmin;
   if (vendedorOutraFilialHint) vendedorOutraFilialHint.hidden = superAdmin;
   if (superAdmin && vendedoresGlobaisFiltro) {
@@ -4474,7 +4484,7 @@ function renderAdmVendedoresTable(d) {
 
     const acoesTd = document.createElement('td');
     acoesTd.className = 'adm-vendedor-actions';
-    if (ehSuperAdminAtual()) {
+    if (podeGerenciarVendedor(v)) {
       const editarBtn = document.createElement('button');
       editarBtn.type = 'button';
       editarBtn.className = 'adm-btn adm-btn-small';
