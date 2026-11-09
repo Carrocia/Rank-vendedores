@@ -42,33 +42,43 @@
 // Ordem de prioridade: ?tema=... na URL  >  escolha salva no ADM  >  data.
 // ================================================================
 (function () {
+  function pal(bg, surface, solid, hover, accent, accent2, gold, accentText) {
+    var rgbAccent = accent.replace('#','');
+    var brilho = (parseInt(rgbAccent.substr(0,2),16)*299 + parseInt(rgbAccent.substr(2,2),16)*587 + parseInt(rgbAccent.substr(4,2),16)*114) / 1000;
+    return { bg:bg, surface:surface, solid:solid, hover:hover, accent:accent, accent2:accent2, gold:gold, accentText:accentText || (brilho > 158 ? '#20271f' : '#fffaf0') };
+  }
   var TEMAS = {
-    'outubro-rosa': { nome: 'Outubro Rosa', icone: '🎗️', periodo: 'Outubro', fx: '✿', d: ['#ff69a6', '#4d7cff'], l: ['#b42367', '#1d4ed8'] },
-    'novembro-azul': { nome: 'Novembro Azul', icone: '💙', periodo: 'Novembro', fx: '💙', d: ['#4cc9f0', '#6f86ff'], l: ['#0369a1', '#3a47c9'] },
-    'black-friday': { nome: 'Black Friday', icone: '🏷️', periodo: 'Semana da Black Friday', fx: '🏷️', d: ['#ffb703', '#ff5a1f'], l: ['#975c07', '#bd3f0c'] },
-    'natal': { nome: 'Natal', icone: '🎄', periodo: '01 a 25/12', fx: '❄️', d: ['#df454d', '#e8b944'], l: ['#ad2730', '#8a6415'] },
-    'ano-novo': { nome: 'Feliz Ano Novo', icone: '🎆', periodo: '26/12 a 10/01', fx: '✨', d: ['#ffd166', '#ff9f1c'], l: ['#905f18', '#bc3f0d'] },
-    'carnaval': { nome: 'Carnaval', icone: '🎭', periodo: 'Fevereiro', fx: '🎊', d: ['#ff68c8', '#ffd23f'], l: ['#c2187f', '#975c07'] },
-    'mulher': { nome: 'Dia da Mulher', icone: '💜', periodo: 'Março', fx: '🌸', d: ['#c982ff', '#ff6fb5'], l: ['#7b2cbf', '#c2185b'] },
-    'pascoa': { nome: 'Páscoa', icone: '🐰', periodo: 'Abril', fx: '🐣', d: ['#ffb347', '#b794f6'], l: ['#aa4f09', '#6d4de6'] },
-    'maes': { nome: 'Dia das Mães', icone: '🌷', periodo: 'Maio', fx: '🌷', d: ['#ff8fab', '#ffb08a'], l: ['#be185d', '#bd3f0c'] },
-    'namorados': { nome: 'Dia dos Namorados', icone: '💖', periodo: '01 a 12/06', fx: '💖', d: ['#ff768e', '#ff8fa3'], l: ['#c9184a', '#be185d'] },
-    'junina': { nome: 'Festa Junina', icone: '🌽', periodo: '13 a 30/06', fx: '🎈', d: ['#ffa62b', '#ff5d4a'], l: ['#aa4f09', '#c2261b'] },
-    'pais': { nome: 'Dia dos Pais', icone: '👔', periodo: 'Agosto', fx: '⭐', d: ['#4dabf7', '#6c8cff'], l: ['#0b68c6', '#1d4ed8'] },
-    'setembro-amarelo': { nome: 'Setembro Amarelo', icone: '💛', periodo: 'Setembro', fx: '💛', d: ['#ffd43b', '#ffa94d'], l: ['#975c07', '#bd3f0c'] }
+    'outubro-rosa': { nome:'Outubro Rosa', icone:'🎗️', periodo:'Outubro', fx:'✿', d:pal('#170f18','rgba(49,27,45,.88)','#291c28','#382438','#df6b9d','#a783c4','#f0cb82'), l:pal('#fff5f8','rgba(255,255,255,.9)','#fff','#fce8ef','#ad416f','#704a91','#9b6c27','#fffaf0') },
+    'novembro-azul': { nome:'Novembro Azul', icone:'💙', periodo:'Novembro', fx:'💙', d:pal('#0b1420','rgba(19,39,58,.88)','#14273a','#1b354d','#69c7e8','#8197ef','#d3c58b'), l:pal('#f1f8fc','rgba(255,255,255,.9)','#fff','#e6f2f8','#287b9f','#586ab4','#8c6c2d','#fff') },
+    'black-friday': { nome:'Black Friday', icone:'🏷️', periodo:'Semana da Black Friday', fx:'🏷️', d:pal('#151310','rgba(42,35,24,.88)','#262119','#373023','#f2bd55','#d87847','#ffe2a0','#21170a'), l:pal('#fbf7ed','rgba(255,255,255,.9)','#fff','#f4ead4','#99651c','#a54e27','#785018','#fffaf0') },
+    'natal': { nome:'Natal', icone:'🎄', periodo:'01 a 25/12', fx:'❄️', d:pal('#0c1512','rgba(22,39,31,.9)','#17271f','#20392d','#c85d55','#51876a','#e4c681','#fffaf0'), l:pal('#f7f4e9','rgba(255,255,255,.92)','#fff','#ede9d9','#a33e3e','#35694e','#987334','#fffaf0') },
+    'ano-novo': { nome:'Feliz Ano Novo', icone:'🎆', periodo:'26/12 a 10/01', fx:'✨', d:pal('#10131d','rgba(29,35,54,.9)','#20273b','#2b3650','#86b5ed','#b99ae2','#f0d18e'), l:pal('#f3f5fb','rgba(255,255,255,.92)','#fff','#e9edf8','#426caa','#765da4','#94723a','#fffaf0') },
+    'carnaval': { nome:'Carnaval', icone:'🎭', periodo:'Fevereiro', fx:'🎊', d:pal('#19101f','rgba(49,27,61,.9)','#30203b','#43264f','#ed78c7','#9c83e9','#f5cf68'), l:pal('#fcf4fb','rgba(255,255,255,.92)','#fff','#f5e7f3','#a83b8b','#6350a5','#96702a','#fffaf0') },
+    'mulher': { nome:'Dia da Mulher', icone:'💜', periodo:'Março', fx:'🌸', d:pal('#191321','rgba(48,34,62,.9)','#30243d','#41304f','#c59aef','#e58dbb','#e8c6dc'), l:pal('#f8f3fb','rgba(255,255,255,.92)','#fff','#eee5f4','#8057a0','#a24f78','#987452','#fffaf0') },
+    'pascoa': { nome:'Páscoa', icone:'🐰', periodo:'Abril', fx:'🐣', d:pal('#17141f','rgba(48,40,62,.9)','#30283c','#433653','#d9a9e8','#97c8b1','#efd18b'), l:pal('#faf5f8','rgba(255,255,255,.92)','#fff','#f2e8f0','#895a91','#497a63','#9c7733','#fffaf0') },
+    'maes': { nome:'Dia das Mães', icone:'🌷', periodo:'Maio', fx:'🌷', d:pal('#1d1219','rgba(55,34,47,.9)','#35232e','#49303d','#e58da5','#d6a485','#f0d2a7'), l:pal('#fff5f3','rgba(255,255,255,.92)','#fff','#f9e8e4','#a84d69','#9a684c','#9d743c','#fffaf0') },
+    'namorados': { nome:'Dia dos Namorados', icone:'💖', periodo:'01 a 12/06', fx:'💖', d:pal('#1c1118','rgba(57,31,43,.9)','#36212d','#4b2b3b','#ee8297','#c978a2','#edc894'), l:pal('#fff4f5','rgba(255,255,255,.92)','#fff','#f9e4e8','#b3445b','#954e75','#a17a50','#fffaf0') },
+    'junina': { nome:'Festa Junina', icone:'🌽', periodo:'13 a 30/06', fx:'🎈', d:pal('#1c1510','rgba(53,38,25,.9)','#382a1d','#4b3825','#f0b84f','#d87656','#f5d78d','#281b0b'), l:pal('#fbf4e7','rgba(255,255,255,.92)','#fff','#f3e8d3','#9c651c','#a94d32','#8b672c','#fffaf0') },
+    'pais': { nome:'Dia dos Pais', icone:'👔', periodo:'Agosto', fx:'⭐', d:pal('#101720','rgba(27,43,58,.9)','#202e3d','#2b4052','#85b8da','#a5a3d6','#d8be8b'), l:pal('#f2f7fa','rgba(255,255,255,.92)','#fff','#e5eff4','#397596','#6d6798','#927445','#fffaf0') },
+    'setembro-amarelo': { nome:'Setembro Amarelo', icone:'💛', periodo:'Setembro', fx:'💛', d:pal('#1b1710','rgba(53,43,24,.9)','#382e1d','#4d3e24','#efc65a','#d9904b','#ffe39b','#281d08'), l:pal('#fcf8ea','rgba(255,255,255,.92)','#fff','#f5efd9','#94701f','#a35e2c','#866329','#fffaf0') }
   };
   window.UNI_TEMAS = TEMAS;
 
   function rgb(h) { h = h.replace('#', ''); return parseInt(h.substr(0, 2), 16) + ', ' + parseInt(h.substr(2, 2), 16) + ', ' + parseInt(h.substr(4, 2), 16); }
-  function vars(c, glowAlpha) {
-    var accentRgb = rgb(c[0]);
-    var glow = glowAlpha == null ? '' : '--accent-glow:rgba(' + accentRgb + ',' + glowAlpha + ');';
-    return '--accent:' + c[0] + ';--accent2:' + c[1] + ';--accent-rgb:' + accentRgb + ';--accent2-rgb:' + rgb(c[1]) + ';' + glow;
+  function vars(c, light) {
+    var accentRgb = rgb(c.accent), a = light ? 0.12 : 0.22;
+    return '--bg:'+c.bg+';--surface:'+c.surface+';--surface-solid:'+c.solid+';--surface-hover:'+c.hover+
+      ';--border:rgba('+rgb(c.accent2)+','+(light?'.2':'.23')+');--text:'+(light?'#344039':'#e9eee7')+
+      ';--text-muted:'+(light?'#68756d':'#a4afa7')+';--heading-color:'+(light?'#243129':'#fff9eb')+
+      ';--accent:'+c.accent+';--accent2:'+c.accent2+';--accent-rgb:'+accentRgb+';--accent2-rgb:'+rgb(c.accent2)+
+      ';--accent-glow:rgba('+accentRgb+','+a+');--gold:'+c.gold+';--accent-text:'+c.accentText+
+      ';--danger:'+(light?'#b43e49':'#ec7479')+';--green:'+(light?'#28744d':'#62b582')+
+      ';--shadow-hover:'+(light?'rgba(42,35,24,.14)':'rgba(0,0,0,.4)')+';';
   }
   var css = '';
   Object.keys(TEMAS).forEach(function (id) {
-    css += 'html[data-season="' + id + '"]{' + vars(TEMAS[id].d, id === 'natal' ? 0.25 : null) + '}';
-    css += 'html[data-theme="light"][data-season="' + id + '"]{' + vars(TEMAS[id].l, id === 'natal' ? 0.15 : null) + '}';
+    css += 'html[data-season="' + id + '"]{' + vars(TEMAS[id].d, false) + '}';
+    css += 'html[data-theme="light"][data-season="' + id + '"]{' + vars(TEMAS[id].l, true) + '}';
   });
   var st = document.createElement('style'); st.id = 'season-css'; st.textContent = css; document.head.appendChild(st);
 
@@ -108,7 +118,7 @@
   var natalTimer = null;
   function limparNatal() {
     if (natalTimer) { window.clearTimeout(natalTimer); natalTimer = null; }
-    document.querySelectorAll('.natal-decor, .natal-treno, .natal-gorro, .natal-enfeites').forEach(function (el) { el.remove(); });
+    document.querySelectorAll('.natal-decor, .natal-treno, .natal-gorro, .natal-enfeites, .natal-guirlanda').forEach(function (el) { el.remove(); });
   }
   function imagemNatal(src, classe, alt) {
     var img = document.createElement('img');
@@ -117,6 +127,7 @@
     img.alt = alt || '';
     img.setAttribute('aria-hidden', 'true');
     img.draggable = false;
+    img.decoding = 'async';
     return img;
   }
   function agendarTreno() {
@@ -153,7 +164,18 @@
       var logo = document.querySelector('.header-logo');
       if (logo) logo.appendChild(imagemNatal('gorro.png', 'natal-gorro'));
       var painel = document.querySelector('.hero-panel');
-      if (painel) painel.appendChild(imagemNatal('enfeites.png', 'natal-enfeites'));
+      if (painel) {
+        var guirlanda = document.createElement('div');
+        guirlanda.className = 'natal-guirlanda';
+        guirlanda.setAttribute('aria-hidden', 'true');
+        for (var luz = 0; luz < 7; luz++) {
+          var lampada = document.createElement('span');
+          lampada.style.left = (12 + luz * 11) + '%';
+          lampada.style.top = (10 + Math.sin(luz / 6 * Math.PI) * 16) + 'px';
+          guirlanda.appendChild(lampada);
+        }
+        painel.appendChild(guirlanda);
+      }
       agendarTreno();
     }
     var box = document.createElement('div'); box.className = 'season-fx'; box.setAttribute('aria-hidden', 'true');

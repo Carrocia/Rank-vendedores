@@ -1121,11 +1121,44 @@
   .season-fx span { position: absolute; top: -12vh; line-height: 1; opacity: 0.45; animation: seasonFall linear infinite; }
   [data-theme="light"] .season-fx span { opacity: 0.55; }
   html[data-season="natal"] .season-fx span {
-    color: #f7fcff; opacity: 0.66; font-family: Arial, sans-serif;
-    text-shadow: 0 0 8px rgba(190, 235, 255, 0.7);
+    color: #fff1c9; opacity: 0.58; font-family: Arial, sans-serif;
+    text-shadow: 0 0 8px rgba(228, 198, 129, 0.48);
   }
   html[data-season="natal"] .season-fx span:nth-child(3n) { opacity: 0.36; }
-  html[data-season="natal"] .season-fx span:nth-child(4n) { color: #d9f5ff; }
+  html[data-season="natal"] .season-fx span:nth-child(4n) { color: #f3d7d0; }
+  html[data-season="natal"] .hero-panel {
+    border-color: rgba(228,198,129,.34);
+    background:
+      radial-gradient(ellipse at 86% 8%, rgba(200,93,85,.18), transparent 36%),
+      radial-gradient(ellipse at 12% 100%, rgba(81,135,106,.22), transparent 48%),
+      linear-gradient(120deg, rgba(13,28,21,.98), rgba(28,43,32,.96) 58%, rgba(54,36,34,.92));
+    box-shadow: 0 18px 52px rgba(0,0,0,.24), inset 0 1px rgba(255,248,225,.07);
+  }
+  html[data-theme="light"][data-season="natal"] .hero-panel {
+    background:
+      radial-gradient(ellipse at 88% 0%, rgba(163,62,62,.12), transparent 38%),
+      radial-gradient(ellipse at 8% 100%, rgba(53,105,78,.13), transparent 48%),
+      linear-gradient(120deg, #fffdf6, #f2f0e3 62%, #f5e9e1);
+  }
+  html[data-theme="light"][data-season="natal"] .header-copy h1 {
+    background: linear-gradient(100deg, #294b36 12%, #8c3938 72%, #9a7133);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  html[data-season="natal"] .season-badge {
+    color: var(--gold); background: rgba(200,93,85,.13);
+    border-color: rgba(228,198,129,.38); box-shadow: inset 0 1px rgba(255,255,255,.06);
+  }
+  html[data-season="natal"] .header-copy h1 {
+    position: relative; z-index: 2; text-shadow: 0 2px 22px rgba(228,198,129,.12);
+    background: linear-gradient(100deg, #fffaf0 10%, #f1d99b 76%, #d7aa67);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  html[data-season="natal"] .header-copy h1::after { content: none; }
+  html[data-season="natal"] .header-copy p { color: rgba(255,248,229,.74); }
+  html[data-theme="light"][data-season="natal"] .header-copy p { color: #5f695e; }
+  html[data-season="natal"] .hero-left,
+  html[data-season="natal"] .header-kpis,
+  html[data-season="natal"] .header-week-card { position: relative; z-index: 2; }
   .natal-decor { position: fixed; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
   .natal-decor img { position: absolute; display: block; height: auto; pointer-events: none; user-select: none; }
   .natal-neve {
@@ -1137,30 +1170,46 @@
   }
   .natal-arvore { left: clamp(8px, 2vw, 30px); bottom: 12px; width: clamp(68px, 8vw, 112px); opacity: 0.76; }
   .natal-presente { right: clamp(8px, 2vw, 30px); bottom: 10px; width: clamp(72px, 8vw, 112px); opacity: 0.76; }
-  .hero-panel .natal-enfeites {
-    position: absolute; z-index: 5; display: block; top: 0; right: 8px;
-    width: clamp(38px, 3vw, 48px); height: auto; opacity: .58;
-    transform-origin: 50% 0; animation: natalBalanco 7s ease-in-out infinite;
-    pointer-events: none; user-select: none;
+  .hero-panel .natal-guirlanda {
+    position: absolute; z-index: 1; top: 0; right: 0; width: clamp(220px, 34%, 440px); height: 104px;
+    overflow: hidden; opacity: .88; pointer-events: none; user-select: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 90%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 22%, #000 90%, transparent);
   }
+  .natal-guirlanda::before {
+    content: ''; position: absolute; left: -5%; right: -5%; top: -56px; height: 116px;
+    border: 2px solid transparent; border-bottom-color: rgba(63,112,79,.9); border-radius: 0 0 50% 50%;
+    transform: rotate(-3deg); filter: drop-shadow(0 2px 2px rgba(0,0,0,.24));
+  }
+  .natal-guirlanda::after {
+    content: ''; position: absolute; left: 4%; right: 2%; top: 0; height: 52px;
+    background:
+      radial-gradient(ellipse 22px 10px at 7% 42%, #315e3e 35%, transparent 78%),
+      radial-gradient(ellipse 22px 10px at 19% 50%, #244d35 35%, transparent 78%),
+      radial-gradient(ellipse 22px 10px at 31% 45%, #386a45 35%, transparent 78%),
+      radial-gradient(ellipse 22px 10px at 43% 50%, #244d35 35%, transparent 78%),
+      radial-gradient(ellipse 22px 10px at 55% 45%, #386a45 35%, transparent 78%),
+      radial-gradient(ellipse 22px 10px at 67% 50%, #244d35 35%, transparent 78%),
+      radial-gradient(ellipse 22px 10px at 79% 45%, #386a45 35%, transparent 78%),
+      radial-gradient(ellipse 22px 10px at 91% 50%, #244d35 35%, transparent 78%);
+    opacity: .82; transform: rotate(-4deg);
+  }
+  .natal-guirlanda span {
+    position: absolute; z-index: 2; width: 8px; height: 8px; border-radius: 50%;
+    background: #f6d887; box-shadow: 0 0 8px 2px rgba(246,216,135,.62);
+    animation: natalLuz 3.8s ease-in-out infinite alternate;
+  }
+  .natal-guirlanda span:nth-child(2n) { background: #d97969; box-shadow: 0 0 8px 2px rgba(217,121,105,.5); animation-delay: -1.6s; }
+  .natal-guirlanda span:nth-child(3n) { background: #a8c58d; box-shadow: 0 0 8px 2px rgba(168,197,141,.45); animation-delay: -2.4s; }
   html[data-season="natal"] .header-logo { position: relative; }
   html[data-season="natal"] .natal-gorro { position: absolute; z-index: 2; width: 38%; top: -18%; left: -8%; transform: rotate(-22deg); filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); pointer-events: none; }
-  html[data-season="natal"] .header-copy h1 { position: relative; text-shadow: 0 -1px 1px rgba(255,255,255,.2); }
-  html[data-season="natal"] .header-copy h1::after {
-    content: ""; position: absolute; pointer-events: none; left: 1%; top: -2px;
-    width: min(48%, 190px); height: 7px; opacity: .66;
-    background: radial-gradient(ellipse at 14% 100%, #fff 0 19%, transparent 23%),
-      radial-gradient(ellipse at 45% 80%, #f8fdff 0 17%, transparent 21%),
-      radial-gradient(ellipse at 78% 100%, #fff 0 20%, transparent 24%);
-    filter: drop-shadow(0 1px 1px rgba(140, 208, 235, .28));
-  }
   .natal-treno {
     position: fixed; z-index: 30; top: clamp(72px, 12vh, 128px); left: 0;
     width: min(350px, 48vw); height: auto; pointer-events: none;
     animation: natalTreno 24s linear both; filter: drop-shadow(0 4px 8px rgba(0,0,0,.22));
   }
   @keyframes natalTreno { from { transform: translateX(105vw); } to { transform: translateX(-105%); } }
-  @keyframes natalBalanco { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  @keyframes natalLuz { from { opacity: .42; } to { opacity: 1; } }
   html[data-season="outubro-rosa"] .season-fx span {
     color: #ffb7d5; opacity: 0.18; text-shadow: 0 0 12px rgba(255,105,166,0.25);
     font-family: Georgia, serif;
@@ -1175,13 +1224,14 @@
     .natal-neve { height: 48px; }
     .natal-arvore { left: 3px; bottom: 6px; width: 62px; opacity: .68; }
     .natal-presente { right: 3px; bottom: 6px; width: 64px; opacity: .68; }
-    .hero-panel .natal-enfeites { right: 4px; width: 32px; opacity: .42; }
+    .hero-panel .natal-guirlanda { width: 54%; height: 74px; opacity: .62; }
+    .natal-guirlanda span { width: 6px; height: 6px; }
     html[data-season="natal"] .natal-gorro { width: 38%; top: -18%; left: -8%; }
     .natal-treno { top: 76px; width: min(250px, 58vw); }
   }
   @media (prefers-reduced-motion: reduce) {
     .season-fx { display: none; }
-    .hero-panel .natal-enfeites { animation: none; }
+    .hero-panel .natal-guirlanda span { animation: none; }
     .natal-treno { animation: none; }
   }
 
