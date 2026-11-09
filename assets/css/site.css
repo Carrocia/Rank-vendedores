@@ -1126,15 +1126,17 @@
   }
   html[data-season="natal"] .season-fx span:nth-child(3n) { opacity: 0.36; }
   html[data-season="natal"] .season-fx span:nth-child(4n) { color: #d9f5ff; }
-  .natal-decor { position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
+  .natal-decor { position: fixed; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
   .natal-decor img { position: absolute; display: block; height: auto; pointer-events: none; user-select: none; }
-  .natal-decor img.natal-neve {
-    left: 0; right: 0; bottom: 0; width: 100%; height: clamp(90px, 14vh, 170px);
-    object-fit: cover; object-position: center 61%; opacity: .42;
-    filter: drop-shadow(0 -5px 12px rgba(194, 230, 255, 0.12));
+  .natal-neve {
+    position: absolute; left: 0; right: 0; bottom: 0; height: clamp(48px, 8vh, 92px);
+    background:
+      radial-gradient(ellipse at 14% 120%, rgba(226,242,255,.14) 0 18%, transparent 58%),
+      radial-gradient(ellipse at 84% 130%, rgba(226,242,255,.12) 0 16%, transparent 58%),
+      linear-gradient(to top, rgba(204,231,250,.09), transparent 78%);
   }
-  .natal-arvore { left: clamp(8px, 2vw, 30px); bottom: 22px; width: clamp(76px, 10vw, 138px); opacity: 0.88; }
-  .natal-presente { right: clamp(8px, 2vw, 30px); bottom: 16px; width: clamp(84px, 11vw, 148px); opacity: 0.86; }
+  .natal-arvore { left: clamp(8px, 2vw, 30px); bottom: 12px; width: clamp(68px, 8vw, 112px); opacity: 0.76; }
+  .natal-presente { right: clamp(8px, 2vw, 30px); bottom: 10px; width: clamp(72px, 8vw, 112px); opacity: 0.76; }
   .hero-panel .natal-enfeites {
     position: absolute; z-index: 5; display: block; top: 0; right: 8px;
     width: clamp(38px, 3vw, 48px); height: auto; opacity: .58;
@@ -1155,9 +1157,20 @@
   .natal-treno {
     position: fixed; z-index: 30; top: clamp(72px, 12vh, 128px); left: 0;
     width: min(350px, 48vw); height: auto; pointer-events: none;
-    animation: natalTreno 12s linear both; filter: drop-shadow(0 4px 8px rgba(0,0,0,.22));
+    animation: natalTreno 24s linear both; filter: drop-shadow(0 4px 8px rgba(0,0,0,.22));
   }
   @keyframes natalTreno { from { transform: translateX(105vw); } to { transform: translateX(-105%); } }
+  .natal-papai-noel-pass {
+    position: fixed; z-index: 29; left: 0; bottom: clamp(8px, 3vh, 30px);
+    pointer-events: none; user-select: none;
+    animation: natalSantaWalk 27s linear both;
+  }
+  .natal-papai-noel { display: block; width: clamp(88px, 12vw, 148px); height: auto; filter: drop-shadow(0 5px 12px rgba(0,0,0,.22)); animation: natalSantaBob 1.3s ease-in-out infinite; }
+  @keyframes natalSantaWalk {
+    from { transform: translate3d(-120%, 0, 0); }
+    to { transform: translate3d(calc(100vw + 120%), 0, 0); }
+  }
+  @keyframes natalSantaBob { 0%,100% { transform: translateY(0) rotate(-.5deg); } 50% { transform: translateY(-3px) rotate(.5deg); } }
   @keyframes natalBalanco { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   html[data-season="outubro-rosa"] .season-fx span {
     color: #ffb7d5; opacity: 0.18; text-shadow: 0 0 12px rgba(255,105,166,0.25);
@@ -1170,17 +1183,19 @@
     100% { transform: translate3d(0, 112vh, 0) rotate(360deg); }
   }
   @media (max-width: 640px) {
-    .natal-decor img.natal-neve { height: 94px; object-position: center 60%; opacity: .34; }
-    .natal-arvore { left: 3px; bottom: 10px; width: 76px; opacity: .72; }
-    .natal-presente { right: 3px; bottom: 8px; width: 82px; opacity: .7; }
+    .natal-neve { height: 48px; }
+    .natal-arvore { left: 3px; bottom: 6px; width: 62px; opacity: .68; }
+    .natal-presente { right: 3px; bottom: 6px; width: 64px; opacity: .68; }
     .hero-panel .natal-enfeites { right: 4px; width: 32px; opacity: .42; }
     html[data-season="natal"] .natal-gorro { width: 38%; top: -18%; left: -8%; }
     .natal-treno { top: 76px; width: min(250px, 58vw); }
+    .natal-papai-noel-pass { bottom: 56px; }
+    .natal-papai-noel { width: clamp(76px, 20vw, 112px); }
   }
   @media (prefers-reduced-motion: reduce) {
     .season-fx { display: none; }
     .hero-panel .natal-enfeites { animation: none; }
-    .natal-treno { animation-duration: .01ms; }
+    .natal-treno, .natal-papai-noel-pass, .natal-papai-noel { animation: none; }
   }
 
   /* Murais lado a lado (destaques do mês + renovações) */
