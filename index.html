@@ -29,9 +29,9 @@
 <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
-<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-track-lanes-v5">
+<link rel="stylesheet" href="assets/css/site.css?v=20261109-opa-summary-v1">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261108-regional-switch-v1">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261109-opa-summary-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -150,7 +150,7 @@
     <div class="tab-bar anim-in" role="tablist">
       <button type="button" class="tab-button" data-tab="semanal" role="tab" aria-selected="false">📅 Ranking Semanal</button>
       <button type="button" class="tab-button active" data-tab="mensal" role="tab" aria-selected="true">📆 Ranking Mensal</button>
-      <button type="button" class="tab-button" data-tab="opa" role="tab" aria-selected="false" aria-controls="opa-race-panel">🏁 Atendimento Opa</button>
+      <button type="button" class="tab-button" data-tab="opa" role="tab" aria-selected="false" aria-controls="opa-summary-panel">📞 Atendimento Opa</button>
     </div>
     <button type="button" class="celebrate-btn anim-in" id="celebrateBtn" style="display:none">🎉 Anunciar Destaque</button>
   </div>
@@ -243,46 +243,25 @@
     </section>
   </main>
 
-  <main class="ranking-panel opa-race-panel hidden" id="opa-race-panel" data-tab-panel="opa" role="tabpanel" aria-label="Pista de atendimento Opa">
-    <section class="opa-race-card">
-      <header class="opa-race-heading">
-        <div>
-          <span class="opa-race-kicker">🏁 CORRIDA DE ATENDIMENTO</span>
-          <h2>Corrida Opa</h2>
-          <p>Os karts cruzam a pista de lado. A colocação real entra quando os resultados do Opa forem lançados.</p>
-        </div>
-        <span class="opa-race-status"><i aria-hidden="true"></i><span id="opaRaceStatusText">Temporada em preparação</span></span>
+  <main class="ranking-panel opa-summary-panel hidden" id="opa-summary-panel" data-tab-panel="opa" role="tabpanel" aria-label="Resumo mensal de atendimento Opa">
+    <section class="opa-summary-card">
+      <header class="opa-summary-heading">
+        <div><span class="opa-summary-kicker">ATENDIMENTO OPA</span><h2 id="opaSummaryTitle">Desempenho do mês</h2><p>Resumo da equipe com base nos atendimentos lançados.</p></div>
+        <span class="opa-summary-period" id="opaSummaryPeriod">—</span>
       </header>
-      <div class="opa-race-scene" aria-label="Corrida arcade com os karts da equipe passando horizontalmente">
-        <div class="opa-race-controls" aria-label="Controles de visualização da pista">
-          <span class="opa-drag-hint"><span aria-hidden="true">↔</span> Arraste para percorrer a pista</span>
-          <div class="opa-race-arrows">
-            <button type="button" id="opaRaceBack" aria-label="Voltar na pista">←</button>
-            <button type="button" id="opaRaceForward" aria-label="Avançar na pista">→</button>
-          </div>
+      <div class="opa-summary-content">
+        <div class="opa-summary-total">
+          <span class="opa-summary-label">PONTOS DA EQUIPE</span>
+          <strong id="opaSummaryTotal">—</strong>
+          <span class="opa-summary-caption">Encerrados + transferidos</span>
+          <div class="opa-summary-breakdown"><span>Encerrados <b id="opaSummaryClosed">—</b></span><span>Transferidos <b id="opaSummaryTransferred">—</b></span><span>Iniciados <b id="opaSummaryStarted">—</b></span></div>
         </div>
-        <div class="opa-race-viewport" id="opaRaceViewport" tabindex="0" role="region" aria-label="Pista lateral com várias faixas; arraste ou use as setas para percorrer os pilotos">
-          <div class="opa-race-panorama" id="opaRaceKarts">
-            <div class="opa-race-sky" aria-hidden="true">
-              <span class="opa-game-logo">UNI <b>ARCADE</b></span>
-              <span class="opa-skyline skyline-far"></span>
-              <span class="opa-skyline skyline-near"></span>
-              <span class="opa-game-hud">TRACK 01 <i>● ● ●</i></span>
-            </div>
-            <div class="opa-race-road" aria-hidden="true"><span class="opa-road-start">LARGADA</span><span class="opa-road-finish">🏁</span></div>
-            <div class="opa-race-car-layer" id="opaRaceVehicles"><div class="opa-race-empty">Carregando os pilotos…</div></div>
-          </div>
+        <div class="opa-summary-leaders">
+          <h3>🏆 Maior pontuação no Opa</h3>
+          <div id="opaSummaryLeaderboard" aria-live="polite"><p class="opa-summary-empty">Carregando resultados…</p></div>
         </div>
-        <div class="opa-race-ground" aria-hidden="true"><span>UNI INTERNET · CORRIDA DE ATENDIMENTO</span><span>🏁</span></div>
       </div>
-      <footer class="opa-race-footer">
-        <span class="opa-race-legend"><i aria-hidden="true"></i> Prévia arcade · sem colocação oficial</span>
-        <span id="opaRaceTeamCount">Carregando pilotos…</span>
-      </footer>
-      <section class="opa-race-roster" aria-labelledby="opaRosterTitle">
-        <div class="opa-race-roster-head"><div><span class="opa-race-kicker">BOX DA EQUIPE</span><h3 id="opaRosterTitle">Pilotos da temporada</h3></div><span>Toque em um piloto para abrir o resumo</span></div>
-        <div class="opa-race-leaderboard" id="opaRaceLeaderboard"><p class="opa-race-empty">Carregando equipe…</p></div>
-      </section>
+      <p class="opa-summary-note" id="opaSummaryNote" hidden></p>
     </section>
   </main>
 
@@ -372,12 +351,13 @@
 </div>
 
 <script src="assets/js/config-data.js?v=20261109-kart-assets-v1"></script>
-  <script src="assets/js/dashboard.js?v=20261109-opa-track-lanes-v5"></script>
+  <script src="assets/js/dashboard.js?v=20261109-opa-summary-v1"></script>
   <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>
   <script src="assets/js/admin-analytics.js?v=20261108-month-picker-v1"></script>
   <script src="assets/js/admin-operations.js?v=20261108-pending-counts-v1"></script>
+  <script src="assets/js/admin-opa.js?v=20261109-opa-summary-v1"></script>
   <script src="assets/js/admin-celebrations.js?v=20261108-month-picker-v1"></script>
   <script src="assets/js/admin-goals.js?v=20261108-login-autofill-v2"></script>
   <script src="assets/js/ixc-import.js?v=20261108-ixc-review-no-null-id-2"></script>
@@ -449,6 +429,7 @@
           <button class="adm-nav-item" data-section="adicionais" title="Vendas Adicionais" aria-label="Vendas Adicionais"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-plug"/></svg></span><span class="nav-label">Vendas Adicionais</span></button>
           <button class="adm-nav-item" data-section="outras-filiais" title="Vendas Recebidas" aria-label="Vendas Recebidas"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-building"/></svg></span><span class="nav-label">Vendas Recebidas</span></button>
           <button class="adm-nav-item" data-section="renovacoes" title="Renovações" aria-label="Renovações"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-refresh"/></svg></span><span class="nav-label">Renovações</span></button>
+          <button class="adm-nav-item" data-section="opa" title="Atendimento Opa" aria-label="Atendimento Opa"><span class="nav-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-chart"/></svg></span><span class="nav-label">Atendimento Opa</span></button>
         </div>
         <div class="adm-sidebar-group">
           <div class="adm-sidebar-group-label">EQUIPE E RESULTADOS</div>
@@ -1469,6 +1450,17 @@
             <div class="tema-grid" id="tema-grid"></div>
             <label class="tema-check"><input type="checkbox" id="tema-fx" checked onchange="previaFxAdm()"> Partículas animadas (confete, pétalas, neve…)</label>
             <button type="button" class="adm-btn adm-btn-inline" onclick="salvarTemaSite()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar tema</button>
+          </div>
+        </section>
+
+        <!-- ── ATENDIMENTO OPA ────────────────────────────────── -->
+        <section class="adm-section" id="sec-opa">
+          <div class="adm-section-title">Atendimento Opa</div>
+          <p class="adm-page-lead">Lance uma vez por mês os atendimentos de cada colaborador. A pontuação considera encerrados + transferidos; iniciados ficam visíveis como indicador separado.</p>
+          <div class="adm-form-card opa-admin-card">
+            <div class="opa-admin-toolbar"><label class="adm-field"><span>Mês de referência</span><input id="opa-admin-month" type="month" aria-label="Mês do resultado Opa"></label><span id="opa-admin-status" class="adm-inline-status" aria-live="polite"></span></div>
+            <div class="adm-table-wrap"><table class="adm-table opa-admin-table"><thead><tr><th>Colaborador</th><th>Tipo</th><th>Iniciados</th><th>Encerrados</th><th>Transferidos</th><th>Pontos</th></tr></thead><tbody id="opa-admin-rows"><tr><td colspan="6" class="adm-inline-status">Abra esta área para carregar a equipe.</td></tr></tbody></table></div>
+            <div class="adm-form-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="opa-admin-save">Salvar resultados do mês</button></div>
           </div>
         </section>
 

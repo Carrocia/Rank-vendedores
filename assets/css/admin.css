@@ -1582,6 +1582,19 @@ html::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.34); }
 .adm-totalizer-card.is-branches .adm-totalizer-value { color: #a99af4; }
 .adm-totalizer-card.is-total .adm-totalizer-value { color: #6dd9ab; }
 .adm-section { scroll-margin-top: 20px; }
+
+/* Lançamento mensal simples dos indicadores do Opa. */
+.opa-admin-card { display:grid; gap:18px; }
+.opa-admin-toolbar { display:flex; align-items:end; justify-content:space-between; gap:16px; }
+.opa-admin-toolbar .adm-field { min-width:min(260px,100%); }
+.opa-admin-table { min-width:760px; }
+.opa-admin-table th:not(:first-child), .opa-admin-table td:not(:first-child) { text-align:center; }
+.opa-admin-table td input { width:86px; max-width:100%; padding:8px 9px; text-align:center; }
+.opa-admin-table td strong[data-opa-score] { color:var(--accent); font-size:.9rem; }
+#opa-admin-status.is-error { color:#ff758b; }
+@media (max-width:640px) {
+  .opa-admin-toolbar { align-items:stretch; flex-direction:column; }
+}
 .adm-section.active { gap: 18px; }
 .adm-section-title { padding-bottom: 12px; border-color: var(--adm-border); font-size: 1.22rem; letter-spacing: -.02em; }
 .adm-page-lead { max-width: 880px; color: #aab2c0; }

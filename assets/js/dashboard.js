@@ -1154,7 +1154,7 @@ function renderEstadoSemDados() {
   renderEvolucaoChart(null);
   renderDonutChart(null);
   renderConquistas();
-  renderPistaOpa([]);
+  renderResumoAtendimentoOpa(null);
 
   // Pódios
   ['podium-semanal-externo', 'podium-semanal-interno', 'podium-mensal-externo', 'podium-mensal-interno'].forEach(id => {
@@ -2539,134 +2539,62 @@ function renderResumoMetasEquipe(d) {
   card.hidden = false;
 }
 
-// Pista arcade Opa. Até a origem dos resultados mensais existir, os karts
-// percorrem o circuito em ritmo igual e a lista não inventa colocação.
-let _opaPilotosNaPista = [];
-let _opaControlesPistaLigados = false;
-
-function posicionarPilotosNaPista() {
-  const viewport = document.getElementById('opaRaceViewport');
-  const panorama = document.getElementById('opaRaceKarts');
-  const camada = document.getElementById('opaRaceVehicles');
-  if (!viewport || !panorama || !camada) return;
-  const larguraVisivel = viewport.clientWidth;
-  if (!larguraVisivel) return;
-
-  const espacamento = Math.max(360, larguraVisivel * .48);
-  const margemPista = 170;
-  panorama.style.width = `${Math.max(larguraVisivel, margemPista * 2 + espacamento * Math.max(0, _opaPilotosNaPista.length - 1))}px`;
-  camada.innerHTML = _opaPilotosNaPista.map((pessoa, index) => {
-    const asset = kartDoColaborador(pessoa);
-    const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
-    const nome = pessoa.nome || perfil.nome || 'Colaborador';
-    const foto = pessoa.foto_url || perfil.foto || '';
-    const { x, y, size } = asset.portrait;
-    const fotoHTML = foto
-      ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
-      : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
-    const centro = margemPista + espacamento * index;
-    const faixa = index % 3;
-    return `<div class="opa-race-vehicle" title="${escapeHtmlText(nome)}" style="--kart-center:${centro}px;--kart-lane:${faixa};--photo-left:${(x - size / 2) * 100}%;--photo-top:${(y - size / 2) * 100}%;--photo-size:${size * 100}%">
-      <div class="opa-kart-bob">
-        <img class="opa-kart-art" src="${asset.src}" alt="" draggable="false">
-        <span class="opa-kart-photo">${fotoHTML}</span>
-      </div>
-      <span class="opa-racer-name">${escapeHtmlText(nome)}</span>
-    </div>`;
-  }).join('');
-}
-
-function renderPistaOpa(participantes = []) {
-  const pista = document.getElementById('opaRaceVehicles');
-  const lista = document.getElementById('opaRaceLeaderboard');
-  const total = document.getElementById('opaRaceTeamCount');
-  if (!pista || !lista) return;
-
-  const unicos = new Map();
-  participantes.forEach(pessoa => {
-    const id = String(pessoa?.id || pessoa?.carreira_pessoa_id || pessoa?.slug || pessoa?.nome || '');
-    if (id && !unicos.has(id)) unicos.set(id, pessoa);
-  });
-  const equipe = [...unicos.values()].sort((a, b) =>
-    String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' })
-  );
-
-  _opaPilotosNaPista = equipe;
-  if (total) total.textContent = `${equipe.length} ${equipe.length === 1 ? 'piloto' : 'pilotos'} · aguardando dados do Opa`;
-  if (!equipe.length) {
-    pista.innerHTML = '<div class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</div>';
-    lista.innerHTML = '<p class="opa-race-empty">Os pilotos aparecem quando o ranking da filial carregar.</p>';
+// Resumo mensal público do Opa: a nota considera encerrados + transferidos.
+let _opaResumoRequest = 0;
+async function renderResumoAtendimentoOpa(dados) {
+  const lista = document.getElementById('opaSummaryLeaderboard');
+  if (!lista) return;
+  const requestId = ++_opaResumoRequest;
+  const periodo = dados?.mes || _cache.mes;
+  const participantes = [...(dados?.intMes || []), ...(dados?.extMes || [])];
+  const nomes = new Map((_cache.vendedores || []).map(p => [String(p.id), p]));
+  participantes.forEach(p => nomes.set(String(p.id), { ...nomes.get(String(p.id)), ...p }));
+  const periodoEl = document.getElementById('opaSummaryPeriod');
+  const titulo = document.getElementById('opaSummaryTitle');
+  if (!periodo || !window._supabase || !window.FILIAL_ATUAL_ID) {
+    lista.innerHTML = '<p class="opa-summary-empty">Os resultados do Opa ainda não foram lançados.</p>';
     return;
   }
-
-  posicionarPilotosNaPista();
-  if (!_opaControlesPistaLigados) {
-    const btnVoltar = document.getElementById('opaRaceBack');
-    const btnAvancar = document.getElementById('opaRaceForward');
-    if (btnVoltar) btnVoltar.addEventListener('click', () => document.getElementById('opaRaceViewport')?.scrollBy({ left: -document.getElementById('opaRaceViewport').clientWidth * .82, behavior: 'smooth' }));
-    if (btnAvancar) btnAvancar.addEventListener('click', () => document.getElementById('opaRaceViewport')?.scrollBy({ left: document.getElementById('opaRaceViewport').clientWidth * .82, behavior: 'smooth' }));
-
-    const viewport = document.getElementById('opaRaceViewport');
-    if (viewport) {
-      let pointerStart = null;
-      viewport.addEventListener('pointerdown', event => {
-        if (event.button !== 0 || event.target.closest('button')) return;
-        pointerStart = { x: event.clientX, scroll: viewport.scrollLeft, id: event.pointerId };
-        viewport.classList.add('is-dragging');
-        viewport.setPointerCapture(event.pointerId);
-      });
-      viewport.addEventListener('pointermove', event => {
-        if (pointerStart) viewport.scrollLeft = pointerStart.scroll - (event.clientX - pointerStart.x);
-      });
-      const terminarArraste = event => {
-        if (!pointerStart) return;
-        viewport.classList.remove('is-dragging');
-        if (viewport.hasPointerCapture(pointerStart.id)) viewport.releasePointerCapture(pointerStart.id);
-        pointerStart = null;
-      };
-      viewport.addEventListener('pointerup', terminarArraste);
-      viewport.addEventListener('pointercancel', terminarArraste);
-      viewport.addEventListener('keydown', event => {
-        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-          event.preventDefault();
-          viewport.scrollBy({ left: (event.key === 'ArrowRight' ? 1 : -1) * viewport.clientWidth * .7, behavior: 'smooth' });
-        }
-      });
-    }
-    window.addEventListener('resize', posicionarPilotosNaPista, { passive: true });
-    _opaControlesPistaLigados = true;
+  const nomeMes = periodo.mesNome ? periodo.mesNome.charAt(0).toLocaleUpperCase('pt-BR') + periodo.mesNome.slice(1) : `${periodo.mesNum}/${periodo.ano}`;
+  if (periodoEl) periodoEl.textContent = nomeMes;
+  if (titulo) titulo.textContent = `Atendimentos de ${nomeMes}`;
+  lista.innerHTML = '<p class="opa-summary-empty">Carregando resultados…</p>';
+  const { data, error } = await window._supabase.from('opa_resultados_mensais')
+    .select('vendedor_id, iniciados, encerrados, transferidos')
+    .eq('filial_id', Number(window.FILIAL_ATUAL_ID)).eq('mes', Number(periodo.mesNum)).eq('ano', Number(periodo.ano));
+  if (requestId !== _opaResumoRequest) return;
+  const note = document.getElementById('opaSummaryNote');
+  if (error) {
+    console.warn('[renderResumoAtendimentoOpa]', error);
+    lista.innerHTML = '<p class="opa-summary-empty">Não foi possível carregar os resultados deste mês.</p>';
+    if (note) { note.hidden = false; note.textContent = 'O armazenamento mensal do Opa precisa estar configurado no banco.'; }
+    return;
   }
-
-  lista.innerHTML = equipe.map((pessoa, index) => {
-    const perfil = PESSOAS[pessoa.slug] || PESSOAS[pessoa.id] || {};
-    const nome = escapeHtmlText(pessoa.nome || perfil.nome || 'Colaborador');
-    const foto = pessoa.foto_url || perfil.foto || '';
-    const fotoHTML = foto
-      ? `<img src="${escapeHtmlText(foto)}" alt="" loading="lazy">`
-      : `<span aria-hidden="true">${escapeHtmlText(String(nome).trim().charAt(0).toUpperCase())}</span>`;
-    return `<article class="opa-pilot-entry">
-      <button type="button" class="opa-pilot-summary" aria-expanded="false" aria-controls="opa-pilot-details-${index}">
-        <span class="opa-pilot-avatar">${fotoHTML}</span>
-        <span class="opa-pilot-name">${nome}</span>
-        <span class="opa-pilot-state">Dados do mês pendentes</span>
-        <span class="opa-pilot-chevron" aria-hidden="true">⌄</span>
-      </button>
-      <div class="opa-pilot-details" id="opa-pilot-details-${index}" hidden>Os atendimentos iniciados, encerrados e transferidos serão mostrados aqui após o lançamento mensal do Opa.</div>
-    </article>`;
+  if (note) note.hidden = true;
+  const rows = data || [];
+  const totalIniciados = rows.reduce((s, r) => s + Number(r.iniciados || 0), 0);
+  const totalEncerrados = rows.reduce((s, r) => s + Number(r.encerrados || 0), 0);
+  const totalTransferidos = rows.reduce((s, r) => s + Number(r.transferidos || 0), 0);
+  const put = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = Number(value).toLocaleString('pt-BR'); };
+  put('opaSummaryTotal', totalEncerrados + totalTransferidos);
+  put('opaSummaryStarted', totalIniciados);
+  put('opaSummaryClosed', totalEncerrados);
+  put('opaSummaryTransferred', totalTransferidos);
+  if (!rows.length) {
+    lista.innerHTML = '<p class="opa-summary-empty">Os resultados do Opa ainda não foram lançados para este mês.</p>';
+    return;
+  }
+  const ranked = rows.map(r => ({ ...r, score: Number(r.encerrados || 0) + Number(r.transferidos || 0), person: nomes.get(String(r.vendedor_id)) }))
+    .sort((a, b) => b.score - a.score || String(a.person?.nome || '').localeCompare(String(b.person?.nome || ''), 'pt-BR'));
+  lista.innerHTML = ranked.map((r, index) => {
+    const person = r.person || {};
+    const name = escapeHtmlText(person.nome || 'Colaborador');
+    const kind = String(person.tipo || '').toLocaleLowerCase('pt-BR') === 'externo' ? 'Externo' : 'Interno';
+    const avatar = person.foto_url
+      ? `<img src="${escapeHtmlText(person.foto_url)}" alt="" loading="lazy">`
+      : `<span aria-hidden="true">${escapeHtmlText(name.trim().charAt(0).toUpperCase())}</span>`;
+    return `<article class="opa-summary-row"><span class="opa-summary-rank">${index + 1}</span><span class="opa-summary-avatar">${avatar}</span><span class="opa-summary-person"><strong>${name}</strong><small>${kind} · ${Number(r.encerrados || 0)} encerrados · ${Number(r.transferidos || 0)} transferidos · ${Number(r.iniciados || 0)} iniciados</small></span><strong class="opa-summary-score">${r.score} ${r.score === 1 ? 'ponto' : 'pontos'}</strong></article>`;
   }).join('');
-
-  if (!lista.dataset.bound) {
-    lista.addEventListener('click', event => {
-      const button = event.target.closest('.opa-pilot-summary');
-      if (!button) return;
-      const details = document.getElementById(button.getAttribute('aria-controls'));
-      if (!details) return;
-      const expanded = button.getAttribute('aria-expanded') === 'true';
-      button.setAttribute('aria-expanded', String(!expanded));
-      details.hidden = expanded;
-    });
-    lista.dataset.bound = 'true';
-  }
 }
 
 function renderAll(cache) {
@@ -2676,7 +2604,7 @@ function renderAll(cache) {
 
   const d = processarDadosParaRender(cache);
   _ultimoProcessado = d;
-  renderPistaOpa([...(d.intMes || []), ...(d.extMes || [])]);
+  renderResumoAtendimentoOpa(d);
   verificarConquistasDeMetas(d);
   renderResumoMetasEquipe(d);
 
