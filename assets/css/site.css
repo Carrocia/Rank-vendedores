@@ -1126,12 +1126,18 @@
   }
   html[data-season="natal"] .season-fx span:nth-child(3n) { opacity: 0.36; }
   html[data-season="natal"] .season-fx span:nth-child(4n) { color: #f3d7d0; }
-  html[data-season="natal"] .hero-panel {
-    border-color: rgba(228,198,129,.34);
+  html[data-season="natal"] body {
     background:
-      radial-gradient(ellipse at 86% 8%, rgba(200,93,85,.18), transparent 36%),
-      radial-gradient(ellipse at 12% 100%, rgba(81,135,106,.22), transparent 48%),
-      linear-gradient(120deg, rgba(13,28,21,.98), rgba(28,43,32,.96) 58%, rgba(54,36,34,.92));
+      radial-gradient(ellipse at 9% 5%, rgba(100,167,122,.15), transparent 42%),
+      radial-gradient(ellipse at 92% 72%, rgba(180,75,69,.075), transparent 40%),
+      var(--bg);
+  }
+  html[data-season="natal"] .hero-panel {
+    border-color: rgba(239,208,140,.4);
+    background:
+      radial-gradient(ellipse at 86% 8%, rgba(180,75,69,.19), transparent 36%),
+      radial-gradient(ellipse at 12% 100%, rgba(100,167,122,.25), transparent 48%),
+      linear-gradient(120deg, rgba(17,37,25,.98), rgba(35,57,40,.97) 58%, rgba(64,40,34,.94));
     box-shadow: 0 18px 52px rgba(0,0,0,.24), inset 0 1px rgba(255,248,225,.07);
   }
   html[data-theme="light"][data-season="natal"] .hero-panel {
