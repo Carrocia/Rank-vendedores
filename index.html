@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261109-mural-history-v8">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261109-opa-clean-v5">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261109-opa-analytics-v6">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -357,7 +357,7 @@
   <script src="assets/js/supabase-admin.js?v=20261108-regional-switch-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261108-login-autofill-v2"></script>
-  <script src="assets/js/admin-analytics.js?v=20261108-month-picker-v1"></script>
+  <script src="assets/js/admin-analytics.js?v=20261109-opa-retrospective-v2"></script>
   <script src="assets/js/admin-operations.js?v=20261108-pending-counts-v1"></script>
   <script src="assets/js/admin-opa.js?v=20261109-opa-summary-v5"></script>
   <script src="assets/js/admin-celebrations.js?v=20261108-month-picker-v1"></script>
@@ -1063,6 +1063,12 @@
                   <div class="an-attributes-insights" id="an-attributes-insights" aria-live="polite"></div>
                 </section>
                 <div class="an-metrics" id="an-metrics"></div>
+                <section class="an-insight-card an-opa-retro" id="an-opa-retro" aria-labelledby="an-opa-title" hidden>
+                  <header><div><span class="adm-card-eyebrow">RETROSPECTIVA OPA</span><h3 id="an-opa-title">Atendimentos do mês</h3></div><span class="an-opa-period" id="an-opa-period">—</span></header>
+                  <p class="an-opa-summary" id="an-opa-summary" aria-live="polite">Carregando atendimentos…</p>
+                  <div class="an-opa-stats" id="an-opa-stats"></div>
+                  <p class="an-insight-note an-opa-note" id="an-opa-note">O total contabilizado soma atendimentos encerrados e transferidos. Iniciados aparecem separadamente.</p>
+                </section>
                 <section class="an-xp-panel" aria-labelledby="an-xp-title">
                   <header><div><span class="adm-card-eyebrow">PROGRESSÃO COMERCIAL</span><h3 id="an-xp-title">XP acumulado</h3></div><div class="an-xp-total"><strong id="an-xp-total">—</strong><span id="an-xp-period-status">Calculando período…</span><small>XP do mês: <b id="an-xp-period-total">—</b></small></div></header>
                   <div class="an-xp-breakdown" id="an-xp-breakdown"></div>

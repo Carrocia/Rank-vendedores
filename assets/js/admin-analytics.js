@@ -899,6 +899,56 @@ async function renderizarPerfilAnalitico(token = ++_analiticaRenderToken) {
     ['Ticket médio', `R$ ${formatarValorAnalitica(ticket)}`, referencia > 0 ? `${pctTicket}% da referência regional (R$ ${formatarValorAnalitica(referencia)})` : 'Referência indisponível'],
   ];
   document.getElementById('an-metrics').innerHTML = cards.map(([label, value, sub]) => `<article class="an-metric"><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`).join('');
+  const opaRetro = document.getElementById('an-opa-retro');
+  const opaSummary = document.getElementById('an-opa-summary');
+  const opaStats = document.getElementById('an-opa-stats');
+  const opaPeriod = document.getElementById('an-opa-period');
+  if (opaRetro && opaSummary && opaStats) {
+    const participaOpa = !externo && cadastro?.participa_ranking !== false;
+    opaRetro.hidden = !participaOpa;
+    if (participaOpa) {
+      const mesOpa = Number(mesAnalitico.mesNum || mesAnalitico.mes);
+      const anoOpa = Number(mesAnalitico.ano);
+      opaPeriod.textContent = `${mesAnalitico.mesNome || 'Período'}${anoOpa ? ` de ${anoOpa}` : ''}`;
+      opaSummary.textContent = 'Carregando atendimentos…';
+      opaStats.replaceChildren();
+      if (!window._supabase || !Number.isInteger(mesOpa) || mesOpa < 1 || mesOpa > 12 || !Number.isInteger(anoOpa)) {
+        opaSummary.textContent = 'Não foi possível consultar os atendimentos deste período.';
+        opaStats.innerHTML = '<article><span>Atendimentos contabilizados</span><strong>—</strong></article><article><span>Encerrados</span><strong>—</strong></article><article><span>Transferidos</span><strong>—</strong></article><article><span>Iniciados</span><strong>—</strong></article>';
+      } else {
+        const { data: opaData, error: opaError } = await window._supabase.from('opa_resultados_mensais')
+          .select('iniciados, encerrados, transferidos, nota_atendimento')
+          .eq('filial_id', Number(window.FILIAL_ATUAL_ID))
+          .eq('vendedor_id', Number(cadastro?.id || vendedor.id))
+          .eq('mes', mesOpa)
+          .eq('ano', anoOpa)
+          .maybeSingle();
+        if (token !== _analiticaRenderToken) return;
+        if (opaError) {
+          console.warn('[renderizarPerfilAnalitico] falha ao carregar retrospectiva Opa:', opaError.message);
+          opaSummary.textContent = 'Não foi possível carregar os atendimentos deste mês.';
+          opaStats.innerHTML = '<article><span>Atendimentos contabilizados</span><strong>—</strong></article><article><span>Encerrados</span><strong>—</strong></article><article><span>Transferidos</span><strong>—</strong></article><article><span>Iniciados</span><strong>—</strong></article>';
+        } else if (!opaData) {
+          opaSummary.textContent = `Ainda não há resultados do Opa lançados para ${mesAnalitico.mesNome || 'este mês'}.`;
+          opaStats.innerHTML = '<article><span>Atendimentos contabilizados</span><strong>0</strong></article><article><span>Encerrados</span><strong>0</strong></article><article><span>Transferidos</span><strong>0</strong></article><article><span>Iniciados</span><strong>0</strong></article>';
+        } else {
+          const iniciados = Number(opaData.iniciados || 0);
+          const encerrados = Number(opaData.encerrados || 0);
+          const transferidos = Number(opaData.transferidos || 0);
+          const contabilizados = encerrados + transferidos;
+          opaSummary.textContent = `Neste mês, você contabilizou ${contabilizados.toLocaleString('pt-BR')} atendimentos: ${encerrados.toLocaleString('pt-BR')} encerrados e ${transferidos.toLocaleString('pt-BR')} transferidos.`;
+          const indicadoresOpa = [
+            ['Atendimentos contabilizados', contabilizados],
+            ['Encerrados', encerrados],
+            ['Transferidos', transferidos],
+            ['Iniciados', iniciados],
+          ];
+          if (opaData.nota_atendimento != null) indicadoresOpa.push(['Nota média do Opa', Number(opaData.nota_atendimento).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })]);
+          opaStats.innerHTML = indicadoresOpa.map(([label, value], index) => `<article${index === 0 ? ' class="is-total"' : ''}><span>${label}</span><strong>${value}</strong></article>`).join('');
+        }
+      }
+    }
+  }
   const xpStatus = document.getElementById('an-xp-period-status');
   const xpTotal = document.getElementById('an-xp-total');
   const xpBreakdown = document.getElementById('an-xp-breakdown');
