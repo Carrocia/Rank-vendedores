@@ -549,7 +549,7 @@ function popularAdmTema() {
     { id: 'padrao', nome: 'Padrão', sub: 'Visual limpo, sem decoração', icone: '🏢', grad: 'linear-gradient(135deg,#21d9ff,#7c5cff)' },
   ].concat(Object.keys(window.UNI_TEMAS).map(id => {
     const t = window.UNI_TEMAS[id];
-    return { id, nome: t.nome, sub: t.periodo, icone: t.icone, grad: `linear-gradient(135deg,${t.d[0]},${t.d[1]})` };
+    return { id, nome: t.nome, sub: t.periodo, icone: t.icone, grad: `linear-gradient(135deg,${t.d.accent},${t.d.accent2})` };
   }));
   grid.innerHTML = itens.map(it => `
     <button type="button" class="tema-opt${it.id === _temaAdm ? ' selected' : ''}" data-tema="${it.id}" onclick="escolherTemaAdm('${it.id}')">
