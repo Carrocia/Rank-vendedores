@@ -2539,16 +2539,17 @@ function renderResumoMetasEquipe(d) {
   card.hidden = false;
 }
 
-// Resumo mensal público do Opa: a nota considera encerrados + transferidos.
+// Resumo público do Opa: o total considera encerrados + transferidos.
 let _opaResumoRequest = 0;
 async function renderResumoAtendimentoOpa(dados) {
   const lista = document.getElementById('opaSummaryLeaderboard');
   if (!lista) return;
   const requestId = ++_opaResumoRequest;
   const periodo = dados?.mes || _cache.mes;
-  const participantes = [...(dados?.intMes || []), ...(dados?.extMes || [])];
+  const participantes = dados?.intMes || [];
   const nomes = new Map((_cache.vendedores || []).map(p => [String(p.id), p]));
   participantes.forEach(p => nomes.set(String(p.id), { ...nomes.get(String(p.id)), ...p }));
+  const vendedoresInternos = (_cache.vendedores || []).filter(p => String(p.tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno');
   const periodoEl = document.getElementById('opaSummaryPeriod');
   const titulo = document.getElementById('opaSummaryTitle');
   if (!periodo || !window._supabase || !window.FILIAL_ATUAL_ID) {
@@ -2559,9 +2560,19 @@ async function renderResumoAtendimentoOpa(dados) {
   if (periodoEl) periodoEl.textContent = nomeMes;
   if (titulo) titulo.textContent = `Atendimentos de ${nomeMes}`;
   lista.innerHTML = '<p class="opa-summary-empty">Carregando resultados…</p>';
+  if (!vendedoresInternos.length) {
+    ['opaSummaryTotal', 'opaSummaryStarted', 'opaSummaryClosed', 'opaSummaryTransferred'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '0';
+    });
+    lista.innerHTML = '<p class="opa-summary-empty">Não há vendedores internos ativos nesta filial.</p>';
+    return;
+  }
+  const idsInternos = vendedoresInternos.map(p => Number(p.id));
   const { data, error } = await window._supabase.from('opa_resultados_mensais')
     .select('vendedor_id, iniciados, encerrados, transferidos')
-    .eq('filial_id', Number(window.FILIAL_ATUAL_ID)).eq('mes', Number(periodo.mesNum)).eq('ano', Number(periodo.ano));
+    .eq('filial_id', Number(window.FILIAL_ATUAL_ID)).eq('mes', Number(periodo.mesNum)).eq('ano', Number(periodo.ano))
+    .in('vendedor_id', idsInternos);
   if (requestId !== _opaResumoRequest) return;
   const note = document.getElementById('opaSummaryNote');
   if (error) {
@@ -2571,7 +2582,8 @@ async function renderResumoAtendimentoOpa(dados) {
     return;
   }
   if (note) note.hidden = true;
-  const rows = data || [];
+  const rows = (data || []).filter(r => nomes.get(String(r.vendedor_id))
+    && String(nomes.get(String(r.vendedor_id)).tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno');
   const totalIniciados = rows.reduce((s, r) => s + Number(r.iniciados || 0), 0);
   const totalEncerrados = rows.reduce((s, r) => s + Number(r.encerrados || 0), 0);
   const totalTransferidos = rows.reduce((s, r) => s + Number(r.transferidos || 0), 0);
@@ -2584,16 +2596,15 @@ async function renderResumoAtendimentoOpa(dados) {
     lista.innerHTML = '<p class="opa-summary-empty">Os resultados do Opa ainda não foram lançados para este mês.</p>';
     return;
   }
-  const ranked = rows.map(r => ({ ...r, score: Number(r.encerrados || 0) + Number(r.transferidos || 0), person: nomes.get(String(r.vendedor_id)) }))
-    .sort((a, b) => b.score - a.score || String(a.person?.nome || '').localeCompare(String(b.person?.nome || ''), 'pt-BR'));
+  const ranked = rows.map(r => ({ ...r, atendimentos: Number(r.encerrados || 0) + Number(r.transferidos || 0), person: nomes.get(String(r.vendedor_id)) }))
+    .sort((a, b) => b.atendimentos - a.atendimentos || String(a.person?.nome || '').localeCompare(String(b.person?.nome || ''), 'pt-BR'));
   lista.innerHTML = ranked.map((r, index) => {
     const person = r.person || {};
     const name = escapeHtmlText(person.nome || 'Colaborador');
-    const kind = String(person.tipo || '').toLocaleLowerCase('pt-BR') === 'externo' ? 'Externo' : 'Interno';
     const avatar = person.foto_url
       ? `<img src="${escapeHtmlText(person.foto_url)}" alt="" loading="lazy">`
       : `<span aria-hidden="true">${escapeHtmlText(name.trim().charAt(0).toUpperCase())}</span>`;
-    return `<article class="opa-summary-row"><span class="opa-summary-rank">${index + 1}</span><span class="opa-summary-avatar">${avatar}</span><span class="opa-summary-person"><strong>${name}</strong><small>${kind} · ${Number(r.encerrados || 0)} encerrados · ${Number(r.transferidos || 0)} transferidos · ${Number(r.iniciados || 0)} iniciados</small></span><strong class="opa-summary-score">${r.score} ${r.score === 1 ? 'ponto' : 'pontos'}</strong></article>`;
+    return `<article class="opa-summary-row"><span class="opa-summary-rank">${index + 1}</span><span class="opa-summary-avatar">${avatar}</span><span class="opa-summary-person"><strong>${name}</strong><small>${Number(r.encerrados || 0)} encerrados · ${Number(r.transferidos || 0)} transferidos · ${Number(r.iniciados || 0)} iniciados</small></span><strong class="opa-summary-count">${r.atendimentos} ${r.atendimentos === 1 ? 'atendimento' : 'atendimentos'}</strong></article>`;
   }).join('');
 }
 

@@ -386,7 +386,7 @@
   .opa-summary-person { display:grid; min-width:0; gap:2px; }
   .opa-summary-person strong { overflow:hidden; color:var(--heading-color); font-size:.78rem; text-overflow:ellipsis; white-space:nowrap; }
   .opa-summary-person small { overflow:hidden; color:var(--text-muted); font-size:.64rem; text-overflow:ellipsis; white-space:nowrap; }
-  .opa-summary-score { color:var(--accent); font-size:.77rem; white-space:nowrap; }
+  .opa-summary-count { color:var(--accent); font-size:.77rem; white-space:nowrap; }
   .opa-summary-empty { margin:0; padding:17px 14px; border:1px dashed var(--border); border-radius:12px; color:var(--text-muted); font-size:.78rem; text-align:center; }
   .opa-summary-note { margin:0 26px 20px; color:var(--text-muted); font-size:.68rem; }
   @media (max-width:640px) {
@@ -400,7 +400,7 @@
     .opa-summary-breakdown span { flex-direction:column; gap:2px; }
     .opa-summary-row { grid-template-columns:28px 34px minmax(0,1fr) auto; gap:7px; padding:7px; }
     .opa-summary-avatar { width:32px; height:32px; }
-    .opa-summary-score { font-size:.68rem; }
+    .opa-summary-count { font-size:.68rem; }
     .opa-summary-note { margin:0 16px 16px; }
   }
   /* ---------- meta card (anel) ---------- */

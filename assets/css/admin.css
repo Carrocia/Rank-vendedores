@@ -1590,7 +1590,7 @@ html::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.34); }
 .opa-admin-table { min-width:760px; }
 .opa-admin-table th:not(:first-child), .opa-admin-table td:not(:first-child) { text-align:center; }
 .opa-admin-table td input { width:86px; max-width:100%; padding:8px 9px; text-align:center; }
-.opa-admin-table td strong[data-opa-score] { color:var(--accent); font-size:.9rem; }
+.opa-admin-table td strong[data-opa-total] { color:var(--accent); font-size:.9rem; }
 #opa-admin-status.is-error { color:#ff758b; }
 @media (max-width:640px) {
   .opa-admin-toolbar { align-items:stretch; flex-direction:column; }

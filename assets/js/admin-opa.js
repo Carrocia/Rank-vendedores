@@ -12,6 +12,7 @@
     const [year, month] = value.split('-').map(Number);
     return { year, month };
   };
+  const isInternalSeller = seller => String(seller?.tipo || '').trim().toLocaleLowerCase('pt-BR') === 'interno';
   const setStatus = (message, isError = false) => {
     const status = $('#opa-admin-status');
     if (!status) return;
@@ -24,38 +25,39 @@
     if (!body) return;
     if (!window._supabase || !window.ADMIN_AUTENTICADO) {
       setStatus('Entre como administrador da filial para editar os resultados.', true);
-      body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Acesso administrativo necessário.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Acesso administrativo necessário.</td></tr>';
       return;
     }
-    const sellers = (_cache.vendedores || []).filter(v => v.ativo !== false);
+    const sellers = (_cache.vendedores || []).filter(v => v.ativo !== false && isInternalSeller(v));
     if (!sellers.length) {
-      body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Não há colaboradores ativos nesta filial.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Não há vendedores internos ativos nesta filial.</td></tr>';
+      setStatus('Nenhum vendedor interno ativo nesta filial.');
       return;
     }
     const { year, month } = readMonth();
     setStatus('Carregando lançamentos…');
-    body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Carregando equipe e resultados…</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Carregando equipe e resultados…</td></tr>';
     const { data, error } = await window._supabase.from('opa_resultados_mensais')
       .select('vendedor_id, iniciados, encerrados, transferidos')
       .eq('filial_id', Number(window.FILIAL_ATUAL_ID)).eq('mes', month).eq('ano', year);
     if (error) {
       console.error('[admin-opa] loadMonth', error);
-      body.innerHTML = '<tr><td colspan="6" class="adm-inline-status">Não foi possível carregar. Confirme se supabase/atendimentos-opa.sql foi executado.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="adm-inline-status">Não foi possível carregar. Confirme se supabase/atendimentos-opa.sql foi executado.</td></tr>';
       setStatus('Falha ao carregar dados do Opa.', true);
       return;
     }
     const bySeller = new Map((data || []).map(row => [String(row.vendedor_id), row]));
     body.innerHTML = sellers.map(seller => {
       const row = bySeller.get(String(seller.id)) || {};
-      return `<tr data-opa-row="${Number(seller.id)}"><td><strong>${safe(seller.nome)}</strong></td><td>${safe(seller.tipo || '—')}</td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="iniciados" value="${Number(row.iniciados || 0)}" aria-label="Atendimentos iniciados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="encerrados" value="${Number(row.encerrados || 0)}" aria-label="Atendimentos encerrados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="transferidos" value="${Number(row.transferidos || 0)}" aria-label="Atendimentos transferidos de ${safe(seller.nome)}"></td><td><strong data-opa-score>${Number(row.encerrados || 0) + Number(row.transferidos || 0)}</strong></td></tr>`;
+      return `<tr data-opa-row="${Number(seller.id)}"><td><strong>${safe(seller.nome)}</strong></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="iniciados" value="${Number(row.iniciados || 0)}" aria-label="Atendimentos iniciados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="encerrados" value="${Number(row.encerrados || 0)}" aria-label="Atendimentos encerrados de ${safe(seller.nome)}"></td><td><input type="number" min="0" step="1" inputmode="numeric" data-opa-count="transferidos" value="${Number(row.transferidos || 0)}" aria-label="Atendimentos transferidos de ${safe(seller.nome)}"></td><td><strong data-opa-total>${Number(row.encerrados || 0) + Number(row.transferidos || 0)}</strong></td></tr>`;
     }).join('');
     body.querySelectorAll('[data-opa-count]').forEach(input => input.addEventListener('input', () => {
       const row = input.closest('[data-opa-row]');
       const closed = Number($('[data-opa-count="encerrados"]', row)?.value || 0);
       const transferred = Number($('[data-opa-count="transferidos"]', row)?.value || 0);
-      $('[data-opa-score]', row).textContent = String(closed + transferred);
+      $('[data-opa-total]', row).textContent = String(closed + transferred);
     }));
-    setStatus(`${sellers.length} colaboradores carregados.`);
+    setStatus(`${sellers.length} vendedores internos carregados.`);
   }
 
   async function saveMonth() {

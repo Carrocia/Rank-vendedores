@@ -32,7 +32,9 @@ create policy opa_resultados_mensais_admin_write on public.opa_resultados_mensai
     and exists (
       select 1
       from public.vendedores v
-      where v.id = vendedor_id and v.filial_id = opa_resultados_mensais.filial_id
+      where v.id = vendedor_id
+        and v.filial_id = opa_resultados_mensais.filial_id
+        and lower(coalesce(v.tipo, '')) = 'interno'
     )
   );
 
@@ -41,6 +43,6 @@ grant insert, update, delete on public.opa_resultados_mensais to authenticated;
 grant usage, select on sequence public.opa_resultados_mensais_id_seq to authenticated;
 
 comment on table public.opa_resultados_mensais is
-  'Contagens mensais de atendimento Opa por colaborador; nota calculada pela aplicação como encerrados + transferidos.';
+  'Contagens mensais de atendimento Opa por vendedor interno; total exibido é encerrados + transferidos.';
 
 notify pgrst, 'reload schema';
