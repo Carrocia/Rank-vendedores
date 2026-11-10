@@ -1474,7 +1474,7 @@ function renderAdmVendedoresTable(d) {
 
     const acoesTd = document.createElement('td');
     acoesTd.className = 'adm-vendedor-actions';
-    if (ehSuperAdminAtual()) {
+    if (typeof podeGerenciarVendedorDaFilial === 'function' && podeGerenciarVendedorDaFilial(v)) {
       const editarBtn = document.createElement('button');
       editarBtn.type = 'button';
       editarBtn.className = 'adm-btn adm-btn-small';

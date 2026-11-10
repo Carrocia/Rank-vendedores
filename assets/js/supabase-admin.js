@@ -290,6 +290,12 @@ function buscarVendedorGerenciado(id) {
     || null;
 }
 
+function podeGerenciarVendedorDaFilial(vendedor) {
+  if (!window.ADMIN_AUTENTICADO || !vendedor) return false;
+  return ehSuperAdminAtual()
+    || (window.ADMIN_FILIAL_ID != null && Number(vendedor.filial_id) === Number(window.ADMIN_FILIAL_ID));
+}
+
 function limparEstadoEdicaoVendedor() {
   const idEl = document.getElementById('adm-vendedor-edit-id');
   const titulo = document.getElementById('adm-vendedor-form-title');
@@ -312,17 +318,17 @@ function cancelarEdicaoVendedor() {
 }
 
 function iniciarEdicaoVendedor(id) {
-  if (!ehSuperAdminAtual()) {
-    showToast('Somente o superadministrador pode editar vendedores.', 'error');
-    return;
-  }
   const vendedor = buscarVendedorGerenciado(id);
-  if (!vendedor || !vendedor.ativo) {
+  if (!vendedor) {
     showToast('Este vendedor não está disponível para edição.', 'warning');
     return;
   }
-  if (window.ADMIN_FILIAL_ID != null && Number(vendedor.filial_id) !== Number(window.ADMIN_FILIAL_ID)) {
+  if (!podeGerenciarVendedorDaFilial(vendedor)) {
     showToast('Este acesso só pode editar vendedores da própria regional.', 'error');
+    return;
+  }
+  if (!vendedor.ativo) {
+    showToast('Reative o vendedor antes de editar o cadastro.', 'warning');
     return;
   }
 
@@ -384,16 +390,13 @@ async function carregarVendedoresGerenciamento() {
     const tipo = document.createElement('td');
     tipo.textContent = v.tipo === 'interno' ? 'Interno' : 'Externo';
     const situacao = document.createElement('td');
-    if (ehSuperAdminAtual()) {
-      const reativar = document.createElement('button');
-      reativar.type = 'button';
-      reativar.className = 'adm-btn adm-btn-small';
-      reativar.textContent = 'Reativar';
-      reativar.addEventListener('click', () => alterarStatusVendedor(v.id, true));
-      situacao.appendChild(reativar);
-    } else {
-      situacao.textContent = 'Desativado';
-    }
+    const reativar = document.createElement('button');
+    reativar.type = 'button';
+    reativar.className = 'adm-btn adm-btn-small';
+    reativar.textContent = 'Reativar';
+    reativar.disabled = !podeGerenciarVendedorDaFilial(v);
+    reativar.addEventListener('click', () => alterarStatusVendedor(v.id, true));
+    situacao.appendChild(reativar);
     tr.append(nome, tipo, situacao);
     tbody.appendChild(tr);
   });
@@ -611,12 +614,12 @@ async function vincularIdentidadeCarreira() {
 }
 
 async function alterarStatusVendedor(id, ativo) {
-  if (!ehSuperAdminAtual()) {
-    showToast('Somente o superadministrador pode alterar o status de vendedores.', 'error');
-    return;
-  }
   const vendedor = buscarVendedorGerenciado(id);
   if (!vendedor) return;
+  if (!podeGerenciarVendedorDaFilial(vendedor)) {
+    showToast('Este acesso só pode alterar vendedores da própria regional.', 'error');
+    return;
+  }
   if (!ativo && !confirm(`Desativar ${vendedor.nome}? O histórico de vendas será preservado.`)) return;
   try {
     const { data, error } = await window._supabase
@@ -747,8 +750,8 @@ async function cadastrarVendedor(event) {
   const form = document.getElementById('adm-vendedor-form');
   const botao = document.getElementById('adm-vendedor-submit');
   const editId = Number(document.getElementById('adm-vendedor-edit-id')?.value || 0) || null;
-  if (!ehSuperAdminAtual() || !window._supabase) {
-    showToast('Somente o superadministrador pode cadastrar ou editar vendedores.', 'error');
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) {
+    showToast('Faça login com uma conta administrativa para cadastrar ou editar vendedores.', 'error');
     return;
   }
 
