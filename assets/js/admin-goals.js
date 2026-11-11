@@ -331,29 +331,26 @@ function renderConfigMetas(cache) {
 }
 
 async function carregarMetasRenovacaoIndividualPeriodoSelecionado() {
-  const corpo = document.getElementById('cfg-renov-ind-body');
   const contador = document.getElementById('cfg-renov-ind-count');
+  const status = document.getElementById('cfg-renov-ind-status');
   const titulo = document.getElementById('cfg-renov-ind-periodo');
   const botaoSalvar = document.getElementById('cfg-renov-ind-salvar');
   const periodo = lerPeriodoMetas('cfg-renov-mes');
-  if (!corpo || !periodo || !_dadosCarregados || !window._supabase) return;
+  if (!contador || !periodo || !_dadosCarregados || !window._supabase) return;
 
   const sequencia = ++_metasRenovacaoIndividualPeriodoReq;
   const label = rotuloPeriodoMeta(periodo);
   if (titulo) titulo.textContent = label;
   if (contador) contador.textContent = 'Carregando vendedores internos…';
   if (botaoSalvar) botaoSalvar.disabled = true;
-  corpo.replaceChildren();
+  ['m3', 'm2', 'm1'].forEach(nivel => {
+    const campo = document.getElementById(`cfg-renov-ind-${nivel}`);
+    if (campo) campo.value = '';
+  });
   const vendedores = (_cache.vendedores || []).filter(v => v.ativo !== false && v.tipo === 'interno');
   if (!vendedores.length) {
-    const linha = document.createElement('tr');
-    const celula = document.createElement('td');
-    celula.colSpan = 4;
-    celula.className = 'adm-empty-state';
-    celula.textContent = 'Nenhum vendedor interno ativo nesta regional.';
-    linha.appendChild(celula);
-    corpo.appendChild(linha);
     if (contador) contador.textContent = '0 vendedores internos';
+    if (status) status.textContent = 'Não há vendedores internos ativos para receber estas metas.';
     if (botaoSalvar) botaoSalvar.disabled = false;
     return;
   }
@@ -367,55 +364,40 @@ async function carregarMetasRenovacaoIndividualPeriodoSelecionado() {
   if (sequencia !== _metasRenovacaoIndividualPeriodoReq || lerPeriodoMetas('cfg-renov-mes')?.chave !== periodo.chave) return;
   if (error) {
     console.error('[carregarMetasRenovacaoIndividualPeriodoSelecionado]', error);
-    const linha = document.createElement('tr');
-    const celula = document.createElement('td');
-    celula.colSpan = 4;
-    celula.className = 'adm-empty-state';
-    celula.textContent = 'Não foi possível carregar as metas individuais. Confira se a estrutura de renovações foi aplicada no Supabase.';
-    linha.appendChild(celula);
-    corpo.appendChild(linha);
     if (contador) contador.textContent = 'Falha ao carregar metas';
+    if (status) status.textContent = 'Não foi possível carregar as metas existentes. Confira a estrutura de renovações no Supabase antes de salvar.';
     if (botaoSalvar) botaoSalvar.disabled = true;
     return;
   }
 
   const metasPorVendedor = new Map((data || []).map(meta => [String(meta.vendedor_id), meta]));
-  vendedores.forEach(vendedor => {
-    const linha = document.createElement('tr');
-    const nome = document.createElement('td');
-    nome.className = 'renov-individual-goal-name';
-    nome.textContent = vendedor.nome || 'Vendedor sem nome';
-    linha.appendChild(nome);
-    const meta = metasPorVendedor.get(String(vendedor.id)) || {};
-    ['m3', 'm2', 'm1'].forEach(nivel => {
-      const celula = document.createElement('td');
-      const campo = document.createElement('input');
-      campo.type = 'number';
-      campo.min = '0';
-      campo.step = '1';
-      campo.inputMode = 'numeric';
-      campo.className = 'renov-individual-goal-input';
-      campo.dataset.vendedorId = String(vendedor.id);
-      campo.dataset.nivel = nivel;
-      campo.setAttribute('aria-label', `Meta de renovação ${nivel.toUpperCase()} para ${vendedor.nome}`);
-      campo.placeholder = '—';
-      campo.value = meta[`meta_${nivel}`] == null ? '' : String(meta[`meta_${nivel}`]);
-      celula.appendChild(campo);
-      linha.appendChild(celula);
-    });
-    corpo.appendChild(linha);
+  const metasIguais = ['m3', 'm2', 'm1'].every(nivel => {
+    const valores = vendedores.map(vendedor => metasPorVendedor.get(String(vendedor.id))?.[`meta_${nivel}`] ?? null);
+    return valores[0] != null && valores.every(valor => Number(valor) === Number(valores[0]));
   });
+  if (metasIguais) {
+    ['m3', 'm2', 'm1'].forEach(nivel => {
+      const campo = document.getElementById(`cfg-renov-ind-${nivel}`);
+      if (campo) campo.value = String(metasPorVendedor.get(String(vendedores[0].id))[`meta_${nivel}`]);
+    });
+    if (status) status.textContent = 'Os valores exibidos estão iguais para toda a equipe interna ativa.';
+  } else if ((data || []).length) {
+    if (status) status.textContent = 'Há metas individuais diferentes ou incompletas neste mês. Defina M3, M2 e M1 abaixo e aplique para padronizar toda a equipe.';
+  } else if (status) {
+    status.textContent = 'Defina M3, M2 e M1; ao aplicar, os mesmos valores serão gravados para cada vendedor interno ativo.';
+  }
   if (contador) contador.textContent = `${vendedores.length} vendedor(es) interno(s) · ${label}`;
   if (botaoSalvar) botaoSalvar.disabled = false;
 }
 
 function preencherMetasIndividuaisComMetaGlobal() {
   const niveis = ['m3', 'm2', 'm1'];
-  const valores = Object.fromEntries(niveis.map(nivel => [nivel, document.getElementById(`cfg-renov-${nivel}`)?.value.trim() || '']));
-  document.querySelectorAll('#cfg-renov-ind-body .renov-individual-goal-input').forEach(campo => {
-    campo.value = valores[campo.dataset.nivel] || '';
+  niveis.forEach(nivel => {
+    const campoGlobal = document.getElementById(`cfg-renov-${nivel}`);
+    const campoIndividual = document.getElementById(`cfg-renov-ind-${nivel}`);
+    if (campoIndividual) campoIndividual.value = campoGlobal?.value.trim() || '';
   });
-  showToast('Valores globais copiados para a tabela individual. Salve as metas individuais para aplicar.', 'success');
+  showToast('Valores da meta global copiados. Clique em “Aplicar para todos” para gravá-los como metas individuais.', 'success');
 }
 
 // Lê um <input> numérico e valida: vazio é permitido (= "não definir"),
@@ -708,67 +690,48 @@ async function handleSalvarMetasRenovacaoIndividuais() {
     showToast('Selecione um mês entre outubro de 2026 e o mês atual.', 'warning');
     return;
   }
-  const campos = [...document.querySelectorAll('#cfg-renov-ind-body .renov-individual-goal-input')];
-  if (!campos.length) {
-    showToast('Não há metas individuais para salvar neste mês.', 'warning');
+  const vendedores = (_cache.vendedores || []).filter(v => v.ativo !== false && v.tipo === 'interno');
+  if (!vendedores.length) {
+    showToast('Não há vendedores internos ativos nesta regional.', 'warning');
     return;
   }
-  const porVendedor = new Map();
-  for (const campo of campos) {
-    const valor = campo.value.trim();
-    if (valor !== '' && (!Number.isInteger(Number(valor)) || Number(valor) < 0)) {
+  const metas = {};
+  for (const nivel of ['m3', 'm2', 'm1']) {
+    const campo = document.getElementById(`cfg-renov-ind-${nivel}`);
+    const valor = campo?.value.trim() || '';
+    if (valor === '' || !Number.isInteger(Number(valor)) || Number(valor) < 0) {
       campo.focus();
-      showToast('As metas individuais devem ser números inteiros iguais ou maiores que zero.', 'warning');
+      showToast('Preencha M3, M2 e M1 com números inteiros iguais ou maiores que zero.', 'warning');
       return;
     }
-    const vendedorId = Number(campo.dataset.vendedorId);
-    if (!Number.isInteger(vendedorId) || vendedorId <= 0) continue;
-    if (!porVendedor.has(vendedorId)) porVendedor.set(vendedorId, {});
-    porVendedor.get(vendedorId)[`meta_${campo.dataset.nivel}`] = valor === '' ? null : Number(valor);
+    metas[`meta_${nivel}`] = Number(valor);
   }
-
-  const payloads = [];
-  const semMeta = [];
-  porVendedor.forEach((metas, vendedorId) => {
-    if (Object.values(metas).every(valor => valor == null)) {
-      semMeta.push(vendedorId);
-      return;
-    }
-    payloads.push({
+  const payloads = vendedores.map(vendedor => ({
       filial_id: Number(window.FILIAL_ATUAL_ID),
-      vendedor_id: vendedorId,
+      vendedor_id: Number(vendedor.id),
       mes: periodo.mes,
       ano: periodo.ano,
       ...metas,
       atualizado_em: new Date().toISOString(),
-    });
-  });
+  }));
 
   const botao = document.getElementById('cfg-renov-ind-salvar');
   if (botao) { botao.disabled = true; botao.textContent = 'Salvando…'; }
   try {
-    if (payloads.length) {
-      const { error } = await window._supabase.from('metas_renovacao_individual')
-        .upsert(payloads, { onConflict: 'vendedor_id,mes,ano' });
-      if (error) throw error;
-    }
-    if (semMeta.length) {
-      const { error } = await window._supabase.from('metas_renovacao_individual').delete()
-        .eq('filial_id', Number(window.FILIAL_ATUAL_ID))
-        .eq('mes', periodo.mes)
-        .eq('ano', periodo.ano)
-        .in('vendedor_id', semMeta);
-      if (error) throw error;
-    }
+    const { error } = await window._supabase.from('metas_renovacao_individual')
+      .upsert(payloads, { onConflict: 'vendedor_id,mes,ano' });
+    if (error) throw error;
     await carregarDados();
-    showToast(`Metas individuais de renovação de ${rotuloPeriodoMeta(periodo)} salvas. A meta global da filial não foi alterada.`, 'success');
+    const status = document.getElementById('cfg-renov-ind-status');
+    if (status) status.textContent = `Meta individual M3/M2/M1 aplicada igualmente a ${vendedores.length} vendedor(es) interno(s) ativo(s).`;
+    showToast(`Metas individuais de renovação de ${rotuloPeriodoMeta(periodo)} aplicadas a ${vendedores.length} vendedores internos. A meta global da filial não foi alterada.`, 'success');
   } catch (erro) {
     console.error('[handleSalvarMetasRenovacaoIndividuais]', erro);
     showToast(/metas_renovacao_individual|schema cache|does not exist/i.test(String(erro?.message || erro))
       ? 'A tabela de metas individuais não está disponível. Execute supabase/renovacoes-mensais.sql no SQL Editor.'
       : `Não foi possível salvar as metas individuais: ${erro?.message || erro}`, 'error', 9000);
   } finally {
-    if (botao) { botao.disabled = false; botao.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas individuais'; }
+    if (botao) { botao.disabled = false; botao.innerHTML = '<svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Aplicar para todos'; }
   }
 }
 
