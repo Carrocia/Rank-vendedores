@@ -1232,6 +1232,11 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       meta_m2: metasRenovCancel.renovacoes_m2,
       meta_m1: metasRenovCancel.renovacoes_m1,
     };
+    const metasRenovacaoRegionalEtapas = [
+      { nome: 'M3 · meta regional', meta: Number(metasRenovacaoFilial.meta_m3 || 0) },
+      { nome: 'M2 · meta regional', meta: Number(metasRenovacaoFilial.meta_m2 || 0) },
+      { nome: 'M1 · meta regional', meta: Number(metasRenovacaoFilial.meta_m1 || 0) },
+    ].filter(etapa => etapa.meta > 0);
     const vendasFilial = (contexto.cache.vendasMes || []).filter(item => item.fora_filial !== true).length
       + (contexto.cache.vendasFiliais || []).reduce((total, item) => total + Number(item.quantidade || 1), 0);
     const renovacoesFilial = Array.isArray(contexto.cache.renovacoesMes)
@@ -1393,34 +1398,63 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     } else {
       textoQuebrado('As metas deste período não estão configuradas.', 16, y + 3, 178); y += 13;
     }
-    if (y > 226) { doc.addPage(); cabecalho('Suas renovações no mês', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · resultado individual`); y = 54; }
-    y = tituloSecao(externo ? 'Renovações registradas' : 'Suas metas individuais de renovação', y);
+    if (y > 205) { doc.addPage(); cabecalho('Suas renovações no mês', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · resultado individual`); y = 54; }
+    y = tituloSecao('Renovações · metas individuais e da regional', y);
     if (externo) {
       doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(16, y, 178, 18, 2, 2, 'FD');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul);
       doc.text(`${formatoInteiro(renovacoes)} renovação(ões) registrada(s) no período`, 21, y + 7);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-      doc.text('As metas individuais de renovação são configuradas para vendedores internos.', 21, y + 13);
+      doc.text('Vendedores externos não possuem meta individual de renovação.', 21, y + 13);
       y += 24;
-    } else if (metasRenovacaoEtapas.length) {
-      const etapasW = 178 / metasRenovacaoEtapas.length;
-      metasRenovacaoEtapas.forEach((etapa, index) => {
-        const x = 16 + index * etapasW;
-        const pct = Math.min(100, renovacoes / etapa.meta * 100);
-        const faltam = Math.max(0, etapa.meta - renovacoes);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul); doc.text(etapa.nome, x, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-        doc.text(`${formatoInteiro(Math.min(renovacoes, etapa.meta))} de ${formatoInteiro(etapa.meta)} renovações`, x, y + 6);
-        doc.setDrawColor(...line); doc.setFillColor(...line); doc.roundedRect(x, y + 9, etapasW - 6, 3, 1.5, 1.5, 'F');
-        if (pct > 0) { doc.setFillColor(...ciano); doc.roundedRect(x, y + 9, Math.max(2, (etapasW - 6) * pct / 100), 3, 1.5, 1.5, 'F'); }
-        const curto = etapa.nome.split(' · ')[0];
-        const status = faltam ? `${formatoInteiro(faltam)} para ${curto}` : `${curto} ${renovacoes > etapa.meta ? 'superada' : 'atingida'}`;
-        doc.text(status, x, y + 18);
-      });
-      y += 28;
+      y = tituloSecao('Metas globais da regional · referência', y);
+      if (metasRenovacaoRegionalEtapas.length) {
+        const etapasW = 178 / metasRenovacaoRegionalEtapas.length;
+        metasRenovacaoRegionalEtapas.forEach((etapa, index) => {
+          const x = 16 + index * etapasW;
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul); doc.text(etapa.nome, x, y);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+          doc.text(`Meta: ${formatoInteiro(etapa.meta)} renovações`, x, y + 6);
+        });
+        y += 13;
+      } else {
+        textoQuebrado('As metas globais M3, M2 e M1 da regional não estão configuradas para este período.', 16, y + 3, 178);
+        y += 12;
+      }
     } else {
-      textoQuebrado(`${formatoInteiro(renovacoes)} renovação(ões) registrada(s). As metas M3, M2 e M1 individuais não estão configuradas para este período.`, 16, y + 3, 178);
-      y += 13;
+      const desenharEtapasRenovacao = (rotulo, etapas, realizado, descricao) => {
+        y = tituloSecao(rotulo, y);
+        if (!etapas.length) {
+          textoQuebrado(descricao, 16, y + 3, 178);
+          y += 12;
+          return;
+        }
+        const etapasW = 178 / etapas.length;
+        etapas.forEach((etapa, index) => {
+          const x = 16 + index * etapasW;
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul); doc.text(etapa.nome, x, y);
+          if (Number.isFinite(realizado)) {
+            const pct = Math.min(100, realizado / etapa.meta * 100);
+            const faltam = Math.max(0, etapa.meta - realizado);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+            doc.text(`${formatoInteiro(Math.min(realizado, etapa.meta))} de ${formatoInteiro(etapa.meta)} renovações`, x, y + 6);
+            doc.setDrawColor(...line); doc.setFillColor(...line); doc.roundedRect(x, y + 9, etapasW - 6, 3, 1.5, 1.5, 'F');
+            if (pct > 0) { doc.setFillColor(...ciano); doc.roundedRect(x, y + 9, Math.max(2, (etapasW - 6) * pct / 100), 3, 1.5, 1.5, 'F'); }
+            const curto = etapa.nome.split(' · ')[0];
+            const status = faltam ? `Faltam ${formatoInteiro(faltam)} para ${curto}` : `${curto} ${realizado > etapa.meta ? 'superada' : 'atingida'}`;
+            doc.text(status, x, y + 18);
+          } else {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+            doc.text(`Meta: ${formatoInteiro(etapa.meta)} renovações`, x, y + 6);
+          }
+        });
+        y += 27;
+      };
+      desenharEtapasRenovacao('Sua meta individual', metasRenovacaoEtapas, renovacoes,
+        `${formatoInteiro(renovacoes)} renovação(ões) registrada(s). As metas individuais M3, M2 e M1 não estão configuradas para este período.`);
+      if (y > 225) { doc.addPage(); cabecalho('Metas de renovação da regional', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · referência da filial`); y = 54; }
+      desenharEtapasRenovacao('Metas globais da regional · referência', metasRenovacaoRegionalEtapas, null,
+        'As metas globais de renovação da regional M3, M2 e M1 não estão configuradas para este período.');
     }
     doc.addPage();
     cabecalho('Como seu mês aconteceu', `Ativações, produtos e indicadores comerciais${periodoFechado ? '' : ' · PRÉVIA'}`);
