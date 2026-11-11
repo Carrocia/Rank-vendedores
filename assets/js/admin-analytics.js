@@ -322,13 +322,14 @@ async function carregarContextoPeriodoHistorico(chave) {
     const vendedores = (_cache.vendedores || []).filter(v => v.ativo !== false);
     const ids = vendedores.map(v => v.id);
     const [vendasMes, vendasOrigemMes, vendasFiliais, metasFilial, metasRenovCancel,
-      metasRenovacaoFilial, metas, renovacoesMes, ranksMensais] = await Promise.all([
+      metasRenovacaoFilial, metasRenovacaoIndividual, metas, renovacoesMes, ranksMensais] = await Promise.all([
       loadVendas(mes.de, mes.ate),
       loadVendasOrigem(mes.de, mes.ate),
       loadVendasOutrasFiliais(mes.de, mes.ate),
       loadMetasFilial(mes.mesNum, mes.ano),
       loadMetasRenovCancel(mes.mesNum, mes.ano),
       loadMetasRenovacaoFilial(mes.mesNum, mes.ano),
+      loadMetasRenovacaoIndividual(mes.mesNum, mes.ano, ids),
       loadMetas(mes.mesNum, mes.ano, ids),
       loadRenovacoesMensais(mes.mesNum, mes.ano),
       loadRankMensalFilial(mes.mesNum, mes.ano),
@@ -360,7 +361,7 @@ async function carregarContextoPeriodoHistorico(chave) {
     const cache = {
       ..._cache, mes, vendasMes: vendasMes || [], vendasOrigemMes: vendasOrigemMes || [],
       vendasFiliais: vendasFiliais || [], metasFilial, metasRenovCancel, metasRenovacaoFilial,
-      metas: metas || [],
+      metasRenovacaoIndividual: metasRenovacaoIndividual || [], metas: metas || [],
       renovacoesMes: renovacoesMes || [], ranksMensais: ranksMensais || [],
     };
     return { d, mes, cache, vendedores, filialId: String(window.FILIAL_ATUAL_ID || '') };
@@ -421,12 +422,8 @@ function obterPerfilAnaliticoSelecionado() {
   const rank = (contexto.cache.ranksMensais || []).find(item => String(item.vendedor_id) === String(id)) || null;
   const renovacao = (contexto.cache.renovacoesMes || [])?.find(item => String(item.vendedor_id) === String(id));
   const metasVendas = (contexto.cache.metas || []).find(item => String(item.vendedor_id) === String(id)) || {};
-  const renovacaoLegada = contexto.cache.metasRenovCancel || {};
-  const metasRenovacao = contexto.cache.metasRenovacaoFilial || {
-    meta_m3: renovacaoLegada.renovacoes_m3,
-    meta_m2: renovacaoLegada.renovacoes_m2,
-    meta_m1: renovacaoLegada.renovacoes_m1,
-  };
+  const metasRenovacao = (contexto.cache.metasRenovacaoIndividual || [])
+    .find(item => String(item.vendedor_id) === String(id)) || {};
   return { vendedor, cadastro, rank, renovacao, metasVendas, metasRenovacao, tipo: vendedor.tipo || cadastro?.tipo || 'interno' };
 }
 
@@ -1258,7 +1255,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     if (!externo) indicadores.push({
       nome: 'Renovações', resultado: metaRenovacaoM1 > 0 ? `${formatoInteiro(renovacoes)} de ${formatoInteiro(metaRenovacaoM1)}` : `${formatoInteiro(renovacoes)} registradas`,
       percentual: metaRenovacaoM1 > 0 ? Math.round(renovacoes / metaRenovacaoM1 * 100) : null,
-      referencia: metaRenovacaoM1 > 0 ? 'Meta M1 compartilhada pela equipe interna' : 'Sem meta de renovação cadastrada',
+      referencia: metaRenovacaoM1 > 0 ? 'Meta M1 individual do vendedor' : 'Sem meta individual de renovação cadastrada',
     });
 
     const { jsPDF } = window.jspdf;
@@ -1397,13 +1394,13 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       textoQuebrado('As metas deste período não estão configuradas.', 16, y + 3, 178); y += 13;
     }
     if (y > 226) { doc.addPage(); cabecalho('Suas renovações no mês', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · resultado individual`); y = 54; }
-    y = tituloSecao('Metas de renovação da equipe interna', y);
+    y = tituloSecao(externo ? 'Renovações registradas' : 'Suas metas individuais de renovação', y);
     if (externo) {
       doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(16, y, 178, 18, 2, 2, 'FD');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...azul);
       doc.text(`${formatoInteiro(renovacoes)} renovação(ões) registrada(s) no período`, 21, y + 7);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-      doc.text('As metas compartilhadas de renovação são destinadas à equipe interna.', 21, y + 13);
+      doc.text('As metas individuais de renovação são configuradas para vendedores internos.', 21, y + 13);
       y += 24;
     } else if (metasRenovacaoEtapas.length) {
       const etapasW = 178 / metasRenovacaoEtapas.length;

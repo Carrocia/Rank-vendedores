@@ -806,15 +806,6 @@ async function cadastrarVendedor(event) {
         throw error;
       }
       vendedorId = vendedor.id;
-      if (tipo === 'interno') {
-        const periodoAtual = calcularPeriodoMes();
-        try {
-          await sincronizarMetaRenovacaoVendedor(vendedorId, filialId, periodoAtual.mesNum, periodoAtual.ano);
-        } catch (erroMetasRenovacao) {
-          console.warn('[cadastrarVendedor] não foi possível aplicar as metas de renovação compartilhadas:', erroMetasRenovacao);
-          showToast('Vendedor cadastrado, mas as metas compartilhadas de renovação não foram sincronizadas. Salve novamente as metas da equipe.', 'warning', 9000);
-        }
-      }
     }
 
     if (arquivoFoto && vendedorId) {
@@ -1191,23 +1182,23 @@ async function loadMetasRenovacaoFilial(mes, ano) {
   return data || null;
 }
 
-async function sincronizarMetaRenovacaoVendedor(vendedorId, filialId, mes, ano) {
-  const { data: metas, error: erroMetas } = await window._supabase.from('metas_renovacao_filial')
-    .select('meta_m3,meta_m2,meta_m1')
-    .eq('filial_id', filialId).eq('mes', mes).eq('ano', ano).maybeSingle();
-  if (erroMetas) throw erroMetas;
-  if (!metas) return;
-  const { error } = await window._supabase.from('metas_renovacao_individual').upsert({
-    filial_id: filialId,
-    vendedor_id: vendedorId,
-    mes,
-    ano,
-    meta_m3: metas.meta_m3,
-    meta_m2: metas.meta_m2,
-    meta_m1: metas.meta_m1,
-    atualizado_em: new Date().toISOString(),
-  }, { onConflict: 'vendedor_id,mes,ano' });
-  if (error) throw error;
+async function loadMetasRenovacaoIndividual(mes, ano, vendedorIds = null) {
+  if (!window.ADMIN_AUTENTICADO || !window._supabase) return [];
+  let consulta = window._supabase.from('metas_renovacao_individual')
+    .select('filial_id,vendedor_id,mes,ano,meta_m3,meta_m2,meta_m1')
+    .eq('filial_id', Number(window.FILIAL_ATUAL_ID))
+    .eq('mes', Number(mes))
+    .eq('ano', Number(ano));
+  if (Array.isArray(vendedorIds)) {
+    if (!vendedorIds.length) return [];
+    consulta = consulta.in('vendedor_id', vendedorIds.map(Number));
+  }
+  const { data, error } = await consulta;
+  if (error) {
+    console.warn('[loadMetasRenovacaoIndividual] metas individuais de renovação indisponíveis:', error.message);
+    return [];
+  }
+  return data || [];
 }
 
 async function loadRenovacoesMensais(mes, ano) {

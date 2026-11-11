@@ -851,6 +851,15 @@ body.an-modal-open { overflow:hidden; }
 #cfg-vendas-mes { display:block; width:min(100%, 360px); min-width:0; color-scheme:dark; }
 #sec-renovacoes .cfg-renov-meta-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
 #sec-renovacoes .cfg-renov-meta-grid input { width:100%; }
+#sec-renovacoes .renov-individual-goals-card { margin-top:16px; }
+#sec-renovacoes .renov-individual-goal-actions { align-items:center; justify-content:space-between; gap:12px; margin:10px 0 12px; }
+#sec-renovacoes .renov-individual-goals-table-wrap { max-height:440px; overflow:auto; border:1px solid var(--border); border-radius:12px; }
+#sec-renovacoes .renov-individual-goals-table { min-width:650px; margin:0; }
+#sec-renovacoes .renov-individual-goals-table th:not(:first-child),
+#sec-renovacoes .renov-individual-goals-table td:not(:first-child) { width:150px; text-align:center; }
+#sec-renovacoes .renov-individual-goal-name { min-width:220px; color:var(--heading-color); font-weight:700; }
+#sec-renovacoes .renov-individual-goal-input { width:min(100%,112px); min-height:36px; padding:7px 9px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--heading-color); text-align:center; font:inherit; font-variant-numeric:tabular-nums; }
+#sec-renovacoes .renov-individual-goal-input:focus { border-color:var(--accent); outline:2px solid rgba(var(--accent-rgb),.18); }
 #sec-admins > .adm-table-wrap .adm-table,
 #sec-filiais-admin > .adm-table-wrap .adm-table { min-width:680px; }
 #sec-admins > .adm-form-card,
@@ -936,6 +945,8 @@ body.an-modal-open { overflow:hidden; }
   #sec-config-metas .cfg-meta-type-fields { grid-template-columns:1fr; }
   #sec-config-metas .cfg-meta-type-description { min-height:0; }
   #sec-renovacoes .cfg-renov-meta-grid { grid-template-columns:1fr; }
+  #sec-renovacoes .renov-individual-goal-actions { align-items:stretch; flex-direction:column; }
+  #sec-renovacoes .renov-individual-goal-actions .adm-btn { width:100%; justify-content:center; }
   .adm-vendedores-bulk-export { align-items: stretch; flex-direction: column; }
   .adm-vendedores-bulk-export button { justify-content: center; width: 100%; }
   .adm-celebration-actions { flex-direction: column; }

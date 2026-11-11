@@ -31,7 +31,7 @@
 <!-- Bibliotecas de exportação (Excel, PDF e imagem): carregadas sob demanda quando o painel ADM abre — ver carregarLibsAdmin() -->
 <link rel="stylesheet" href="assets/css/site.css?v=20261109-mural-history-v8">
 
-  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261109-opa-analytics-v6">
+  <link rel="stylesheet" id="adm-styles" href="assets/css/admin.css?v=20261111-renovacao-individual-v1">
 
 <!-- ═══════════════════════════════════════════════════════════════
      CARD "PAINEL DE DESEMPENHO" — visual só, gerado pelo ADM (botão
@@ -354,14 +354,14 @@
 
 <script src="assets/js/config-data.js?v=20261109-opa-clean-v2"></script>
   <script src="assets/js/dashboard.js?v=20261109-mural-history-v8"></script>
-  <script src="assets/js/supabase-admin.js?v=20261110-regional-vendedor-management-v2"></script>
+  <script src="assets/js/supabase-admin.js?v=20261111-renovacao-individual-v1"></script>
   <script src="assets/js/admin-reports.js?v=20261108-split-v2"></script>
   <script src="assets/js/admin-sales.js?v=20261110-regional-vendedor-management-v2"></script>
-  <script src="assets/js/admin-analytics.js?v=20261109-opa-retrospective-v2"></script>
+  <script src="assets/js/admin-analytics.js?v=20261111-renovacao-individual-v1"></script>
   <script src="assets/js/admin-operations.js?v=20261108-pending-counts-v1"></script>
   <script src="assets/js/admin-opa.js?v=20261109-opa-summary-v5"></script>
   <script src="assets/js/admin-celebrations.js?v=20261108-month-picker-v1"></script>
-  <script src="assets/js/admin-goals.js?v=20261109-opa-clean-v3"></script>
+  <script src="assets/js/admin-goals.js?v=20261111-renovacao-individual-v1"></script>
   <script src="assets/js/ixc-import.js?v=20261108-ixc-review-no-null-id-2"></script>
 <!-- ═══════════════════════════════════════════════════════════════
      BOTÃO ADM FLUTUANTE
@@ -1432,16 +1432,32 @@
           <div class="adm-form-card">
             <div class="adm-card-heading adm-card-heading-compact">
               <span class="adm-card-heading-icon is-target"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-target"/></svg></span>
-              <div><span class="adm-card-eyebrow">EQUIPE INTERNA · META COMPARTILHADA</span><h2>Metas de renovação — <span id="cfg-renov-periodo">mês/ano atual</span></h2></div>
+              <div><span class="adm-card-eyebrow">META GLOBAL DA FILIAL</span><h2>Meta global de renovação — <span id="cfg-renov-periodo">mês/ano atual</span></h2></div>
             </div>
-            <p class="adm-description">Defina as metas uma vez. M3, M2 e M1 serão aplicadas igualmente a todos os vendedores internos desta filial.</p>
-            <div class="adm-field" style="max-width:320px;margin:0 0 14px"><label for="cfg-renov-mes">Mês das metas de renovação</label><input type="month" id="cfg-renov-mes" min="2026-10" aria-label="Mês das metas de renovação" onchange="carregarMetasRenovacaoPeriodoSelecionado()"></div>
+            <p class="adm-description">Defina o objetivo total da filial em renovações. Esta meta global é independente das metas individuais dos vendedores.</p>
+            <div class="adm-field" style="max-width:320px;margin:0 0 14px"><label for="cfg-renov-mes">Mês das metas de renovação</label><input type="month" id="cfg-renov-mes" min="2026-10" aria-label="Mês das metas de renovação" onchange="carregarMetasRenovacaoPeriodoSelecionado(); carregarMetasRenovacaoIndividualPeriodoSelecionado()"></div>
             <div class="adm-form-grid cfg-renov-meta-grid">
               <div class="adm-field"><label for="cfg-renov-m3">M3 · Base</label><input type="number" id="cfg-renov-m3" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label for="cfg-renov-m2">M2 · Intermediária</label><input type="number" id="cfg-renov-m2" min="0" step="1" placeholder="Não configurado"></div>
               <div class="adm-field"><label for="cfg-renov-m1">M1 · Avançada</label><input type="number" id="cfg-renov-m1" min="0" step="1" placeholder="Não configurado"></div>
             </div>
-            <div class="adm-form-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-renov-salvar" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Aplicar metas ao mês selecionado</button></div>
+            <div class="adm-form-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-renov-salvar" onclick="handleSalvarMetasRenovacao()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar meta global</button></div>
+          </div>
+          <div class="adm-form-card renov-individual-goals-card">
+            <div class="adm-card-heading adm-card-heading-compact">
+              <span class="adm-card-heading-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-users"/></svg></span>
+              <div><span class="adm-card-eyebrow">EQUIPE INTERNA · METAS INDIVIDUAIS</span><h2>Metas de renovação por vendedor — <span id="cfg-renov-ind-periodo">mês/ano atual</span></h2></div>
+            </div>
+            <p class="adm-description">Configure M3, M2 e M1 para cada vendedor. Esses valores são usados no desempenho individual e não alteram a meta global da filial.</p>
+            <div class="adm-form-actions renov-individual-goal-actions">
+              <span class="adm-muted-copy" id="cfg-renov-ind-count">Carregando equipe interna…</span>
+              <button type="button" class="adm-btn adm-btn-secondary adm-btn-inline" id="cfg-renov-ind-copy-global" onclick="preencherMetasIndividuaisComMetaGlobal()">Preencher com valores globais</button>
+            </div>
+            <div class="adm-table-wrap renov-individual-goals-table-wrap"><table class="adm-table renov-individual-goals-table">
+              <thead><tr><th>Vendedor interno</th><th>M3 · Base</th><th>M2 · Intermediária</th><th>M1 · Avançada</th></tr></thead>
+              <tbody id="cfg-renov-ind-body"><tr><td colspan="4" class="adm-inline-status">Abra esta área para carregar as metas individuais.</td></tr></tbody>
+            </table></div>
+            <div class="adm-form-actions"><span class="adm-muted-copy">Campos vazios ficam sem meta individual definida.</span><button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-renov-ind-salvar" onclick="handleSalvarMetasRenovacaoIndividuais()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas individuais</button></div>
           </div>
         </section>
 
@@ -1738,7 +1754,7 @@
                 <div class="adm-field cfg-meta-externo-field"><label for="cfg-meta-externo-vendas">Meta mensal de vendas</label><input type="number" min="0" step="1" id="cfg-meta-externo-vendas" placeholder="Não configurado"></div>
               </section>
             </div>
-            <p class="adm-callout cfg-meta-type-note"><strong>Ao salvar, a meta padrão substitui os valores anteriores</strong> de todos os vendedores daquele tipo. As metas de renovação são compartilhadas pela equipe interna na seção Renovações.</p>
+            <p class="adm-callout cfg-meta-type-note"><strong>Ao salvar, a meta padrão substitui os valores anteriores</strong> de todos os vendedores daquele tipo. Na seção Renovações, a meta global da filial e as metas individuais dos vendedores são configuradas separadamente.</p>
             <div class="adm-form-actions cfg-save-metas-actions">
               <span class="adm-muted-copy">Salva as metas da filial e da equipe para o período selecionado.</span>
               <button type="button" class="adm-btn adm-btn-primary adm-btn-inline" id="cfg-vendas-salvar" onclick="handleSalvarMetas()"><svg class="adm-icon adm-icon--small" aria-hidden="true"><use href="#adm-icon-check"/></svg>Salvar metas do período</button>

@@ -1294,8 +1294,9 @@ async function carregarDados() {
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
            conquistasGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas], metas] = await Promise.all([pCargaBase, pMetas]);
 
-    const [metasRenovacaoFilial, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
+    const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
       loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
+      loadMetasRenovacaoIndividual(_cache.mes.mesNum, _cache.mes.ano, vendedorIds),
       loadRenovacoesMensais(_cache.mes.mesNum, _cache.mes.ano),
       loadTotalRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
       loadDestaquesRenovacoesPublico(_cache.mes.mesNum, _cache.mes.ano),
@@ -1310,6 +1311,7 @@ async function carregarDados() {
     _cache.metas = metas;
     _cache.metasRenovCancel = metasRenovCancel;
     _cache.metasRenovacaoFilial = metasRenovacaoFilial;
+    _cache.metasRenovacaoIndividual = metasRenovacaoIndividual;
     _cache.renovacoesMes = renovacoesMes;
     _cache.renovacoesTotal = renovacoesTotal;
     _cache.destaquesRenovacoes = destaquesRenovacoes;
