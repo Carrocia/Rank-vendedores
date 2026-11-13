@@ -1528,6 +1528,23 @@ function ordinal(n) {
 
 // Frases de incentivo escolhidas pelo avanço da meta e a posição semanal,
 // sem usar a data de ativação para inferir constância diária.
+const METAS_RENOVACAO_STATUS_CACHE = new Map();
+
+async function carregarMetasRenovacaoStatus(periodo) {
+  const mes = Number(periodo?.mesNum || periodo?.mes);
+  const ano = Number(periodo?.ano);
+  const filialId = String(window.FILIAL_ATUAL_ID || '');
+  if (!Number.isInteger(mes) || mes < 1 || mes > 12 || !Number.isInteger(ano)) return [];
+  const chave = `${filialId}:${ano}-${String(mes).padStart(2, '0')}`;
+  if (!METAS_RENOVACAO_STATUS_CACHE.has(chave)) {
+    const consulta = typeof loadMetasRenovacaoIndividual === 'function'
+      ? loadMetasRenovacaoIndividual(mes, ano)
+      : Promise.resolve([]);
+    METAS_RENOVACAO_STATUS_CACHE.set(chave, consulta.catch(() => []));
+  }
+  return METAS_RENOVACAO_STATUS_CACHE.get(chave);
+}
+
 const SC_FRASES_ALTA = [
   'Você tá voando tão alto que o Wi-Fi pediu carona. 🚀',
   'Seu progresso aparece em cada meta que você alcança.',
@@ -1700,12 +1717,16 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
     const renovacaoMensal = Array.isArray(_cache.renovacoesMes) ? _cache.renovacoesMes : null;
     const renovacaoPessoa = renovacaoMensal?.find(item => String(item.vendedor_id) === String(vendedorCadastro?.id));
     const quantidadeRenovacoes = renovacaoPessoa ? Number(renovacaoPessoa.quantidade || 0) : (renovacaoMensal ? 0 : null);
-    const metasRenovPessoa = _cache.metasRenovacaoFilial || {};
+    const periodoMetasRenovacao = d.mes || _cache.mes || calcularPeriodoMes();
+    const metasRenovacaoIndividuais = await carregarMetasRenovacaoStatus(periodoMetasRenovacao);
+    const metasRenovPessoa = metasRenovacaoIndividuais.find(meta =>
+      String(meta.vendedor_id) === String(vendedorCadastro?.id)
+    ) || {};
     const metasRenovPessoaOrdenadas = [
       { label: 'M3', valor: Number(metasRenovPessoa.meta_m3) },
       { label: 'M2', valor: Number(metasRenovPessoa.meta_m2) },
       { label: 'M1', valor: Number(metasRenovPessoa.meta_m1) },
-    ].filter(meta => meta.valor > 0).sort((a, b) => a.valor - b.valor);
+    ].filter(meta => Number.isFinite(meta.valor) && meta.valor > 0);
     const metaRenovacaoAtual = quantidadeRenovacoes === null ? null
       : (metasRenovPessoaOrdenadas.find(meta => quantidadeRenovacoes < meta.valor) || metasRenovPessoaOrdenadas[metasRenovPessoaOrdenadas.length - 1] || null);
     const statRenov = document.getElementById('sc-stat-renovacoes');
@@ -1715,7 +1736,7 @@ async function gerarStatusVendedor(slug, evt, options = {}) {
       ? 'Aguardando relatório'
       : metaRenovacaoAtual
         ? `${metaRenovacaoAtual.label} · ${quantidadeRenovacoes.toLocaleString('pt-BR')} / ${metaRenovacaoAtual.valor.toLocaleString('pt-BR')}`
-    : 'Meta da equipe não configurada';
+    : 'Meta individual não cadastrada';
   }
 
   document.getElementById('sc-phrase').textContent = `"${frase}"`;
