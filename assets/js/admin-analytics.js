@@ -1286,6 +1286,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     };
     const desenharProgressoMetasVendedor = ({ titulo, realizado, etapas, unidade, semMeta }) => {
       const x = 16, largura = 178, altura = 68;
+      doc.setLineWidth(.35);
       doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(x, y, largura, altura, 2.5, 2.5, 'FD');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(...muted);
       doc.text(titulo.toLocaleUpperCase('pt-BR'), x + 5, y + 8);
@@ -1312,6 +1313,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         const percentual = concluido ? 100 : Math.min(100, realizado / etapaAtual.meta * 100);
         doc.setDrawColor(...line); doc.setLineWidth(2.2); doc.line(areaX, y + 24, areaX + areaW, y + 24);
         if (percentual > 0) { doc.setDrawColor(...ciano); doc.line(areaX, y + 24, areaX + areaW * percentual / 100, y + 24); }
+        doc.setLineWidth(.35);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8); doc.setTextColor(...muted);
         doc.text(concluido ? 'Meta do período concluída.' : `Próxima conquista: ${etapaAtual.nome}.`, areaX, y + 32);
       } else {
@@ -1320,7 +1322,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         doc.text(semMeta, areaX, y + 21);
       }
 
-      doc.setDrawColor(...line); doc.line(x + 5, y + 39, x + largura - 5, y + 39);
+      doc.setDrawColor(...line); doc.setLineWidth(.35); doc.line(x + 5, y + 39, x + largura - 5, y + 39);
       const etapasVisiveis = etapas.length ? etapas : [{ nome: 'M3', meta: 0 }, { nome: 'M2', meta: 0 }, { nome: 'M1', meta: 0 }];
       const colW = (largura - 10) / etapasVisiveis.length;
       etapasVisiveis.forEach((etapa, index) => {
@@ -1329,7 +1331,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
         const atingida = etapa.meta > 0 && realizado >= etapa.meta;
         const aguardando = indiceAtual >= 0 && index > indiceAtual;
         const status = !etapa.meta ? 'Sem meta' : atingida ? 'Concluída' : aguardando ? `Após ${etapas[indiceAtual].nome.split(' · ')[0]}` : (mesEncerrado || periodoFechado) ? 'Não alcançada' : 'Em andamento';
-        if (index > 0) { doc.setDrawColor(...line); doc.line(colX, y + 43, colX, y + 63); }
+        if (index > 0) { doc.setDrawColor(...line); doc.setLineWidth(.35); doc.line(colX, y + 43, colX, y + 63); }
         doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...(atingida ? [21, 125, 104] : aguardando ? muted : ciano));
         doc.text(`${etapaNivel} · ${etapa.meta ? formatoInteiro(etapa.meta) : '—'} ${unidade}`, colX + 3, y + 49);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5.6); doc.setTextColor(...muted);
@@ -1339,6 +1341,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     };
     const desenharReferenciaMetasRegionais = (titulo, etapas, unidade) => {
       const x = 16, largura = 178, altura = 29;
+      doc.setLineWidth(.35);
       doc.setFillColor(246, 249, 252); doc.setDrawColor(...line); doc.roundedRect(x, y, largura, altura, 2.5, 2.5, 'FD');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(...muted);
       doc.text(titulo.toLocaleUpperCase('pt-BR'), x + 5, y + 7);
@@ -1447,7 +1450,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     if (y > 185) { doc.addPage(); cabecalho('Suas vendas no mês', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · resultado individual`); y = 54; }
     y = tituloSecao('Vendas · seu resultado e as etapas da meta', y);
     desenharProgressoMetasVendedor({
-      titulo: 'Vendas contabilizadas para sua meta', realizado: vendasContabilizadasMeta,
+      titulo: 'Vendas na meta', realizado: vendasContabilizadasMeta,
       etapas: metasEtapas, unidade: 'vendas', semMeta: 'As metas M3, M2 e M1 deste período não foram configuradas.',
     });
     if (y > 220) { doc.addPage(); cabecalho('Referência regional de vendas', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · metas coletivas`); y = 54; }
@@ -1466,7 +1469,7 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       y += 28;
     } else {
       desenharProgressoMetasVendedor({
-        titulo: 'Renovações que contam para sua meta individual', realizado: renovacoes,
+        titulo: 'Renovações na meta', realizado: renovacoes,
         etapas: metasRenovacaoEtapas, unidade: 'renovações',
         semMeta: 'As metas individuais M3, M2 e M1 deste período não foram configuradas.',
       });
