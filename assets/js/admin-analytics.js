@@ -1149,6 +1149,26 @@ async function gerarRelatorioAnaliticoPDF(evt) {
     const externo = tipo === 'externo';
     const vendedorId = String(cadastro?.id || vendedor.id);
     const filialVendedorId = Number(cadastro?.filial_id ?? vendedor.filial_id ?? window.FILIAL_ATUAL_ID);
+    const participaOpa = !externo && cadastro?.participa_ranking !== false;
+    let resultadoOpa = null;
+    if (participaOpa) {
+      const { data, error } = await window._supabase.from('opa_resultados_mensais')
+        .select('iniciados, encerrados, transferidos, nota_atendimento')
+        .eq('filial_id', filialVendedorId)
+        .eq('vendedor_id', Number(vendedorId))
+        .eq('mes', mes)
+        .eq('ano', ano)
+        .maybeSingle();
+      if (error) throw new Error(`Não foi possível carregar os atendimentos Opa para o PDF: ${error.message}`);
+      resultadoOpa = data;
+    }
+    const resumoOpa = resultadoOpa ? {
+      iniciados: Number(resultadoOpa.iniciados || 0),
+      encerrados: Number(resultadoOpa.encerrados || 0),
+      transferidos: Number(resultadoOpa.transferidos || 0),
+      total: Number(resultadoOpa.encerrados || 0) + Number(resultadoOpa.transferidos || 0),
+      nota: resultadoOpa.nota_atendimento == null ? null : Number(resultadoOpa.nota_atendimento),
+    } : null;
     const vendasDiretas = (contexto.cache.vendasMes || []).filter(item => String(item.vendedor_id) === vendedorId);
     const vendasFora = await loadVendasEquipeEmOutrasFiliais(periodo.de, periodo.ate);
     const vendasOrigem = vendasFora.filter(item => String(item.vendedor_id) === vendedorId);
@@ -1516,6 +1536,41 @@ async function gerarRelatorioAnaliticoPDF(evt) {
       doc.text(String(item.dia), centro, chartY + 4, { align: 'center' });
     });
     y = chartY + 12;
+    if (participaOpa) {
+      if (y > 210) { doc.addPage(); cabecalho('Atendimentos Opa', `${String(nomeMes).toLocaleUpperCase('pt-BR')} ${ano} · resultado individual`); y = 54; }
+      y = tituloSecao('Atendimentos Opa · seu resultado no mês', y);
+      const opaX = 16, opaY = y, opaW = 178, opaH = 38, notaW = 43;
+      doc.setFillColor(...pale); doc.setDrawColor(...line); doc.roundedRect(opaX, opaY, opaW, opaH, 2.5, 2.5, 'FD');
+      doc.setDrawColor(...line); doc.line(opaX + notaW, opaY + 5, opaX + notaW, opaY + opaH - 5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.8); doc.setTextColor(...muted);
+      doc.text('NOTA DO ATENDIMENTO', opaX + 5, opaY + 8);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(21); doc.setTextColor(...azul);
+      const notaOpa = resumoOpa?.nota == null ? '—' : resumoOpa.nota.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      doc.text(notaOpa, opaX + 5, opaY + 25);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.6); doc.setTextColor(...muted);
+      doc.text(resumoOpa ? 'Nota média informada pelo Opa' : 'Sem lançamento neste período', opaX + 5, opaY + 32);
+      const metricasOpa = [
+        ['ATENDIMENTOS', resumoOpa?.total],
+        ['INICIADOS', resumoOpa?.iniciados],
+        ['ENCERRADOS', resumoOpa?.encerrados],
+        ['TRANSFERIDOS', resumoOpa?.transferidos],
+      ];
+      const metricX = opaX + notaW + 2, metricW = (opaW - notaW - 4) / metricasOpa.length;
+      metricasOpa.forEach(([label, value], index) => {
+        const x = metricX + index * metricW;
+        if (index > 0) { doc.setDrawColor(...line); doc.line(x, opaY + 7, x, opaY + opaH - 7); }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.3); doc.setTextColor(...(index === 0 ? ciano : muted));
+        doc.text(label, x + 3, opaY + 13);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(index === 0 ? 13 : 11); doc.setTextColor(...tinta);
+        doc.text(value == null ? '—' : formatoInteiro(value), x + 3, opaY + 26);
+      });
+      y += opaH + 7;
+      if (!resumoOpa) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(...muted);
+        doc.text('Os indicadores de atendimento ainda não foram lançados para este mês.', opaX, y);
+        y += 5;
+      }
+    }
     y = tituloSecao('Planos que contam para a meta', y);
     if (listaPlanos.length) {
       doc.autoTable({ startY: y, theme: 'striped', head: [['Produto cadastrado', 'Quantidade', 'Participação']],
