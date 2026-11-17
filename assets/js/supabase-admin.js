@@ -1388,7 +1388,7 @@ async function carregarPendenciasRenovacao() {
     : [new Date().getFullYear(), new Date().getMonth() + 1];
   corpo.innerHTML = '<tr><td colspan="8">Carregando pendências…</td></tr>';
   const { data, error } = await window._supabase.from('renovacoes_registros')
-    .select('id,vendedor_id,contrato,cliente,plano,plano_id,valor,data_renovacao,vendedores(nome)')
+    .select('id,vendedor_id,contrato,cliente,plano,plano_id,valor,data_renovacao,ausente_ultimo_relatorio,motivo_conferencia,vendedores(nome)')
     .eq('filial_id', window.FILIAL_ATUAL_ID).eq('mes', mes).eq('ano', ano)
     .eq('conferencia_pendente', true).order('data_renovacao', { ascending: false });
   if (error) {
@@ -1404,7 +1404,7 @@ async function carregarPendenciasRenovacao() {
     <td>${escapar(dataLocalStr(item.data_renovacao) || item.data_renovacao)}</td>
     <td>${escapar(item.contrato)}</td><td>${escapar(item.cliente)}</td>
     <td>${escapar(item.vendedores?.nome || window._vendedoresRenovacaoGlobal?.find(v => String(v.id) === String(item.vendedor_id))?.nome || '—')}</td>
-    <td>${escapar(item.plano)}</td>
+    <td>${escapar(item.plano)}${item.ausente_ultimo_relatorio ? '<div class="adm-inline-status is-warning">Não apareceu no último arquivo completo</div>' : ''}</td>
     <td><select data-renov-plano aria-label="Plano correspondente"><option value="">Selecione o plano</option>${(_cache.planos || []).map(p => `<option value="${Number(p.id)}" ${String(p.id) === String(item.plano_id || '') ? 'selected' : ''}>${escapar(p.nome)}${p.velocidade_mb ? ` · ${escapar(p.velocidade_mb)} Mbps` : ''}</option>`).join('')}</select></td>
     <td><input data-renov-valor type="number" min="0" step="0.01" value="${Number(item.valor || 0).toFixed(2)}" aria-label="Valor da renovação"></td>
     <td><button type="button" class="adm-btn adm-btn-primary adm-btn-small" data-renov-salvar>Salvar conferência</button></td>
@@ -1601,6 +1601,7 @@ async function analisarLinhasRelatorioRenovacao() {
     }
     contratosJaImportados = new Set((existentes || []).map(item => normalizarContratoRenovacao(item.contrato)).filter(Boolean));
   }
+  window._contratosRenovacaoJaImportados = [...contratosJaImportados];
   let vendedores = [];
   try {
     const { data, error } = await window._supabase.from('vendedores')
@@ -1685,7 +1686,10 @@ function renderizarPreviaRenovacao() {
   const duplicadas = linhas.filter(l => l.duplicada);
   const selecionadas = validas.filter(l => l.incluir);
   const encaminhadas = validas.filter(l => l.incluir && l.conferencia_pendente).length;
-  preview.textContent = `${selecionadas.length} renovação(ões) selecionada(s) para importar · ${encaminhadas} irão para conferência de plano/valor · ${duplicadas.length} duplicada(s) ignorada(s) · ${invalidas.length} linha(s) precisam de correção. Vendedores reconhecidos em todas as filiais pelo ID IXC ou nome único.`;
+  const contratosNoArquivo = new Set(linhas.map(l => l.contrato).filter(Boolean));
+  const contratosJaImportados = new Set((window._contratosRenovacaoJaImportados || []).map(normalizarContratoRenovacao).filter(Boolean));
+  const ausentes = [...contratosJaImportados].filter(contrato => !contratosNoArquivo.has(contrato)).length;
+  preview.textContent = `${selecionadas.length} renovação(ões) nova(s) · ${encaminhadas} para revisão de plano/valor · ${duplicadas.length} já importada(s) ou repetida(s) · ${ausentes} registro(s) anterior(es) não aparecem neste arquivo e ficarão pendentes de conferência, sem reduzir os totais · ${invalidas.length} linha(s) precisam de correção.`;
   corpo.innerHTML = linhas.map((l, i) => {
     const valor = l.valor == null ? '—' : `R$ ${Number(l.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const status = l.duplicada ? l.erro : l.erro || (l.conferencia_pendente ? 'Importar e revisar plano/valor' : 'Pronta para importar');
@@ -1710,9 +1714,11 @@ function renderizarPreviaRenovacao() {
   }));
   wrapper.hidden = false;
   const mes = document.getElementById('renov-relatorio-mes')?.value || '';
-  botao.disabled = !selecionadas.length || invalidas.length > 0 || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes);
+  const contratosRelatorio = [...new Set(linhas.map(l => l.contrato).filter(Boolean))];
+  botao.disabled = (!selecionadas.length && !contratosRelatorio.length) || invalidas.length > 0 || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes);
   window._previewRenovacaoImport = {
     registros: selecionadas.map(({ vendedor_id, contrato, cliente, plano, plano_id, valor, data, conferencia_pendente }) => ({ vendedor_id: Number(vendedor_id), contrato, cliente, plano, plano_id, valor, data, conferencia_pendente })),
+    contratosRelatorio,
     total: selecionadas.length, mes, invalidas: invalidas.length, duplicadas: duplicadas.length,
   };
 }
@@ -1759,35 +1765,37 @@ function limparRelatorioRenovacoes() {
   _relatorioRenovacao = null;
   window._linhasRelatorioRenovacao = [];
   window._previewRenovacaoImport = null;
+  window._contratosRenovacaoJaImportados = [];
 }
 
 async function importarRelatorioRenovacoes() {
   const resumo = window._previewRenovacaoImport;
-  if (!resumo || !resumo.mes || resumo.invalidas || !resumo.registros.length) {
-    showToast('Corrija as linhas pendentes e confira as renovações antes de importar.', 'warning'); return;
+  if (!resumo || !resumo.mes || resumo.invalidas || !resumo.contratosRelatorio?.length) {
+    showToast('Corrija as linhas pendentes e confira o relatório completo antes de importar.', 'warning'); return;
   }
   const [ano, mes] = resumo.mes.split('-').map(Number);
   const filialNome = window.FILIAL_ATUAL?.nome || 'filial atual';
-  if (!confirm(`Importar ${resumo.total.toLocaleString('pt-BR')} renovações novas de ${mes}/${ano} para ${filialNome}? As que já existem serão ignoradas, e os registros anteriores serão preservados.`)) return;
+  if (!confirm(`Conferir o relatório completo de ${mes}/${ano} para ${filialNome} e importar ${resumo.total.toLocaleString('pt-BR')} renovação(ões) nova(s)? Registros anteriores ausentes ficarão pendentes para revisão, sem alterar os totais.`)) return;
   try {
     const { data: sessao } = await window._supabase.auth.getSession();
     if (!sessao?.session) throw new Error('Entre no painel administrativo para importar relatórios.');
-    const { data, error } = await window._supabase.rpc('substituir_registros_renovacao', {
+    const { data, error } = await window._supabase.rpc('importar_relatorio_renovacao_com_conferencia', {
       p_filial_id: window.FILIAL_ATUAL_ID, p_mes: mes, p_ano: ano,
       p_arquivo: _relatorioRenovacao.filename, p_linhas: resumo.registros,
+      p_contratos_relatorio: resumo.contratosRelatorio,
     });
     if (error) throw error;
     await carregarDados();
     await carregarRelatorioResumoRenovacoes();
     const importadas = Number(data || 0);
     const ignoradas = Number(resumo.duplicadas || 0) + Math.max(0, Number(resumo.total || 0) - importadas);
-    showToast(`Importação concluída: ${importadas} renovação(ões) nova(s)${ignoradas ? `; ${ignoradas} já existente(s)/duplicada(s) ignorada(s)` : ''}. Os itens sem plano ou preço reconhecido foram enviados à conferência.`, 'success');
+    showToast(`Importação concluída: ${importadas} renovação(ões) nova(s)${ignoradas ? `; ${ignoradas} já existente(s)/duplicada(s) ignorada(s)` : ''}. Ausências no arquivo foram enviadas à conferência, sem alterar os totais.`, 'success');
   } catch (err) {
     console.error('[importarRelatorioRenovacoes]', err);
     const msg = String((err && err.message) || err);
-    const erroSchema = /schema cache|could not find the function public\.substituir_registros_renovacao|function public\.substituir_registros_renovacao.*does not exist/i.test(msg);
+    const erroSchema = /schema cache|could not find the function public\.importar_relatorio_renovacao_com_conferencia|function public\.importar_relatorio_renovacao_com_conferencia.*does not exist/i.test(msg);
     showToast(erroSchema
-      ? `O Supabase ainda não reconheceu a função de importação. Como o SQL já foi executado, atualize o schema da API com NOTIFY pgrst, 'reload schema'; e recarregue a página. Detalhe: ${msg}`
+      ? `Aplique supabase/conferencia-renovacoes-ausentes.sql no SQL Editor do Supabase e recarregue a página. Detalhe: ${msg}`
       : `Não foi possível importar: ${msg}`, 'error', 12000);
   }
 }
