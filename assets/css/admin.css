@@ -992,6 +992,7 @@ body.an-modal-open { overflow:hidden; }
 .adm-field-label-block .hint { color: var(--text-muted); font-style: italic; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .adm-inline-status { color: var(--text-muted); font-size: 0.82rem; text-align: center; }
 .adm-inline-status.is-warning { color: var(--gold); text-align: left; margin-top: 4px; }
+.renov-review-actions { display:flex; flex-direction:column; align-items:stretch; gap:6px; min-width:118px; }
 .adm-inline-status.is-compact { font-size: 0.78rem; }
 .adm-inline-status.is-left { text-align: left; }
 .adm-inline-checkbox { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.82rem; cursor: pointer; user-select: none; }

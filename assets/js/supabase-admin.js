@@ -1407,9 +1407,33 @@ async function carregarPendenciasRenovacao() {
     <td>${escapar(item.plano)}${item.ausente_ultimo_relatorio ? '<div class="adm-inline-status is-warning">Não apareceu no último arquivo completo</div>' : ''}</td>
     <td><select data-renov-plano aria-label="Plano correspondente"><option value="">Selecione o plano</option>${(_cache.planos || []).map(p => `<option value="${Number(p.id)}" ${String(p.id) === String(item.plano_id || '') ? 'selected' : ''}>${escapar(p.nome)}${p.velocidade_mb ? ` · ${escapar(p.velocidade_mb)} Mbps` : ''}</option>`).join('')}</select></td>
     <td><input data-renov-valor type="number" min="0" step="0.01" value="${Number(item.valor || 0).toFixed(2)}" aria-label="Valor da renovação"></td>
-    <td><button type="button" class="adm-btn adm-btn-primary adm-btn-small" data-renov-salvar>Salvar conferência</button></td>
+    <td><div class="renov-review-actions"><button type="button" class="adm-btn adm-btn-primary adm-btn-small" data-renov-salvar>Salvar conferência</button><button type="button" class="adm-btn adm-btn-danger adm-btn-small" data-renov-excluir>Excluir</button></div></td>
   </tr>`).join('');
   corpo.querySelectorAll('[data-renov-salvar]').forEach(button => button.addEventListener('click', () => resolverConferenciaRenovacao(button)));
+  corpo.querySelectorAll('[data-renov-excluir]').forEach(button => button.addEventListener('click', () => excluirConferenciaRenovacao(button)));
+}
+
+async function excluirConferenciaRenovacao(button) {
+  const row = button?.closest('[data-renov-id]');
+  if (!row || !window._supabase) return;
+  const contrato = row.children[1]?.textContent?.trim() || 'sem contrato';
+  const cliente = row.children[2]?.textContent?.trim() || 'cliente sem nome';
+  if (!confirm(`Excluir a renovação do contrato ${contrato} (${cliente})? O registro será removido do relatório e 1 renovação será descontada do total do vendedor.`)) return;
+  button.disabled = true;
+  try {
+    const { error } = await window._supabase.rpc('excluir_renovacao_pendente_conferencia', {
+      p_registro_id: Number(row.dataset.renovId),
+    });
+    if (error) throw error;
+    showToast('Renovação excluída e total atualizado.', 'success');
+    await carregarDados();
+    await carregarRelatorioResumoRenovacoes();
+  } catch (error) {
+    console.error('[excluirConferenciaRenovacao]', error);
+    showToast(error.code === 'PGRST202'
+      ? 'Atualize a migração supabase/conferencia-renovacoes-ausentes.sql no Supabase para habilitar a exclusão.'
+      : error.message || 'Não foi possível excluir a renovação.', 'error');
+  } finally { button.disabled = false; }
 }
 
 async function resolverConferenciaRenovacao(button) {

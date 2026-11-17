@@ -149,5 +149,61 @@ $function$;
 revoke all on function public.resolver_conferencia_renovacao(bigint, bigint, text, numeric) from public, anon;
 grant execute on function public.resolver_conferencia_renovacao(bigint, bigint, text, numeric) to authenticated;
 
+-- Permite remover apenas uma renovação que ainda está na fila de revisão.
+-- A remoção e o ajuste do total agregado ficam na mesma transação.
+create or replace function public.excluir_renovacao_pendente_conferencia(p_registro_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_filial_id bigint;
+  v_vendedor_id bigint;
+  v_mes integer;
+  v_ano integer;
+  v_excluidas integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Autenticação administrativa necessária.' using errcode = '42501';
+  end if;
+
+  select filial_id, vendedor_id, mes, ano
+    into v_filial_id, v_vendedor_id, v_mes, v_ano
+  from public.renovacoes_registros
+  where id = p_registro_id and conferencia_pendente = true;
+
+  if v_filial_id is null or not private.admin_tem_acesso_filial(v_filial_id) then
+    raise exception 'Renovação pendente não encontrada ou sem acesso à filial.' using errcode = '42501';
+  end if;
+
+  perform pg_advisory_xact_lock(v_filial_id::integer, v_ano * 12 + v_mes);
+
+  select vendedor_id into v_vendedor_id
+  from public.renovacoes_registros
+  where id = p_registro_id and conferencia_pendente = true
+    and filial_id = v_filial_id and mes = v_mes and ano = v_ano
+  for update;
+  if not found then
+    raise exception 'A renovação já foi revisada ou removida.' using errcode = 'P0002';
+  end if;
+
+  delete from public.renovacoes_registros
+  where id = p_registro_id and conferencia_pendente = true;
+  get diagnostics v_excluidas = row_count;
+  if v_excluidas <> 1 then
+    raise exception 'A renovação já foi revisada ou removida.' using errcode = 'P0002';
+  end if;
+
+  update public.renovacoes_mensais
+  set quantidade = greatest(quantidade - 1, 0), importado_em = now()
+  where filial_id = v_filial_id and vendedor_id = v_vendedor_id
+    and mes = v_mes and ano = v_ano;
+end;
+$function$;
+
+revoke all on function public.excluir_renovacao_pendente_conferencia(bigint) from public, anon;
+grant execute on function public.excluir_renovacao_pendente_conferencia(bigint) to authenticated;
+
 commit;
 notify pgrst, 'reload schema';
