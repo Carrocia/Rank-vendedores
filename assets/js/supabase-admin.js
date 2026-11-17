@@ -292,8 +292,11 @@ function buscarVendedorGerenciado(id) {
 
 function podeGerenciarVendedorDaFilial(vendedor) {
   if (!window.ADMIN_AUTENTICADO || !vendedor) return false;
+  const cadastroLocal = [...(_cache.vendedores || []), ..._vendedoresGerenciamento]
+    .find(item => String(item.id) === String(vendedor.id));
+  const filialId = vendedor.filial_id ?? cadastroLocal?.filial_id;
   return ehSuperAdminAtual()
-    || (window.ADMIN_FILIAL_ID != null && Number(vendedor.filial_id) === Number(window.ADMIN_FILIAL_ID));
+    || (window.ADMIN_FILIAL_ID != null && Number(filialId) === Number(window.ADMIN_FILIAL_ID));
 }
 
 function limparEstadoEdicaoVendedor() {
@@ -641,7 +644,9 @@ async function alterarStatusVendedor(id, ativo) {
     await carregarVendedoresVisaoGlobal();
   } catch (error) {
     console.error('[alterarStatusVendedor]', error);
-    showToast(error.message || 'Não foi possível alterar o status do vendedor.', 'error');
+    showToast(error.code === '42501'
+      ? 'O banco ainda não liberou essa ação. Execute supabase/gerenciamento-vendedores-regionais.sql no Supabase.'
+      : error.message || 'Não foi possível alterar o status do vendedor.', 'error');
   }
 }
 
@@ -802,7 +807,7 @@ async function cadastrarVendedor(event) {
       }]).select('id').single();
       if (error) {
         if (error.code === '23505') throw new Error('Já existe um vendedor com esse nome ou identificador nesta regional.');
-        if (error.code === '42501') throw new Error('O banco recusou o cadastro para esta regional. Confira o vínculo do administrador.');
+        if (error.code === '42501') throw new Error('O banco ainda não liberou o cadastro regional. Execute supabase/gerenciamento-vendedores-regionais.sql no Supabase.');
         throw error;
       }
       vendedorId = vendedor.id;

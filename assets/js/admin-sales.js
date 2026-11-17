@@ -371,7 +371,9 @@ function configurarNavegacaoAdmin() {
   const vendedorOutraFilialField = document.getElementById('filial-vendedor-field');
   const vendedorOutraFilialHint = document.getElementById('filial-vendedor-escopo-hint');
   if (vendedoresGlobaisCard) vendedoresGlobaisCard.hidden = !superAdmin;
-  if (formCadastroVendedor) formCadastroVendedor.hidden = !superAdmin;
+  // Admin regional também cadastra e edita a própria equipe; só o seletor
+  // de filial e a gestão global continuam exclusivos do superadministrador.
+  if (formCadastroVendedor) formCadastroVendedor.hidden = !window.ADMIN_AUTENTICADO;
   if (vendedorOutraFilialField) vendedorOutraFilialField.hidden = !superAdmin;
   if (vendedorOutraFilialHint) vendedorOutraFilialHint.hidden = superAdmin;
   if (superAdmin && vendedoresGlobaisFiltro) {
