@@ -9,6 +9,7 @@ returns table (
   filial_nome text,
   vendedor_id bigint,
   vendedor_nome text,
+  foto_url text,
   tipo text,
   conquista text
 )
@@ -44,6 +45,7 @@ as $function$
       f.nome::text as filial_nome,
       vd.id as vendedor_id,
       vd.nome::text as vendedor_nome,
+      vd.foto_url::text as foto_url,
       vd.tipo::text as tipo,
       metas_conquista.conquista,
       case metas_conquista.conquista when 'M1' then 3 when 'M2' then 2 else 1 end as prioridade
@@ -85,6 +87,7 @@ as $function$
     filial_nome,
     vendedor_id,
     vendedor_nome,
+    foto_url,
     tipo,
     conquista
   from conquistas_priorizadas

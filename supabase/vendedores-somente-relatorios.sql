@@ -64,7 +64,7 @@ drop function if exists public.conquistas_mensais_globais();
 create function public.conquistas_mensais_globais()
 returns table (
   filial_id bigint, filial_nome text, vendedor_id bigint,
-  vendedor_nome text, tipo text, conquista text
+  vendedor_nome text, foto_url text, tipo text, conquista text
 )
 language sql stable security definer set search_path = ''
 as $function$
@@ -88,7 +88,7 @@ as $function$
     group by v.vendedor_id
   )
   select distinct on (f.id, vd.id, vd.tipo::text)
-    f.id, f.nome::text, vd.id, vd.nome::text, vd.tipo::text, metas_conquista.conquista
+    f.id, f.nome::text, vd.id, vd.nome::text, vd.foto_url::text, vd.tipo::text, metas_conquista.conquista
   from public.vendedores vd
   join public.filiais f on f.id = vd.filial_id and f.ativo is true
   cross join periodo p

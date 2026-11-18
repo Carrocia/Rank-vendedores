@@ -1000,26 +1000,14 @@ async function carregarConquistasGlobais() {
   return { lista: data || [], erro: false };
 }
 
-async function carregarDestaquesMensaisFechadosGlobais() {
-  if (!window._supabase) return { lista: [], erro: true };
-  const { data, error } = await window._supabase.rpc('destaques_mensais_fechados_globais');
-  if (error) {
-    console.warn('[carregarDestaquesMensaisFechadosGlobais] aplique supabase/conquistas-destaque-mensal.sql:', error.message);
-    return { lista: [], erro: true };
-  }
-  return { lista: data || [], erro: false };
-}
-
 function atualizarCarrosselConquistas(direcao) {
   const trilho = document.querySelector('#conquistasGrid .conquistas-track');
-  const pontos = [...document.querySelectorAll('#conquistasGrid [data-conquista-ponto]')];
-  if (!trilho || !pontos.length) return;
-  _conquistasIndice = (_conquistasIndice + direcao + pontos.length) % pontos.length;
+  const total = Number(trilho?.dataset.total || 0);
+  if (!trilho || total < 2) return;
+  _conquistasIndice = (_conquistasIndice + direcao + total) % total;
   trilho.style.transform = `translateX(-${_conquistasIndice * 100}%)`;
-  pontos.forEach((ponto, indice) => {
-    ponto.classList.toggle('ativo', indice === _conquistasIndice);
-    ponto.setAttribute('aria-current', indice === _conquistasIndice ? 'true' : 'false');
-  });
+  const contador = document.querySelector('#conquistasGrid [data-conquista-contador]');
+  if (contador) contador.textContent = `${_conquistasIndice + 1} de ${total}`;
 }
 
 function renderConquistas() {
@@ -1027,59 +1015,61 @@ function renderConquistas() {
   if (!container) return;
   if (_conquistasTimer) { clearInterval(_conquistasTimer); _conquistasTimer = null; }
   _conquistasIndice = 0;
-  const mesEl = document.getElementById('conquistasMes');
-  if (mesEl) mesEl.textContent = new Date().toLocaleDateString('pt-BR', { month: 'long' });
-
   const { lista: conquistas = [], erro = false } = _cache.conquistasGlobais || {};
-  const { lista: campeoes = [], erro: erroCampeoes = false } = _cache.destaquesMensaisFechados || {};
-  const listaMetas = conquistas.filter(c => !(
-    c.tipo === 'externo' && c.conquista === 'Meta de vendas' && Number(c.vendas) < 14
-  ));
-  const lista = [
-    ...listaMetas.map(c => ({ ...c, destaqueTipo: 'meta' })),
-    ...campeoes.map(c => ({ ...c, destaqueTipo: 'campeao' })),
-  ];
+  const prioridade = { M1: 3, M2: 2, M3: 1 };
+  const lista = [...conquistas].sort((a, b) =>
+    (prioridade[b.conquista] || 0) - (prioridade[a.conquista] || 0)
+    || String(a.filial_nome || '').localeCompare(String(b.filial_nome || ''), 'pt-BR')
+    || String(a.vendedor_nome || '').localeCompare(String(b.vendedor_nome || ''), 'pt-BR')
+  );
+  const mesAtual = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'America/Manaus' });
+  const tituloMes = mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1);
+  const lead = document.getElementById('conquistasLead');
+  if (lead) lead.textContent = `Reconhecimentos de ${tituloMes} · conquistas atuais de todas as filiais.`;
   if (!lista.length) {
-    container.innerHTML = `<div class="conquistas-vazio">${erro || erroCampeoes
+    container.innerHTML = `<div class="conquistas-vazio">${erro
       ? 'Conquistas de todas as filiais indisponíveis. Aplique a atualização do Supabase para carregar este painel.'
       : 'Nenhuma meta individual foi atingida neste mês.'}</div>`;
     return;
   }
 
   const esc = escapeHtmlText;
-  const nomeMeta = conquista => conquista.conquista === 'Meta de vendas'
-    ? (Number(conquista.vendas) > 14 ? 'M1' : 'M2')
-    : (conquista.conquista || 'do mês'); // compatibilidade enquanto a RPC antiga não for atualizada
-  const medalha = conquista => {
-    if (conquista.destaqueTipo === 'campeao') return '🏆';
-    const meta = nomeMeta(conquista);
-    return meta === 'M1' ? '🥇' : meta === 'M2' ? '🥈' : meta === 'M3' ? '🥉' : '🏆';
-  };
+  const currentSeller = vendedorId => (_cache.vendedores || []).find(v => String(v.id) === String(vendedorId));
+  const initials = nome => String(nome || '?').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase();
+  const temNavegacao = lista.length > 1;
   container.innerHTML = `
     <div class="conquistas-carousel" role="region" aria-label="Conquistas deste mês de todas as filiais">
-      <button type="button" class="conquista-nav" data-conquista-anterior aria-label="Conquista anterior">‹</button>
+      ${temNavegacao ? '<button type="button" class="conquista-nav" data-conquista-anterior aria-label="Conquista anterior">‹</button>' : ''}
       <div class="conquistas-viewport" aria-live="polite">
-        <div class="conquistas-track">${lista.map(c => `
+        <div class="conquistas-track" data-total="${lista.length}">${lista.map(c => {
+          const vendedor = currentSeller(c.vendedor_id) || {};
+          const nome = c.vendedor_nome || vendedor.nome || 'Vendedor';
+          const foto = c.foto_url || vendedor.foto_url || PESSOAS[vendedor.slug]?.foto || '';
+          const etapa = c.conquista || 'Meta atingida';
+          return `
           <article class="conquista-card">
-            <div class="conquista-card-top"><span class="conquista-medalha">${medalha(c)}</span><span class="conquista-filial">${esc(c.filial_nome || 'Filial')}</span></div>
-            <strong class="conquista-vendedor">${esc(c.vendedor_nome || 'Vendedor')}</strong>
-            <span class="conquista-texto">${c.destaqueTipo === 'campeao'
-              ? `ganhou o destaque de ${esc(new Date(Number(c.ano), Number(c.mes) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))} · 1º lugar no ranking ${c.tipo === 'externo' ? 'externo' : 'interno'}`
-              : `atingiu a meta <b>${esc(nomeMeta(c))}</b>`}</span>
-          </article>`).join('')}
+            <div class="conquista-identidade">
+              <span class="conquista-avatar">${foto ? `<img src="${esc(foto)}" alt="Foto de ${esc(nome)}" loading="lazy" onerror="this.remove()">${esc(initials(nome))}` : esc(initials(nome))}</span>
+              <span class="conquista-identidade-texto">
+                <span class="conquista-filial">${esc(c.filial_nome || 'Filial')} · ${esc(c.tipo === 'externo' ? 'Vendedor externo' : 'Vendedor interno')}</span>
+                <strong class="conquista-vendedor">${esc(nome)}</strong>
+                <span class="conquista-categoria">Conquista de ${esc(tituloMes)}</span>
+              </span>
+            </div>
+            <div class="conquista-premio">
+              <span class="conquista-premio-icon"><svg class="adm-icon" aria-hidden="true"><use href="#adm-icon-trophy"/></svg></span>
+              <span class="conquista-premio-texto"><span class="conquista-premio-label">Meta atingida</span><strong class="conquista-premio-valor">${esc(etapa)}</strong></span>
+            </div>
+          </article>`;
+        }).join('')}
         </div>
       </div>
-      <button type="button" class="conquista-nav" data-conquista-proxima aria-label="Próxima conquista">›</button>
+      ${temNavegacao ? '<button type="button" class="conquista-nav" data-conquista-proxima aria-label="Próxima conquista">›</button>' : ''}
     </div>
-    <div class="conquistas-pontos" role="tablist" aria-label="Selecionar conquista">${lista.map((_, i) => `<button type="button" data-conquista-ponto="${i}" class="${i === 0 ? 'ativo' : ''}" aria-label="Conquista ${i + 1} de ${lista.length}" aria-current="${i === 0}"></button>`).join('')}</div>`;
+    ${temNavegacao ? `<div class="conquistas-contador" data-conquista-contador aria-live="polite">1 de ${lista.length}</div>` : ''}`;
 
   container.querySelector('[data-conquista-anterior]')?.addEventListener('click', () => atualizarCarrosselConquistas(-1));
   container.querySelector('[data-conquista-proxima]')?.addEventListener('click', () => atualizarCarrosselConquistas(1));
-  container.querySelectorAll('[data-conquista-ponto]').forEach(ponto => ponto.addEventListener('click', () => {
-    const destino = Number(ponto.dataset.conquistaPonto);
-    atualizarCarrosselConquistas((destino - _conquistasIndice + lista.length) % lista.length);
-  }));
-
   if (lista.length > 1 && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
     if (!_conquistasEventosBound) {
       container.addEventListener('mouseenter', () => { _conquistasPausado = true; });
@@ -1135,7 +1125,6 @@ let _cache = {
   vendaMaisRecente: null,
   semana: null, mes: null,
   conquistasGlobais: { lista: [], erro: false },
-  destaquesMensaisFechados: { lista: [], erro: false },
 };
 // Último resultado de processarDadosParaRender(), guardado por renderAll()
 // para o card "Status do Caçador" reaproveitar (sem recalcular tudo de
@@ -1299,10 +1288,6 @@ async function carregarDados() {
         console.warn('[carregarConquistasGlobais]', err);
         return { lista: [], erro: true };
       }),
-      carregarDestaquesMensaisFechadosGlobais().catch(err => {
-        console.warn('[carregarDestaquesMensaisFechadosGlobais]', err);
-        return { lista: [], erro: true };
-      }),
       pFechados,
       pFechadosOrigem,
       pRenovacoesFechadas,
@@ -1313,7 +1298,7 @@ async function carregarDados() {
     const [[planos, categoriasPlanos, adicionais, metasFilial, metasRenovCancel,
            vendasSemana, vendasMes, vendasFiliais, vendaMaisRecente, vendasSemanaAnterior,
            vendasOrigemSemana, vendasOrigemSemanaAnterior, vendasOrigemMes, configSite,
-           conquistasGlobais, destaquesMensaisFechados, vendasFechados, vendasFechadosOrigem, renovacoesFechadas], metas] = await Promise.all([pCargaBase, pMetas]);
+           conquistasGlobais, vendasFechados, vendasFechadosOrigem, renovacoesFechadas], metas] = await Promise.all([pCargaBase, pMetas]);
 
     const [metasRenovacaoFilial, metasRenovacaoIndividual, renovacoesMes, renovacoesTotal, destaquesRenovacoes, ranksMensais] = await Promise.all([
       loadMetasRenovacaoFilial(_cache.mes.mesNum, _cache.mes.ano),
@@ -1346,7 +1331,6 @@ async function carregarDados() {
     _cache.vendasOrigemSemanaAnterior = vendasOrigemSemanaAnterior;
     _cache.vendasOrigemMes = vendasOrigemMes;
     _cache.conquistasGlobais = conquistasGlobais;
-    _cache.destaquesMensaisFechados = destaquesMensaisFechados;
     _cache.destaquesAuto = mesesFechados.map((m, i) => {
       const destaqueMes = calcularDestaqueMes(
         m, vendasFechados[i], vendedores,

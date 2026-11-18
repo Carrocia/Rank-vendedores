@@ -1161,28 +1161,35 @@
 
   /* ---------- Conquistas mensais em carrossel ---------- */
   .conquistas-grid { min-width: 0; }
+  .conquista-heading-icon { width: 18px; height: 18px; margin-right: 8px; color: var(--accent); vertical-align: -3px; }
   .conquistas-carousel { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; align-items: center; gap: 10px; }
   .conquistas-viewport { min-width: 0; overflow: hidden; border-radius: 16px; }
   .conquistas-track { display: flex; transition: transform 0.55s cubic-bezier(.22,.7,.2,1); will-change: transform; }
   .conquista-card {
-    flex: 0 0 100%; box-sizing: border-box; min-height: 126px;
-    background: linear-gradient(135deg, var(--surface), var(--surface-hover));
-    border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 14px; padding: 18px 22px;
-    display: flex; flex-direction: column; gap: 8px;
-    justify-content: center;
+    flex: 0 0 100%; box-sizing: border-box; min-height: 156px;
+    background: radial-gradient(ellipse at 82% 0%, rgba(var(--accent-rgb), .10), transparent 42%), linear-gradient(135deg, var(--surface), var(--surface-hover));
+    border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 16px; padding: 22px 26px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 18px;
   }
-  .conquista-card-top { display: flex; align-items: center; gap: 10px; }
-  .conquista-medalha { font-size: 1.15rem; }
-  .conquista-filial { color: var(--accent); font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
-  .conquista-vendedor { color: var(--heading-color); font-size: 1.08rem; }
-  .conquista-texto { font-size: 0.84rem; color: var(--text); line-height: 1.4; }
+  .conquista-identidade { min-width: 0; display: flex; align-items: center; gap: 16px; }
+  .conquista-avatar { display: grid; place-items: center; flex: 0 0 76px; width: 76px; height: 76px; overflow: hidden; border: 2px solid rgba(var(--accent-rgb), .6); border-radius: 50%; background: var(--surface-hover); color: var(--accent); font-size: 1.35rem; font-weight: 800; }
+  .conquista-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .conquista-identidade-texto { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .conquista-filial { color: var(--text-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+  .conquista-vendedor { overflow: hidden; color: var(--heading-color); font-size: 1.2rem; text-overflow: ellipsis; white-space: nowrap; }
+  .conquista-categoria { color: var(--text-muted); font-size: .78rem; }
+  .conquista-premio { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid rgba(var(--accent-rgb), .25); border-radius: 13px; background: rgba(var(--accent-rgb), .07); }
+  .conquista-premio-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; color: var(--accent); background: rgba(var(--accent-rgb), .13); }
+  .conquista-premio-icon .adm-icon { width: 20px; height: 20px; }
+  .conquista-premio-texto { display: flex; flex-direction: column; gap: 3px; }
+  .conquista-premio-label { color: var(--text-muted); font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .conquista-premio-valor { color: var(--heading-color); font-size: 1.05rem; font-weight: 900; }
   .conquista-nav { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--heading-color); font-size: 1.5rem; cursor: pointer; transition: background .2s, transform .2s; }
   .conquista-nav:hover { background: var(--surface-hover); transform: scale(1.06); }
-  .conquistas-pontos { display: flex; justify-content: center; gap: 7px; margin-top: 12px; }
-  .conquistas-pontos button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 99px; background: var(--text-muted); opacity: .4; cursor: pointer; transition: width .25s, opacity .25s, background .25s; }
-  .conquistas-pontos button.ativo { width: 22px; opacity: 1; background: var(--accent); }
+  .conquistas-contador { margin-top: 10px; color: var(--text-muted); font-size: .7rem; text-align: center; font-variant-numeric: tabular-nums; }
   .conquistas-vazio { padding: 22px; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
-  @media (prefers-reduced-motion: reduce) { .conquistas-track, .conquista-nav, .conquistas-pontos button { transition: none; } }
+  @media (max-width: 600px) { .conquista-card { grid-template-columns: 1fr; padding: 18px; gap: 14px; } .conquista-avatar { flex-basis: 60px; width: 60px; height: 60px; } .conquista-premio { justify-self: stretch; } .conquista-nav { width: 32px; height: 32px; } .conquistas-carousel { grid-template-columns: 32px minmax(0, 1fr) 32px; gap: 6px; } }
+  @media (prefers-reduced-motion: reduce) { .conquistas-track, .conquista-nav { transition: none; } }
 
   @media (max-width: 900px) {
     .podium-cols, .ranking-full { grid-template-columns: 1fr; }

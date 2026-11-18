@@ -1,14 +1,17 @@
--- Atualiza o carrossel público de conquistas:
--- 1) uma única conquista, sempre o maior marco atual, por vendedor;
--- 2) campeões mensais apenas depois do fechamento oficial do período.
+-- Atualiza a RPC de conquistas do mês vigente e inclui a foto do vendedor.
+-- A RPC histórica de destaques fechados é mantida para outros usos, mas não
+-- é consultada pelo mural público.
 begin;
 
-create or replace function public.conquistas_mensais_globais()
+drop function if exists public.conquistas_mensais_globais();
+
+create function public.conquistas_mensais_globais()
 returns table (
   filial_id bigint,
   filial_nome text,
   vendedor_id bigint,
   vendedor_nome text,
+  foto_url text,
   tipo text,
   conquista text
 )
@@ -34,7 +37,7 @@ as $function$
   ),
   candidatas as (
     select f.id as filial_id, f.nome::text as filial_nome,
-      vd.id as vendedor_id, vd.nome::text as vendedor_nome, vd.tipo::text as tipo,
+      vd.id as vendedor_id, vd.nome::text as vendedor_nome, vd.foto_url::text as foto_url, vd.tipo::text as tipo,
       mc.conquista,
       case mc.conquista when 'M1' then 3 when 'M2' then 2 else 1 end as prioridade
     from public.vendedores vd
@@ -58,7 +61,7 @@ as $function$
       partition by filial_id, vendedor_id, tipo order by prioridade desc
     ) as ordem from candidatas
   )
-  select filial_id, filial_nome, vendedor_id, vendedor_nome, tipo, conquista
+  select filial_id, filial_nome, vendedor_id, vendedor_nome, foto_url, tipo, conquista
   from priorizadas where ordem = 1
   order by filial_nome, vendedor_nome;
 $function$;
