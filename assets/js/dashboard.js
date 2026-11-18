@@ -697,6 +697,8 @@ function renderWeekProgress(d) {
   document.getElementById('metaCardTitle').textContent = 'Meta da Semana';
   const metaPace = document.getElementById('metaPace');
   if (metaPace) metaPace.hidden = true;
+  const resumoEtapas = document.getElementById('metaTierSummary');
+  if (resumoEtapas) resumoEtapas.hidden = true;
   document.getElementById('metaColTitle').textContent = 'Progresso da semana';
   document.getElementById('metaSubLabel').textContent = 'vendas realizadas / meta da semana';
   document.getElementById('metaPctLabel').textContent = 'Seu desempenho semanal';
@@ -724,25 +726,34 @@ function renderMensalProgress(d) {
   const metaMensal = progressoMeta?.meta || null;
   const faltam = progressoMeta ? progressoMeta.faltam : '—';
   const pct = progressoMeta?.percentual || 0;
+  const metaM1 = Number(d.metasFilial?.mensal_m1) || 0;
   const mesNome = mes.mesNome ? (mes.mesNome.charAt(0).toUpperCase() + mes.mesNome.slice(1)) : '—';
   const metaPace = document.getElementById('metaPace');
   const paceStatus = document.getElementById('metaPaceStatus');
   const paceCopy = document.getElementById('metaPaceCopy');
 
-  if (metaPace && paceStatus && paceCopy && progressoMeta) {
+  if (metaPace && paceStatus && paceCopy && progressoMeta && metaM1 > 0) {
     const dia = Math.max(1, Number(mes.diaAtual) || new Date().getDate());
     const diasNoMes = Math.max(dia, Number(mes.diasNoMes) || new Date().getDate());
-    const esperado = Math.ceil(metaMensal * Math.min(dia, diasNoMes) / diasNoMes);
+    const diasDecorridos = Math.min(dia, diasNoMes);
+    const esperado = Math.ceil(metaM1 * diasDecorridos / diasNoMes);
     const diferenca = vendas - esperado;
-    const tolerancia = Math.max(1, Math.ceil(esperado * 0.1));
-    const situacao = diferenca > tolerancia ? 'acima' : diferenca < -tolerancia ? 'atencao' : 'ritmo';
+    const diasRestantesIncluindoHoje = Math.max(0, diasNoMes - diasDecorridos + 1);
+    const vendasRestantesM1 = Math.max(0, metaM1 - vendas);
+    const ritmoNecessario = diasRestantesIncluindoHoje > 0
+      ? (vendasRestantesM1 / diasRestantesIncluindoHoje).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+      : null;
+    const situacao = vendas >= metaM1 ? 'acima' : diferenca >= 0 ? 'acima' : 'atencao';
     metaPace.dataset.status = situacao;
-    paceStatus.textContent = situacao === 'acima' ? 'Acima do ritmo' : situacao === 'atencao' ? 'Atenção ao ritmo' : 'No ritmo esperado';
-    paceCopy.textContent = situacao === 'acima'
-      ? `${diferenca} ${diferenca === 1 ? 'venda acima' : 'vendas acima'} do esperado até hoje (${esperado}).`
-      : situacao === 'atencao'
-        ? `${Math.abs(diferenca)} ${Math.abs(diferenca) === 1 ? 'venda abaixo' : 'vendas abaixo'} do esperado até hoje (${esperado}).`
-        : `Esperado até hoje: ${esperado} ${esperado === 1 ? 'venda' : 'vendas'} · projeção proporcional aos dias do mês.`;
+    paceStatus.textContent = vendas >= metaM1
+      ? 'Meta M1 alcançada'
+      : diferenca >= 0 ? 'No ritmo da M1' : 'Abaixo do ritmo da M1';
+    const ritmoNecessarioTexto = ritmoNecessario == null
+      ? 'O mês terminou antes de atingir a M1.'
+      : `Para chegar à M1, precisa de cerca de ${ritmoNecessario} vendas por dia até o fim do mês.`;
+    paceCopy.textContent = vendas >= metaM1
+      ? `Meta regional M1 (${metaM1}) concluída. ${vendas} vendas no mês.`
+      : `${Math.abs(diferenca)} ${Math.abs(diferenca) === 1 ? 'venda' : 'vendas'} ${diferenca >= 0 ? 'acima' : 'abaixo'} do esperado para hoje (${esperado}). ${ritmoNecessarioTexto}`;
     metaPace.hidden = false;
   } else if (metaPace) {
     metaPace.hidden = true;
@@ -756,6 +767,16 @@ function renderMensalProgress(d) {
   document.getElementById('metaPctLabel').textContent = progressoMeta
     ? `Progresso da meta ${progressoMeta.etapa}`
     : 'Meta mensal não configurada';
+  const resumoEtapas = document.getElementById('metaTierSummary');
+  if (resumoEtapas) {
+    const etapas = [
+      ['M3', d.metasFilial?.mensal_m3],
+      ['M2', d.metasFilial?.mensal_m2],
+      ['M1', d.metasFilial?.mensal_m1],
+    ].filter(([, valor]) => Number(valor) > 0);
+    resumoEtapas.textContent = etapas.map(([nome, valor]) => `${nome} ${Number(valor).toLocaleString('pt-BR')}`).join(' · ');
+    resumoEtapas.hidden = etapas.length === 0;
+  }
   document.getElementById('metaFaltamSuffix').textContent = progressoMeta
     ? (progressoMeta.concluida ? 'metas do mês concluídas' : `vendas para atingir ${progressoMeta.etapa}`)
     : 'vendas para fechar o mês';
